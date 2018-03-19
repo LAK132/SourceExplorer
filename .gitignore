@@ -3,3 +3,5 @@ out
 lib
 include
 .vscode
+src/resources
+gamedeconstructor.*
