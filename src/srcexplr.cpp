@@ -2,6 +2,9 @@
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 // (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
 // (GL3W is a helper library to access OpenGL functions since there is no standard header to access modern OpenGL functions easily. Alternatives are GLEW, Glad, etc.)
+//#include <vector>
+//using std::vector;
+//vector<uint8_t> exeDataVec(0x50000000);
 
 #include "srcexplr.h"
 
@@ -12,8 +15,80 @@ static void error_callback(int error, const char* description)
 
 SourceExplorer srcexp;
 
+static uint8_t* gameMemPtr = &((*srcexp.gameBuffer.data)[0]);
+static size_t gameMemSize = srcexp.gameBuffer.data->size();
+
+void genTree(ResourceEntry* res)
+{
+    static string errtxt = "";
+    for (auto it = res->chunks.begin(); it != res->chunks.end(); it++)
+    {
+        // if (*it == nullptr || *it == (ResourceEntry*)0xDEAD) continue;
+        // uint16_t id = 0;
+        // uint64_t dloc = 0;
+        // uint16_t md = 0;
+        // uint32_t dlen = 0;
+        // size_t predlen = 0;
+        // try
+        // {
+        //     id = (*it)->ID;
+        //     dloc = (*it)->dataLoc;
+        //     md = (*it)->mode;
+        //     dlen = (*it)->dataLen;
+        //     predlen = (*it)->preData.size();
+        // }
+        // catch (std::exception e)
+        // {
+        //     errtxt = "Error: ";
+        //     errtxt += e.what();
+        //     cout << errtxt << endl;
+        //     flush(cout);
+        //     break;
+        // }
+        
+        // char str[100];
+        // sprintf(str, "TreeNode0x%I32x%I64x", id, dloc);
+        // ImGui::PushID(str);
+        // sprintf(str, "0x%I32x", id);
+        // if(ImGui::TreeNode(str))
+        // {
+        //     sprintf(str, "ID: 0x%I32x", id);
+        //     ImGui::Text(str);
+        //     sprintf(str, "Mode: 0x%I32x", md);
+        //     ImGui::Text(str);
+        //     sprintf(str, "Pre Data Size: 0x%I64x", predlen);
+        //     ImGui::Text(str);
+        //     sprintf(str, "Data Location: 0x%I64x", dloc);
+        //     ImGui::Text(str);
+        //     sprintf(str, "Data Length: 0x%I32x", dlen);
+        //     ImGui::Text(str);
+        //     if(ImGui::Button("View Pre Data"))
+        //     {
+        //         try
+        //         {
+        //             gameMemPtr = &((*it)->preData[0]);
+        //             gameMemSize = (*it)->preData.size();
+        //         }
+        //         catch (std::exception e)
+        //         {
+        //             errtxt = "Error: ";
+        //             errtxt += e.what();
+        //             cout << errtxt << endl;
+        //             flush(cout);
+        //         }
+        //     }
+        //     genTree(*it);
+        //     ImGui::TreePop();
+        // }
+        // ImGui::PopID();
+    }
+    ImGui::Text(errtxt.c_str());
+}
+
 int main(int, char**)
 {
+    //srcexp.gameBuffer.data->reserve(0x50000000);
+    //srcexp.gameBuffer = MemoryStream(&exeDataVec);
     // Setup window
     glfwSetErrorCallback(error_callback);
     if (!glfwInit())
@@ -62,6 +137,7 @@ int main(int, char**)
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
+        try{
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
         // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
         // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
@@ -90,6 +166,29 @@ int main(int, char**)
 
             if(ImGui::TreeNode("Game"))
             {
+                if(ImGui::Button("View Game Memory"))
+                {
+                    gameMemPtr = &((*srcexp.gameBuffer.data)[0]);
+                    gameMemSize = srcexp.gameBuffer.data->size();
+                }
+                if(ImGui::Button("View Chunks Array Memory") && srcexp.game.chunks.size() > 0)
+                {
+                    gameMemPtr = (uint8_t*)&(srcexp.game.chunks[0]);
+                    gameMemSize = srcexp.game.chunks.size()*(sizeof(ResourceEntry*)/sizeof(uint8_t));
+                }
+                static string errtxt = "";
+                try
+                {
+                    genTree(&(srcexp.game));
+                }
+                catch (std::exception e)
+                {
+                    errtxt = "Error: ";
+                    errtxt += e.what();
+                    cout << errtxt << endl;
+                    flush(cout);
+                }
+                ImGui::Text(errtxt.c_str());
                 ImGui::TreePop();
             }
             if (openDiag)
@@ -108,12 +207,16 @@ int main(int, char**)
                     {
                         errtxt = "";
                         srcexp.loadGame(string(dir));
+                        static ResourceEntry* back = srcexp.game.chunks[0];
+                        srcexp.game.chunks[0] = (ResourceEntry*)0xDEAD; //completely bullshit pointer to fuck with whatever the fuck is fucking with this object
                         ImGui::CloseCurrentPopup();
                     }
                     catch (std::exception e)
                     {
                         errtxt = "Error: ";
                         errtxt += e.what();
+                        cout << errtxt << endl;
+                        flush(cout);
                     }
                 }
                 if (ImGui::Button("Cancel"))
@@ -134,7 +237,7 @@ int main(int, char**)
         }
 
         static MemoryEditor memEdit;
-        memEdit.DrawWindow("Game Memory", &((*srcexp.gameBuffer.data)[0]), srcexp.gameBuffer.data->size(), 0x0);
+        memEdit.DrawWindow("Game Memory", gameMemPtr, gameMemSize, 0x0);
 
         // 1. Show a simple window.
         // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug"
@@ -181,6 +284,12 @@ int main(int, char**)
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui::Render();
         glfwSwapBuffers(window);
+        }
+        catch (std::exception e)
+        {
+            cout << e.what() << endl;
+            flush(cout);
+        }
     }
 
     // Cleanup

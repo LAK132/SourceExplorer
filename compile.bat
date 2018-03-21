@@ -11,8 +11,8 @@ cl /Fo:bin\miniz.obj /c lib\miniz.c /nologo -EHsc -DNDEBUG /MD /Iinclude
 cl /Fo:bin\memorystream.obj /c src\memorystream.cpp /nologo -EHsc -DNDEBUG /MD /Isrc /Iinclude
 ::cl /Fo:bin\resourceentry.obj /c src\resources\resourceentry.cpp /nologo -EHsc -DNDEBUG /MD /Isrc /Iinclude
 ::cl /Fo:bin\gamedeconstr.obj /c src\gamedeconstructor.cpp /nologo -EHsc -DNDEBUG /MD /Isrc /Iinclude
-cl /Fo:bin\explorer.obj /c src\explorer.cpp /nologo -EHsc -DNDEBUG /MD /Isrc /Iinclude
-cl /Fo:bin\srcexplr.obj /c src\srcexplr.cpp /nologo -EHsc -DNDEBUG /MD /Isrc /Iinclude /IR:\dear-imgui
+cl /Fo:bin\explorer.obj /c src\explorer.cpp /nologo -EHsc -Zi /MD /Isrc /Iinclude
+cl /Fo:bin\srcexplr.obj /c src\srcexplr.cpp /nologo -EHsc -Zi /MD /Isrc /Iinclude /IR:\dear-imgui
 
-link /nologo /out:out\srcexplr.exe bin\srcexplr.obj bin\imgui_glfw.obj bin\imgui.obj bin\imgui_demo.obj bin\imgui_draw.obj bin\gl3w.obj lib\glfw3dll.lib lib\glfw3.lib bin\miniz.obj bin\memorystream.obj bin\explorer.obj
+link /DEBUG /nologo /out:out\srcexplr.exe bin\srcexplr.obj bin\imgui_glfw.obj bin\imgui.obj bin\imgui_demo.obj bin\imgui_draw.obj bin\miniz.obj bin\memorystream.obj bin\explorer.obj bin\gl3w.obj lib\glfw3dll.lib lib\glfw3.lib 
 ::bin\resourceentry.obj bin\gamedeconstr.obj

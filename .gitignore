@@ -5,3 +5,4 @@ include
 .vscode
 src/resources
 gamedeconstructor.*
+vc140.pdb
