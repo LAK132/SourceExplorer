@@ -14,75 +14,146 @@ static void error_callback(int error, const char* description)
 }
 
 SourceExplorer srcexp;
+MemoryEditor memEdit;
+vector<uint8_t> gameMem;
 
-static uint8_t* gameMemPtr = &((*srcexp.gameBuffer.data)[0]);
-static size_t gameMemSize = srcexp.gameBuffer.data->size();
-
-void genTree(ResourceEntry* res)
+void genTree(ResourceEntry* res, const char* name = "", Image* viewImage = nullptr)
 {
+	if (res == nullptr) return;
     static string errtxt = "";
-    for (auto it = res->chunks.begin(); it != res->chunks.end(); it++)
+    char str[100];
+    sprintf(str, "%s 0x%I32x##%I64x", name, res->ID, (uint64_t)&(*res));
+    if(ImGui::TreeNode(str))
     {
-        // if (*it == nullptr || *it == (ResourceEntry*)0xDEAD) continue;
-        // uint16_t id = 0;
-        // uint64_t dloc = 0;
-        // uint16_t md = 0;
-        // uint32_t dlen = 0;
-        // size_t predlen = 0;
-        // try
-        // {
-        //     id = (*it)->ID;
-        //     dloc = (*it)->dataLoc;
-        //     md = (*it)->mode;
-        //     dlen = (*it)->dataLen;
-        //     predlen = (*it)->preData.size();
-        // }
-        // catch (std::exception e)
-        // {
-        //     errtxt = "Error: ";
-        //     errtxt += e.what();
-        //     cout << errtxt << endl;
-        //     flush(cout);
-        //     break;
-        // }
-        
-        // char str[100];
-        // sprintf(str, "TreeNode0x%I32x%I64x", id, dloc);
-        // ImGui::PushID(str);
-        // sprintf(str, "0x%I32x", id);
-        // if(ImGui::TreeNode(str))
-        // {
-        //     sprintf(str, "ID: 0x%I32x", id);
-        //     ImGui::Text(str);
-        //     sprintf(str, "Mode: 0x%I32x", md);
-        //     ImGui::Text(str);
-        //     sprintf(str, "Pre Data Size: 0x%I64x", predlen);
-        //     ImGui::Text(str);
-        //     sprintf(str, "Data Location: 0x%I64x", dloc);
-        //     ImGui::Text(str);
-        //     sprintf(str, "Data Length: 0x%I32x", dlen);
-        //     ImGui::Text(str);
-        //     if(ImGui::Button("View Pre Data"))
-        //     {
-        //         try
-        //         {
-        //             gameMemPtr = &((*it)->preData[0]);
-        //             gameMemSize = (*it)->preData.size();
-        //         }
-        //         catch (std::exception e)
-        //         {
-        //             errtxt = "Error: ";
-        //             errtxt += e.what();
-        //             cout << errtxt << endl;
-        //             flush(cout);
-        //         }
-        //     }
-        //     genTree(*it);
-        //     ImGui::TreePop();
-        // }
-        // ImGui::PopID();
+        sprintf(str, "ID: 0x%I32x", res->ID);
+        ImGui::Text(str);
+        sprintf(str, "Mode: 0x%I32x", res->mode);
+        ImGui::Text(str);
+        sprintf(str, "Pre Data Size: 0x%I64x", res->preData.fileLen);
+        ImGui::Text(str);
+        sprintf(str, "Data Location: 0x%I64x", res->mainData.location);
+        ImGui::Text(str);
+        sprintf(str, "Data Length: 0x%I64x", res->mainData.dataLen);
+        ImGui::Text(str);
+        if(ImGui::Button("View Pre Data"))
+        {
+            try
+            {
+                // gameMemPtr = &(res->preData[0]);
+                // gameMemSize = res->preData.size();
+                gameMem = *res->preData.read(srcexp.gameBuffer.data).data;
+            }
+            catch (std::exception e)
+            {
+                errtxt = "Error: ";
+                errtxt += e.what();
+                cout << errtxt << endl;
+                flush(cout);
+            }
+        }
+        if(ImGui::Button("View Raw Main Data"))
+        {
+            try
+            {
+                // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
+                // gameMemSize = res->compressedDataLen;
+                // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
+                // auto end = begin + res->mainData.fileLen;
+                // gameMem = vector<uint8_t>(begin, end);
+                gameMem = *res->mainData.rawStream(srcexp.gameBuffer.data).data;
+            }
+            catch (std::exception e)
+            {
+                errtxt = "Error: ";
+                errtxt += e.what();
+                cout << errtxt << endl;
+                flush(cout);
+            }
+        }
+        if(ImGui::Button("View Decompressed Main Data"))
+        {
+            try
+            {
+                // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
+                // gameMemSize = res->compressedDataLen;
+                // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
+                // auto end = begin + res->mainData.fileLen;
+                // gameMem = readCompressed(vector<uint8_t>(begin, end), res->mainData.dataLen);
+                gameMem = *res->mainData.decompressedStream(srcexp.gameBuffer.data).data;
+            }
+            catch (std::exception e)
+            {
+                errtxt = "Error: ";
+                errtxt += e.what();
+                cout << errtxt << endl;
+                flush(cout);
+            }
+        }
+        if(viewImage != nullptr) if(ImGui::Button("View As Image"))
+        {
+            try
+            {
+                // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
+                // gameMemSize = res->compressedDataLen;
+                // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
+                // auto end = begin + res->mainData.fileLen;
+                // vector<uint8_t> img = readCompressed(vector<uint8_t>(begin, end), res->mainData.dataLen);
+                // MemoryStream ms(&img);
+                viewImage->generateImage(res->mainData.read(srcexp.gameBuffer.data));
+            }
+            catch (std::exception e)
+            {
+                errtxt = "Error: ";
+                errtxt += e.what();
+                cout << errtxt << endl;
+                flush(cout);
+            }
+        }
+        ImGui::Text(errtxt.c_str());
+        ImGui::Separator();
+        if (res->chunks.size() > 0) for (auto it = res->chunks.begin(); it != res->chunks.end(); it++)
+        {
+            string str = "";
+            switch(res->ID) {
+                case CHUNK_IMAGEBANK: str = "Image"; break;
+                case CHUNK_FONTBANK: str = "Font"; break;
+                case CHUNK_SOUNDBANK: str = "Sound"; break;
+                case CHUNK_MUSICBANK: str = "Music/MIDI"; break;
+                default: break;
+            }
+            if (str == "") switch(it->ID) {
+                case CHUNK_TITLE: str = "Title"; break;
+                case CHUNK_TITLE2: str = "Title2"; break;
+                case CHUNK_AUTHOR: str = "Author"; break;
+                case CHUNK_MENU: str = "Menu"; break;
+                case CHUNK_OBJECTBANK: str = "Object Bank"; break;
+
+                case CHUNK_FRAME: str = "Frame"; break;
+                case CHUNK_OBJINST: str = "Frame Object Instances"; break;
+                case CHUNK_FRAMENAME: str = "Frame Name"; break;
+                case CHUNK_FRAMEFADEI: str = "Frame Fade In"; break;
+                case CHUNK_FRAMEFADEO: str = "Frame Fade Out"; break;
+                case CHUNK_FRAMELAYERS: str = "Frame Layers"; break;
+                case CHUNK_FRAMEHEADER: str = "Frame Header"; break;
+                case CHUNK_FRAMEEVENTS: str = "Frame Events"; break;
+                case CHUNK_FRAMEFADEIF: str = "Frame Fade In Frame"; break;
+                case CHUNK_FRAMEFADEOF: str = "Frame Fade Out Frame"; break;
+                case CHUNK_FRAMEEFFECTS: str = "Frame Effects"; break;
+                case CHUNK_FRAMEHANDLES: str = "Frame Handles"; break;
+                case CHUNK_FRAMEPALETTE: str = "Frame Palette"; break;
+                case CHUNK_MOVETIMEBASE: str = "Frame Movement Timer Base"; break;
+                case CHUNK_FRAMEVIRTSIZE: str = "Frame Virtical Size"; break;
+                case CHUNK_FRAMELAYEREFFECT: str = "Frame Layer Effect"; break;
+
+                case CHUNK_OBJHEAD: str = "Object Header"; break;
+                case CHUNK_OBJNAME: str = "Object Name"; break;
+                case CHUNK_OBJPROP: str = "Object Properties"; break;
+                default: break;
+            }
+            genTree(&(*it), str.c_str(), viewImage);
+        }
+        ImGui::TreePop();
     }
-    ImGui::Text(errtxt.c_str());
 }
 
 int main(int, char**)
@@ -148,6 +219,7 @@ int main(int, char**)
         static bool mainOpen = true;
         static bool prevOpen = true;
         static bool openDiag = false;
+        static Image viewImage;
 
         ImGui::SetNextWindowSize(ImVec2(550,680), ImGuiCond_FirstUseEver);
         if(ImGui::Begin("Source Explorer", &mainOpen, ImGuiWindowFlags_MenuBar))
@@ -163,34 +235,234 @@ int main(int, char**)
             }
 
             ImGui::Spacing();
-
-            if(ImGui::TreeNode("Game"))
+            if(ImGui::Button("Refresh from memory"))
             {
-                if(ImGui::Button("View Game Memory"))
-                {
-                    gameMemPtr = &((*srcexp.gameBuffer.data)[0]);
-                    gameMemSize = srcexp.gameBuffer.data->size();
+                srcexp.gameBuffer.position = 0;
+                srcexp.readEntries();
+            }
+
+            ImGui::Text("Game: ");
+            for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
+                if (it->ID == CHUNK_TITLE) {
+                    ImGui::SameLine();
+                    string str = "";
+                    if (srcexp.unicode && it->mainData.dataLen > 0) 
+                        str = readUnicode(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (it->mainData.dataLen > 0) 
+                        str = readASCII(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (srcexp.unicode) 
+                        str = readUnicode(it->preData.read(srcexp.gameBuffer.data));
+                    else 
+                        str = readASCII(it->preData.read(srcexp.gameBuffer.data));
+                    ImGui::Text(str.c_str());
+                    ImGui::Spacing();
+                    break;
                 }
-                if(ImGui::Button("View Chunks Array Memory") && srcexp.game.chunks.size() > 0)
-                {
-                    gameMemPtr = (uint8_t*)&(srcexp.game.chunks[0]);
-                    gameMemSize = srcexp.game.chunks.size()*(sizeof(ResourceEntry*)/sizeof(uint8_t));
+            }
+            for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
+                if (it->ID == CHUNK_AUTHOR) {
+                    ImGui::Text("Author:"); ImGui::SameLine();
+                    string str = "";
+                    if (srcexp.unicode && it->mainData.dataLen > 0) 
+                        str = readUnicode(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (it->mainData.dataLen > 0) 
+                        str = readASCII(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (srcexp.unicode) 
+                        str = readUnicode(it->preData.read(srcexp.gameBuffer.data));
+                    else 
+                        str = readASCII(it->preData.read(srcexp.gameBuffer.data));
+                    ImGui::Text(str.c_str());
+                    ImGui::Spacing();
+                    break;
                 }
-                static string errtxt = "";
-                try
-                {
-                    genTree(&(srcexp.game));
+            }
+            for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
+                if (it->ID == CHUNK_COPYRIGHT) {
+                    ImGui::Text("Copyright:"); ImGui::SameLine();
+                    string str = "";
+                    if (srcexp.unicode && it->mainData.dataLen > 0) 
+                        str = readUnicode(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (it->mainData.dataLen > 0) 
+                        str = readASCII(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (srcexp.unicode) 
+                        str = readUnicode(it->preData.read(srcexp.gameBuffer.data));
+                    else 
+                        str = readASCII(it->preData.read(srcexp.gameBuffer.data));
+                    ImGui::Text(str.c_str());
+                    ImGui::Spacing();
+                    break;
                 }
-                catch (std::exception e)
-                {
-                    errtxt = "Error: ";
-                    errtxt += e.what();
-                    cout << errtxt << endl;
-                    flush(cout);
+            }
+            for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
+                if (it->ID == CHUNK_ABOUT) {
+                    ImGui::Text("About:"); ImGui::SameLine();
+                    string str = "";
+                    if (srcexp.unicode && it->mainData.dataLen > 0) 
+                        str = readUnicode(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (it->mainData.dataLen > 0) 
+                        str = readASCII(it->mainData.read(srcexp.gameBuffer.data));
+                    else if (srcexp.unicode) 
+                        str = readUnicode(it->preData.read(srcexp.gameBuffer.data));
+                    else 
+                        str = readASCII(it->preData.read(srcexp.gameBuffer.data));
+                    ImGui::Text(str.c_str());
+                    ImGui::Spacing();
+                    break;
                 }
-                ImGui::Text(errtxt.c_str());
+            }
+            if(ImGui::TreeNode("Frames:")) {
+                for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
+                    if (it->ID == CHUNK_FRAME) {
+                        string framename = "";
+                        for (auto it2 = it->chunks.begin(); it2 != it->chunks.end(); it2++) {
+                            if (it2->ID == CHUNK_FRAMENAME) {
+                                if (srcexp.unicode && it2->mainData.dataLen > 0) 
+                                    framename = readUnicode(it2->mainData.read(srcexp.gameBuffer.data));
+                                else if (it2->mainData.dataLen > 0) 
+                                    framename = readASCII(it2->mainData.read(srcexp.gameBuffer.data));
+                                else if (srcexp.unicode) 
+                                    framename = readUnicode(it2->preData.read(srcexp.gameBuffer.data));
+                                else 
+                                    framename = readASCII(it2->preData.read(srcexp.gameBuffer.data));
+                                break;
+                            }
+                        }
+                        char cstr[100];
+                        sprintf(cstr, "%s##%I64x", framename.c_str(), it->location);
+                        if(ImGui::TreeNode(cstr)) {
+                            string framepass = "";
+                            for (auto it2 = it->chunks.begin(); it2 != it->chunks.end(); it2++) {
+                                if (it2->ID == CHUNK_FRAMEPASSWORD) {
+                                    if (srcexp.unicode && it2->mainData.dataLen > 0) 
+                                        framepass = readUnicode(it2->mainData.read(srcexp.gameBuffer.data));
+                                    else if (it2->mainData.dataLen > 0) 
+                                        framepass = readASCII(it2->mainData.read(srcexp.gameBuffer.data));
+                                    else if (srcexp.unicode) 
+                                        framepass = readUnicode(it2->preData.read(srcexp.gameBuffer.data));
+                                    else 
+                                        framepass = readASCII(it2->preData.read(srcexp.gameBuffer.data));
+                                    break;
+                                }
+                            }
+                            ImGui::Text("Password: "); ImGui::SameLine();
+                            ImGui::Text(framepass.c_str());
+                            genTree(&*it);
+                            ImGui::TreePop();
+                        }
+                    }
+                }
                 ImGui::TreePop();
             }
+            if(ImGui::TreeNode("Objects:")) {
+                for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
+                    if (it->ID == CHUNK_OBJECTBANK) {
+                        for (auto it2 = it->chunks.begin(); it2 != it->chunks.end(); it2++) {
+                            if (it2->ID == CHUNK_OBJHEAD) {
+                                string objname = "";
+                                for (auto it3 = it2->chunks.begin(); it3 != it2->chunks.end(); it3++) {
+                                    if (it3->ID == CHUNK_OBJNAME) {
+                                        if (srcexp.unicode && it3->mainData.dataLen > 0) 
+                                            objname = readUnicode(it3->mainData.read(srcexp.gameBuffer.data));
+                                        else if (it3->mainData.dataLen > 0) 
+                                            objname = readASCII(it3->mainData.read(srcexp.gameBuffer.data));
+                                        else if (srcexp.unicode) 
+                                            objname = readUnicode(it3->preData.read(srcexp.gameBuffer.data));
+                                        else 
+                                            objname = readASCII(it3->preData.read(srcexp.gameBuffer.data));
+                                        break;
+                                    }
+                                }
+                                char cstr[100];
+                                sprintf(cstr, "%s##%I64x", objname.c_str(), it2->location);
+                                if(ImGui::TreeNode(cstr)) {
+                                    genTree(&*it2);
+                                    ImGui::TreePop();
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+                ImGui::TreePop();
+            }
+            if(ImGui::TreeNode("Images:")) {
+                for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
+                    if (it->ID == CHUNK_IMAGEBANK) {
+                        for (auto it2 = it->chunks.begin(); it2 != it->chunks.end(); it2++) {
+                            char cstr[100];
+                            sprintf(cstr, "Image 0x%x##%I64x", it2->ID, it2->location);
+                            if(ImGui::TreeNode(cstr)) 
+                            {
+                                if(ImGui::Button("View As Image"))
+                                {
+                                    try
+                                    {
+                                        viewImage.generateImage(it2->mainData.read(srcexp.gameBuffer.data));
+                                    }
+                                    catch (std::exception e)
+                                    {
+                                        string errtxt = "Error: ";
+                                        errtxt += e.what();
+                                        cout << errtxt << endl;
+                                        flush(cout);
+                                    }
+                                }
+                                ImGui::TreePop();
+                            }
+                        }
+                        break;
+                    }
+                }
+                ImGui::TreePop();
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Raw: ");
+
+            genTree(&(srcexp.game), "Game", &viewImage);
+			// if (((GameEntry*)srcexp.game.extraData) != nullptr)
+			// {
+            //     for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++)
+            //     {
+            //         if (it->ID == CHUNK_IMAGEBANK) genTree(&*it, "Image Bank", &viewImage);
+            //         else if (it->ID == CHUNK_FONTBANK) genTree(&*it, "Font Bank");
+            //         else if (it->ID == CHUNK_SOUNDBANK) genTree(&*it, "Sound Bank");
+            //         else if (it->ID == CHUNK_MUSICBANK) genTree(&*it, "Music Bank");
+            //     }
+			// 	// genTree(&(((GameEntry*)srcexp.game.extraData)->imageBank), &viewImage);
+			// 	// genTree(&(((GameEntry*)srcexp.game.extraData)->musicBank));
+			// 	// genTree(&(((GameEntry*)srcexp.game.extraData)->soundBank));
+			// 	// genTree(&(((GameEntry*)srcexp.game.extraData)->fontBank));
+			// 	// genTree(&(((GameEntry*)srcexp.game.extraData)->objectBank));
+			// }
+
+            // if(ImGui::TreeNode("Game"))
+            // {
+            //     if(ImGui::Button("View Game Memory"))
+            //     {
+            //         gameMemPtr = &((*srcexp.gameBuffer.data)[0]);
+            //         gameMemSize = srcexp.gameBuffer.data->size();
+            //     }
+            //     if(ImGui::Button("View Chunks Array Memory") && srcexp.game.chunks.size() > 0)
+            //     {
+            //         gameMemPtr = (uint8_t*)&(srcexp.game.chunks[0]);
+            //         gameMemSize = srcexp.game.chunks.size()*(sizeof(ResourceEntry*)/sizeof(uint8_t));
+            //     }
+            //     static string errtxt = "";
+            //     try
+            //     {
+            //     }
+            //     catch (std::exception e)
+            //     {
+            //         errtxt = "Error: ";
+            //         errtxt += e.what();
+            //         cout << errtxt << endl;
+            //         flush(cout);
+            //     }
+            //     ImGui::Text(errtxt.c_str());
+            //     ImGui::TreePop();
+            // }
+
             if (openDiag)
             {
                 ImGui::OpenPopup("Open");
@@ -198,17 +470,19 @@ int main(int, char**)
             }
             if (ImGui::BeginPopupModal("Open", NULL, ImGuiWindowFlags_AlwaysAutoResize))
             {
-                static char dir[100];
+                static char dir[100] = DEFAULT_GAME;
                 static string errtxt = "";
                 ImGui::InputText("Game Dir", dir, IM_ARRAYSIZE(dir));
                 if (ImGui::Button("Open File"))
                 {
                     try
                     {
+                        // gameMemPtr = nullptr;
+                        // gameMemSize = 0;
                         errtxt = "";
                         srcexp.loadGame(string(dir));
-                        static ResourceEntry* back = srcexp.game.chunks[0];
-                        srcexp.game.chunks[0] = (ResourceEntry*)0xDEAD; //completely bullshit pointer to fuck with whatever the fuck is fucking with this object
+                        //static ResourceEntry* back = srcexp.game.chunks[0];
+                        //srcexp.game.chunks[0] = (ResourceEntry*)0xDEAD; //completely bullshit pointer to fuck with whatever the fuck is fucking with this object
                         ImGui::CloseCurrentPopup();
                     }
                     catch (std::exception e)
@@ -233,11 +507,9 @@ int main(int, char**)
         ImGui::SetNextWindowSize(ImVec2(550,680), ImGuiCond_FirstUseEver);
         if(ImGui::Begin("Preview", &prevOpen))
         {
+            ImGui::Image((ImTextureID)(intptr_t)viewImage.tex, ImVec2(viewImage.width, viewImage.height));
             ImGui::End();
         }
-
-        static MemoryEditor memEdit;
-        memEdit.DrawWindow("Game Memory", gameMemPtr, gameMemSize, 0x0);
 
         // 1. Show a simple window.
         // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug"
@@ -275,6 +547,7 @@ int main(int, char**)
         //     ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver); // Normally user code doesn't need/want to call this because positions are saved in .ini file anyway. Here we just want to make the demo initial state a bit more friendly!
         //     ImGui::ShowDemoWindow(&show_demo_window);
         // }
+        memEdit.DrawWindow("Game Memory", (gameMem.size() > 0 ? &(gameMem[0]) : nullptr), gameMem.size(), 0x0);
 
         // Rendering
         int display_w, display_h;

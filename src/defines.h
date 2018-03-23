@@ -1,7 +1,11 @@
-//D:\Google Drive\Five Nights at Freddys\Discord\Clickteam Dumps\FiveNightsatFreddys1.exe
-
 #ifndef DEFINES_H
 #define DEFINES_H
+
+#define DEFAULT_GAME ""
+
+//#define DEBUG
+#define DEBUG if(0)
+
 // Executable Signature
 #define WIN_EXE_SIG 0x5A4D
 // Position of Pointer to PE Header
@@ -96,6 +100,7 @@
 #define CHUNK_SPACER 0x2246
 // Means FRAMEHANDLES might be broken
 #define CHUNK_FRAMEHANDLESERROR 0x224D
+#define CHUNK_224F 0x224F
 #define CHUNK_TITLE2 0x2251
 // Frame Chunks (0x33XX)
 #define CHUNK_FRAME 0x3333
@@ -170,10 +175,24 @@
 #define STATE_VITA 0x11
 #define STATE_NEW 0x22
 #define STATE_OLD 0x20
+#define STATE_FRAME 0x33
 #define STATE_IMAGE 0x66
+// #define STATE_IMAGE_BANK 0x76
 #define STATE_FONT 0x67
+// #define STATE_FONT_BANK 0x77
 #define STATE_SOUND 0x68
+// #define STATE_SOUND_BANK 0x78
 #define STATE_MUSIC 0x69
+// #define STATE_MUSIC_BANK 0x79
+//#define STATE_IMAGE 0x66
+//#define STATE_IMAGE_BANK CHUNK_IMAGEBANK
+//#define STATE_FONT 0x67
+//#define STATE_FONT_BANK CHUNK_FONTBANK
+//#define STATE_SOUND 0x68
+//#define STATE_SOUND_BANK CHUNK_SOUNDBANK
+//#define STATE_MUSIC 0x69
+//#define STATE_MUSIC_BANK CHUNK_MUSICBANK
+#define STATE_NOCHILD 0x77
 
 //
 // Modes
@@ -229,5 +248,16 @@
 #define OBJECT_PROP_COUNTER 7
 #define OBJECT_PROP_RTF 8
 #define OBJECT_PROP_SUBAPP 9
+
+//
+// Image Properties
+//
+#define IMAGE_RLE 0x01
+#define IMAGE_RLEW 0x02
+#define IMAGE_RLET 0x04
+#define IMAGE_LZX 0x08
+#define IMAGE_ALPHA 0x10
+#define IMAGE_ACE 0x20
+#define IMAGE_MAC 0x30
 
 #endif

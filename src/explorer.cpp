@@ -5,61 +5,62 @@ ResourceEntry::ResourceEntry()
     if (extraData != nullptr)
         free(extraData);
     chunks.clear();
-    preData.clear();
 }
 
-ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
+ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
 {
+	location = strm.position;
     if (extraData != nullptr)
         free(extraData);
     chunks.clear();
-    preData.clear();
-
-    cout << endl << 
-    "New Resource" << endl << 
-    "Pos: 0x" << std::hex << strm.position << endl <<
-    "State: 0x" << std::hex << *state << endl;
+    string str = "|";
+    for (size_t i = 0; i < state.size(); i++) 
+		str += "-";
+    DEBUG cout << "|" <<  endl << str <<
+    "New Resource" << endl << str <<
+    "Pos: 0x" << std::hex << strm.position << endl << str <<
+    "State: 0x" << std::hex << state.back() << endl;
     ID = strm.readInt<uint16_t>();
-    cout << "Resource ID: 0x" << std::hex << ID << endl;
+    DEBUG cout << str << "Resource ID: 0x" << std::hex << ID << endl;
     mode = strm.readInt<uint16_t>();
-    cout << "Resource Mode: 0x" << std::hex << mode << endl;
+    DEBUG cout << str << "Resource Mode: 0x" << std::hex << mode << endl;
+	if (state.back() == STATE_NEW && (ID < CHUNK_ENTRY || ID > CHUNK_LAST))
+		throw std::exception("Early Invalid State/ID");
     if (mode != MODE_0 && mode != MODE_1 && mode != MODE_2 && mode != MODE_3)
-        throw std::exception("Invalid Mode");
+        throw std::exception("Early Invalid Mode");
     //create instance based on type
-    dataLen = 0;
-    switch(*state) {
-        case STATE_IMAGE:
-        case STATE_FONT:
-        case STATE_SOUND:
-        case STATE_MUSIC: {
+    switch(state.back()) {
+        //case STATE_IMAGE:
+        //case STATE_FONT:
+        //case STATE_SOUND:
+        //case STATE_MUSIC: {
+        case CHUNK_IMAGEBANK:
+        case CHUNK_SOUNDBANK:
+        case CHUNK_MUSICBANK:
+        case CHUNK_FONTBANK: {
             if (ID == CHUNK_ENDIMAGE || ID == CHUNK_ENDMUSIC || 
                 ID == CHUNK_ENDSOUND || ID == CHUNK_ENDFONT) 
             {
-                *state = STATE_NEW;
                 switch(mode) {
                     case MODE_0: {
                         uint32_t predlen = findNext(strm);
-                        predlen = (predlen < 8 ? 0 : predlen - 8);
-                        cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                        preData = strm.readBytes(predlen);
+                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
                     } break;
                     case MODE_1: {
                         uint32_t predlen = findNext(strm);
-                        predlen = (predlen < 8 ? 0 : predlen - 8);
-                        cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                        preData = strm.readBytes(predlen);
-                        dataLen = strm.readInt<uint32_t>();
-                        compressedDataLen = strm.readInt<uint32_t>();
+                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                        uint32_t dlen = strm.readInt<uint32_t>();
+                        uint32_t flen = strm.readInt<uint32_t>();
+                        mainData(strm, flen, dlen);
                     } break;
                     case MODE_2:
                     case MODE_3: {
                         uint32_t predlen = findNext(strm);
-                        predlen = (predlen < 8 ? 0 : predlen - 8);
-                        cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                        preData = strm.readBytes(predlen);
-                        dataLen = strm.readInt<uint32_t>();
+                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                        mainData(strm, strm.readInt<uint32_t>());
                     } break;
                     default: {
+                        DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                         throw std::exception("Invalid Mode");
                     } break;
                 }
@@ -70,27 +71,32 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                     case MODE_0:
                     case MODE_1: {
                         uint32_t predlen = findNext(strm);
-                        predlen = (predlen < 8 ? 0 : predlen - 8);
-                        cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                        preData = strm.readBytes(predlen);
-                        dataLen = strm.readInt<uint32_t>();
-                        compressedDataLen = strm.readInt<uint32_t>();
+                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                        uint32_t dlen = strm.readInt<uint32_t>();
+                        uint32_t flen = strm.readInt<uint32_t>();
+                        mainData(strm, flen, dlen);
                     } break;
                     case MODE_2:
                     case MODE_3: {
                         preData.clear();
-                        dataLen = strm.readInt<uint32_t>();
+                        mainData(strm, strm.readInt<uint32_t>());
                     } break;
                     default: {
+                        DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                         throw std::exception("Invalid Mode");
                     } break;
                 }
+                state.push_back(STATE_NOCHILD);
             }
         } break;
+        case CHUNK_FRAME: {
+            if ((ID > CHUNK_FRAMEIPHONEOPTS || ID < CHUNK_FRAMEHEADER) && ID != CHUNK_LAST) { strm.position = location; return; }
+        } // do not break
         case STATE_DEFAULT:
         case STATE_VITA:
         case STATE_NEW:
-        case STATE_OLD: {
+        case STATE_OLD:
+        default: {
             switch(ID) {
                 case CHUNK_HEADER: {
                     //extraData = new GameEntry();
@@ -101,24 +107,22 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                     switch(mode) {
                         case MODE_0: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
                         } break;
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         case MODE_2:
                         case MODE_3: {
                             preData.clear();
-                            dataLen = strm.readInt<uint32_t>();
+                            mainData(strm, strm.readInt<uint32_t>());
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -130,9 +134,10 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                 case CHUNK_UNKNOWN8: {
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(0x8);
+                            preData(strm, 0x8);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -142,13 +147,13 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                     switch(mode) {
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -157,13 +162,13 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                     switch(mode) {
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -171,17 +176,17 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                 case CHUNK_EXTNLIST: {
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(0x8);
+                            preData(strm, 0x8);
                         } break;
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -201,17 +206,17 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                     switch(mode) {
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         case MODE_3: {
                             preData.clear();
-                            dataLen = strm.readInt<uint32_t>();
+                            mainData(strm, strm.readInt<uint32_t>());
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -219,9 +224,11 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                 case CHUNK_EXEONLY: {
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(0x15);
+                            preData(strm, 0x15);
+                            DEBUG cout << str << "Pre Data Length: 0x" << std::hex << 0x15 << endl;
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -230,23 +237,24 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                 case CHUNK_OBJNAME: {
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(strm.readInt<uint32_t>());
+                            preData(strm, strm.readInt<uint32_t>());
                         } break;
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         case MODE_2:
                         case MODE_3: {
                             preData.clear();
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -254,28 +262,29 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                 case CHUNK_PROTECTION: {
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(0x8);
+                            preData(strm, 0x8);
                         } break;
                         case MODE_2: {
                             preData.clear();
-                            dataLen = strm.readInt<uint32_t>();
+                            mainData(strm, strm.readInt<uint32_t>());
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
-                }
+                } break;
                 case CHUNK_SHADERS: {
                     switch(mode) {
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -283,53 +292,57 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                 case CHUNK_MUSICBANK:
                 case CHUNK_SOUNDBANK:
                 case CHUNK_IMAGEBANK: {
-                    if (ID == CHUNK_MUSICBANK) *state = STATE_MUSIC;
-                    else if (ID == CHUNK_SOUNDBANK) *state = STATE_SOUND;
-                    else *state = STATE_IMAGE;
+                    // if (ID == CHUNK_MUSICBANK) state.push_back(STATE_MUSIC_BANK);
+                    // else if (ID == CHUNK_SOUNDBANK) state.push_back(STATE_SOUND_BANK);
+                    // else state.push_back(STATE_IMAGE_BANK);
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(0x8);
+                            preData(strm, 0x8);
                         } break;
                         case MODE_1:
                         case MODE_2:
                         case MODE_3: {
-                            preData = strm.readBytes(0x8);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, 0x8);
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         default: {
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
-                }
-                case CHUNK_FONTBANK: {
-                    *state = STATE_FONT;
-                    switch(mode) {
-                        case MODE_0:
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
-                        } break;
-                        case MODE_2:
-                        case MODE_3: {
-                            preData.clear();
-                            dataLen = strm.readInt<uint32_t>();
-                        } break;
-                        default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
                 } break;
+                case CHUNK_FONTBANK: {
+                    // state.push_back(STATE_FONT_BANK);
+                    switch(mode) {
+                        case MODE_0:
+                        case MODE_1: {
+                            uint32_t predlen = findNext(strm);
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
+                        } break;
+                        case MODE_2:
+                        case MODE_3: {
+                            preData.clear();
+                            mainData(strm, strm.readInt<uint32_t>());
+                        } break;
+                        default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
+                            throw std::exception("Invalid Mode");
+                        } break;
+                    }
+                } break;
+                case CHUNK_TITLE2:
                 case CHUNK_OBJECTBANK: {
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(0x8);
+                            preData(strm, 0x8);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
@@ -338,15 +351,16 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                 case CHUNK_LAST: {
                     switch(mode) {
                         case MODE_0: {
-                            preData = strm.readBytes(0x4);
+                            preData(strm, 0x4);
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
                 } break;
                 case CHUNK_TITLE:
-                case CHUNK_TITLE2:
+                //case CHUNK_TITLE2:
                 case CHUNK_AUTHOR:
                 case CHUNK_PROJPATH:
                 case CHUNK_OUTPATH:
@@ -355,139 +369,159 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, uint16_t* state)
                     switch(mode) {
                         case MODE_0: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
                         } break;
                         case MODE_1: {
                             uint32_t predlen = findNext(strm);
-                            predlen = (predlen < 8 ? 0 : predlen - 8);
-                            cout << "Pre Data Length: 0x" << std::hex << predlen << endl;
-                            preData = strm.readBytes(predlen);
-                            dataLen = strm.readInt<uint32_t>();
-                            compressedDataLen = strm.readInt<uint32_t>();
+                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
+                            uint32_t dlen = strm.readInt<uint32_t>();
+                            uint32_t flen = strm.readInt<uint32_t>();
+                            mainData(strm, flen, dlen);
                         } break;
                         case MODE_2:
                         case MODE_3: {
                             preData.clear();
-                            dataLen = strm.readInt<uint32_t>();
+                            mainData(strm, strm.readInt<uint32_t>());
                         } break;
                         default: {
+                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
                             throw std::exception("Invalid Mode");
                         } break;
                     }
                 } break;
             }
         } break; 
-        default: {
-            throw std::exception("Invalid State");
-        } break;
+        // default: {
+        //     DEBUG cout << "Invalid State: 0x" << std::hex << state.back() << endl;
+        //     throw std::exception("Invalid State");
+        // } break;
     }
-    cout << "Resource Data Length: 0x" << std::hex << dataLen << endl;
-    cout << "Resource Compressed Data Length: 0x" << std::hex << compressedDataLen << endl;
-    dataLoc = (uint64_t)strm.position;
-    cout << "Resource Data Location: 0x" << std::hex << dataLoc << endl;
-    hasData = dataLen > 0;
-    compressedData = hasData && (mode & MODE_FLAG_COMPRESSED);
-    if (compressedData)
-        cout << "Has compressed data" << endl;
+    // switch(ID) {
+    //     case CHUNK_IMAGEBANK:
+    //     case CHUNK_MUSICBANK:
+    //     case CHUNK_SOUNDBANK:
+    //     case CHUNK_FONTBANK: {
+    //         state.push_back(ID);
+    //     } break;
+    //     default: {
+    //         state.push_back(state.back());
+    //     } break;
+    // }
+
+    DEBUG cout << str << "Resource Data Length: 0x" << std::hex << mainData.dataLen << endl;
+    DEBUG cout << str << "Resource File Data Length: 0x" << std::hex << mainData.fileLen << endl;
+    DEBUG cout << str << "Resource Data Location: 0x" << std::hex << mainData.location << endl;
+    DEBUG cout << str << "Pre Data Length: 0x" << std::hex << preData.fileLen << endl;
+    if (mainData.compressed)
+        DEBUG cout << str << "Has compressed data" << endl;
     else
-        cout << "No compressed data" << endl;
+        DEBUG cout << str << "No compressed data" << endl;
     // Must read in order to move the stream position correctly
-    readCompressed(strm, dataLen, compressedDataLen, &compressedData);
-    // Fetch Children
-    cout << "Fetching Child Objects" << endl;
+    //readCompressed(strm, dataLen, compressedDataLen, &compressedData);
+    //strm.position += mainData.fileLen;
+    if (state.back() == STATE_NOCHILD) { state.pop_back(); return; }
+    state.push_back(ID);
+    DEBUG cout << str << "Fetching Child Objects" << endl;
     while (strm.position < strm.data->size())
     {
-        ResourceEntry* chunk = nullptr;
+        ResourceEntry chunk;
         bool more = fetchChild(strm, state, &chunk);
-        if (!more) return;
-        cout << "Got Child: 0x" << std::hex << chunk->ID << endl;
-        //chunk.fetchChildren(strm, state); //already called in initialiser
+        if (!more) break;
+        DEBUG cout << str << "Got Child: 0x" << std::hex << chunk.ID << endl;
         setChild(strm, state, chunk);
     }
+    state.pop_back();
 }
 
-bool ResourceEntry::fetchChild(MemoryStream& strm, uint16_t* state, ResourceEntry** chunk)
+bool ResourceEntry::fetchChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry* chunk)
 {
-    switch(*state) {
-        case STATE_NEW: {
-            switch(ID) {
-                case CHUNK_HEADER: {
-                    //*chunk = new /*(std::nothrow)*/ ResourceEntry(strm, state);
-                    *chunk = (ResourceEntry*)malloc(sizeof(ResourceEntry));
-                    cout << "Addr: 0x" << std::hex << (uint64_t)*chunk << endl;
-                    flush(cout);
-                    //**chunk = ResourceEntry(strm, state);
-                    new(*chunk) ResourceEntry(strm, state);
-                    return (*chunk)->ID != CHUNK_LAST;
-                } break;
-                default: {
-                    return false;
-                } break;
-            }
-        }
-        case STATE_IMAGE: {
-            // *chunk = new /*(std::nothrow)*/ ResourceEntry(strm, state);
-            // if (*chunk == nullptr || (*chunk)->ID == CHUNK_ENDIMAGE) {
-            //     *state = STATE_NEW;
-            //     return false;
-            // }
-            *chunk = (ResourceEntry*)malloc(sizeof(ResourceEntry));
-            **chunk = ResourceEntry(strm, state);
-            return (*chunk)->ID != CHUNK_ENDIMAGE;
+    switch(state.back()) {
+        case CHUNK_HEADER:
+        case CHUNK_OBJHEAD:{
+            *chunk = ResourceEntry(strm, state);
+            return chunk->ID != CHUNK_LAST; //we still need to consume the last chunk, but wont add it in
         } break;
-        case STATE_FONT: {
-            *chunk = (ResourceEntry*)malloc(sizeof(ResourceEntry));
-            **chunk = ResourceEntry(strm, state);
-            return (*chunk)->ID != CHUNK_ENDFONT;
+        case CHUNK_FRAME: {
+            *chunk = ResourceEntry(strm, state);
+            return chunk->ID > CHUNK_FRAME && chunk->ID <= CHUNK_FRAMEIPHONEOPTS;
         } break;
-        case STATE_SOUND: {
-            *chunk = (ResourceEntry*)malloc(sizeof(ResourceEntry));
-            **chunk = ResourceEntry(strm, state);
-            return (*chunk)->ID != CHUNK_ENDSOUND;
+        case CHUNK_OBJECTBANK: {
+            size_t pos = strm.position;
+            *chunk = ResourceEntry(strm, state);
+            if (chunk->ID != CHUNK_OBJHEAD){ strm.position = pos; return false; }
+            return true;
         } break;
-        case STATE_MUSIC: {
-            *chunk = (ResourceEntry*)malloc(sizeof(ResourceEntry));
-            **chunk = ResourceEntry(strm, state);
-            return (*chunk)->ID != CHUNK_ENDMUSIC;
+        case CHUNK_IMAGEBANK: {
+            //state.push_back(STATE_IMAGE);
+            *chunk = ResourceEntry(strm, state);
+            //state.pop_back();
+            return chunk->ID != CHUNK_ENDIMAGE;
         } break;
+        case CHUNK_FONTBANK: {
+            //state.push_back(STATE_FONT);
+            *chunk = ResourceEntry(strm, state);
+            //state.pop_back();
+            return chunk->ID != CHUNK_ENDFONT;
+        } break;
+        case CHUNK_SOUNDBANK: {
+            //state.push_back(STATE_SOUND);
+            *chunk = ResourceEntry(strm, state);
+            //state.pop_back();
+            return chunk->ID != CHUNK_ENDSOUND;
+        } break;
+        case CHUNK_MUSICBANK: {
+            //state.push_back(STATE_MUSIC);
+            *chunk = ResourceEntry(strm, state);
+            //state.pop_back();
+            return chunk->ID != CHUNK_ENDMUSIC;
+        } break;
+        case STATE_NEW:
         case STATE_OLD:
         case STATE_VITA:
         case STATE_DEFAULT:
+        case STATE_IMAGE:
+        case STATE_SOUND:
+        case STATE_MUSIC:
+        case STATE_FONT:
         default: {
-            switch(ID) {
-                default: {
-                    return false;
-                } break;
-            }
+            return false;
+            // switch(ID) {
+            //     default: {
+            //         return false;
+            //     } break;
+            // }
         } break;
     }
     return false; //return true if there is more to read
 }
 
-void ResourceEntry::setChild(MemoryStream& strm, uint16_t* state, ResourceEntry* chunk)
+void ResourceEntry::setChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry& chunk)
 {
-    if (chunk == nullptr)
+    bool old = true;
+    for (auto it = state.begin(); it != state.end(); it++)
     {
-        return; // just checking
+        if (*it == STATE_NEW) { old = false; break; }
+        else if (*it == STATE_OLD) { old = false; break; }
     }
-    switch(*state) {
+    switch(state.back()) {
+        //case CHUNK_OLD_HEADER:
+        case CHUNK_HEADER: {
+            if (old) goto oldobj;
+            else goto newobj;
+        } break;
         case STATE_OLD: {
-            switch(chunk->ID) {
-                case CHUNK_OLD_HEADER: {
-                    if (((GameEntry*)extraData)->header != nullptr) 
-                        free(((GameEntry*)extraData)->header);
-                    ((GameEntry*)extraData)->header = chunk;
-                } break;
-                case CHUNK_OLD_FRAMEITEMS: {
-                    if (((GameEntry*)extraData)->objectBank != nullptr) 
-                        free(((GameEntry*)extraData)->objectBank);
-                    ((GameEntry*)extraData)->objectBank = chunk;
-                } break;
-                case CHUNK_OLD_FRAME: {
-                    ((GameEntry*)extraData)->frameBank.push_back(chunk);
-                } break;
+            oldobj:
+            switch(chunk.ID) {
+                // case CHUNK_OLD_HEADER: {
+                //     ((GameEntry*)extraData)->header = chunk;
+                // } break;
+                // case CHUNK_OLD_FRAMEITEMS: {
+                //     ((GameEntry*)extraData)->objectBank = chunk;
+                // } break;
+                // case CHUNK_OLD_FRAME: {
+                //     //((GameEntry*)extraData)->frameBank.push_back(chunk);
+                //     chunks.push_back(chunk);
+                // } break;
                 default: {
                    goto newobj; //I'm so sorry...
                 } break;
@@ -495,133 +529,92 @@ void ResourceEntry::setChild(MemoryStream& strm, uint16_t* state, ResourceEntry*
         } break;
         case STATE_NEW: {
             newobj:
-            switch(chunk->ID) {
-                case CHUNK_HEADER: {
-                    if (((GameEntry*)extraData)->header != nullptr) 
-                        free(((GameEntry*)extraData)->header);
-                    ((GameEntry*)extraData)->header = chunk;
-                } break;
-                case CHUNK_EXTDHEADER: {
-                    if (((GameEntry*)extraData)->extendedHeader != nullptr) 
-                        free(((GameEntry*)extraData)->extendedHeader);
-                    ((GameEntry*)extraData)->extendedHeader = chunk;
-                } break;
-                case CHUNK_TITLE: {
-                    if (((GameEntry*)extraData)->title != nullptr) 
-                        free(((GameEntry*)extraData)->title);
-                    ((GameEntry*)extraData)->title = chunk;
-                } break;
-                case CHUNK_COPYRIGHT: {
-                    if (((GameEntry*)extraData)->copyright != nullptr) 
-                        free(((GameEntry*)extraData)->copyright);
-                    ((GameEntry*)extraData)->copyright = chunk;
-                } break;
-                case CHUNK_ABOUT: {
-                    if (((GameEntry*)extraData)->aboutText != nullptr) 
-                        free(((GameEntry*)extraData)->aboutText);
-                    ((GameEntry*)extraData)->aboutText = chunk;
-                } break;
-                case CHUNK_AUTHOR: {
-                    if (((GameEntry*)extraData)->author != nullptr) 
-                        free(((GameEntry*)extraData)->author);
-                    ((GameEntry*)extraData)->author = chunk;
-                } break;
-                case CHUNK_PROJPATH: {
-                    if (((GameEntry*)extraData)->projectPath != nullptr) 
-                        free(((GameEntry*)extraData)->projectPath);
-                    ((GameEntry*)extraData)->projectPath = chunk;
-                } break;
-                case CHUNK_OUTPATH: {
-                    if (((GameEntry*)extraData)->outputPath != nullptr) 
-                        free(((GameEntry*)extraData)->outputPath);
-                    ((GameEntry*)extraData)->outputPath = chunk;
-                } break;
-                case CHUNK_EXEONLY: {
-                    if (((GameEntry*)extraData)->exeOnly != nullptr) 
-                        free(((GameEntry*)extraData)->exeOnly);
-                    ((GameEntry*)extraData)->exeOnly = chunk;
-                } break;
-                case CHUNK_MENU: {
-                    if (((GameEntry*)extraData)->menu != nullptr) 
-                        free(((GameEntry*)extraData)->menu);
-                    ((GameEntry*)extraData)->menu = chunk;
-                } break;
-                case CHUNK_ICON: {
-                    if (((GameEntry*)extraData)->icon != nullptr) 
-                        free(((GameEntry*)extraData)->icon);
-                    ((GameEntry*)extraData)->icon = chunk;
-                } break;
-                case CHUNK_SHADERS: {
-                    if (((GameEntry*)extraData)->shaders != nullptr) 
-                        free(((GameEntry*)extraData)->shaders);
-                    ((GameEntry*)extraData)->shaders = chunk;
-                } break;
-                case CHUNK_GLOBALSTRS: {
-                    if (((GameEntry*)extraData)->globalStrings != nullptr) 
-                        free(((GameEntry*)extraData)->globalStrings);
-                    ((GameEntry*)extraData)->globalStrings = chunk;
-                } break;
-                case CHUNK_GLOBALVALS: {
-                    if (((GameEntry*)extraData)->globalValues != nullptr) 
-                        free(((GameEntry*)extraData)->globalValues);
-                    ((GameEntry*)extraData)->globalValues = chunk;
-                } break;
-                case CHUNK_EXTNLIST: {
-                    if (((GameEntry*)extraData)->extensions != nullptr) 
-                        free(((GameEntry*)extraData)->extensions);
-                    ((GameEntry*)extraData)->extensions = chunk;
-                } break;
-                case CHUNK_FRAMEHANDLES: {
-                    if (((GameEntry*)extraData)->frameHandles != nullptr) 
-                        free(((GameEntry*)extraData)->frameHandles);
-                    ((GameEntry*)extraData)->frameHandles = chunk;
-                } break;
-                case CHUNK_FRAME: {
-                    ((GameEntry*)extraData)->frameBank.push_back(chunk);
-                } break;
-                case CHUNK_OBJECTBANK: {
-                    if (((GameEntry*)extraData)->objectBank != nullptr) 
-                        free(((GameEntry*)extraData)->objectBank);
-                    ((GameEntry*)extraData)->objectBank = chunk;
-                } break;
-                case CHUNK_SOUNDBANK: {
-                    if (((GameEntry*)extraData)->soundBank != nullptr) 
-                        free(((GameEntry*)extraData)->soundBank);
-                    ((GameEntry*)extraData)->soundBank = chunk;
-                } break;
-                case CHUNK_MUSICBANK: {
-                    if (((GameEntry*)extraData)->musicBank != nullptr) 
-                        free(((GameEntry*)extraData)->musicBank);
-                    ((GameEntry*)extraData)->musicBank = chunk;
-                } break;
-                case CHUNK_FONTBANK: {
-                    if (((GameEntry*)extraData)->fontBank != nullptr) 
-                        free(((GameEntry*)extraData)->fontBank);
-                    ((GameEntry*)extraData)->fontBank = chunk;
-                } break;
-                case CHUNK_IMAGEBANK: {
-                    if (((GameEntry*)extraData)->imageBank != nullptr) 
-                        free(((GameEntry*)extraData)->imageBank);
-                    ((GameEntry*)extraData)->imageBank = chunk;
-                } break;
-                case CHUNK_SECNUM: {
-                    if (((GameEntry*)extraData)->serial != nullptr) 
-                        free(((GameEntry*)extraData)->serial);
-                    ((GameEntry*)extraData)->serial = chunk;
-                } break;
-                case CHUNK_BINFILES: {
-                    if (((GameEntry*)extraData)->fileBank != nullptr) 
-                        free(((GameEntry*)extraData)->fileBank);
-                    ((GameEntry*)extraData)->fileBank = chunk;
-                } break;
+            switch(chunk.ID) {
+                // case CHUNK_HEADER: {
+                //     ((GameEntry*)extraData)->header = chunk;
+                // } break;
+                // case CHUNK_EXTDHEADER: {
+                //     ((GameEntry*)extraData)->extendedHeader = chunk;
+                // } break;
+                // case CHUNK_TITLE: {
+                //     ((GameEntry*)extraData)->title = chunk;
+                // } break;
+                // case CHUNK_COPYRIGHT: {
+                //     ((GameEntry*)extraData)->copyright = chunk;
+                // } break;
+                // case CHUNK_ABOUT: {
+                //     ((GameEntry*)extraData)->aboutText = chunk;
+                // } break;
+                // case CHUNK_AUTHOR: {
+                //     ((GameEntry*)extraData)->author = chunk;
+                // } break;
+                // case CHUNK_PROJPATH: {
+                //     ((GameEntry*)extraData)->projectPath = chunk;
+                // } break;
+                // case CHUNK_OUTPATH: {
+                //     ((GameEntry*)extraData)->outputPath = chunk;
+                // } break;
+                // case CHUNK_EXEONLY: {
+                //     ((GameEntry*)extraData)->exeOnly = chunk;
+                // } break;
+                // case CHUNK_MENU: {
+                //     ((GameEntry*)extraData)->menu = chunk;
+                // } break;
+                // case CHUNK_ICON: {
+                //     ((GameEntry*)extraData)->icon = chunk;
+                // } break;
+                // case CHUNK_SHADERS: {
+                //     ((GameEntry*)extraData)->shaders = chunk;
+                // } break;
+                // case CHUNK_GLOBALSTRS: {
+                //     ((GameEntry*)extraData)->globalStrings = chunk;
+                // } break;
+                // case CHUNK_GLOBALVALS: {
+                //     ((GameEntry*)extraData)->globalValues = chunk;
+                // } break;
+                // case CHUNK_EXTNLIST: {
+                //     ((GameEntry*)extraData)->extensions = chunk;
+                // } break;
+                // case CHUNK_FRAMEHANDLES: {
+                //     ((GameEntry*)extraData)->frameHandles = chunk;
+                // } break;
+                // case CHUNK_FRAME: {
+                //     //((GameEntry*)extraData)->frameBank.push_back(chunk);
+                //     chunks.push_back(chunk);
+                // } break;
+                // case CHUNK_OBJECTBANK: {
+                //     ((GameEntry*)extraData)->objectBank = chunk;
+                // } break;
+                // case CHUNK_SOUNDBANK: {
+                //     ((GameEntry*)extraData)->soundBank = chunk;
+                // } break;
+                // case CHUNK_MUSICBANK: {
+                //     ((GameEntry*)extraData)->musicBank = chunk;
+                // } break;
+                // case CHUNK_FONTBANK: {
+                //     ((GameEntry*)extraData)->fontBank = chunk;
+                // } break;
+                // case CHUNK_IMAGEBANK: {
+                //     ((GameEntry*)extraData)->imageBank = chunk;
+                // } break;
+                // case CHUNK_SECNUM: {
+                //     ((GameEntry*)extraData)->serial = chunk;
+                // } break;
+                // case CHUNK_BINFILES: {
+                //     ((GameEntry*)extraData)->fileBank = chunk;
+                // } break;
                 default: {
                     chunks.push_back(chunk);
                 } break;
             }
         } break;
         case STATE_DEFAULT:
+        case CHUNK_IMAGEBANK:
+        case CHUNK_SOUNDBANK:
+        case CHUNK_MUSICBANK:
+        case CHUNK_FONTBANK:
         default: {
-            switch(ID) {
+            switch(chunk.ID) {
                 default: {
                     chunks.push_back(chunk);
                 } break;
@@ -634,37 +627,141 @@ ResourceEntry::~ResourceEntry()
 {
     if (extraData != nullptr)
         free(extraData);
-    for (auto it = chunks.begin(); it != chunks.end(); it++)
-    {
-        (*it)->~ResourceEntry();
-        free(*it);
-    }
-    chunks.clear();
-    preData.clear();
 }
 
-vector<uint8_t> ResourceEntry::readCompressed(MemoryStream& strm, uint32_t datalen, uint32_t complen, bool* decompress)
+vector<uint8_t> readCompressed(MemoryStream& strm, uint32_t datalen, uint32_t complen, bool* decompress)
 {
     if (complen > 0 && datalen > 0)
     {
         vector<uint8_t> compressed(strm.readBytes(complen));
-        if (decompress != nullptr) if (!*decompress) return compressed;
+        return readCompressed(compressed, datalen, decompress);
+    }
+    if (decompress != nullptr) *decompress = false;
+    return vector<uint8_t>({0});
+}
+
+vector<uint8_t> readCompressed(vector<uint8_t>& compressed, uint32_t datalen, bool* decompress)
+{
+    if (compressed.size() > 0 && datalen > 0)
+    {
+        if (decompress != nullptr && !*decompress) return compressed;
         
         vector<uint8_t> rtn(datalen);
-        int cmpStatus = uncompress(&(rtn[0]), (mz_ulong*)&datalen, &(compressed[0]), complen);
+        int cmpStatus = uncompress(&(rtn[0]), (mz_ulong*)&datalen, &(compressed[0]), compressed.size());
         if (cmpStatus == Z_OK)
         {
-            *decompress = true;
+            if (decompress != nullptr) *decompress = true;
             return rtn;
         }
         else 
         {
-            *decompress = false;
+            if (decompress != nullptr) *decompress = false;
             return compressed;
         }
     }
-    *decompress = false;
+    if (decompress != nullptr) *decompress = false;
     return vector<uint8_t>({0});
+}
+
+string readASCII(MemoryStream& strm)
+{
+    return string((char*)&((*strm.data)[0]), strm.data->size());
+}
+
+string readUnicode(MemoryStream& strm)
+{
+    string str(strm.data->size()/2, 0);
+    for (auto it = str.begin(); it != str.end(); it++)
+    {
+        *it = (char)strm.readInt<uint16_t>();
+    }
+    return str;
+}
+
+DataPoint::DataPoint(){}
+
+DataPoint::DataPoint(size_t loc, size_t flen)
+{
+    (*this)(loc, flen);
+}
+
+DataPoint::DataPoint(size_t loc, size_t flen, size_t alen)
+{
+    (*this)(loc, flen, alen);
+}
+
+DataPoint::DataPoint(MemoryStream& strm, size_t flen)
+{
+    (*this)(strm, flen);
+}
+
+DataPoint::DataPoint(MemoryStream& strm, size_t flen, size_t alen)
+{
+    (*this)(strm, flen, alen);
+}
+
+void DataPoint::operator()(size_t loc, size_t flen)
+{
+    location = loc;
+    fileLen = flen;
+    dataLen = 0;
+    compressed = false;
+}
+
+void DataPoint::operator()(size_t loc, size_t flen, size_t alen)
+{
+    location = loc;
+    fileLen = flen;
+    dataLen = alen;
+    compressed = true;
+}
+
+void DataPoint::operator()(MemoryStream& strm, size_t flen)
+{
+    location = strm.position;
+    strm.position += flen;
+    fileLen = flen;
+    dataLen = 0;
+    compressed = false;
+}
+
+void DataPoint::operator()(MemoryStream& strm, size_t flen, size_t alen)
+{
+    location = strm.position;
+    strm.position += flen;
+    fileLen = flen;
+    dataLen = alen;
+    compressed = true;
+}
+
+void DataPoint::clear()
+{
+    location = 0;
+    fileLen = 0;
+    dataLen = 0;
+    compressed = false;
+}
+
+MemoryStream DataPoint::rawStream(vector<uint8_t>* memory)
+{
+    auto begin = memory->begin() + location;
+    auto end = begin + fileLen;
+    return MemoryStream(vector<uint8_t>(begin, end));
+}
+
+MemoryStream DataPoint::decompressedStream(vector<uint8_t>* memory)
+{
+    auto begin = memory->begin() + location;
+    auto end = begin + fileLen;
+    return MemoryStream(readCompressed(vector<uint8_t>(begin, end), dataLen));
+}
+
+MemoryStream DataPoint::read(vector<uint8_t>* memory)
+{
+    if (compressed)
+        return decompressedStream(memory);
+    else
+        return rawStream(memory);
 }
 
 uint32_t ResourceEntry::findNext(MemoryStream& strm)
@@ -688,7 +785,7 @@ int32_t ResourceEntry::findUntilNext(MemoryStream& strm, uint32_t pos, const vec
         bool flag = true;
         for (int index2 = 0; index2 < toFind.size(); index2++)
         {
-            if ((*strm.data)[pos + index1 + index2] != toFind[index2]) flag = false;
+			if ((*strm.data)[pos + index1 + index2] != toFind[index2]) { flag = false; break; }
         }
         if (flag) return index1;
     }
@@ -697,15 +794,17 @@ int32_t ResourceEntry::findUntilNext(MemoryStream& strm, uint32_t pos, const vec
 
 void SourceExplorer::loadGame(string path)
 {
+    gameState.clear();
+    gameState.push_back(STATE_DEFAULT);
     gamePath = path;
-    cout << "Game Path: " << gamePath << endl;
+    DEBUG cout << "Game Path: " << gamePath << endl;
 
     gameDir = path.substr(0, path.find_last_of('\\') + 1);
-    cout << "Game Dir: " << gameDir << endl;
+    DEBUG cout << "Game Dir: " << gameDir << endl;
 
     ifstream in(gamePath, ios::binary | ios::ate);
     size_t fileSize = in.tellg();
-    cout << "File Size: 0x" << std::hex << fileSize << endl;
+    DEBUG cout << "File Size: 0x" << std::hex << fileSize << endl;
 
     try 
     {
@@ -716,7 +815,7 @@ void SourceExplorer::loadGame(string path)
         throw std::exception("You probably don't have enough RAM");
     }
     //if (fileSize != gameBuffer.data->size()) 
-    cout << "resize: 0x" << std::hex << gameBuffer.data->size() << endl;
+    DEBUG cout << "resize: 0x" << std::hex << gameBuffer.data->size() << endl;
     in.seekg(0);
     //in.get((char*)&((*gameBuffer.data)[0]), fileSize);
     for (size_t i = 0; i < gameBuffer.data->size(); i++)
@@ -729,9 +828,9 @@ void SourceExplorer::loadGame(string path)
 void SourceExplorer::readEntries()
 {
     entry = true;
-    readGameData(&gameState);
+    readGameData(gameState);
     //fetchEntry -> entry
-    game = ResourceEntry(gameBuffer, &gameState);
+    game = ResourceEntry(gameBuffer, gameState);
     //entry -> fetchChildren
     //entry -> readData
     //ResourceEntry.push_back(entry)
@@ -742,29 +841,29 @@ void SourceExplorer::readEntries()
     //game.fetchChildren();
 }
 
-void SourceExplorer::readGameData(uint16_t* state)
+void SourceExplorer::readGameData(vector<uint16_t>& state)
 {
-    cout << "Reading game data" << endl;
+    DEBUG cout << "Reading game data" << endl;
     MemoryStream& strm = gameBuffer;
     strm.position = 0;
     uint16_t exeSig = strm.readInt<uint16_t>();
-    cout << "Executable Signature 0x" << std::hex << exeSig << endl;
+    DEBUG cout << "Executable Signature 0x" << std::hex << exeSig << endl;
     if (exeSig != WIN_EXE_SIG) throw std::exception("Invalid Executable Signature");
 
     strm.position = WIN_EXE_PNT;
     strm.position = strm.readInt<uint16_t>();
-    cout << "EXE Pointer: 0x" << std::hex << strm.position << endl;
+    DEBUG cout << "EXE Pointer: 0x" << std::hex << strm.position << endl;
 
     int32_t peSig = strm.readInt<int32_t>();
-    cout << "PE Signature: 0x" << std::hex << peSig << endl;
-    cout << "Pos: 0x" << std::hex << strm.position << endl;
+    DEBUG cout << "PE Signature: 0x" << std::hex << peSig << endl;
+    DEBUG cout << "Pos: 0x" << std::hex << strm.position << endl;
 
     if (peSig != WIN_PE_SIG) throw std::exception("Invalid PE Signature");
 
     strm.position += 2;
 
     numHeaderSections = strm.readInt<uint16_t>();
-    cout << "Number Of Sections: 0x" << std::hex << numHeaderSections << endl;
+    DEBUG cout << "Number Of Sections: 0x" << std::hex << numHeaderSections << endl;
 
     strm.position += 16;
 
@@ -772,7 +871,7 @@ void SourceExplorer::readGameData(uint16_t* state)
     int dataDir = 0x80;
     strm.position += optionalHeader + dataDir;
 
-    cout << "Pos: 0x" << std::hex << strm.position << endl;
+    DEBUG cout << "Pos: 0x" << std::hex << strm.position << endl;
 
     uint64_t pos = 0;
     for (uint16_t i = 0; i < numHeaderSections; i++)
@@ -781,7 +880,7 @@ void SourceExplorer::readGameData(uint16_t* state)
         string name = strm.readString();
         if (name == ".extra")
         {
-            cout << name << endl;
+            DEBUG cout << name << endl;
             strm.position = strt + 0x14;
             pos = strm.readInt<int32_t>();
             break;
@@ -791,16 +890,16 @@ void SourceExplorer::readGameData(uint16_t* state)
             strm.position = strt + 0x10;
             uint32_t size = strm.readInt<uint32_t>();
             uint32_t addr = strm.readInt<uint32_t>();
-            cout << "size: 0x" << std::hex << size << endl;
-            cout << "addr: 0x" << std::hex << addr << endl;
+            DEBUG cout << "size: 0x" << std::hex << size << endl;
+            DEBUG cout << "addr: 0x" << std::hex << addr << endl;
             pos = size + addr;
             break;
         }
         strm.position = strt + 0x28;
-        cout << "Pos: 0x" << std::hex << strm.position << endl;
+        DEBUG cout << "Pos: 0x" << std::hex << strm.position << endl;
     }
 
-    cout << "First Pos: 0x" << std::hex << pos << endl;
+    DEBUG cout << "First Pos: 0x" << std::hex << pos << endl;
     strm.position = pos;
     uint16_t firstShort = strm.readInt<uint16_t>();
     strm.position = pos;
@@ -809,23 +908,23 @@ void SourceExplorer::readGameData(uint16_t* state)
     uint64_t packMagic = strm.readInt<uint64_t>();
     strm.position = pos;
 
-    cout << "First Short 0x" << std::hex << firstShort << endl;
-    cout << "PAME Magic 0x" << std::hex << pameMagic << endl;
-    cout << "Pack Magic 0x" << std::hex << packMagic << endl;
+    DEBUG cout << "First Short 0x" << std::hex << firstShort << endl;
+    DEBUG cout << "PAME Magic 0x" << std::hex << pameMagic << endl;
+    DEBUG cout << "Pack Magic 0x" << std::hex << packMagic << endl;
     if (firstShort == CHUNK_HEADER || pameMagic == HEADER_GAME)
     {
         oldGame = true;
-        *state = STATE_OLD;
+        state.push_back(STATE_OLD);
     }
     else if (packMagic == HEADER_PACK)
     {
-        *state = STATE_NEW;
+        state.push_back(STATE_NEW);
         pos = packData(strm, state);
     }
     else throw std::exception("Invalid Pack Header");
 
     uint32_t header = strm.readInt<uint32_t>();
-    cout << "Header: 0x" << std::hex << header << endl;
+    DEBUG cout << "Header: 0x" << std::hex << header << endl;
 
     if (header == HEADER_UNIC) unicode = true;
     else if (header != HEADER_GAME) throw std::exception("Invalid Game Header");
@@ -834,20 +933,20 @@ void SourceExplorer::readGameData(uint16_t* state)
     //strm.position = pos;
 }
 
-uint64_t SourceExplorer::packData(MemoryStream& strm, uint16_t* state)
+uint64_t SourceExplorer::packData(MemoryStream& strm, vector<uint16_t>& state)
 {
     uint64_t strt = strm.position;
     uint64_t header = strm.readInt<uint64_t>();
-    cout << "Header: 0x" << std::hex << header << endl;
+    DEBUG cout << "Header: 0x" << std::hex << header << endl;
     uint32_t headerSize = strm.readInt<uint32_t>();
-    cout << "Header Size: 0x" << std::hex << headerSize << endl;
+    DEBUG cout << "Header Size: 0x" << std::hex << headerSize << endl;
     uint32_t dataSize = strm.readInt<uint32_t>();
-    cout << "Data Size: 0x" << std::hex << dataSize << endl;
+    DEBUG cout << "Data Size: 0x" << std::hex << dataSize << endl;
 
     strm.position = strt + dataSize - 0x20;
 
     header = strm.readInt<uint32_t>();
-    cout << "Head: 0x" << std::hex << header << endl;
+    DEBUG cout << "Head: 0x" << std::hex << header << endl;
 
     if (header == HEADER_UNIC)
     {
@@ -861,15 +960,15 @@ uint64_t SourceExplorer::packData(MemoryStream& strm, uint16_t* state)
     strm.position = strt + 0x10;
 
     uint32_t formatVersion = strm.readInt<uint32_t>();
-    cout << "Format Version: 0x" << std::hex << formatVersion << endl;
+    DEBUG cout << "Format Version: 0x" << std::hex << formatVersion << endl;
 
     strm.position += 0x8;
 
     int32_t count = strm.readInt<int32_t>();
-    cout << "Count: 0x" << std::hex << count << endl;
+    DEBUG cout << "Count: 0x" << std::hex << count << endl;
 
     uint64_t off = strm.position;
-    cout << "Offset: 0x" << std::hex << off << endl;
+    DEBUG cout << "Offset: 0x" << std::hex << off << endl;
     for (uint32_t i = 0; i < count; i++)
     {
         if ((strm.data->size() - strm.position) < 2) break;
@@ -887,7 +986,7 @@ uint64_t SourceExplorer::packData(MemoryStream& strm, uint16_t* state)
     }
 
     header = strm.readInt<uint32_t>();
-    cout << "Header: 0x" << std::hex << header << endl;
+    DEBUG cout << "Header: 0x" << std::hex << header << endl;
 
     bool hasBingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
     if (hasBingo) cout << "Has Bingo" << endl;
@@ -907,21 +1006,21 @@ uint64_t SourceExplorer::packData(MemoryStream& strm, uint16_t* state)
 
         if (hasBingo) packFiles[i].bingo = strm.readInt<uint32_t>();
         else packFiles[i].bingo = 0;
-        cout << "Pack File Bingo: " << packFiles[i].bingo << endl;
+        DEBUG cout << "Pack File Bingo: " << packFiles[i].bingo << endl;
 
         if (unicode) read = strm.readInt<uint32_t>();
         else read = strm.readInt<uint16_t>();
-        cout << "Pack File Data Size: " << read << endl;
+        DEBUG cout << "Pack File Data Size: " << read << endl;
 
         packFiles[i].data = strm.readBytes(read);
     }
 
     header = strm.readInt<uint32_t>(); //PAMU sometimes
-    cout << "Header: 0x" << std::hex << header << endl;
+    DEBUG cout << "Header: 0x" << std::hex << header << endl;
 
     if (header == HEADER_GAME || header == HEADER_UNIC)
     {
-        *state = STATE_NEW;
+        state.push_back(STATE_NEW); //we can't get to here if it's an old game so this is redundant
         uint32_t pos = strm.position;
         strm.position -= 0x4;
         return pos;
@@ -936,7 +1035,7 @@ void SourceExplorer::gameData(MemoryStream& strm)
     {
         cnc = true;
         //readCNC(strm);
-        cout << "Read CNC" << endl;
+        DEBUG cout << "Read CNC" << endl;
         return;
     }
     runtimeVersion = firstShort;
@@ -944,7 +1043,7 @@ void SourceExplorer::gameData(MemoryStream& strm)
     productVersion = strm.readInt<uint32_t>();
     productBuild = strm.readInt<uint32_t>();
 
-    cout << product(runtimeVersion) << endl;
+    DEBUG cout << product(runtimeVersion) << endl;
     if (runtimeVersion == PROD_MMF15) oldGame = true;
     else if (runtimeVersion != PROD_MMF2) throw std::exception("Invalid Product");
 }

@@ -14,6 +14,13 @@ MemoryStream::MemoryStream(vector<uint8_t>* ptr)
     }
 }
 
+
+MemoryStream::MemoryStream(vector<uint8_t>& mem)
+{
+    data = new vector<uint8_t>(mem);
+    extdata = false;
+}
+
 MemoryStream::~MemoryStream()
 {
     if (!extdata)
