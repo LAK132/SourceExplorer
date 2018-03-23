@@ -4,6 +4,11 @@ Color::Color(){}
 
 Color::Color(uint8_t R, uint8_t G, uint8_t B, uint8_t A) : r(R), g(G), b(B), a(A) {}
 
+bool Color::operator==(const Color& rhs) const
+{
+    return r == rhs.r && g == rhs.g && b == rhs.b;// && a == rhs.a;
+}
+
 Color Color::from8bit(uint8_t RGB)
 {
     Color rtn;
@@ -52,11 +57,21 @@ Color Color::from16bit(MemoryStream& strm)
 
 Color Color::from24bit(MemoryStream& strm)
 {
-    Color rtn;
-    rtn.r = strm.readInt<uint8_t>();
-    rtn.g = strm.readInt<uint8_t>();
-    rtn.b = strm.readInt<uint8_t>();
-    return rtn;
+	Color rtn;
+	rtn.r = strm.readInt<uint8_t>();
+	rtn.g = strm.readInt<uint8_t>();
+	rtn.b = strm.readInt<uint8_t>();
+	return rtn;
+}
+
+Color Color::from32bit(MemoryStream& strm)
+{
+	Color rtn;
+	rtn.r = strm.readInt<uint8_t>();
+	rtn.g = strm.readInt<uint8_t>();
+	rtn.b = strm.readInt<uint8_t>();
+	rtn.a = strm.readInt<uint8_t>();
+	return rtn;
 }
 
 vector<uint8_t> Bitmap::toRGB()
@@ -67,7 +82,7 @@ vector<uint8_t> Bitmap::toRGB()
     {
         for (size_t x = 0; x < w; x++)
         {
-            rtn[i++] = (*this)[x][y].b; //x/y reverse for OpenGL
+            rtn[i++] = (*this)[x][y].b;
             rtn[i++] = (*this)[x][y].g;
             rtn[i++] = (*this)[x][y].r;
         }
@@ -83,7 +98,7 @@ vector<uint8_t> Bitmap::toRGBA()
     {
         for (size_t x = 0; x < w; x++)
         {
-            rtn[i++] = (*this)[x][y].b; //x/y reverse for OpenGL
+            rtn[i++] = (*this)[x][y].b;
             rtn[i++] = (*this)[x][y].g;
             rtn[i++] = (*this)[x][y].r;
             rtn[i++] = (*this)[x][y].a;
@@ -147,6 +162,7 @@ Color Image::getNext(MemoryStream& strm, uint8_t mode)
             return Color::from16bit(strm);
         case 4:
         default:
+			//return Color::from32bit(strm);
             return Color::from24bit(strm);
     }
 }
@@ -188,7 +204,7 @@ uint8_t Image::getSize(uint8_t mode)
 uint16_t Image::getPadding(uint16_t width, uint8_t colSize, uint8_t pad)
 {
     uint16_t num = pad - ((width * colSize) % pad);
-    return (num == pad ? 0 : num);
+    return (uint16_t)ceil((double)(num == pad ? 0 : num) / (double)colSize);
 }
 
 GLuint Image::generateImage(MemoryStream& strm, bool fucked, uint16_t widthovrd, uint16_t heightovrd)
@@ -223,10 +239,14 @@ GLuint Image::generateImage(MemoryStream& strm, bool fucked, uint16_t widthovrd,
         yAction = strm.readInt<uint16_t>();
         if (!old)
         {
-            transparency[0] = strm.readInt<uint8_t>();
-            transparency[1] = strm.readInt<uint8_t>();
-            transparency[2] = strm.readInt<uint8_t>();
-            transparency[3] = strm.readInt<uint8_t>();
+            // transparency[0] = strm.readInt<uint8_t>();
+            // transparency[1] = strm.readInt<uint8_t>();
+            // transparency[2] = strm.readInt<uint8_t>();
+            // transparency[3] = strm.readInt<uint8_t>();
+            transparent.r = strm.readInt<uint8_t>();
+            transparent.g = strm.readInt<uint8_t>();
+            transparent.b = strm.readInt<uint8_t>();
+            transparent.a = strm.readInt<uint8_t>();
         }
         // size_t pos = strm.position; // why???
     }
@@ -249,6 +269,7 @@ GLuint Image::generateImage(MemoryStream& strm, bool fucked, uint16_t widthovrd,
         for (uint32_t x = 0; x < width; x++)
         {
             bitmap[x][y] = getNext(strm, graphicsMode);
+            if ((flags & IMAGE_ALPHA) == 0 && bitmap[x][y] == transparent) bitmap[x][y].a = transparent.a;
             n += colSize;
         }
         getNext(strm, graphicsMode, pad); // skip

@@ -219,6 +219,7 @@ int main(int, char**)
         static bool mainOpen = true;
         static bool prevOpen = true;
         static bool openDiag = false;
+        static bool dumpImages = false;
         static Image viewImage;
 
         ImGui::SetNextWindowSize(ImVec2(550,680), ImGuiCond_FirstUseEver);
@@ -229,6 +230,7 @@ int main(int, char**)
                 if(ImGui::BeginMenu("File"))
                 {
                     ImGui::MenuItem("Open..", NULL, &openDiag);
+                    ImGui::MenuItem("Dump Images", NULL, &dumpImages);
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();
@@ -483,6 +485,64 @@ int main(int, char**)
                         srcexp.loadGame(string(dir));
                         //static ResourceEntry* back = srcexp.game.chunks[0];
                         //srcexp.game.chunks[0] = (ResourceEntry*)0xDEAD; //completely bullshit pointer to fuck with whatever the fuck is fucking with this object
+                        ImGui::CloseCurrentPopup();
+                    }
+                    catch (std::exception e)
+                    {
+                        errtxt = "Error: ";
+                        errtxt += e.what();
+                        cout << errtxt << endl;
+                        flush(cout);
+                    }
+                }
+                if (ImGui::Button("Cancel"))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::Text(errtxt.c_str());
+                ImGui::EndPopup();
+            }
+            if (dumpImages)
+            {
+                ImGui::OpenPopup("Dump Images");
+                dumpImages = false;
+            }
+            if (ImGui::BeginPopupModal("Dump Images", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                static char dir[100] = DEFAULT_DUMP;
+                static string errtxt = "";
+                ImGui::InputText("Dir", dir, IM_ARRAYSIZE(dir));
+                if (ImGui::Button("Dump Images"))
+                {
+                    try
+                    {
+                        size_t dumpCount = 0;
+                        errtxt = "";
+                        for(auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++)
+                        {
+                            if(it->ID == CHUNK_IMAGEBANK)
+                            {
+                                for(auto img = it->chunks.begin(); img != it->chunks.end(); img++)
+                                {
+                                    char imgdir[100];
+                                    for(auto c = &(imgdir[99-1]); c != &(imgdir[0]); c--) {
+                                        if(*c != 0) {
+                                            if(*c != '\\')  {
+                                                *(c+1) = '\\';
+                                            }
+                                            else break;
+                                        }
+                                    }
+                                    sprintf(imgdir, "%s%x.png", dir, img->ID);
+                                    Image image;
+                                    int err = image.generateImage(img->mainData.read(srcexp.gameBuffer.data));
+                                    if (err == 0) throw std::exception("Error exporting images, make sure the directory exists!");
+                                    stbi_write_png(imgdir, image.bitmap.w, image.bitmap.h, 4, &(image.bitmap.toRGBA()[0]), image.bitmap.w*4);
+                                    dumpCount++;
+                                }
+                            }
+                        }
+                        cout << "Images dumped: " << std::dec << dumpCount << endl;
                         ImGui::CloseCurrentPopup();
                     }
                     catch (std::exception e)

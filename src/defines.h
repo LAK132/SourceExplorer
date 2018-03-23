@@ -1,10 +1,11 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define DEFAULT_GAME ""
+#define DEFAULT_GAME "C:\\FiveNightsatFreddys1.exe"
+#define DEFAULT_DUMP "C:\\FiveNightsatFreddys1Images\\"
 
 //#define DEBUG
-#define DEBUG if(0)
+#define DEBUG
 
 // Executable Signature
 #define WIN_EXE_SIG 0x5A4D
