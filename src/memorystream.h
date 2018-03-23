@@ -18,8 +18,9 @@ private:
     bool extdata = false;
 public:
     vector<uint8_t>* data;
-    size_t position;
+    size_t position = 0;
     MemoryStream(vector<uint8_t>* ptr = nullptr);
+    MemoryStream(vector<uint8_t>& mem);
     ~MemoryStream();
     vector<uint8_t> readBytes(size_t length);
     string readString();
