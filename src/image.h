@@ -11,6 +11,8 @@ using std::vector;
 #include <fstream>
 using std::ifstream;
 using std::ios;
+#include <cmath>
+using std::ceil;
 #include "defines.h"
 #include "memorystream.h"
 
@@ -31,6 +33,7 @@ struct Color
     uint8_t r = 0, g = 0, b = 0, a = 255;
     Color();
     Color(uint8_t R, uint8_t G, uint8_t B, uint8_t A = 255);
+    bool operator==(const Color& rhs) const;
     static Color from8bit(uint8_t RGB);
     static Color from15bit(uint16_t RGB);
     static Color from16bit(uint16_t RGB);
@@ -38,6 +41,7 @@ struct Color
     static Color from15bit(MemoryStream& strm);
     static Color from16bit(MemoryStream& strm);
     static Color from24bit(MemoryStream& strm);
+    static Color from32bit(MemoryStream& strm);
 };
 
 struct Bitmap
@@ -70,7 +74,8 @@ public:
     uint16_t yHotspot = 0;
     uint16_t xAction = 0;
     uint16_t yAction = 0;
-    uint8_t transparency[4];
+    //uint8_t transparency[4];
+    Color transparent;
 
     Bitmap bitmap;
     GLuint tex;

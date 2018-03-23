@@ -7,6 +7,12 @@
 #include <GLFW/glfw3.h>
 #include "explorer.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#ifdef _WIN32
+#define STBI_MSC_SECURE_CRT
+#endif
+#include <stb_image_write.h>
+
 #ifndef SCREXPLR_H
 #define SCREXPLR_H
 
