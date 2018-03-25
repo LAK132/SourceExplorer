@@ -524,15 +524,17 @@ int main(int, char**)
                             {
                                 for(auto img = it->chunks.begin(); img != it->chunks.end(); img++)
                                 {
-                                    char imgdir[100];
-                                    for(auto c = &(imgdir[99-1]); c != &(imgdir[0]); c--) {
-                                        if(*c != 0) {
-                                            if(*c != '\\')  {
-                                                *(c+1) = '\\';
+                                    for(auto c = &(dir[1]); c != &(dir[99-1]); c++) {
+                                        if(*c == 0) {
+                                            if (*(c-1) != '\\')
+                                            {
+                                                *c = '\\';
+                                                *(c+1) = 0; // just to be sure it's still null-terminated
                                             }
                                             else break;
                                         }
                                     }
+                                    char imgdir[110];
                                     sprintf(imgdir, "%s%x.png", dir, img->ID);
                                     Image image;
                                     int err = image.generateImage(img->mainData.read(srcexp.gameBuffer.data));
@@ -562,7 +564,6 @@ int main(int, char**)
             }
             ImGui::End();
         }
-
         ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(550,680), ImGuiCond_FirstUseEver);
         if(ImGui::Begin("Preview", &prevOpen))
