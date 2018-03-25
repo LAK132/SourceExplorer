@@ -14,25 +14,25 @@ Color Color::from8bit(uint8_t RGB)
     Color rtn;
     rtn.r = (((RGB >> 4) & 0x7) * (0xFF / 0x3));    // 1110 0000
     rtn.g = (((RGB >> 2) & 0x7) * (0xFF / 0x3));    // 0001 1100
-    rtn.b = ((RGB & 0x2) * (0xFF / 0x2));           // 0000 0011
+    rtn.b = (((RGB >> 0) & 0x2) * (0xFF / 0x2));    // 0000 0011
     return rtn;
 }
 
 Color Color::from15bit(uint16_t RGB)
 {
     Color rtn;
-    rtn.r = (RGB & 0x7C00) >> 7;    // 0111 1100 0000 0000
-    rtn.g = (RGB & 0x03E0) >> 2;    // 0000 0011 1110 0000
-    rtn.b = (RGB & 0x001F) << 3;    // 0000 0000 0001 1111
+    rtn.r = ((RGB & 0x7C00) >> 7);// * (0xFF / 0x1F);  // 0111 1100 0000 0000
+    rtn.g = ((RGB & 0x03E0) >> 2);// * (0xFF / 0x1F);  // 0000 0011 1110 0000
+    rtn.b = ((RGB & 0x001F) << 3);// * (0xFF / 0x1F);  // 0000 0000 0001 1111
     return rtn;
 }
 
 Color Color::from16bit(uint16_t RGB)
 {
     Color rtn;
-    rtn.r = (RGB & 0xF800) >> 7;    // 1111 1000 0000 0000
-    rtn.g = (RGB & 0x07E0) >> 3;    // 0000 0111 1110 0000
-    rtn.b = (RGB & 0x001F) << 3;    // 0000 0000 0001 1111
+    rtn.r = ((RGB & 0xF800) >> 8);// * (0xFF / 0x1F);  // 1111 1000 0000 0000
+    rtn.g = ((RGB & 0x07E0) >> 3);// * (0xFF / 0x3F);  // 0000 0111 1110 0000
+    rtn.b = ((RGB & 0x001F) << 3);// * (0xFF / 0x1F);  // 0000 0000 0001 1111
     return rtn;
 }
 
@@ -52,24 +52,24 @@ Color Color::from16bit(MemoryStream& strm)
 {
     uint16_t val = strm.readInt<uint8_t>();
     val |= strm.readInt<uint8_t>() << 8;
-    return from15bit(val);
+    return from16bit(val);
 }
 
 Color Color::from24bit(MemoryStream& strm)
 {
 	Color rtn;
-	rtn.r = strm.readInt<uint8_t>();
-	rtn.g = strm.readInt<uint8_t>();
 	rtn.b = strm.readInt<uint8_t>();
+	rtn.g = strm.readInt<uint8_t>();
+	rtn.r = strm.readInt<uint8_t>();
 	return rtn;
 }
 
 Color Color::from32bit(MemoryStream& strm)
 {
 	Color rtn;
-	rtn.r = strm.readInt<uint8_t>();
-	rtn.g = strm.readInt<uint8_t>();
 	rtn.b = strm.readInt<uint8_t>();
+	rtn.g = strm.readInt<uint8_t>();
+	rtn.r = strm.readInt<uint8_t>();
 	rtn.a = strm.readInt<uint8_t>();
 	return rtn;
 }
@@ -82,9 +82,9 @@ vector<uint8_t> Bitmap::toRGB()
     {
         for (size_t x = 0; x < w; x++)
         {
-            rtn[i++] = (*this)[x][y].b;
-            rtn[i++] = (*this)[x][y].g;
             rtn[i++] = (*this)[x][y].r;
+            rtn[i++] = (*this)[x][y].g;
+            rtn[i++] = (*this)[x][y].b;
         }
     }
     return rtn;
@@ -98,9 +98,9 @@ vector<uint8_t> Bitmap::toRGBA()
     {
         for (size_t x = 0; x < w; x++)
         {
-            rtn[i++] = (*this)[x][y].b;
-            rtn[i++] = (*this)[x][y].g;
             rtn[i++] = (*this)[x][y].r;
+            rtn[i++] = (*this)[x][y].g;
+            rtn[i++] = (*this)[x][y].b;
             rtn[i++] = (*this)[x][y].a;
         }
     }
@@ -160,6 +160,7 @@ Color Image::getNext(MemoryStream& strm, uint8_t mode)
             return Color::from15bit(strm);
         case 7:
             return Color::from16bit(strm);
+			//return Color::from15bit(strm);
         case 4:
         default:
 			//return Color::from32bit(strm);
