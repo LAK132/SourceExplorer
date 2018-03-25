@@ -216,7 +216,7 @@ int main(int, char**)
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-        static bool mainOpen = true;
+        bool mainOpen = true;
         static bool prevOpen = true;
         static bool openDiag = false;
         static bool dumpImages = false;
