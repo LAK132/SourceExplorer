@@ -10,6 +10,7 @@ using std::string;
 #include <fstream>
 using std::ifstream;
 using std::ios;
+#include "imgui.h"
 #include "defines.h"
 #include "memorystream.h"
 #include "image.h"
@@ -54,21 +55,31 @@ struct DataPoint
     MemoryStream decompressedStream(vector<uint8_t>* memory);
 };
 
+class SourceExplorer;
+
+struct renderMenu_t
+{
+    SourceExplorer* srcexp = nullptr;
+    vector<uint8_t>* memedit = nullptr;
+    string* errtxt = nullptr;
+};
+
 struct ResourceEntry
 {
     uint16_t ID = 0xFFFF;
     uint16_t mode = 0xFFFF;
     size_t location = 0;
 
-    DataPoint preData;
-    DataPoint mainData;
+    // DataPoint preData;
+    // DataPoint mainData;
+    DataPoint data;
 
     //uint64_t dataLoc;
     //uint32_t dataLen = 0;
     //uint32_t compressedDataLen = 0;
     //vector<uint8_t> preData;
     //vector<ResourceEntry*> chunks; //glfw3 is fucking with these pointers
-    vector<ResourceEntry> chunks;
+    // vector<ResourceEntry> chunks; // WE DONT NEED TO KEEP TRACK OF THESE FOR CRYING OUT LOUD
     void* extraData = nullptr;
 
     ResourceEntry();
@@ -80,6 +91,8 @@ struct ResourceEntry
     int32_t findUntilNext(MemoryStream& strm, uint32_t pos, const vector<uint8_t>& toFind);
     bool fetchChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry* chunk);
     void setChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry& chunk);
+
+    virtual void renderMenu(renderMenu_t& rm);
 };
 
 struct GameEntry
@@ -131,10 +144,6 @@ public:
     uint64_t dataPos;
     //vector<ResourceEntry> resources;
     vector<uint64_t> resourcePos;
-    bool addingTextures;
-    bool addingSounds;
-    bool addingFonts;
-    bool entry;
     vector<uint16_t> gameState;
     bool unicode = false;
     bool oldGame;
@@ -145,10 +154,12 @@ public:
     uint32_t productVersion;
     uint32_t productBuild;
     ResourceEntry game;
+    bool loaded = false;
+    size_t dataLocation = 0;
 
     void loadGame(string path);
-    void readEntries();
-    void readGameData(vector<uint16_t>& state);
+    //void readEntries();
+    void readGameData();
     uint64_t packData(MemoryStream& strm, vector<uint16_t>& state);
     void gameData(MemoryStream& strm);
     string product(uint16_t vnum);
