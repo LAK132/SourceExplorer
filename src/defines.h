@@ -5,7 +5,7 @@
 #define DEFAULT_DUMP "C:\\FiveNightsatFreddys1Images\\"
 
 //#define DEBUG
-#define DEBUG
+#define DEBUG if(debugConsole)
 
 // Executable Signature
 #define WIN_EXE_SIG 0x5A4D
@@ -90,8 +90,9 @@
 // Not in Anaconda
 #define CHUNK_GLOBALSTRNAMES 0x223D
 // Movement Extensions
-#define CHUNK_MODEMNTEXTNS 0x223E
-#define CHUNK_UNKNOWN8 0x223F
+#define CHUNK_MOVEMNTEXTNS 0x223E
+//#define CHUNK_UNKNOWN8 0x223F
+#define CHUNK_OBJECTBANK2 0x223F
 #define CHUNK_EXEONLY 0x2240
 // 0x2241
 #define CHUNK_PROTECTION 0x2242
@@ -100,7 +101,8 @@
 #define CHUNK_EXTDHEADER 0x2245
 #define CHUNK_SPACER 0x2246
 // Means FRAMEHANDLES might be broken
-#define CHUNK_FRAMEHANDLESERROR 0x224D
+// Actually probably the Frame Bank
+#define CHUNK_FRAMEBANK 0x224D
 #define CHUNK_224F 0x224F
 #define CHUNK_TITLE2 0x2251
 // Frame Chunks (0x33XX)
@@ -110,7 +112,7 @@
 #define CHUNK_FRAMEPASSWORD 0x3336
 #define CHUNK_FRAMEPALETTE 0x3337
 // "WTF"?
-#define CHUNK_OBJNAME2 0x3337
+//#define CHUNK_OBJNAME2 0x3337
 #define CHUNK_OBJINST 0x3338
 // Frame Fade In Frame // Not in Anaconda
 #define CHUNK_FRAMEFADEIF 0x3339
@@ -127,7 +129,7 @@
 // Frame Additional Item // Not in Anaconda
 #define CHUNK_FRAMEADDITEM 0x333F
 // Frame Additional Item Instance // Not in Anaconda
-#define CHUNK_FRAMEADDITEMISNT 0x3340
+#define CHUNK_FRAMEADDITEMINST 0x3340
 #define CHUNK_FRAMELAYERS 0x3341
 #define CHUNK_FRAMEVIRTSIZE 0x3342
 #define CHUNK_DEMOFILEPATH 0x3343
@@ -208,6 +210,17 @@
 #define MODE_4 0x0004
 #define MODE_FLAG_COMPRESSED 0x1
 #define MODE_DEFAULT MODE_0
+
+//
+// Get Data Flags
+//
+#define PRE_READNEXT    1<<0
+#define PRE_READINT     1<<1
+#define PRE_READ4       1<<2
+#define PRE_READ8       1<<3
+#define PRE_READ15      1<<4
+#define MAIN_COMP       1<<5
+#define MAIN_NORM       1<<6
 
 //
 // Frame Header Data Flags

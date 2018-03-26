@@ -1,5 +1,7 @@
 #include "explorer.h"
 
+bool debugConsole = false;
+
 ResourceEntry::ResourceEntry()
 {
     if (extraData != nullptr)
@@ -9,6 +11,7 @@ ResourceEntry::ResourceEntry()
 
 ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
 {
+    uint8_t dataMode[MODE_3+1];
 	location = strm.position;
     if (extraData != nullptr)
         free(extraData);
@@ -30,10 +33,6 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
         throw std::exception("Early Invalid Mode");
     //create instance based on type
     switch(state.back()) {
-        //case STATE_IMAGE:
-        //case STATE_FONT:
-        //case STATE_SOUND:
-        //case STATE_MUSIC: {
         case CHUNK_IMAGEBANK:
         case CHUNK_SOUNDBANK:
         case CHUNK_MUSICBANK:
@@ -41,51 +40,17 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
             if (ID == CHUNK_ENDIMAGE || ID == CHUNK_ENDMUSIC || 
                 ID == CHUNK_ENDSOUND || ID == CHUNK_ENDFONT) 
             {
-                switch(mode) {
-                    case MODE_0: {
-                        uint32_t predlen = findNext(strm);
-                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                    } break;
-                    case MODE_1: {
-                        uint32_t predlen = findNext(strm);
-                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                        uint32_t dlen = strm.readInt<uint32_t>();
-                        uint32_t flen = strm.readInt<uint32_t>();
-                        mainData(strm, flen, dlen);
-                    } break;
-                    case MODE_2:
-                    case MODE_3: {
-                        uint32_t predlen = findNext(strm);
-                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                        mainData(strm, strm.readInt<uint32_t>());
-                    } break;
-                    default: {
-                        DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                        throw std::exception("Invalid Mode");
-                    } break;
-                }
+                dataMode[0] = PRE_READNEXT;
+                dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                dataMode[2] = PRE_READINT | MAIN_NORM;
+                dataMode[3] = PRE_READINT | MAIN_NORM;
             }
             else
             {
-                switch(mode) {
-                    case MODE_0:
-                    case MODE_1: {
-                        uint32_t predlen = findNext(strm);
-                        preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                        uint32_t dlen = strm.readInt<uint32_t>();
-                        uint32_t flen = strm.readInt<uint32_t>();
-                        mainData(strm, flen, dlen);
-                    } break;
-                    case MODE_2:
-                    case MODE_3: {
-                        preData.clear();
-                        mainData(strm, strm.readInt<uint32_t>());
-                    } break;
-                    default: {
-                        DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                        throw std::exception("Invalid Mode");
-                    } break;
-                }
+                dataMode[0] = PRE_READNEXT | MAIN_COMP;
+                dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                dataMode[2] = 0;// MAIN_NORM;
+                dataMode[3] = 0;// MAIN_NORM;
                 state.push_back(STATE_NOCHILD);
             }
         } break;
@@ -99,97 +64,32 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
         default: {
             switch(ID) {
                 case CHUNK_HEADER: {
-                    //extraData = new GameEntry();
                     extraData = malloc(sizeof(GameEntry));
-                    //*(GameEntry*)extraData = GameEntry();
-                    //((GameEntry*)extraData)->frameBank.clear();
 					new((GameEntry*)extraData) GameEntry();
-                    switch(mode) {
-                        case MODE_0: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                        } break;
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        case MODE_2:
-                        case MODE_3: {
-                            preData.clear();
-                            mainData(strm, strm.readInt<uint32_t>());
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
-                } break;
-                case CHUNK_SPACER:
-                case CHUNK_ENTRY:
-                case CHUNK_EXTDATA:
-                case CHUNK_MOVETIMEBASE: 
-                case CHUNK_UNKNOWN8: {
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, 0x8);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+
+                    dataMode[0] = PRE_READNEXT;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = MAIN_NORM;
+                    dataMode[3] = 0;// MAIN_NORM;
                 } break;
                 case CHUNK_MENU:
                 case CHUNK_FRAMEEFFECTS: {
-                    switch(mode) {
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = 0;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = 0;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_ICON: {
-                    switch(mode) {
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = 0;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = 0;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_EXTNLIST: {
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, 0x8);
-                        } break;
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READINT;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = 0;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_SECNUM:
                 case CHUNK_FRAMEHEADER:
@@ -203,161 +103,70 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
                 case CHUNK_FRAMEFADEI:
                 case CHUNK_FRAMEFADEO:
                 case CHUNK_OBJHEAD: {
-                    switch(mode) {
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        case MODE_3: {
-                            preData.clear();
-                            mainData(strm, strm.readInt<uint32_t>());
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = 0;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = 0;
+                    dataMode[3] = MAIN_NORM;
                 } break;
+                case CHUNK_SPACER:
+                case CHUNK_ENTRY:
+                case CHUNK_EXTDATA:
+                case CHUNK_MOVETIMEBASE: 
+                case CHUNK_TITLE2:
+                case CHUNK_FRAMEBANK:
                 case CHUNK_EXEONLY: {
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, 0x15);
-                            DEBUG cout << str << "Pre Data Length: 0x" << std::hex << 0x15 << endl;
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READINT;//PRE_READ15;
+                    dataMode[1] = 0;
+                    dataMode[2] = 0;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_FRAMENAME:
                 case CHUNK_OBJNAME: {
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, strm.readInt<uint32_t>());
-                        } break;
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        case MODE_2:
-                        case MODE_3: {
-                            preData.clear();
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READINT;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = 0;// MAIN_COMP;
+                    dataMode[3] = MAIN_COMP;
                 } break;
                 case CHUNK_PROTECTION: {
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, 0x8);
-                        } break;
-                        case MODE_2: {
-                            preData.clear();
-                            mainData(strm, strm.readInt<uint32_t>());
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READINT;// PRE_READ8;
+                    dataMode[1] = 0;
+                    dataMode[2] = MAIN_NORM;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_SHADERS: {
-                    switch(mode) {
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = 0;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = 0;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_MUSICBANK:
                 case CHUNK_SOUNDBANK:
                 case CHUNK_IMAGEBANK: {
-                    // if (ID == CHUNK_MUSICBANK) state.push_back(STATE_MUSIC_BANK);
-                    // else if (ID == CHUNK_SOUNDBANK) state.push_back(STATE_SOUND_BANK);
-                    // else state.push_back(STATE_IMAGE_BANK);
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, 0x8);
-                        } break;
-                        case MODE_1:
-                        case MODE_2:
-                        case MODE_3: {
-                            preData(strm, 0x8);
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READ8;
+                    dataMode[1] = PRE_READ8 | MAIN_COMP;
+					dataMode[2] = 0;// PRE_READ8 | MAIN_COMP;
+                    dataMode[3] = PRE_READ8 | MAIN_COMP;
                 } break;
                 case CHUNK_FONTBANK: {
-                    // state.push_back(STATE_FONT_BANK);
-                    switch(mode) {
-                        case MODE_0:
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        case MODE_2:
-                        case MODE_3: {
-                            preData.clear();
-                            mainData(strm, strm.readInt<uint32_t>());
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+					dataMode[0] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = MAIN_NORM;
+                    dataMode[3] = MAIN_NORM;
                 } break;
-                case CHUNK_TITLE2:
+                //case CHUNK_UNKNOWN8:
+                case CHUNK_OBJECTBANK2:
                 case CHUNK_OBJECTBANK: {
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, 0x8);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READ8;
+                    dataMode[1] = 0;
+                    dataMode[2] = 0;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_FRAME:
                 case CHUNK_LAST: {
-                    switch(mode) {
-                        case MODE_0: {
-                            preData(strm, 0x4);
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READ4;
+                    dataMode[1] = 0;
+                    dataMode[2] = 0;
+                    dataMode[3] = 0;
                 } break;
                 case CHUNK_TITLE:
                 //case CHUNK_TITLE2:
@@ -366,47 +175,22 @@ ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
                 case CHUNK_OUTPATH:
                 case CHUNK_COPYRIGHT:
                 default: {
-                    switch(mode) {
-                        case MODE_0: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                        } break;
-                        case MODE_1: {
-                            uint32_t predlen = findNext(strm);
-                            preData(strm, (predlen < 8 ? 0 : predlen - 8));
-                            uint32_t dlen = strm.readInt<uint32_t>();
-                            uint32_t flen = strm.readInt<uint32_t>();
-                            mainData(strm, flen, dlen);
-                        } break;
-                        case MODE_2:
-                        case MODE_3: {
-                            preData.clear();
-                            mainData(strm, strm.readInt<uint32_t>());
-                        } break;
-                        default: {
-                            DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-                            throw std::exception("Invalid Mode");
-                        } break;
-                    }
+                    dataMode[0] = PRE_READNEXT;
+                    dataMode[1] = PRE_READNEXT | MAIN_COMP;
+                    dataMode[2] = MAIN_NORM;
+                    dataMode[3] = MAIN_NORM;
                 } break;
             }
         } break; 
-        // default: {
-        //     DEBUG cout << "Invalid State: 0x" << std::hex << state.back() << endl;
-        //     throw std::exception("Invalid State");
-        // } break;
     }
-    // switch(ID) {
-    //     case CHUNK_IMAGEBANK:
-    //     case CHUNK_MUSICBANK:
-    //     case CHUNK_SOUNDBANK:
-    //     case CHUNK_FONTBANK: {
-    //         state.push_back(ID);
-    //     } break;
-    //     default: {
-    //         state.push_back(state.back());
-    //     } break;
-    // }
+    
+    if (mode > MODE_3 || dataMode[mode] == 0)
+    {
+        DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
+        throw std::exception("Invalid Mode");
+    }
+    else 
+		getData(strm, dataMode[mode]);
 
     DEBUG cout << str << "Resource Data Length: 0x" << std::hex << mainData.dataLen << endl;
     DEBUG cout << str << "Resource File Data Length: 0x" << std::hex << mainData.fileLen << endl;
@@ -445,10 +229,17 @@ bool ResourceEntry::fetchChild(MemoryStream& strm, vector<uint16_t>& state, Reso
             *chunk = ResourceEntry(strm, state);
             return chunk->ID > CHUNK_FRAME && chunk->ID <= CHUNK_FRAMEIPHONEOPTS;
         } break;
+        case CHUNK_OBJECTBANK2:
         case CHUNK_OBJECTBANK: {
             size_t pos = strm.position;
             *chunk = ResourceEntry(strm, state);
             if (chunk->ID != CHUNK_OBJHEAD){ strm.position = pos; return false; }
+            return true;
+        } break;
+        case CHUNK_FRAMEBANK: {
+            size_t pos = strm.position;
+            *chunk = ResourceEntry(strm, state);
+            if (chunk->ID != CHUNK_FRAME){ strm.position = pos; return false; }
             return true;
         } break;
         case CHUNK_IMAGEBANK: {
@@ -629,6 +420,111 @@ ResourceEntry::~ResourceEntry()
         free(extraData);
 }
 
+void ResourceEntry::getData(MemoryStream& strm, uint8_t readMode)//, int16_t predlen, int16_t mainflen, int16_t maindlen)
+{
+    if ((readMode & PRE_READNEXT) != 0)
+    {
+        // There's meant to be a way to just read the next int after the ID
+        uint32_t next = findNext(strm);
+        preData(strm, (next < 8 ? 0 : next - 8));
+    }
+    else if ((readMode & PRE_READINT) != 0)
+    {
+        uint32_t readLen = strm.readInt<uint32_t>();
+        preData(strm, readLen);
+    }
+    else if ((readMode & PRE_READ4) != 0)
+    {
+        preData(strm, 0x4);
+    }
+    else if ((readMode & PRE_READ8) != 0)
+    {
+        preData(strm, 0x8);
+    }
+    else if ((readMode & PRE_READ15) != 0)
+    {
+        preData(strm, 0x15);
+    }
+    else
+    {
+        preData.clear();
+    }
+    if ((readMode & MAIN_COMP) != 0)
+    {
+        uint32_t dlen = strm.readInt<uint32_t>();
+        uint32_t flen = strm.readInt<uint32_t>();
+        mainData(strm, flen, dlen);
+    }
+    else if ((readMode & MAIN_NORM) != 0)
+    {
+        mainData(strm, strm.readInt<uint32_t>());
+    }
+    else
+    {
+        mainData.clear();
+    }
+    // if (predlen == 0)
+    // {
+    //     preData.clear();
+    // }
+    // else if (predlen < 0)
+    // {
+    //     uint32_t next = findNext(strm);
+    //     preData(strm, (next < 8 ? 0 : next - 8));
+    // }
+    // else
+    // {
+    //     preData(strm, predlen);
+    // }
+    // if (maindlen < 0 && mainflen < 0)
+    // {
+    //     uint32_t dlen = strm.readInt<uint32_t>();
+    //     uint32_t flen = strm.readInt<uint32_t>();
+    //     mainData(strm, flen, dlen);
+    // }
+    // else if (maindlen == 0 && mainflen < 0)
+    // {
+    //     mainData(strm, strm.readInt<uint32_t>());
+    // }
+    // else if (mainflen == 0)
+    // {
+    //     mainData.clear();
+    // }
+    // else
+    // {
+    //     DEBUG cout << "Probably shouldn't be doing this" << endl;
+    //     mainData(strm, mainflen, maindlen);
+    // }
+}
+
+uint32_t ResourceEntry::findNext(MemoryStream& strm)
+{
+    int8_t count = -1;
+    int32_t untilNext = 0;
+    int32_t pos = untilNext + strm.position;
+    while (count < 0 || count > 0x7F)
+    {
+        untilNext += findUntilNext(strm, pos + 2, vector<uint8_t>({0x78, 0xDA})) + 2;
+        pos = untilNext + strm.position;
+        count = (*strm.data)[pos - 1];
+    }
+    return untilNext;
+}
+
+int32_t ResourceEntry::findUntilNext(MemoryStream& strm, uint32_t pos, const vector<uint8_t>& toFind)
+{
+    for (int index1 = 0; pos + index1 < strm.data->size() - toFind.size(); index1++)
+    {
+        bool flag = true;
+        for (int index2 = 0; index2 < toFind.size(); index2++)
+        {
+			if ((*strm.data)[pos + index1 + index2] != toFind[index2]) { flag = false; break; }
+        }
+        if (flag) return index1;
+    }
+    return -1;
+}
+
 vector<uint8_t> readCompressed(MemoryStream& strm, uint32_t datalen, uint32_t complen, bool* decompress)
 {
     if (complen > 0 && datalen > 0)
@@ -762,34 +658,6 @@ MemoryStream DataPoint::read(vector<uint8_t>* memory)
         return decompressedStream(memory);
     else
         return rawStream(memory);
-}
-
-uint32_t ResourceEntry::findNext(MemoryStream& strm)
-{
-    int8_t count = -1;
-    int32_t untilNext = 0;
-    int32_t pos = untilNext + strm.position;
-    while (count < 0 || count > 0x7F)
-    {
-        untilNext += findUntilNext(strm, pos + 2, vector<uint8_t>({0x78, 0xDA})) + 2;
-        pos = untilNext + strm.position;
-        count = (*strm.data)[pos - 1];
-    }
-    return untilNext;
-}
-
-int32_t ResourceEntry::findUntilNext(MemoryStream& strm, uint32_t pos, const vector<uint8_t>& toFind)
-{
-    for (int index1 = 0; pos + index1 < strm.data->size() - toFind.size(); index1++)
-    {
-        bool flag = true;
-        for (int index2 = 0; index2 < toFind.size(); index2++)
-        {
-			if ((*strm.data)[pos + index1 + index2] != toFind[index2]) { flag = false; break; }
-        }
-        if (flag) return index1;
-    }
-    return -1;
 }
 
 void SourceExplorer::loadGame(string path)

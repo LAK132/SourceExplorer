@@ -29,6 +29,8 @@ void genTree(ResourceEntry* res, const char* name = "", Image* viewImage = nullp
         ImGui::Text(str);
         sprintf(str, "Mode: 0x%I32x", res->mode);
         ImGui::Text(str);
+        sprintf(str, "Location: 0x%zx", res->location);
+        ImGui::Text(str);
         sprintf(str, "Pre Data Size: 0x%I64x", res->preData.fileLen);
         ImGui::Text(str);
         sprintf(str, "Data Location: 0x%I64x", res->mainData.location);
@@ -122,32 +124,97 @@ void genTree(ResourceEntry* res, const char* name = "", Image* viewImage = nullp
                 default: break;
             }
             if (str == "") switch(it->ID) {
+                case CHUNK_VITAPREV: str = "Vitalise Preview"; break;
+
+                case CHUNK_HEADER: str = "Header"; break;
                 case CHUNK_TITLE: str = "Title"; break;
-                case CHUNK_TITLE2: str = "Title2"; break;
                 case CHUNK_AUTHOR: str = "Author"; break;
                 case CHUNK_MENU: str = "Menu"; break;
+                case CHUNK_EXTPATH: str = "Extra Path"; break;
+
+                case CHUNK_EXTENS: str = "Extensions (deprecated)"; break;
                 case CHUNK_OBJECTBANK: str = "Object Bank"; break;
+                case CHUNK_OBJECTBANK2: str = "Object Bank 2"; break;
+
+                case CHUNK_GLOBALEVENTS: str = "Global Events"; break;
+                case CHUNK_FRAMEHANDLES: str = "Frame Handles"; break;
+                case CHUNK_EXTDATA: str = "Extra Data"; break;
+
+                case CHUNK_ADDEXTNS: str = "Additional Extensions (deprecated)"; break;
+                case CHUNK_PROJPATH: str = "Project Path"; break;
+                case CHUNK_OUTPATH: str = "Output Path"; break;
+                case CHUNK_APPDOC: str = "App Doc"; break;
+                case CHUNK_OTHEREXT: str = "Other Extension(s)"; break;
+                case CHUNK_GLOBALVALS: str = "Global Values"; break;
+                case CHUNK_GLOBALSTRS: str = "Global Strings"; break;
+                case CHUNK_EXTNLIST: str = "Extensions List"; break;
+                case CHUNK_ICON: str = "Icon"; break;
+
+                case CHUNK_DEMOVER: str = "DEMOVER"; break;
+                case CHUNK_SECNUM: str = "Security Number"; break;
+                case CHUNK_BINFILES: str = "Binary Files"; break;
+
+                case CHUNK_MENUIMAGES: str = "Menu Images"; break;
+                case CHUNK_ABOUT: str = "About"; break;
+                case CHUNK_COPYRIGHT: str = "Copyright"; break;
+
+                case CHUNK_GLOBALVALNAMES: str = "Global Value Names"; break;
+                case CHUNK_GLOBALSTRNAMES: str = "Global String Names"; break;
+
+                case CHUNK_MOVEMNTEXTNS: str = "Movement Extensions"; break;
+                //case CHUNK_UNKNOWN8: str = "UNKNOWN8"; break;
+                case CHUNK_EXEONLY: str = "EXE Only"; break;
+
+                case CHUNK_PROTECTION: str = "Protection"; break;
+                case CHUNK_SHADERS: str = "Shaders"; break;
+
+                case CHUNK_EXTDHEADER: str = "Extended Header"; break;
+                case CHUNK_SPACER: str = "Spacer"; break;
+
+                case CHUNK_FRAMEBANK: str = "Frame Bank"; break;
+                case CHUNK_224F: str = "CHUNK_224F"; break;
+                case CHUNK_TITLE2: str = "Title2"; break;
 
                 case CHUNK_FRAME: str = "Frame"; break;
-                case CHUNK_OBJINST: str = "Frame Object Instances"; break;
-                case CHUNK_FRAMENAME: str = "Frame Name"; break;
-                case CHUNK_FRAMEFADEI: str = "Frame Fade In"; break;
-                case CHUNK_FRAMEFADEO: str = "Frame Fade Out"; break;
-                case CHUNK_FRAMELAYERS: str = "Frame Layers"; break;
-                case CHUNK_FRAMEHEADER: str = "Frame Header"; break;
-                case CHUNK_FRAMEEVENTS: str = "Frame Events"; break;
-                case CHUNK_FRAMEFADEIF: str = "Frame Fade In Frame"; break;
-                case CHUNK_FRAMEFADEOF: str = "Frame Fade Out Frame"; break;
-                case CHUNK_FRAMEEFFECTS: str = "Frame Effects"; break;
-                case CHUNK_FRAMEHANDLES: str = "Frame Handles"; break;
-                case CHUNK_FRAMEPALETTE: str = "Frame Palette"; break;
-                case CHUNK_MOVETIMEBASE: str = "Frame Movement Timer Base"; break;
-                case CHUNK_FRAMEVIRTSIZE: str = "Frame Virtical Size"; break;
-                case CHUNK_FRAMELAYEREFFECT: str = "Frame Layer Effect"; break;
+                case CHUNK_FRAMEHEADER: str = "Frame - Header"; break;
+                case CHUNK_FRAMENAME: str = "Frame - Name"; break;
+                case CHUNK_FRAMEPASSWORD: str = "Frame - Password"; break;
+                case CHUNK_FRAMEPALETTE: str = "Frame - Palette"; break;
+           
+                case CHUNK_OBJINST: str = "Frame - Object Instances"; break;
+                case CHUNK_FRAMEFADEIF: str = "Frame - Fade In Frame"; break;
+                case CHUNK_FRAMEFADEOF: str = "Frame - Fade Out Frame"; break;
+                case CHUNK_FRAMEFADEI: str = "Frame - Fade In"; break;
+                case CHUNK_FRAMEFADEO: str = "Frame - Fade Out"; break;
+                case CHUNK_FRAMEEVENTS: str = "Frame - Events"; break;
+                case CHUNK_FRAMEPLYHEAD: str = "Frame - Play Header"; break;
+                case CHUNK_FRAMEADDITEMINST: str = "Frame - Add Instance"; break;
+                case CHUNK_FRAMELAYERS: str = "Frame - Layers"; break;
+                case CHUNK_FRAMEVIRTSIZE: str = "Frame - Virtical Size"; break;
+                case CHUNK_DEMOFILEPATH: str = "Demo File Path"; break;
 
-                case CHUNK_OBJHEAD: str = "Object Header"; break;
-                case CHUNK_OBJNAME: str = "Object Name"; break;
-                case CHUNK_OBJPROP: str = "Object Properties"; break;
+                case CHUNK_RANDOMSEED: str = "Random Seed"; break;
+                case CHUNK_FRAMELAYEREFFECT: str = "Frame - Layer Effect"; break;
+                case CHUNK_FRAMEBLURAY: str = "Frame - BluRay Options"; break;
+                case CHUNK_MOVETIMEBASE: str = "Frame - Movement Timer Base"; break;
+
+                case CHUNK_MOSAICIMGTABLE: str = "Mosaic Image Table"; break;
+                case CHUNK_FRAMEEFFECTS: str = "Frame - Effects"; break;
+
+                case CHUNK_FRAMEIPHONEOPTS: str = "Frame - iPhone Options"; break;
+
+                case CHUNK_PAERROR: str = "PAE ERROR"; break;
+
+                case CHUNK_OBJHEAD: str = "Object - Header"; break;
+                case CHUNK_OBJNAME: str = "Object - Name"; break;
+                case CHUNK_OBJPROP: str = "Object - Properties"; break;
+                case CHUNK_OBJUNKN: str = "Object - Unknown"; break;
+                case CHUNK_OBJEFCT: str = "Object - Effect"; break;
+
+                case CHUNK_IMAGEBANK: str = "Image Bank"; break;
+                case CHUNK_SOUNDBANK: str = "Sound Bank"; break;
+                case CHUNK_MUSICBANK: str = "Music Bank"; break;
+                case CHUNK_FONTBANK: str = "Font Bank"; break;
                 default: break;
             }
             genTree(&(*it), str.c_str(), viewImage);
@@ -233,6 +300,7 @@ int main(int, char**)
                     ImGui::MenuItem("Dump Images", NULL, &dumpImages);
                     ImGui::EndMenu();
                 }
+                ImGui::Checkbox("Print to debug console? (May cause SE to run slower)", &debugConsole);
                 ImGui::EndMenuBar();
             }
 
@@ -356,33 +424,36 @@ int main(int, char**)
                 ImGui::TreePop();
             }
             if(ImGui::TreeNode("Objects:")) {
+                ResourceEntry* objBank = nullptr;
                 for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
-                    if (it->ID == CHUNK_OBJECTBANK) {
-                        for (auto it2 = it->chunks.begin(); it2 != it->chunks.end(); it2++) {
-                            if (it2->ID == CHUNK_OBJHEAD) {
-                                string objname = "";
-                                for (auto it3 = it2->chunks.begin(); it3 != it2->chunks.end(); it3++) {
-                                    if (it3->ID == CHUNK_OBJNAME) {
-                                        if (srcexp.unicode && it3->mainData.dataLen > 0) 
-                                            objname = readUnicode(it3->mainData.read(srcexp.gameBuffer.data));
-                                        else if (it3->mainData.dataLen > 0) 
-                                            objname = readASCII(it3->mainData.read(srcexp.gameBuffer.data));
-                                        else if (srcexp.unicode) 
-                                            objname = readUnicode(it3->preData.read(srcexp.gameBuffer.data));
-                                        else 
-                                            objname = readASCII(it3->preData.read(srcexp.gameBuffer.data));
-                                        break;
-                                    }
-                                }
-                                char cstr[100];
-                                sprintf(cstr, "%s##%I64x", objname.c_str(), it2->location);
-                                if(ImGui::TreeNode(cstr)) {
-                                    genTree(&*it2);
-                                    ImGui::TreePop();
-                                }
+                    if (it->ID == CHUNK_OBJECTBANK || it->ID == CHUNK_OBJECTBANK2) {
+                        objBank = &*it;
+                        break;
+                    }
+                }
+                if (objBank == nullptr) objBank = &(srcexp.game);
+                for (auto it = objBank->chunks.begin(); it != objBank->chunks.end(); it++) {
+                    if (it->ID == CHUNK_OBJHEAD) {
+                        string objname = "";
+                        for (auto it3 = it->chunks.begin(); it3 != it->chunks.end(); it3++) {
+                            if (it3->ID == CHUNK_OBJNAME) {
+                                if (srcexp.unicode && it3->mainData.dataLen > 0) 
+                                    objname = readUnicode(it3->mainData.read(srcexp.gameBuffer.data));
+                                else if (it3->mainData.dataLen > 0) 
+                                    objname = readASCII(it3->mainData.read(srcexp.gameBuffer.data));
+                                else if (srcexp.unicode) 
+                                    objname = readUnicode(it3->preData.read(srcexp.gameBuffer.data));
+                                else 
+                                    objname = readASCII(it3->preData.read(srcexp.gameBuffer.data));
+                                break;
                             }
                         }
-                        break;
+                        char cstr[100];
+                        sprintf(cstr, "%s##%I64x", objname.c_str(), it->location);
+                        if(ImGui::TreeNode(cstr)) {
+                            genTree(&*it);
+                            ImGui::TreePop();
+                        }
                     }
                 }
                 ImGui::TreePop();
