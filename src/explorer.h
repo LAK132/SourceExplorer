@@ -19,6 +19,8 @@ using std::ios;
 #ifndef EXPLORER_H
 #define EXPLORER_H
 
+extern bool debugConsole;
+
 struct PackFile
 {
     string filename;
@@ -72,6 +74,8 @@ struct ResourceEntry
     ResourceEntry();
     ResourceEntry(MemoryStream& strm, vector<uint16_t>& state);
     ~ResourceEntry();
+    //void getData(MemoryStream& strm, int16_t predlen, int16_t mainflen, int16_t maindlen);
+    void getData(MemoryStream& strm, uint8_t readMode);
     uint32_t findNext(MemoryStream& strm);
     int32_t findUntilNext(MemoryStream& strm, uint32_t pos, const vector<uint8_t>& toFind);
     bool fetchChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry* chunk);
