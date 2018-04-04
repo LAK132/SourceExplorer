@@ -1,545 +1,287 @@
 #include "explorer.h"
 
 bool debugConsole = false;
+bool throwErrors = false;
 
-ResourceEntry::ResourceEntry()
+void SourceExplorer::getEntries(MemoryStream& strm, vector<uint16_t>& state)
 {
-    if (extraData != nullptr)
-        free(extraData);
-    //chunks.clear();
-}
-
-ResourceEntry::ResourceEntry(MemoryStream& strm, vector<uint16_t>& state)
-{
-    uint8_t dataMode[MODE_3+1];
-	location = strm.position;
-    if (extraData != nullptr)
-        free(extraData);
-    // chunks.clear();
-    string str = "|";
-    for (size_t i = 0; i < state.size(); i++) 
-		str += "-";
-    DEBUG cout << "|" <<  endl << str <<
-    "New Resource" << endl << str <<
-    "Pos: 0x" << std::hex << strm.position << endl << str <<
-    "State: 0x" << std::hex << state.back() << endl;
-    ID = strm.readInt<uint16_t>();
-    DEBUG cout << str << "Resource ID: 0x" << std::hex << ID << endl;
-    mode = strm.readInt<uint16_t>();
-    DEBUG cout << str << "Resource Mode: 0x" << std::hex << mode << endl;
-	//if (state.back() == STATE_NEW && (ID < CHUNK_VITAPREV || ID > CHUNK_LAST))
-	//	throw std::exception("Early Invalid State/ID");
-    if (mode != MODE_0 && mode != MODE_1 && mode != MODE_2 && mode != MODE_3)
-        throw std::exception("Early Invalid Mode");
-    //create instance based on type
-    switch(state.back()) {
-        case CHUNK_IMAGEBANK:
-        case CHUNK_SOUNDBANK:
-        case CHUNK_MUSICBANK:
-        case CHUNK_FONTBANK: {
-            if (ID == CHUNK_ENDIMAGE || ID == CHUNK_ENDMUSIC || 
-                ID == CHUNK_ENDSOUND || ID == CHUNK_ENDFONT) 
-            {
-                // dataMode[0] = PRE_READNEXT;
-                // dataMode[1] = PRE_READNEXT | MAIN_COMP;
-                // dataMode[2] = PRE_READINT | MAIN_NORM;
-                // dataMode[3] = PRE_READINT | MAIN_NORM;
-                dataMode[0] = PRE_READINT;
-                dataMode[1] = PRE_READINT;
-                dataMode[2] = PRE_READINT;
-                dataMode[3] = PRE_READINT;
-            }
-            else
-            {
-                dataMode[0] = PRE_READNEXT | MAIN_COMP;
-                dataMode[1] = PRE_READNEXT | MAIN_COMP;
-                dataMode[2] = 0;// MAIN_NORM;
-                dataMode[3] = 0;// MAIN_NORM;
-                state.push_back(STATE_NOCHILD);
-            }
-        } break;
-        case CHUNK_FRAME: {
-            if ((ID > CHUNK_FRAMEIPHONEOPTS || ID < CHUNK_FRAMEHEADER) && ID != CHUNK_LAST) { strm.position = location; return; }
-        } // do not break
-        case STATE_DEFAULT:
-        case STATE_VITA:
-        case STATE_NEW:
-        case STATE_OLD:
-        default: {
-            dataMode[0] = PRE_READINT;
-            dataMode[1] = PRE_READINT;
-            dataMode[2] = PRE_READINT;
-            dataMode[3] = PRE_READINT;
-            switch(ID) {
-                case CHUNK_HEADER: {
-                    extraData = malloc(sizeof(GameEntry));
-					new((GameEntry*)extraData) GameEntry();
-                } break;
-                default: break;
-            }
-
-            //         dataMode[0] = PRE_READNEXT;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = MAIN_NORM;
-            //         dataMode[3] = 0;// MAIN_NORM;
-            //     } break;
-            //     case CHUNK_MENU:
-            //     case CHUNK_FRAMEEFFECTS: {
-            //         dataMode[0] = 0;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_ICON: {
-            //         dataMode[0] = 0;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_EXTNLIST: {
-            //         dataMode[0] = PRE_READINT;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_SECNUM:
-            //     case CHUNK_FRAMEHEADER:
-            //     case CHUNK_FRAMEHANDLES:
-            //     case CHUNK_FRAMEVIRTSIZE:
-            //     case CHUNK_FRAMEPALETTE:
-            //     case CHUNK_FRAMELAYERS:
-            //     case CHUNK_FRAMELAYEREFFECT:
-            //     case CHUNK_OBJINST:
-            //     case CHUNK_FRAMEEVENTS:
-            //     case CHUNK_FRAMEFADEI:
-            //     case CHUNK_FRAMEFADEO:
-            //     case CHUNK_OBJHEAD: {
-            //         dataMode[0] = 0;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = MAIN_NORM;
-            //     } break;
-            //     case CHUNK_SPACER:
-            //     case CHUNK_ENTRY:
-            //     case CHUNK_EXTDATA:
-            //     case CHUNK_MOVETIMEBASE: 
-            //     case CHUNK_TITLE2:
-            //     case CHUNK_FRAMEBANK:
-            //     case CHUNK_EXEONLY: {
-            //         dataMode[0] = PRE_READINT;//PRE_READ15;
-            //         dataMode[1] = 0;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_FRAMENAME:
-            //     case CHUNK_OBJNAME: {
-            //         dataMode[0] = PRE_READINT;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = 0;// MAIN_COMP;
-            //         dataMode[3] = MAIN_COMP;
-            //     } break;
-            //     case CHUNK_PROTECTION: {
-            //         dataMode[0] = PRE_READINT;// PRE_READ8;
-            //         dataMode[1] = 0;
-            //         dataMode[2] = MAIN_NORM;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_SHADERS: {
-            //         dataMode[0] = 0;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_MUSICBANK:
-            //     case CHUNK_SOUNDBANK:
-            //     case CHUNK_IMAGEBANK: {
-            //         dataMode[0] = PRE_READ8;
-            //         dataMode[1] = PRE_READ8 | MAIN_COMP;
-			// 		dataMode[2] = 0;// PRE_READ8 | MAIN_COMP;
-            //         dataMode[3] = PRE_READ8 | MAIN_COMP;
-            //     } break;
-            //     case CHUNK_FONTBANK: {
-			// 		dataMode[0] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = MAIN_NORM;
-            //         dataMode[3] = MAIN_NORM;
-            //     } break;
-            //     //case CHUNK_UNKNOWN8:
-            //     case CHUNK_OBJECTBANK2:
-            //     case CHUNK_OBJECTBANK: {
-            //         dataMode[0] = PRE_READ8;
-            //         dataMode[1] = 0;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_FRAME:
-            //     case CHUNK_LAST: {
-            //         dataMode[0] = PRE_READ4;
-            //         dataMode[1] = 0;
-            //         dataMode[2] = 0;
-            //         dataMode[3] = 0;
-            //     } break;
-            //     case CHUNK_TITLE:
-            //     //case CHUNK_TITLE2:
-            //     case CHUNK_AUTHOR:
-            //     case CHUNK_PROJPATH:
-            //     case CHUNK_OUTPATH:
-            //     case CHUNK_COPYRIGHT:
-            //     default: {
-            //         dataMode[0] = PRE_READNEXT;
-            //         dataMode[1] = PRE_READNEXT | MAIN_COMP;
-            //         dataMode[2] = MAIN_NORM;
-            //         dataMode[3] = MAIN_NORM;
-            //     } break;
-            // }
-        } break; 
-    }
-    
-    if (mode > MODE_3 || dataMode[mode] == 0)
-    {
-        DEBUG cout << "Invalid Mode: 0x" << std::hex << mode << endl;
-        throw std::exception("Invalid Mode");
-    }
-    else 
-		getData(strm, dataMode[mode]);
-
-    // DEBUG cout << str << "Resource Data Length: 0x" << std::hex << mainData.dataLen << endl;
-    // DEBUG cout << str << "Resource File Data Length: 0x" << std::hex << mainData.fileLen << endl;
-    // DEBUG cout << str << "Resource Data Location: 0x" << std::hex << mainData.location << endl;
-    // DEBUG cout << str << "Pre Data Length: 0x" << std::hex << preData.fileLen << endl;
-    // if (mainData.compressed)
-    //     DEBUG cout << str << "Has compressed data" << endl;
-    // else
-    //     DEBUG cout << str << "No compressed data" << endl;
-
-    DEBUG cout << str << "Resource Data Location: 0x" << std::hex << data.location << endl;
-    DEBUG cout << str << "Resource Data Length: 0x" << std::hex << data.dataLen << endl;
-    DEBUG cout << str << "Resource File Data Length: 0x" << std::hex << data.fileLen << endl;
-    if (data.compressed)
-        DEBUG cout << str << "Has compressed data" << endl;
-    else
-        DEBUG cout << str << "No compressed data" << endl;
-
-    // Must read in order to move the stream position correctly
-    //readCompressed(strm, dataLen, compressedDataLen, &compressedData);
-    //strm.position += mainData.fileLen;
-    if (state.back() == STATE_NOCHILD) { state.pop_back(); return; }
-    state.push_back(ID);
-    DEBUG cout << str << "Fetching Child Objects" << endl;
+    frame.clear();
+    image.clear();
+    sound.clear();
+    music.clear();
+    font.clear();
     while (strm.position < strm.data->size())
     {
-        ResourceEntry chunk;
-        bool more = fetchChild(strm, state, &chunk);
-        if (!more) break;
-        DEBUG cout << str << "Got Child: 0x" << std::hex << chunk.ID << endl;
-        setChild(strm, state, chunk);
-    }
-    state.pop_back();
-}
-
-bool ResourceEntry::fetchChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry* chunk)
-{
-    // return false;
-    switch(state.back()) {
-        // case CHUNK_HEADER:
-        case CHUNK_OBJHEAD:{
-            *chunk = ResourceEntry(strm, state);
-            return chunk->ID != CHUNK_LAST; //we still need to consume the last chunk, but wont add it in
-        } break;
-        case CHUNK_FRAME: {
-            *chunk = ResourceEntry(strm, state);
-            return chunk->ID > CHUNK_FRAME && chunk->ID <= CHUNK_FRAMEIPHONEOPTS;
-        } break;
-        case CHUNK_OBJECTBANK2:
-        case CHUNK_OBJECTBANK: {
-            size_t pos = strm.position;
-            *chunk = ResourceEntry(strm, state);
-            if (chunk->ID != CHUNK_OBJHEAD){ strm.position = pos; return false; }
-            return true;
-        } break;
-        // case CHUNK_FRAMEBANK: {
-        //     size_t pos = strm.position;
-        //     *chunk = ResourceEntry(strm, state);
-        //     if (chunk->ID != CHUNK_FRAME){ strm.position = pos; return false; }
-        //     return true;
-        // } break;
-        case CHUNK_IMAGEBANK: {
-            //state.push_back(STATE_IMAGE);
-            *chunk = ResourceEntry(strm, state);
-            //state.pop_back();
-            return chunk->ID != CHUNK_ENDIMAGE;
-        } break;
-        case CHUNK_FONTBANK: {
-            //state.push_back(STATE_FONT);
-            *chunk = ResourceEntry(strm, state);
-            //state.pop_back();
-            return chunk->ID != CHUNK_ENDFONT;
-        } break;
-        case CHUNK_SOUNDBANK: {
-            //state.push_back(STATE_SOUND);
-            *chunk = ResourceEntry(strm, state);
-            //state.pop_back();
-            return chunk->ID != CHUNK_ENDSOUND;
-        } break;
-        case CHUNK_MUSICBANK: {
-            //state.push_back(STATE_MUSIC);
-            *chunk = ResourceEntry(strm, state);
-            //state.pop_back();
-            return chunk->ID != CHUNK_ENDMUSIC;
-        } break;
-        case STATE_NEW:
-        case STATE_OLD:
-        case STATE_VITA:
-        case STATE_DEFAULT:
-        case STATE_IMAGE:
-        case STATE_SOUND:
-        case STATE_MUSIC:
-        case STATE_FONT:
-        default: {
-            return false;
-            // switch(ID) {
-            //     default: {
-            //         return false;
-            //     } break;
-            // }
-        } break;
-    }
-    return false; //return true if there is more to read
-}
-
-void ResourceEntry::setChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry& chunk)
-{
-	return;
-    bool old = true;
-    for (auto it = state.begin(); it != state.end(); it++)
-    {
-        if (*it == STATE_NEW) { old = false; break; }
-        else if (*it == STATE_OLD) { old = false; break; }
-    }
-    switch(state.back()) {
-        //case CHUNK_OLD_HEADER:
-        case CHUNK_HEADER: {
-            if (old) goto oldobj;
-            else goto newobj;
-        } break;
-        case STATE_OLD: {
-            oldobj:
-            switch(chunk.ID) {
-                // case CHUNK_OLD_HEADER: {
-                //     ((GameEntry*)extraData)->header = chunk;
-                // } break;
-                // case CHUNK_OLD_FRAMEITEMS: {
-                //     ((GameEntry*)extraData)->objectBank = chunk;
-                // } break;
-                // case CHUNK_OLD_FRAME: {
-                //     //((GameEntry*)extraData)->frameBank.push_back(chunk);
-                //     chunks.push_back(chunk);
-                // } break;
-                default: {
-                   goto newobj; //I'm so sorry...
-                } break;
-            }
-        } break;
-        case STATE_NEW: {
-            newobj:
-            switch(chunk.ID) {
-                // case CHUNK_HEADER: {
-                //     ((GameEntry*)extraData)->header = chunk;
-                // } break;
-                // case CHUNK_EXTDHEADER: {
-                //     ((GameEntry*)extraData)->extendedHeader = chunk;
-                // } break;
-                // case CHUNK_TITLE: {
-                //     ((GameEntry*)extraData)->title = chunk;
-                // } break;
-                // case CHUNK_COPYRIGHT: {
-                //     ((GameEntry*)extraData)->copyright = chunk;
-                // } break;
-                // case CHUNK_ABOUT: {
-                //     ((GameEntry*)extraData)->aboutText = chunk;
-                // } break;
-                // case CHUNK_AUTHOR: {
-                //     ((GameEntry*)extraData)->author = chunk;
-                // } break;
-                // case CHUNK_PROJPATH: {
-                //     ((GameEntry*)extraData)->projectPath = chunk;
-                // } break;
-                // case CHUNK_OUTPATH: {
-                //     ((GameEntry*)extraData)->outputPath = chunk;
-                // } break;
-                // case CHUNK_EXEONLY: {
-                //     ((GameEntry*)extraData)->exeOnly = chunk;
-                // } break;
-                // case CHUNK_MENU: {
-                //     ((GameEntry*)extraData)->menu = chunk;
-                // } break;
-                // case CHUNK_ICON: {
-                //     ((GameEntry*)extraData)->icon = chunk;
-                // } break;
-                // case CHUNK_SHADERS: {
-                //     ((GameEntry*)extraData)->shaders = chunk;
-                // } break;
-                // case CHUNK_GLOBALSTRS: {
-                //     ((GameEntry*)extraData)->globalStrings = chunk;
-                // } break;
-                // case CHUNK_GLOBALVALS: {
-                //     ((GameEntry*)extraData)->globalValues = chunk;
-                // } break;
-                // case CHUNK_EXTNLIST: {
-                //     ((GameEntry*)extraData)->extensions = chunk;
-                // } break;
-                // case CHUNK_FRAMEHANDLES: {
-                //     ((GameEntry*)extraData)->frameHandles = chunk;
-                // } break;
-                // case CHUNK_FRAME: {
-                //     //((GameEntry*)extraData)->frameBank.push_back(chunk);
-                //     chunks.push_back(chunk);
-                // } break;
-                // case CHUNK_OBJECTBANK: {
-                //     ((GameEntry*)extraData)->objectBank = chunk;
-                // } break;
-                // case CHUNK_SOUNDBANK: {
-                //     ((GameEntry*)extraData)->soundBank = chunk;
-                // } break;
-                // case CHUNK_MUSICBANK: {
-                //     ((GameEntry*)extraData)->musicBank = chunk;
-                // } break;
-                // case CHUNK_FONTBANK: {
-                //     ((GameEntry*)extraData)->fontBank = chunk;
-                // } break;
-                // case CHUNK_IMAGEBANK: {
-                //     ((GameEntry*)extraData)->imageBank = chunk;
-                // } break;
-                // case CHUNK_SECNUM: {
-                //     ((GameEntry*)extraData)->serial = chunk;
-                // } break;
-                // case CHUNK_BINFILES: {
-                //     ((GameEntry*)extraData)->fileBank = chunk;
-                // } break;
-                default: {
-                    // chunks.push_back(chunk);
-                } break;
-            }
-        } break;
-        case STATE_DEFAULT:
-        case CHUNK_IMAGEBANK:
-        case CHUNK_SOUNDBANK:
-        case CHUNK_MUSICBANK:
-        case CHUNK_FONTBANK:
-        default: {
-            switch(chunk.ID) {
-                default: {
-                    // chunks.push_back(chunk);
-                } break;
-            }
-        } break;
-    }
-}
-
-ResourceEntry::~ResourceEntry()
-{
-    if (extraData != nullptr)
-        free(extraData);
-}
-
-void ResourceEntry::getData(MemoryStream& strm, uint8_t readMode)//, int16_t predlen, int16_t mainflen, int16_t maindlen)
-{
-    if ((readMode & PRE_READNEXT) != 0)
-    {
-        // There's meant to be a way to just read the next int after the ID
-        // uint32_t next = findNext(strm);
-        // preData(strm, (next < 8 ? 0 : next - 8));
-    }
-    else if ((readMode & PRE_READINT) != 0)
-    {
-        uint32_t readLen = strm.readInt<uint32_t>();
-        // preData(strm, readLen);
-        data(strm, readLen);
-    }
-    else if ((readMode & PRE_READ4) != 0)
-    {
-        // preData(strm, 0x4);
-    }
-    else if ((readMode & PRE_READ8) != 0)
-    {
-        // preData(strm, 0x8);
-    }
-    else if ((readMode & PRE_READ15) != 0)
-    {
-        // preData(strm, 0x15);
-    }
-    else
-    {
-        // preData.clear();
-    }
-    if ((readMode & MAIN_COMP) != 0)
-    {
-        // uint32_t dlen = strm.readInt<uint32_t>();
-        // uint32_t flen = strm.readInt<uint32_t>();
-        // mainData(strm, flen, dlen);
-    }
-    else if ((readMode & MAIN_NORM) != 0)
-    {
-        // mainData(strm, strm.readInt<uint32_t>());
-    }
-    else
-    {
-        // mainData.clear();
-    }
-}
-
-uint32_t ResourceEntry::findNext(MemoryStream& strm)
-{
-    int8_t count = -1;
-    int32_t untilNext = 0;
-    int32_t pos = untilNext + strm.position;
-    while (count < 0 || count > 0x7F)
-    {
-        untilNext += findUntilNext(strm, pos + 2, vector<uint8_t>({0x78, 0xDA})) + 2;
-        pos = untilNext + strm.position;
-        count = (*strm.data)[pos - 1];
-    }
-    return untilNext;
-}
-
-int32_t ResourceEntry::findUntilNext(MemoryStream& strm, uint32_t pos, const vector<uint8_t>& toFind)
-{
-    for (int index1 = 0; pos + index1 < strm.data->size() - toFind.size(); index1++)
-    {
-        bool flag = true;
-        for (int index2 = 0; index2 < toFind.size(); index2++)
+        DataPoint dp(strm);
+        if (state.back() == STATE_NEW && (dp.ID < CHUNK_VITAPREV || dp.ID > CHUNK_LAST))
+            throw std::exception("Invalid State/ID");
+        if (dp.mode != MODE_0 && dp.mode != MODE_1 && dp.mode != MODE_2 && dp.mode != MODE_3)
+            throw std::exception("Invalid Mode");
+        switch(dp.ID)
         {
-			if ((*strm.data)[pos + index1 + index2] != toFind[index2]) { flag = false; break; }
+            case CHUNK_HEADER: { 
+                size_t pos = strm.position; 
+                gameHeader = dp; 
+                gameHeader(strm); 
+                frame.reserve(gameHeader.numFrames); 
+                strm.position = pos; 
+            } break;
+			case CHUNK_FRAME: { 
+                Frame frm; 
+                frm = dp; 
+                size_t pos = strm.position; 
+                frm(strm, unicode); 
+                frame.push_back(frm); 
+                strm.position = pos; 
+            } break;
+            case CHUNK_OBJECTBANK2: 
+            case CHUNK_OBJECTBANK: {
+                size_t pos = strm.position;
+                objectBank = dp;
+                objectBank(strm);
+                strm.position = pos;
+            } break;
+            case CHUNK_TITLE: title = dp; break;
+            case CHUNK_AUTHOR: author = dp; break;
+            case CHUNK_COPYRIGHT: copyright = dp; break;
+            case CHUNK_IMAGEBANK: imageBank = dp; break;
+            case CHUNK_SOUNDBANK: soundBank = dp; break;
+            case CHUNK_MUSICBANK: musicBank = dp; break;
+            case CHUNK_FONTBANK: fontBank = dp; break;
+            default: /*strm.position += strmSize;*/ continue;
         }
-        if (flag) return index1;
-    }
-    return -1;
-}
 
-void ResourceEntry::renderMenu(renderMenu_t& rm)
-{
-    char str[100];
-    sprintf(str, "0x%x##%zx%x", ID, location, mode);
-    if (ImGui::TreeNode(str))
-    {
-        sprintf(str, "Location: 0x%zx", location);
-        ImGui::Text(str);
-        sprintf(str, "Mode: 0x%x", mode);
-        ImGui::Text(str);
-        sprintf(str, "Data Location: 0x%zx", data.location);
-        ImGui::Text(str);
-        sprintf(str, "Data Length: 0x%zx", data.fileLen);
-        ImGui::Text(str);
-        if(ImGui::Button("View Pre Data"))
+        DEBUG 
         {
-            try{
-                *(rm.memedit) = *(data.read(rm.srcexp->gameBuffer.data).data);
+            string str = "";
+            for (size_t i = 0; i < state.size() - 2; i++)
+                str += "|";
+            cout << str << endl << str <<
+            "-New Resource"  << endl << str <<
+            " |-State: 0x"     << std::hex << state.back() << endl << str <<
+            " |-Pos: 0x:"      << std::hex << dp.location << endl << str << 
+            " |-ID: 0x"        << std::hex << dp.ID << endl << str <<
+            " |-Mode: 0x"      << std::hex << dp.mode << endl << str <<
+            " --Size in file: 0x" << std::hex << dp.fileLen << endl;
+        }
+    }
+
+    if(title.location != -1)
+    {
+        title.getData(strm);//, 0, (title.mode & MODE_FLAG_COMPRESSED) != 0);
+        DEBUG cout << std::hex << title.dataLocation << endl;
+        DEBUG cout << (title.compressed ? "Compressed" : "Uncompressed") << endl;
+        titlestr = (unicode ? readUnicode(title.read(strm.data)) : readASCII(title.read(strm.data)));
+        DEBUG cout << "Title: " << titlestr << endl;
+    }
+    else titlestr = "";
+
+    if(author.location != -1)
+    {
+        author.getData(strm);//, 0, (author.mode & MODE_FLAG_COMPRESSED) != 0);
+        DEBUG cout << std::hex << author.dataLocation << endl;
+        DEBUG cout << (author.compressed ? "Compressed" : "Uncompressed") << endl;
+        authorstr = (unicode ? readUnicode(author.read(strm.data)) : readASCII(author.read(strm.data)));
+        DEBUG cout << "Author: " << authorstr << endl;
+    }
+    else authorstr = "";
+
+    if(copyright.location != -1)
+    {
+        copyright.getData(strm);//, 0, (copyright.mode & MODE_FLAG_COMPRESSED) != 0);
+        DEBUG cout << std::hex << copyright.dataLocation << endl;
+        DEBUG cout << (copyright.compressed ? "Compressed" : "Uncompressed") << endl;
+        copyrightstr = (unicode ? readUnicode(copyright.read(strm.data)) : readASCII(copyright.read(strm.data)));
+        DEBUG cout << "Copyright: " << copyrightstr << endl;
+    }
+    else copyrightstr = "";
+
+    if(imageBank.location != -1)
+    {
+        strm.position = imageBank.location;
+        image.resize(strm.readInt<uint32_t>());
+        for(auto img = image.begin(); img != image.end() && strm.position < strm.data->size(); img++)
+        {
+            img->ID = strm.readInt<uint16_t>();
+            img->mode = strm.readInt<uint16_t>();
+            uint32_t inflen = strm.readInt<uint32_t>();
+            uint32_t deflen = strm.readInt<uint32_t>();
+            (*img)(strm, deflen, inflen);
+        }
+    }
+
+    if(soundBank.location != -1)
+    {
+        strm.position = soundBank.location;
+        sound.resize(strm.readInt<uint32_t>());
+        for(auto snd = sound.begin(); snd != sound.end() && strm.position < strm.data->size(); snd++)
+        {
+            snd->ID = strm.readInt<uint16_t>();
+            snd->mode = strm.readInt<uint16_t>();
+            strm.position += 0x8;
+            uint32_t inflen = strm.readInt<uint32_t>();
+            strm.position += 0xC;
+            uint32_t deflen = strm.readInt<uint32_t>();
+            (*snd)(strm, deflen, inflen);
+            // (*snd)(strm, 0);
+            // snd->getData(strm, 0x18, false);
+
+        }
+    }
+
+    if(musicBank.location != -1)
+    {
+        strm.position = musicBank.location;
+        music.resize(strm.readInt<uint32_t>());
+        for(auto msc = music.begin(); msc != music.end() && strm.position < strm.data->size(); msc++)
+        {
+            msc->ID = strm.readInt<uint16_t>();
+            msc->mode = strm.readInt<uint16_t>();
+            uint32_t inflen = strm.readInt<uint32_t>();
+            uint32_t deflen = strm.readInt<uint32_t>();
+            (*msc)(strm, deflen, inflen);
+        }
+    }
+
+    if(fontBank.location != -1)
+    {
+        strm.position = fontBank.location;
+        font.resize(strm.readInt<uint32_t>());
+        for(auto fnt = font.begin(); fnt != font.end() && strm.position < strm.data->size(); fnt++)
+        {
+            fnt->ID = strm.readInt<uint16_t>();
+            fnt->mode = strm.readInt<uint16_t>();
+            uint32_t inflen = strm.readInt<uint32_t>();
+            uint32_t deflen = strm.readInt<uint32_t>();
+            (*fnt)(strm, deflen, inflen);
+        }
+    }
+};
+
+void SourceExplorer::draw(renderMenu_t rm)
+{
+    ImGui::Text("Game: "); ImGui::SameLine(); ImGui::Text(titlestr.c_str());
+    ImGui::Text("Author: "); ImGui::SameLine(); ImGui::Text(authorstr.c_str());
+    ImGui::Text("Copyright: "); ImGui::SameLine(); ImGui::Text(copyrightstr.c_str());
+    // if(ImGui::TreeNode("Frame Bank"))
+    // {
+    //     for(auto frm = frame.begin(); frm != frame.end(); frm++)
+    //     {
+    //         char str[100];
+	// 		sprintf(str, "%s##%zx", frm->namestr.c_str(), frm->location);
+    //         if(ImGui::TreeNode(str))
+    //         {
+    //             if(ImGui::Button("View Raw Data"))
+    //             {
+    //                 *rm.memedit = *frm->read(gameBuffer.data).data;
+    //             }
+    //             for(auto obj = frm->instances.items.begin(); obj != frm->instances.items.end(); obj++)
+    //             {
+    //                 ObjectHeader* objh = nullptr;
+    //                 for(auto it = objectBank.items.begin(); it != objectBank.items.end(); it++)
+    //                 {
+    //                     if(it->handle == obj->handle)
+    //                     {
+    //                         objh = &*it;
+    //                         break;
+    //                     }
+    //                 }
+    //                 if(objh == nullptr)
+    //                 {
+    //                     sprintf(str, "Object 0x%x", obj->handle);
+    //                     ImGui::Text(str);
+    //                 }
+    //                 else
+    //                 {
+    //                     sprintf(str, "Object 0x%x", obj->handle);
+    //                     if(ImGui::TreeNode(str))
+    //                     {
+    //                         sprintf(str, "Parent Handle: 0x%x", obj->parentHandle);
+    //                         ImGui::Text(str);
+    //                         sprintf(str, "Location: 0x%zx", objh->location);
+    //                         ImGui::Text(str);
+    //                         ImGui::TreePop();
+    //                     }
+    //                 }
+    //             }
+    //             ImGui::TreePop();
+    //         }
+    //     }
+    //     ImGui::TreePop();
+    // }
+    // if(ImGui::TreeNode("Object Bank"))
+    // {
+    //     for(auto obj = objectBank.items.begin(); obj != objectBank.items.end(); obj++)
+    //     {
+    //         char str[100];
+    //         sprintf(str, "Object 0x%x##%zx", obj->handle, obj->location);
+    //         if(ImGui::TreeNode(str))
+    //         {
+    //             ImGui::TreePop();
+    //         }
+    //     }
+    //     ImGui::TreePop();
+    // }
+    if(ImGui::TreeNode("Image Bank"))
+    {
+        char loc[100];
+        sprintf(loc, "Location: 0x%zx", imageBank.location);
+        ImGui::Text(loc);
+        for(auto img = image.begin(); img != image.end(); img++)
+        {
+            char str[100];
+            sprintf(str, "View Image 0x%x", img->ID);
+            if(ImGui::Button(str))
+            {
+                rm.viewImage->generateImage(img->read(gameBuffer.data));
             }
-            catch (std::exception e){
-                *(rm.errtxt) = "Error: ";
-                *(rm.errtxt) += e.what();
-                cout << *(rm.errtxt) << endl;
-                flush(cout);
+        }
+        ImGui::TreePop();
+    }
+    if(ImGui::TreeNode("Sound Bank"))
+    {
+        char loc[100];
+        sprintf(loc, "Location: 0x%zx", soundBank.location);
+        ImGui::Text(loc);
+        for(auto snd = sound.begin(); snd != sound.end(); snd++)
+        {
+            char str[100];
+            sprintf(str, "View Sound 0x%x", snd->ID);
+            if(ImGui::Button(str))
+            {
+                *rm.memedit = *snd->read(gameBuffer.data).data;
+            }
+        }
+        ImGui::TreePop();
+    }
+    if(ImGui::TreeNode("Music Bank"))
+    {
+        char loc[100];
+        sprintf(loc, "Location: 0x%zx", musicBank.location);
+        ImGui::Text(loc);
+        for(auto msc = music.begin(); msc != music.end(); msc++)
+        {
+            char str[100];
+            sprintf(str, "View Music 0x%x", msc->ID);
+            if(ImGui::Button(str))
+            {
+                *rm.memedit = *msc->read(gameBuffer.data).data;
+            }
+        }
+        ImGui::TreePop();
+    }
+    if(ImGui::TreeNode("Font Bank"))
+    {
+        char loc[100];
+        sprintf(loc, "Location: 0x%zx", fontBank.location);
+        ImGui::Text(loc);
+        for(auto fnt = font.begin(); fnt != font.end(); fnt++)
+        {
+            char str[100];
+            sprintf(str, "View Font 0x%x", fnt->ID);
+            if(ImGui::Button(str))
+            {
+                *rm.memedit = *fnt->read(gameBuffer.data).data;
             }
         }
         ImGui::TreePop();
@@ -570,11 +312,24 @@ vector<uint8_t> readCompressed(vector<uint8_t>& compressed, uint32_t datalen, bo
             if (decompress != nullptr) *decompress = true;
             return rtn;
         }
-        else 
+
+        try
         {
-            if (decompress != nullptr) *decompress = false;
-            return compressed;
-        }
+            size_t dlen = datalen;
+            // int bytesread = tinf_uncompress(&(rtn[0]), &dlen, &(compressed[0]), compressed.size());
+            uint8_t* decomp = (uint8_t*)tinfl_decompress_mem_to_heap(&(compressed[0]), compressed.size(), &dlen, 0);
+            rtn.resize(dlen);
+            for(size_t i = 0; i < dlen; i++) rtn[i] = decomp[i];
+            mz_free(decomp);
+            if (dlen == datalen)
+            {
+                if (decompress != nullptr) *decompress = true;
+                return rtn;
+            }
+        } catch(std::exception e){}
+
+        if (decompress != nullptr) *decompress = false;
+        return compressed;
     }
     if (decompress != nullptr) *decompress = false;
     return vector<uint8_t>({0});
@@ -595,7 +350,20 @@ string readUnicode(MemoryStream& strm)
     return str;
 }
 
+string readString(MemoryStream& strm, bool unicode)
+{
+    if (unicode)
+        return readUnicode(strm);
+    else
+        return readASCII(strm);
+}
+
 DataPoint::DataPoint(){}
+
+DataPoint::DataPoint(MemoryStream& strm)
+{
+    (*this)(strm);
+}
 
 DataPoint::DataPoint(size_t loc, size_t flen)
 {
@@ -617,60 +385,93 @@ DataPoint::DataPoint(MemoryStream& strm, size_t flen, size_t alen)
     (*this)(strm, flen, alen);
 }
 
+void DataPoint::operator()(MemoryStream& strm)
+{
+    ID = strm.readInt<uint16_t>();
+    mode = strm.readInt<uint16_t>();
+    fileLen = strm.readInt<uint32_t>();
+    location = strm.position;
+    dataLocation = location;
+    defDataLen = fileLen;
+    compressed = false;
+    strm.position = location + fileLen;
+}
+
+void DataPoint::operator()(MemoryStream& strm, size_t flen)
+{
+    (*this)(strm.position, flen);
+    strm.position += flen;
+}
+
+void DataPoint::operator()(MemoryStream& strm, size_t flen, size_t alen)
+{
+    (*this)(strm.position, flen, alen);
+    strm.position += flen;
+}
+
 void DataPoint::operator()(size_t loc, size_t flen)
 {
     location = loc;
     fileLen = flen;
-    dataLen = 0;
     compressed = false;
 }
 
 void DataPoint::operator()(size_t loc, size_t flen, size_t alen)
 {
     location = loc;
+    dataLocation = loc;
     fileLen = flen;
-    dataLen = alen;
-    compressed = true;
-}
-
-void DataPoint::operator()(MemoryStream& strm, size_t flen)
-{
-    location = strm.position;
-    strm.position += flen;
-    fileLen = flen;
-    dataLen = 0;
-    compressed = false;
-}
-
-void DataPoint::operator()(MemoryStream& strm, size_t flen, size_t alen)
-{
-    location = strm.position;
-    strm.position += flen;
-    fileLen = flen;
-    dataLen = alen;
+    defDataLen = flen;
+    infDataLen = alen;
     compressed = true;
 }
 
 void DataPoint::clear()
 {
-    location = 0;
-    fileLen = 0;
-    dataLen = 0;
-    compressed = false;
+    *this = DataPoint();
+}
+
+void DataPoint::getData(MemoryStream& strm, size_t offset)//, bool comp)
+{
+	strm.position = location + offset;
+	compressed = false;
+
+	if (mode == MODE_2 || mode == MODE_3) // Clickteam "Mode 3"
+	{
+		defDataLen = fileLen - 0x4;
+		dataLocation = strm.position;
+	}
+
+	if (mode == MODE_1)// || mode == MODE_3) // Compressed
+	{
+		compressed = true;
+		infDataLen = strm.readInt<uint32_t>();
+	}
+
+	if (mode == MODE_0 || mode == MODE_1) // Zlib
+	{
+		defDataLen = strm.readInt<uint32_t>();
+		// dataLocation = strm.position;
+	}
+    
+    dataLocation = strm.position;
+    uint32_t tfileLen = (dataLocation - location) + defDataLen;
+    if(tfileLen > fileLen) fileLen = tfileLen;
+    strm.position = location + fileLen;
 }
 
 MemoryStream DataPoint::rawStream(vector<uint8_t>* memory)
 {
-    auto begin = memory->begin() + location;
-    auto end = begin + fileLen;
+    auto begin = memory->begin() + dataLocation;
+    auto end = begin + defDataLen;
     return MemoryStream(vector<uint8_t>(begin, end));
 }
 
 MemoryStream DataPoint::decompressedStream(vector<uint8_t>* memory)
 {
-    auto begin = memory->begin() + location;
-    auto end = begin + fileLen;
-    return MemoryStream(readCompressed(vector<uint8_t>(begin, end), dataLen));
+    auto begin = memory->begin() + dataLocation;
+    auto end = begin + defDataLen;
+    return MemoryStream(readCompressed(vector<uint8_t>(begin, end), infDataLen));
 }
 
 MemoryStream DataPoint::read(vector<uint8_t>* memory)
@@ -681,7 +482,8 @@ MemoryStream DataPoint::read(vector<uint8_t>* memory)
         return rawStream(memory);
 }
 
-void SourceExplorer::loadGame(string path)
+// Read game from file into memory
+void SourceExplorer::loadIntoMem(string path)
 {
     loaded = false;
     gameState.clear();
@@ -702,7 +504,9 @@ void SourceExplorer::loadGame(string path)
     }
     catch(std::exception e)
     {
-        throw std::exception("You probably don't have enough RAM");
+        cout << "Bad directory or you probably don't have enough RAM" << endl;
+        THROW(e);
+        throw std::exception("Bad directory or you probably don't have enough RAM");
     }
     //if (fileSize != gameBuffer.data->size()) 
     DEBUG cout << "resize: 0x" << std::hex << gameBuffer.data->size() << endl;
@@ -713,25 +517,11 @@ void SourceExplorer::loadGame(string path)
         (*gameBuffer.data)[i] = in.get();
     }
     // readEntries();
-    readGameData();
+    loadFromMem();
 }
 
-// void SourceExplorer::readEntries()
-// {
-//     readGameData(gameState);
-//     //fetchEntry -> entry
-//     game = ResourceEntry(gameBuffer, gameState);
-//     //entry -> fetchChildren
-//     //entry -> readData
-//     //ResourceEntry.push_back(entry)
-
-//     //GameDeconstructor gd;
-//     //MemoryStream& gameStream = gd.fetchGameData(gameBuffer, &state);
-//     ///*GameEntry*/ ResourceEntry game = /*(GameEntry)*/gd.fetchEntry(gameStream, &state);
-//     //game.fetchChildren();
-// }
-
-void SourceExplorer::readGameData()
+// Read game from memory
+void SourceExplorer::loadFromMem()
 {
     loaded = false;
     DEBUG cout << "Reading game data" << endl;
@@ -824,6 +614,7 @@ void SourceExplorer::readGameData()
     //strm.position = pos;
     dataLocation = strm.position;
     loaded = true;
+    getEntries(gameBuffer, gameState);
 }
 
 uint64_t SourceExplorer::packData(MemoryStream& strm, vector<uint16_t>& state)
@@ -923,7 +714,9 @@ uint64_t SourceExplorer::packData(MemoryStream& strm, vector<uint16_t>& state)
 
 void SourceExplorer::gameData(MemoryStream& strm)
 {
+    game.location = strm.position;
     uint16_t firstShort = strm.readInt<uint16_t>();
+    // game.ID = firstShort;
     if (firstShort == CNCV1VER)
     {
         cnc = true;
@@ -935,6 +728,8 @@ void SourceExplorer::gameData(MemoryStream& strm)
     runtimeSubVersion = strm.readInt<uint16_t>();
     productVersion = strm.readInt<uint32_t>();
     productBuild = strm.readInt<uint32_t>();
+
+    game(strm.position, strm.data->size() - strm.position);
 
     DEBUG cout << product(runtimeVersion) << endl;
     if (runtimeVersion == PROD_MMF15) oldGame = true;
@@ -952,6 +747,6 @@ string SourceExplorer::product(uint16_t vnum)
         case PROD_MMF2:
             return "MMF2";
         default:
-            return "None";
+            return "Invalid";
     }
 }

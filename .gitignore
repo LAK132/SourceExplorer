@@ -6,3 +6,4 @@ include
 src/resources
 gamedeconstructor.*
 vc140.pdb
+*.dump

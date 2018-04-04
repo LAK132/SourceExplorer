@@ -17,214 +17,215 @@ SourceExplorer srcexp;
 MemoryEditor memEdit;
 vector<uint8_t> gameMem;
 
-void genTree(ResourceEntry* res, const char* name = "", Image* viewImage = nullptr)
-{
-	if (res == nullptr) return;
-    static string errtxt = "";
-    char str[100];
-    sprintf(str, "%s 0x%I32x##%I64x", name, res->ID, (uint64_t)&(*res));
-    if(ImGui::TreeNode(str))
-    {
-        sprintf(str, "ID: 0x%I32x", res->ID);
-        ImGui::Text(str);
-        sprintf(str, "Mode: 0x%I32x", res->mode);
-        ImGui::Text(str);
-        sprintf(str, "Location: 0x%zx", res->location);
-        ImGui::Text(str);
-        // sprintf(str, "Pre Data Size: 0x%I64x", res->preData.fileLen);
-        // ImGui::Text(str);
-        sprintf(str, "Data Location: 0x%I64x", res->data.location);
-        ImGui::Text(str);
-        sprintf(str, "Data Length: 0x%I64x", res->data.fileLen);
-        ImGui::Text(str);
-        if(ImGui::Button("View Pre Data"))
-        {
-            try
-            {
-                // gameMemPtr = &(res->preData[0]);
-                // gameMemSize = res->preData.size();
-                gameMem = *res->data.read(srcexp.gameBuffer.data).data;
-            }
-            catch (std::exception e)
-            {
-                errtxt = "Error: ";
-                errtxt += e.what();
-                cout << errtxt << endl;
-                flush(cout);
-            }
-        }
-        // if(ImGui::Button("View Raw Main Data"))
-        // {
-        //     try
-        //     {
-        //         // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
-        //         // gameMemSize = res->compressedDataLen;
-        //         // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
-        //         // auto end = begin + res->mainData.fileLen;
-        //         // gameMem = vector<uint8_t>(begin, end);
-        //         gameMem = *res->mainData.rawStream(srcexp.gameBuffer.data).data;
-        //     }
-        //     catch (std::exception e)
-        //     {
-        //         errtxt = "Error: ";
-        //         errtxt += e.what();
-        //         cout << errtxt << endl;
-        //         flush(cout);
-        //     }
-        // }
-        // if(ImGui::Button("View Decompressed Main Data"))
-        // {
-        //     try
-        //     {
-        //         // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
-        //         // gameMemSize = res->compressedDataLen;
-        //         // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
-        //         // auto end = begin + res->mainData.fileLen;
-        //         // gameMem = readCompressed(vector<uint8_t>(begin, end), res->mainData.dataLen);
-        //         gameMem = *res->mainData.decompressedStream(srcexp.gameBuffer.data).data;
-        //     }
-        //     catch (std::exception e)
-        //     {
-        //         errtxt = "Error: ";
-        //         errtxt += e.what();
-        //         cout << errtxt << endl;
-        //         flush(cout);
-        //     }
-        // }
-        // if(viewImage != nullptr) if(ImGui::Button("View As Image"))
-        // {
-        //     try
-        //     {
-        //         // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
-        //         // gameMemSize = res->compressedDataLen;
-        //         // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
-        //         // auto end = begin + res->mainData.fileLen;
-        //         // vector<uint8_t> img = readCompressed(vector<uint8_t>(begin, end), res->mainData.dataLen);
-        //         // MemoryStream ms(&img);
-        //         viewImage->generateImage(res->mainData.read(srcexp.gameBuffer.data));
-        //     }
-        //     catch (std::exception e)
-        //     {
-        //         errtxt = "Error: ";
-        //         errtxt += e.what();
-        //         cout << errtxt << endl;
-        //         flush(cout);
-        //     }
-        // }
-        ImGui::Text(errtxt.c_str());
-        ImGui::Separator();
-        // if (res->chunks.size() > 0) for (auto it = res->chunks.begin(); it != res->chunks.end(); it++)
-        // {
-        //     string str = "";
-        //     switch(res->ID) {
-        //         case CHUNK_IMAGEBANK: str = "Image"; break;
-        //         case CHUNK_FONTBANK: str = "Font"; break;
-        //         case CHUNK_SOUNDBANK: str = "Sound"; break;
-        //         case CHUNK_MUSICBANK: str = "Music/MIDI"; break;
-        //         default: break;
-        //     }
-        //     if (str == "") switch(it->ID) {
-        //         case CHUNK_VITAPREV: str = "Vitalise Preview"; break;
+// void genTree(ResourceEntry* res, const char* name = "", Image* viewImage = nullptr)
+// {
+// 	if (res == nullptr) return;
+//     static string errtxt = "";
+//     char str[100];
+//     sprintf(str, "%s 0x%I32x##%I64x", name, res->ID, (uint64_t)&(*res));
+//     if(ImGui::TreeNode(str))
+//     {
+//         sprintf(str, "ID: 0x%I32x", res->ID);
+//         ImGui::Text(str);
+//         sprintf(str, "Mode: 0x%I32x", res->mode);
+//         ImGui::Text(str);
+//         sprintf(str, "Location: 0x%zx", res->location);
+//         ImGui::Text(str);
+//         // sprintf(str, "Pre Data Size: 0x%I64x", res->preData.fileLen);
+//         // ImGui::Text(str);
+//         sprintf(str, "Data Location: 0x%I64x", res->data.location);
+//         ImGui::Text(str);
+//         sprintf(str, "Data Length: 0x%I64x", res->data.fileLen);
+//         ImGui::Text(str);
+//         if(ImGui::Button("View Pre Data"))
+//         {
+//             try
+//             {
+//                 // gameMemPtr = &(res->preData[0]);
+//                 // gameMemSize = res->preData.size();
+//                 gameMem = *res->data.read(srcexp.gameBuffer.data).data;
+//             }
+//             catch (std::exception e)
+//             {
+//                 errtxt = "Error: ";
+//                 errtxt += e.what();
+//                 cout << errtxt << endl;
+//                 flush(cout);
+//             }
+//         }
+//         // if(ImGui::Button("View Raw Main Data"))
+//         // {
+//         //     try
+//         //     {
+//         //         // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
+//         //         // gameMemSize = res->compressedDataLen;
+//         //         // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
+//         //         // auto end = begin + res->mainData.fileLen;
+//         //         // gameMem = vector<uint8_t>(begin, end);
+//         //         gameMem = *res->mainData.rawStream(srcexp.gameBuffer.data).data;
+//         //     }
+//         //     catch (std::exception e)
+//         //     {
+//         //         errtxt = "Error: ";
+//         //         errtxt += e.what();
+//         //         cout << errtxt << endl;
+//         //         flush(cout);
+//         //     }
+//         // }
+//         // if(ImGui::Button("View Decompressed Main Data"))
+//         // {
+//         //     try
+//         //     {
+//         //         // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
+//         //         // gameMemSize = res->compressedDataLen;
+//         //         // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
+//         //         // auto end = begin + res->mainData.fileLen;
+//         //         // gameMem = readCompressed(vector<uint8_t>(begin, end), res->mainData.dataLen);
+//         //         gameMem = *res->mainData.decompressedStream(srcexp.gameBuffer.data).data;
+//         //     }
+//         //     catch (std::exception e)
+//         //     {
+//         //         errtxt = "Error: ";
+//         //         errtxt += e.what();
+//         //         cout << errtxt << endl;
+//         //         flush(cout);
+//         //     }
+//         // }
+//         // if(viewImage != nullptr) if(ImGui::Button("View As Image"))
+//         // {
+//         //     try
+//         //     {
+//         //         // gameMemPtr = &((*srcexp.gameBuffer.data)[res->dataLoc]);
+//         //         // gameMemSize = res->compressedDataLen;
+//         //         // auto begin = srcexp.gameBuffer.data->begin() + res->mainData.location;
+//         //         // auto end = begin + res->mainData.fileLen;
+//         //         // vector<uint8_t> img = readCompressed(vector<uint8_t>(begin, end), res->mainData.dataLen);
+//         //         // MemoryStream ms(&img);
+//         //         viewImage->generateImage(res->mainData.read(srcexp.gameBuffer.data));
+//         //     }
+//         //     catch (std::exception e)
+//         //     {
+//         //         errtxt = "Error: ";
+//         //         errtxt += e.what();
+//         //         cout << errtxt << endl;
+//         //         flush(cout);
+//         //     }
+//         // }
+//         ImGui::Text(errtxt.c_str());
+//         ImGui::Separator();
+//         // if (res->chunks.size() > 0) for (auto it = res->chunks.begin(); it != res->chunks.end(); it++)
+//         // {
+//         //     string str = "";
+//         //     switch(res->ID) {
+//         //         case CHUNK_IMAGEBANK: str = "Image"; break;
+//         //         case CHUNK_FONTBANK: str = "Font"; break;
+//         //         case CHUNK_SOUNDBANK: str = "Sound"; break;
+//         //         case CHUNK_MUSICBANK: str = "Music/MIDI"; break;
+//         //         default: break;
+//         //     }
+//         //     if (str == "") switch(it->ID) {
+//         //         case CHUNK_VITAPREV: str = "Vitalise Preview"; break;
 
-        //         case CHUNK_HEADER: str = "Header"; break;
-        //         case CHUNK_TITLE: str = "Title"; break;
-        //         case CHUNK_AUTHOR: str = "Author"; break;
-        //         case CHUNK_MENU: str = "Menu"; break;
-        //         case CHUNK_EXTPATH: str = "Extra Path"; break;
+//         //         case CHUNK_HEADER: str = "Header"; break;
+//         //         case CHUNK_TITLE: str = "Title"; break;
+//         //         case CHUNK_AUTHOR: str = "Author"; break;
+//         //         case CHUNK_MENU: str = "Menu"; break;
+//         //         case CHUNK_EXTPATH: str = "Extra Path"; break;
 
-        //         case CHUNK_EXTENS: str = "Extensions (deprecated)"; break;
-        //         case CHUNK_OBJECTBANK: str = "Object Bank"; break;
-        //         case CHUNK_OBJECTBANK2: str = "Object Bank 2"; break;
+//         //         case CHUNK_EXTENS: str = "Extensions (deprecated)"; break;
+//         //         case CHUNK_OBJECTBANK: str = "Object Bank"; break;
+//         //         case CHUNK_OBJECTBANK2: str = "Object Bank 2"; break;
 
-        //         case CHUNK_GLOBALEVENTS: str = "Global Events"; break;
-        //         case CHUNK_FRAMEHANDLES: str = "Frame Handles"; break;
-        //         case CHUNK_EXTDATA: str = "Extra Data"; break;
+//         //         case CHUNK_GLOBALEVENTS: str = "Global Events"; break;
+//         //         case CHUNK_FRAMEHANDLES: str = "Frame Handles"; break;
+//         //         case CHUNK_EXTDATA: str = "Extra Data"; break;
 
-        //         case CHUNK_ADDEXTNS: str = "Additional Extensions (deprecated)"; break;
-        //         case CHUNK_PROJPATH: str = "Project Path"; break;
-        //         case CHUNK_OUTPATH: str = "Output Path"; break;
-        //         case CHUNK_APPDOC: str = "App Doc"; break;
-        //         case CHUNK_OTHEREXT: str = "Other Extension(s)"; break;
-        //         case CHUNK_GLOBALVALS: str = "Global Values"; break;
-        //         case CHUNK_GLOBALSTRS: str = "Global Strings"; break;
-        //         case CHUNK_EXTNLIST: str = "Extensions List"; break;
-        //         case CHUNK_ICON: str = "Icon"; break;
+//         //         case CHUNK_ADDEXTNS: str = "Additional Extensions (deprecated)"; break;
+//         //         case CHUNK_PROJPATH: str = "Project Path"; break;
+//         //         case CHUNK_OUTPATH: str = "Output Path"; break;
+//         //         case CHUNK_APPDOC: str = "App Doc"; break;
+//         //         case CHUNK_OTHEREXT: str = "Other Extension(s)"; break;
+//         //         case CHUNK_GLOBALVALS: str = "Global Values"; break;
+//         //         case CHUNK_GLOBALSTRS: str = "Global Strings"; break;
+//         //         case CHUNK_EXTNLIST: str = "Extensions List"; break;
+//         //         case CHUNK_ICON: str = "Icon"; break;
 
-        //         case CHUNK_DEMOVER: str = "DEMOVER"; break;
-        //         case CHUNK_SECNUM: str = "Security Number"; break;
-        //         case CHUNK_BINFILES: str = "Binary Files"; break;
+//         //         case CHUNK_DEMOVER: str = "DEMOVER"; break;
+//         //         case CHUNK_SECNUM: str = "Security Number"; break;
+//         //         case CHUNK_BINFILES: str = "Binary Files"; break;
 
-        //         case CHUNK_MENUIMAGES: str = "Menu Images"; break;
-        //         case CHUNK_ABOUT: str = "About"; break;
-        //         case CHUNK_COPYRIGHT: str = "Copyright"; break;
+//         //         case CHUNK_MENUIMAGES: str = "Menu Images"; break;
+//         //         case CHUNK_ABOUT: str = "About"; break;
+//         //         case CHUNK_COPYRIGHT: str = "Copyright"; break;
 
-        //         case CHUNK_GLOBALVALNAMES: str = "Global Value Names"; break;
-        //         case CHUNK_GLOBALSTRNAMES: str = "Global String Names"; break;
+//         //         case CHUNK_GLOBALVALNAMES: str = "Global Value Names"; break;
+//         //         case CHUNK_GLOBALSTRNAMES: str = "Global String Names"; break;
 
-        //         case CHUNK_MOVEMNTEXTNS: str = "Movement Extensions"; break;
-        //         //case CHUNK_UNKNOWN8: str = "UNKNOWN8"; break;
-        //         case CHUNK_EXEONLY: str = "EXE Only"; break;
+//         //         case CHUNK_MOVEMNTEXTNS: str = "Movement Extensions"; break;
+//         //         //case CHUNK_UNKNOWN8: str = "UNKNOWN8"; break;
+//         //         case CHUNK_EXEONLY: str = "EXE Only"; break;
 
-        //         case CHUNK_PROTECTION: str = "Protection"; break;
-        //         case CHUNK_SHADERS: str = "Shaders"; break;
+//         //         case CHUNK_PROTECTION: str = "Protection"; break;
+//         //         case CHUNK_SHADERS: str = "Shaders"; break;
 
-        //         case CHUNK_EXTDHEADER: str = "Extended Header"; break;
-        //         case CHUNK_SPACER: str = "Spacer"; break;
+//         //         case CHUNK_EXTDHEADER: str = "Extended Header"; break;
+//         //         case CHUNK_SPACER: str = "Spacer"; break;
 
-        //         case CHUNK_FRAMEBANK: str = "Frame Bank"; break;
-        //         case CHUNK_224F: str = "CHUNK_224F"; break;
-        //         case CHUNK_TITLE2: str = "Title2"; break;
+//         //         case CHUNK_FRAMEBANK: str = "Frame Bank"; break;
+//         //         case CHUNK_224F: str = "CHUNK_224F"; break;
+//         //         case CHUNK_TITLE2: str = "Title2"; break;
 
-        //         case CHUNK_FRAME: str = "Frame"; break;
-        //         case CHUNK_FRAMEHEADER: str = "Frame - Header"; break;
-        //         case CHUNK_FRAMENAME: str = "Frame - Name"; break;
-        //         case CHUNK_FRAMEPASSWORD: str = "Frame - Password"; break;
-        //         case CHUNK_FRAMEPALETTE: str = "Frame - Palette"; break;
+//         //         case CHUNK_FRAME: str = "Frame"; break;
+//         //         case CHUNK_FRAMEHEADER: str = "Frame - Header"; break;
+//         //         case CHUNK_FRAMENAME: str = "Frame - Name"; break;
+//         //         case CHUNK_FRAMEPASSWORD: str = "Frame - Password"; break;
+//         //         case CHUNK_FRAMEPALETTE: str = "Frame - Palette"; break;
            
-        //         case CHUNK_OBJINST: str = "Frame - Object Instances"; break;
-        //         case CHUNK_FRAMEFADEIF: str = "Frame - Fade In Frame"; break;
-        //         case CHUNK_FRAMEFADEOF: str = "Frame - Fade Out Frame"; break;
-        //         case CHUNK_FRAMEFADEI: str = "Frame - Fade In"; break;
-        //         case CHUNK_FRAMEFADEO: str = "Frame - Fade Out"; break;
-        //         case CHUNK_FRAMEEVENTS: str = "Frame - Events"; break;
-        //         case CHUNK_FRAMEPLYHEAD: str = "Frame - Play Header"; break;
-        //         case CHUNK_FRAMEADDITEMINST: str = "Frame - Add Instance"; break;
-        //         case CHUNK_FRAMELAYERS: str = "Frame - Layers"; break;
-        //         case CHUNK_FRAMEVIRTSIZE: str = "Frame - Virtical Size"; break;
-        //         case CHUNK_DEMOFILEPATH: str = "Demo File Path"; break;
+//         //         case CHUNK_OBJINST: str = "Frame - Object Instances"; break;
+//         //         case CHUNK_FRAMEFADEIF: str = "Frame - Fade In Frame"; break;
+//         //         case CHUNK_FRAMEFADEOF: str = "Frame - Fade Out Frame"; break;
+//         //         case CHUNK_FRAMEFADEI: str = "Frame - Fade In"; break;
+//         //         case CHUNK_FRAMEFADEO: str = "Frame - Fade Out"; break;
+//         //         case CHUNK_FRAMEEVENTS: str = "Frame - Events"; break;
+//         //         case CHUNK_FRAMEPLYHEAD: str = "Frame - Play Header"; break;
+//         //         case CHUNK_FRAMEADDITEMINST: str = "Frame - Add Instance"; break;
+//         //         case CHUNK_FRAMELAYERS: str = "Frame - Layers"; break;
+//         //         case CHUNK_FRAMEVIRTSIZE: str = "Frame - Virtical Size"; break;
+//         //         case CHUNK_DEMOFILEPATH: str = "Demo File Path"; break;
 
-        //         case CHUNK_RANDOMSEED: str = "Random Seed"; break;
-        //         case CHUNK_FRAMELAYEREFFECT: str = "Frame - Layer Effect"; break;
-        //         case CHUNK_FRAMEBLURAY: str = "Frame - BluRay Options"; break;
-        //         case CHUNK_MOVETIMEBASE: str = "Frame - Movement Timer Base"; break;
+//         //         case CHUNK_RANDOMSEED: str = "Random Seed"; break;
+//         //         case CHUNK_FRAMELAYEREFFECT: str = "Frame - Layer Effect"; break;
+//         //         case CHUNK_FRAMEBLURAY: str = "Frame - BluRay Options"; break;
+//         //         case CHUNK_MOVETIMEBASE: str = "Frame - Movement Timer Base"; break;
 
-        //         case CHUNK_MOSAICIMGTABLE: str = "Mosaic Image Table"; break;
-        //         case CHUNK_FRAMEEFFECTS: str = "Frame - Effects"; break;
+//         //         case CHUNK_MOSAICIMGTABLE: str = "Mosaic Image Table"; break;
+//         //         case CHUNK_FRAMEEFFECTS: str = "Frame - Effects"; break;
 
-        //         case CHUNK_FRAMEIPHONEOPTS: str = "Frame - iPhone Options"; break;
+//         //         case CHUNK_FRAMEIPHONEOPTS: str = "Frame - iPhone Options"; break;
 
-        //         case CHUNK_PAERROR: str = "PAE ERROR"; break;
+//         //         case CHUNK_PAERROR: str = "PAE ERROR"; break;
 
-        //         case CHUNK_OBJHEAD: str = "Object - Header"; break;
-        //         case CHUNK_OBJNAME: str = "Object - Name"; break;
-        //         case CHUNK_OBJPROP: str = "Object - Properties"; break;
-        //         case CHUNK_OBJUNKN: str = "Object - Unknown"; break;
-        //         case CHUNK_OBJEFCT: str = "Object - Effect"; break;
+//         //         case CHUNK_OBJHEAD: str = "Object - Header"; break;
+//         //         case CHUNK_OBJNAME: str = "Object - Name"; break;
+//         //         case CHUNK_OBJPROP: str = "Object - Properties"; break;
+//         //         case CHUNK_OBJUNKN: str = "Object - Unknown"; break;
+//         //         case CHUNK_OBJEFCT: str = "Object - Effect"; break;
 
-        //         case CHUNK_IMAGEBANK: str = "Image Bank"; break;
-        //         case CHUNK_SOUNDBANK: str = "Sound Bank"; break;
-        //         case CHUNK_MUSICBANK: str = "Music Bank"; break;
-        //         case CHUNK_FONTBANK: str = "Font Bank"; break;
-        //         default: break;
-        //     }
-        //     genTree(&(*it), str.c_str(), viewImage);
-        // }
-        ImGui::TreePop();
-    }
-}
+//         //         case CHUNK_IMAGEBANK: str = "Image Bank"; break;
+//         //         case CHUNK_SOUNDBANK: str = "Sound Bank"; break;
+//         //         case CHUNK_MUSICBANK: str = "Music Bank"; break;
+//         //         case CHUNK_FONTBANK: str = "Font Bank"; break;
+//         //         default: break;
+//         //     }
+//         //     genTree(&(*it), str.c_str(), viewImage);
+//         // }
+//         ImGui::TreePop();
+//     }
+// }
 
 int main(int, char**)
 {
+    // tinf_init();
     //srcexp.gameBuffer.data->reserve(0x50000000);
     //srcexp.gameBuffer = MemoryStream(&exeDataVec);
     // Setup window
@@ -275,7 +276,9 @@ int main(int, char**)
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
+        #ifndef DEBUG
         try{
+        #endif
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
         // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
         // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
@@ -287,6 +290,7 @@ int main(int, char**)
         static bool prevOpen = true;
         static bool openDiag = false;
         static bool dumpImages = false;
+        static bool dumpDLL = false;
         static Image viewImage;
 
         ImGui::SetNextWindowSize(ImVec2(550,680), ImGuiCond_FirstUseEver);
@@ -298,9 +302,11 @@ int main(int, char**)
                 {
                     ImGui::MenuItem("Open..", NULL, &openDiag);
                     ImGui::MenuItem("Dump Images", NULL, &dumpImages);
+                    ImGui::MenuItem("Dump mmfs2.dll", NULL, &dumpDLL);
                     ImGui::EndMenu();
                 }
-                ImGui::Checkbox("Print to debug console? (May cause SE to run slower)", &debugConsole);
+                ImGui::Checkbox("Print to debug console?", &debugConsole);
+                ImGui::Checkbox("Crash on error?", &throwErrors);
                 ImGui::EndMenuBar();
             }
 
@@ -308,7 +314,7 @@ int main(int, char**)
             if(ImGui::Button("Refresh from memory"))
             {
                 srcexp.gameBuffer.position = 0;
-                srcexp.readGameData();
+                srcexp.loadFromMem();
             }
 
             if(srcexp.loaded)
@@ -318,13 +324,16 @@ int main(int, char**)
                 rm.errtxt = &errtxt;
                 rm.memedit = &gameMem;
                 rm.srcexp = &srcexp;
+                rm.viewImage = &viewImage;
 				srcexp.gameBuffer.position = srcexp.dataLocation;
-                while(srcexp.gameBuffer.position < srcexp.gameBuffer.data->size())
-                {
-                    ResourceEntry res(srcexp.gameBuffer, srcexp.gameState);
-                    res.renderMenu(rm);
-                    if (res.ID == CHUNK_LAST) break;
-                }
+                // while(srcexp.gameBuffer.position < srcexp.gameBuffer.data->size())
+                // {
+                //     ResourceEntry res(srcexp.gameBuffer, srcexp.gameState);
+                //     res.renderMenu(rm);
+                //     if (res.ID == CHUNK_LAST) break;
+                // }
+                // srcexp.game.renderMenu(rm);
+                srcexp.draw(rm);
                 ImGui::Text(errtxt.c_str());
             }
 
@@ -568,15 +577,18 @@ int main(int, char**)
                 ImGui::InputText("Game Dir", dir, IM_ARRAYSIZE(dir));
                 if (ImGui::Button("Open File"))
                 {
+                    #ifndef DEBUG
                     try
                     {
+                    #endif
                         // gameMemPtr = nullptr;
                         // gameMemSize = 0;
                         errtxt = "";
-                        srcexp.loadGame(string(dir));
+                        srcexp.loadIntoMem(string(dir));
                         //static ResourceEntry* back = srcexp.game.chunks[0];
                         //srcexp.game.chunks[0] = (ResourceEntry*)0xDEAD; //completely bullshit pointer to fuck with whatever the fuck is fucking with this object
                         ImGui::CloseCurrentPopup();
+                    #ifndef DEBUG
                     }
                     catch (std::exception e)
                     {
@@ -584,7 +596,9 @@ int main(int, char**)
                         errtxt += e.what();
                         cout << errtxt << endl;
                         flush(cout);
+                        THROW(e);
                     }
+                    #endif
                 }
                 if (ImGui::Button("Cancel"))
                 {
@@ -605,8 +619,10 @@ int main(int, char**)
                 ImGui::InputText("Dir", dir, IM_ARRAYSIZE(dir));
                 if (ImGui::Button("Dump Images"))
                 {
+                    #ifndef DEBUG
                     try
                     {
+                    #endif
                         size_t dumpCount = 0;
                         errtxt = "";
                         // for(auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++)
@@ -637,6 +653,7 @@ int main(int, char**)
                         // }
                         cout << "Images dumped: " << std::dec << dumpCount << endl;
                         ImGui::CloseCurrentPopup();
+                    #ifndef DEBUG
                     }
                     catch (std::exception e)
                     {
@@ -644,7 +661,101 @@ int main(int, char**)
                         errtxt += e.what();
                         cout << errtxt << endl;
                         flush(cout);
+                        THROW(e);
                     }
+                    #endif
+                }
+                if (ImGui::Button("Cancel"))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::Text(errtxt.c_str());
+                ImGui::EndPopup();
+            }
+            if (dumpDLL)
+            {
+                ImGui::OpenPopup("Dump DLL");
+                dumpDLL = false;
+            }
+            if (ImGui::BeginPopupModal("Dump DLL", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                static char dir[100] = DEFAULT_DUMP;
+                static string errtxt = "";
+                ImGui::InputText("Dir", dir, IM_ARRAYSIZE(dir));
+                if (ImGui::Button("Dump DLL"))
+                {
+                    #ifndef DEBUG
+                    try
+                    {
+                    #endif
+                        size_t dumpCount = 0;
+                        errtxt = "";
+                        for(auto c = &(dir[1]); c != &(dir[99-1]); c++) {
+                            if(*c == 0) {
+                                if (*(c-1) != '\\')
+                                {
+                                    *c = '\\';
+                                    *(c+1) = 0; // just to be sure it's still null-terminated
+                                }
+                                else break;
+                            }
+                        }
+                        char dir2[100];
+                        sprintf(dir2, "%smmfs2.dll", dir);
+                        FILE* pfile = fopen(dir2, "w");
+                        if(pfile != NULL)
+                        {
+                            for(auto it = srcexp.packFiles.begin(); it != srcexp.packFiles.end(); it++)
+                            {
+                                if(it->filename == "mmfs2.dll")
+                                {
+                                    for(auto it2 = it->data.begin(); it2 != it->data.end(); it2++)
+                                    {
+                                        fputc(*it2, pfile);
+                                    }
+                                }
+                            }
+                            fclose(pfile);
+                        }
+                        // for(auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++)
+                        // {
+                        //     if(it->ID == CHUNK_IMAGEBANK)
+                        //     {
+                        //         for(auto img = it->chunks.begin(); img != it->chunks.end(); img++)
+                        //         {
+                        //             for(auto c = &(dir[1]); c != &(dir[99-1]); c++) {
+                        //                 if(*c == 0) {
+                        //                     if (*(c-1) != '\\')
+                        //                     {
+                        //                         *c = '\\';
+                        //                         *(c+1) = 0; // just to be sure it's still null-terminated
+                        //                     }
+                        //                     else break;
+                        //                 }
+                        //             }
+                        //             char imgdir[110];
+                        //             sprintf(imgdir, "%s%x.png", dir, img->ID);
+                        //             Image image;
+                        //             int err = image.generateImage(img->mainData.read(srcexp.gameBuffer.data));
+                        //             if (err == 0) throw std::exception("Error exporting images, make sure the directory exists!");
+                        //             stbi_write_png(imgdir, image.bitmap.w, image.bitmap.h, 4, &(image.bitmap.toRGBA()[0]), image.bitmap.w*4);
+                        //             dumpCount++;
+                        //         }
+                        //     }
+                        // }
+                        cout << "Images dumped: " << std::dec << dumpCount << endl;
+                        ImGui::CloseCurrentPopup();
+                    #ifndef DEBUG
+                    }
+                    catch (std::exception e)
+                    {
+                        errtxt = "Error: ";
+                        errtxt += e.what();
+                        cout << errtxt << endl;
+                        flush(cout);
+                        THROW(e);
+                    }
+                    #endif
                 }
                 if (ImGui::Button("Cancel"))
                 {
@@ -709,12 +820,16 @@ int main(int, char**)
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui::Render();
         glfwSwapBuffers(window);
+        #ifndef DEBUG
         }
         catch (std::exception e)
         {
             cout << e.what() << endl;
             flush(cout);
+			//throw e;
+            THROW(e);
         }
+        #endif
     }
 
     // Cleanup

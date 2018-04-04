@@ -6,6 +6,7 @@
 
 //#define DEBUG
 #define DEBUG if(debugConsole)
+#define THROW(x) if(throwErrors) throw x
 
 // Executable Signature
 #define WIN_EXE_SIG 0x5A4D
@@ -22,7 +23,7 @@
 #define HEADER_UNIC 0x554d4150
 // PAMU
 #define HEADER_GAME 0x454D4150
-#define CNCV1VER 0x207
+#define CNCV1VER 0x0207
 
 //
 // Product code
@@ -50,7 +51,7 @@
 //
 // New Data Chunks
 //
-#define CHUNK_ENTRY 0x0302
+// #define CHUNK_ENTRY 0x0302
 // Vitalise Chunks (0x11XX)
 // Vitalise Preview
 #define CHUNK_VITAPREV 0x1122
@@ -62,7 +63,7 @@
 #define CHUNK_EXTPATH 0x2227
 // Deprecated // Not in Anaconda
 #define CHUNK_EXTENS 0x2228
-#define CHUNK_OBJECTBANK 0x2229
+#define CHUNK_OBJECTBANK 0x2229 //FrameItems
 // Deprecated // Not in Anaconda
 #define CHUNK_GLOBALEVENTS 0x222A
 #define CHUNK_FRAMEHANDLES 0x222B
@@ -243,25 +244,44 @@
 #define FRAME_HEADER_TIMEDMOVEMENTS 0x8000
 
 //
-// Object Property Flags
+// Object Type Flags
 //
-#define OBJECT_PROP_PLAYER -7
-#define OBJECT_PROP_KEYBOARD -6
-#define OBJECT_PROP_CREATE -5
-#define OBJECT_PROP_TIME -4
-#define OBJECT_PROP_GAME -3
-#define OBJECT_PROP_SPEAKER -2
-#define OBJECT_PROP_SYSTEM -1
-#define OBJECT_PROP_QUICKBACKDROP 0
-#define OBJECT_PROP_BACKDROP 1
-#define OBJECT_PROP_ACTIVE 2
-#define OBJECT_PROP_TEXT 3
-#define OBJECT_PROP_QUESTION 4
-#define OBJECT_PROP_SCORE 5
-#define OBJECT_PROP_LIVES 6
-#define OBJECT_PROP_COUNTER 7
-#define OBJECT_PROP_RTF 8
-#define OBJECT_PROP_SUBAPP 9
+#define OBJECT_TYPE_PLAYER -7
+#define OBJECT_TYPE_KEYBOARD -6
+#define OBJECT_TYPE_CREATE -5
+#define OBJECT_TYPE_TIME -4
+#define OBJECT_TYPE_GAME -3
+#define OBJECT_TYPE_SPEAKER -2
+#define OBJECT_TYPE_SYSTEM -1
+#define OBJECT_TYPE_QUICKBACKDROP 0
+#define OBJECT_TYPE_BACKDROP 1
+#define OBJECT_TYPE_ACTIVE 2
+#define OBJECT_TYPE_TEXT 3
+#define OBJECT_TYPE_QUESTION 4
+#define OBJECT_TYPE_SCORE 5
+#define OBJECT_TYPE_LIVES 6
+#define OBJECT_TYPE_COUNTER 7
+#define OBJECT_TYPE_RTF 8
+#define OBJECT_TYPE_SUBAPP 9
+
+//
+// Ink Effect Flags
+//
+#define INK_EFFECT_NONE 0
+#define INK_EFFECT_SEMITRANSPARENT 1
+#define INK_EFFECT_INVERTED 2
+#define INK_EFFECT_XOR 3
+#define INK_EFFECT_AND 4
+#define INK_EFFECT_OR 5
+#define INK_EFFECT_REPLACETRANSPARENT 6
+#define INK_EFFECT_DWROP 7
+#define INK_EFFECT_ANDNOT 8
+#define INK_EFFECT_ADD 9
+#define INK_EFFECT_MONOCHROME 10
+#define INK_EFFECT_SUBTRACT 11
+#define INK_EFFECT_NOREPLACE 12
+#define INK_EFFECT_SHADER 13
+#define INK_EFFECT_HWA 0X1000 //BOP_RGBAFILTER ...?
 
 //
 // Image Properties
