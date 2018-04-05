@@ -20,6 +20,7 @@ public:
     vector<uint8_t>* data = nullptr;
     size_t position = 0;
     MemoryStream(vector<uint8_t>* ptr = nullptr);
+    MemoryStream(vector<uint8_t>&& mem);
     MemoryStream(vector<uint8_t>& mem);
     ~MemoryStream();
     vector<uint8_t> readBytes(size_t length);

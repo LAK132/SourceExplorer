@@ -136,7 +136,7 @@ struct AppHeader : public DataPoint
     AppHeader(MemoryStream* strm){ (*this)(strm); }
     void operator()(MemoryStream* strm){
         getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-        MemoryStream& strm2 = read(strm->data);
+        MemoryStream&& strm2 = read(strm->data);
         size = strm2.readInt<uint32_t>();
         flags = strm2.readInt<uint16_t>();
         newFlags = strm2.readInt<uint16_t>();
@@ -170,7 +170,7 @@ struct ExtendedHeader : public DataPoint
     ExtendedHeader(MemoryStream* strm){ (*this)(strm); }
     void operator()(MemoryStream* strm){
         getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-        MemoryStream& strm2 = read(strm->data);
+        MemoryStream&& strm2 = read(strm->data);
 		strm2.position = location;
         flags = strm2.readInt<uint32_t>();
         buildType = strm2.readInt<uint32_t>();
@@ -227,7 +227,7 @@ struct ObjectInstances : public DataPoint
     ObjectInstances(MemoryStream* strm){ (*this)(strm); }
     void operator()(MemoryStream* strm){
         /*if (mode == MODE_FLAG_COMPRESSED)*/ getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-        MemoryStream& strm2 = read(strm->data);
+        MemoryStream&& strm2 = read(strm->data);
         items.resize(strm2.readInt<uint32_t>());
         for(auto obj = items.begin(); obj != items.end(); obj++)
             *obj = ObjectInstance(&strm2);
@@ -320,7 +320,7 @@ struct ObjectHeader : public DataPoint
     void operator()(MemoryStream* strm){
 		if (ID == CHUNK_LAST) return;
         getData(strm);//, 0, mode);//mode == MODE_FLAG_COMPRESSED);
-        MemoryStream& strm2 = read(strm->data);
+        MemoryStream&& strm2 = read(strm->data);
         handle = strm2.readInt<uint16_t>();
         objType = strm2.readInt<uint16_t>();
         flags = strm2.readInt<uint16_t>();
@@ -342,7 +342,7 @@ struct ObjectBank : public DataPoint
 		if ((mode & MODE_FLAG_COMPRESSED) != 0)
 		{
 			getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-			MemoryStream& strm2 = read(strm->data);
+			MemoryStream&& strm2 = read(strm->data);
 			items.resize(strm2.readInt<uint32_t>());
 			strm->position = dataLocation + defDataLen;
 		}
