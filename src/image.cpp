@@ -36,41 +36,41 @@ Color Color::from16bit(uint16_t RGB)
     return rtn;
 }
 
-Color Color::from8bit(MemoryStream& strm)
+Color Color::from8bit(MemoryStream* strm)
 {
-    return from8bit(strm.readInt<uint8_t>());
+    return from8bit(strm->readInt<uint8_t>());
 }
 
-Color Color::from15bit(MemoryStream& strm)
+Color Color::from15bit(MemoryStream* strm)
 {
-    uint16_t val = strm.readInt<uint8_t>();
-    val |= strm.readInt<uint8_t>() << 8;
+    uint16_t val = strm->readInt<uint8_t>();
+    val |= strm->readInt<uint8_t>() << 8;
     return from15bit(val);
 }
 
-Color Color::from16bit(MemoryStream& strm)
+Color Color::from16bit(MemoryStream* strm)
 {
-    uint16_t val = strm.readInt<uint8_t>();
-    val |= strm.readInt<uint8_t>() << 8;
+    uint16_t val = strm->readInt<uint8_t>();
+    val |= strm->readInt<uint8_t>() << 8;
     return from16bit(val);
 }
 
-Color Color::from24bit(MemoryStream& strm)
+Color Color::from24bit(MemoryStream* strm)
 {
 	Color rtn;
-	rtn.b = strm.readInt<uint8_t>();
-	rtn.g = strm.readInt<uint8_t>();
-	rtn.r = strm.readInt<uint8_t>();
+	rtn.b = strm->readInt<uint8_t>();
+	rtn.g = strm->readInt<uint8_t>();
+	rtn.r = strm->readInt<uint8_t>();
 	return rtn;
 }
 
-Color Color::from32bit(MemoryStream& strm)
+Color Color::from32bit(MemoryStream* strm)
 {
 	Color rtn;
-	rtn.b = strm.readInt<uint8_t>();
-	rtn.g = strm.readInt<uint8_t>();
-	rtn.r = strm.readInt<uint8_t>();
-	rtn.a = strm.readInt<uint8_t>();
+	rtn.b = strm->readInt<uint8_t>();
+	rtn.g = strm->readInt<uint8_t>();
+	rtn.r = strm->readInt<uint8_t>();
+	rtn.a = strm->readInt<uint8_t>();
 	return rtn;
 }
 
@@ -149,7 +149,7 @@ Image::~Image()
     glDeleteTextures(1, &tex);
 }
 
-Color Image::getNext(MemoryStream& strm, uint8_t mode)
+Color Image::getNext(MemoryStream* strm, uint8_t mode)
 {
     switch(mode)
     {
@@ -178,7 +178,7 @@ Color Image::getNext(MemoryStream& strm, uint8_t mode)
 //     return rtn;
 // }
 
-void Image::getNext(MemoryStream& strm, uint8_t mode, uint32_t count)
+void Image::getNext(MemoryStream* strm, uint8_t mode, uint32_t count)
 {
     for (uint32_t i = 0; i < count; i++)
     {
@@ -208,48 +208,48 @@ uint16_t Image::getPadding(uint16_t width, uint8_t colSize, uint8_t pad)
     return (uint16_t)ceil((double)(num == pad ? 0 : num) / (double)colSize);
 }
 
-GLuint Image::generateImage(MemoryStream& strm, bool fucked, uint16_t widthovrd, uint16_t heightovrd)
+GLuint Image::generateImage(MemoryStream* strm, bool fucked, uint16_t widthovrd, uint16_t heightovrd)
 {
     if (!fucked)
     {
-        handle = strm.readInt<uint16_t>();
-        if (!old) checksum = strm.readInt<uint16_t>();
-        else checksum = strm.readInt<uint8_t>();
-        reference = strm.readInt<uint32_t>();
-        dataSize = strm.readInt<uint32_t>();
-        width = strm.readInt<uint16_t>();
-        height = strm.readInt<uint16_t>();
-        graphicsMode = strm.readInt<uint8_t>();
-        flags = strm.readInt<uint8_t>();
+        handle = strm->readInt<uint16_t>();
+        if (!old) checksum = strm->readInt<uint16_t>();
+        else checksum = strm->readInt<uint8_t>();
+        reference = strm->readInt<uint32_t>();
+        dataSize = strm->readInt<uint32_t>();
+        width = strm->readInt<uint16_t>();
+        height = strm->readInt<uint16_t>();
+        graphicsMode = strm->readInt<uint8_t>();
+        flags = strm->readInt<uint8_t>();
         /*if (graphicsMode <= 3)
         {
-            paletteEntries = strm.readInt<uint8_t>();
+            paletteEntries = strm->readInt<uint8_t>();
             for(size_t i = 0; i < palette.size(); i++) // where is this size coming from???
             {
-                palette[i].r = strm.readInt<uint8_t>(); // not sure about order
-                palette[i].g = strm.readInt<uint8_t>();
-                palette[i].b = strm.readInt<uint8_t>();
-                palette[i].a = strm.readInt<uint8_t>();
+                palette[i].r = strm->readInt<uint8_t>(); // not sure about order
+                palette[i].g = strm->readInt<uint8_t>();
+                palette[i].b = strm->readInt<uint8_t>();
+                palette[i].a = strm->readInt<uint8_t>();
             }
-            cout = strm.readInt<uint32_t>();
+            cout = strm->readInt<uint32_t>();
         }*/
-        if (!old) strm.readInt<uint16_t>(); // padding?
-        xHotspot = strm.readInt<uint16_t>();
-        yHotspot = strm.readInt<uint16_t>();
-        xAction = strm.readInt<uint16_t>();
-        yAction = strm.readInt<uint16_t>();
+        if (!old) strm->readInt<uint16_t>(); // padding?
+        xHotspot = strm->readInt<uint16_t>();
+        yHotspot = strm->readInt<uint16_t>();
+        xAction = strm->readInt<uint16_t>();
+        yAction = strm->readInt<uint16_t>();
         if (!old)
         {
-            // transparency[0] = strm.readInt<uint8_t>();
-            // transparency[1] = strm.readInt<uint8_t>();
-            // transparency[2] = strm.readInt<uint8_t>();
-            // transparency[3] = strm.readInt<uint8_t>();
-            transparent.r = strm.readInt<uint8_t>();
-            transparent.g = strm.readInt<uint8_t>();
-            transparent.b = strm.readInt<uint8_t>();
-            transparent.a = strm.readInt<uint8_t>();
+            // transparency[0] = strm->readInt<uint8_t>();
+            // transparency[1] = strm->readInt<uint8_t>();
+            // transparency[2] = strm->readInt<uint8_t>();
+            // transparency[3] = strm->readInt<uint8_t>();
+            transparent.r = strm->readInt<uint8_t>();
+            transparent.g = strm->readInt<uint8_t>();
+            transparent.b = strm->readInt<uint8_t>();
+            transparent.a = strm->readInt<uint8_t>();
         }
-        // size_t pos = strm.position; // why???
+        // size_t pos = strm->position; // why???
     }
     else 
     {
@@ -262,7 +262,7 @@ GLuint Image::generateImage(MemoryStream& strm, bool fucked, uint16_t widthovrd,
     uint16_t pad = getPadding(width, colSize);
 
     uint32_t n = 0;
-    size_t pos = strm.position;
+    size_t pos = strm->position;
     uint32_t length = dataSize / colSize;
 
     for (uint32_t y = 0; y < height; y++)
@@ -275,7 +275,7 @@ GLuint Image::generateImage(MemoryStream& strm, bool fucked, uint16_t widthovrd,
         }
         getNext(strm, graphicsMode, pad); // skip
         n += pad * colSize;
-        //if (pos + dataSize < strm.position) i = 0;
+        //if (pos + dataSize < strm->position) i = 0;
     }
     uint32_t leftover = dataSize - n;
     if ((flags & IMAGE_ALPHA) != 0)
@@ -285,9 +285,9 @@ GLuint Image::generateImage(MemoryStream& strm, bool fucked, uint16_t widthovrd,
         {
             for (uint32_t x = 0; x < width; x++)
             {
-                bitmap[x][y].a = strm.readInt<uint8_t>();
+                bitmap[x][y].a = strm->readInt<uint8_t>();
             }
-            strm.readBytes((count > 0 ? count : 0));
+            strm->readBytes((count > 0 ? count : 0));
         }
     }
     

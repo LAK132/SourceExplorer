@@ -47,11 +47,11 @@ struct renderMenu_t
 // When needed create inner DataPoints from Main DataPoint MemoryStream
 //
 
-vector<uint8_t> readCompressed(MemoryStream& strm, uint32_t datalen, uint32_t complen, bool* decompress = nullptr);
-vector<uint8_t> readCompressed(vector<uint8_t>& compressed, uint32_t datalen, bool* decompress = nullptr);
-string readASCII(MemoryStream& strm);
-string readUnicode(MemoryStream& strm);
-string readString(MemoryStream& strm, bool unicode = true);
+vector<uint8_t> readCompressed(MemoryStream* strm, uint32_t datalen, uint32_t complen, bool* decompress = nullptr);
+vector<uint8_t> readCompressed(vector<uint8_t>* compressed, uint32_t datalen, bool* decompress = nullptr);
+string readASCII(MemoryStream* strm);
+string readUnicode(MemoryStream* strm);
+string readString(MemoryStream* strm, bool unicode = true);
 
 struct DataPoint
 {
@@ -66,18 +66,18 @@ struct DataPoint
 
     bool compressed = false;
     DataPoint();
-    DataPoint(MemoryStream& strm);
+    DataPoint(MemoryStream* strm);
     DataPoint(size_t loc, size_t flen);
     DataPoint(size_t loc, size_t flen, size_t alen);
-    DataPoint(MemoryStream& strm, size_t flen);
-    DataPoint(MemoryStream& strm, size_t flen, size_t alen);
-    void operator()(MemoryStream& strm);
+    DataPoint(MemoryStream* strm, size_t flen);
+    DataPoint(MemoryStream* strm, size_t flen, size_t alen);
+    void operator()(MemoryStream* strm);
     void operator()(size_t loc, size_t flen);
     void operator()(size_t loc, size_t flen, size_t alen);
-    void operator()(MemoryStream& strm, size_t flen);
-    void operator()(MemoryStream& strm, size_t flen, size_t alen);
+    void operator()(MemoryStream* strm, size_t flen);
+    void operator()(MemoryStream* strm, size_t flen, size_t alen);
     void clear();
-    void getData(MemoryStream& strm, size_t offset = 0);// bool comp = true);
+    void getData(MemoryStream* strm, size_t offset = 0);// bool comp = true);
     MemoryStream read(vector<uint8_t>* memory);
     MemoryStream rawStream(vector<uint8_t>* memory);
     MemoryStream decompressedStream(vector<uint8_t>* memory);
@@ -87,15 +87,15 @@ struct Keys
 {
     uint16_t up, down, left, right, btn1, btn2, btn3, btn4;
     Keys(){}
-    Keys(MemoryStream& strm){
-        up = strm.readInt<uint16_t>();
-        down = strm.readInt<uint16_t>();
-        left = strm.readInt<uint16_t>();
-        right = strm.readInt<uint16_t>();
-        btn1 = strm.readInt<uint16_t>();
-        btn2 = strm.readInt<uint16_t>();
-        btn3 = strm.readInt<uint16_t>();
-        btn4 = strm.readInt<uint16_t>();
+    Keys(MemoryStream* strm){
+        up = strm->readInt<uint16_t>();
+        down = strm->readInt<uint16_t>();
+        left = strm->readInt<uint16_t>();
+        right = strm->readInt<uint16_t>();
+        btn1 = strm->readInt<uint16_t>();
+        btn2 = strm->readInt<uint16_t>();
+        btn3 = strm->readInt<uint16_t>();
+        btn4 = strm->readInt<uint16_t>();
     }
 };
 
@@ -105,9 +105,9 @@ struct PlayerControls
     uint16_t controlType[numControls];
     Keys keys[numControls];
     PlayerControls(){}
-    PlayerControls(MemoryStream& strm){
+    PlayerControls(MemoryStream* strm){
         for(size_t i = 0; i < numControls; i++){
-            controlType[i] = strm.readInt<uint16_t>();
+            controlType[i] = strm->readInt<uint16_t>();
         }
         for(size_t i = 0; i < numControls; i++){
             keys[i] = Keys(strm);
@@ -133,10 +133,10 @@ struct AppHeader : public DataPoint
     uint32_t frameRate;
     uint8_t windowsMenuIndex;
     AppHeader(){}
-    AppHeader(MemoryStream& strm){ (*this)(strm); }
-    void operator()(MemoryStream& strm){
+    AppHeader(MemoryStream* strm){ (*this)(strm); }
+    void operator()(MemoryStream* strm){
         getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-        MemoryStream& strm2 = read(strm.data);
+        MemoryStream& strm2 = read(strm->data);
         size = strm2.readInt<uint32_t>();
         flags = strm2.readInt<uint16_t>();
         newFlags = strm2.readInt<uint16_t>();
@@ -146,12 +146,12 @@ struct AppHeader : public DataPoint
         windowHeight = strm2.readInt<uint16_t>();
         initialScore = strm2.readInt<uint32_t>() ^ 0xFFFFFFFF;
         initialLives = strm2.readInt<uint32_t>() ^ 0xFFFFFFFF;
-        controls = PlayerControls(strm2);
-        // borderColor[0] = strm.readInt<uint8_t>();
-        // borderColor[1] = strm.readInt<uint8_t>();
-        // borderColor[2] = strm.readInt<uint8_t>();
-        // borderColor[3] = strm.readInt<uint8_t>();
-        borderColor = Color::from32bit(strm2);
+        controls = PlayerControls(&strm2);
+        // borderColor[0] = strm->readInt<uint8_t>();
+        // borderColor[1] = strm->readInt<uint8_t>();
+        // borderColor[2] = strm->readInt<uint8_t>();
+        // borderColor[3] = strm->readInt<uint8_t>();
+        borderColor = Color::from32bit(&strm2);
         numFrames = strm2.readInt<uint32_t>();
         frameRate = strm2.readInt<uint32_t>();
         windowsMenuIndex = strm2.readInt<uint8_t>();
@@ -167,10 +167,10 @@ struct ExtendedHeader : public DataPoint
     uint16_t screenRatioTolerance;
     uint16_t screenAngle;
     ExtendedHeader(){}
-    ExtendedHeader(MemoryStream& strm){ (*this)(strm); }
-    void operator()(MemoryStream& strm){
+    ExtendedHeader(MemoryStream* strm){ (*this)(strm); }
+    void operator()(MemoryStream* strm){
         getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-        MemoryStream& strm2 = read(strm.data);
+        MemoryStream& strm2 = read(strm->data);
 		strm2.position = location;
         flags = strm2.readInt<uint32_t>();
         buildType = strm2.readInt<uint32_t>();
@@ -187,10 +187,10 @@ struct FramePalette : public DataPoint
     uint32_t unk;
     Color items[256];
     FramePalette(){}
-    FramePalette(MemoryStream& strm){ (*this)(strm); }
-    void operator()(MemoryStream& strm){
-        strm.position = location;
-        unk = strm.readInt<uint32_t>();
+    FramePalette(MemoryStream* strm){ (*this)(strm); }
+    void operator()(MemoryStream* strm){
+        strm->position = location;
+        unk = strm->readInt<uint32_t>();
         for(auto col = &(items[0]); col != &(items[255]); col++)
             *col = Color::from32bit(strm);
     }
@@ -207,15 +207,15 @@ struct ObjectInstance
     uint16_t layer;
     uint16_t unk;
     ObjectInstance(){}
-    ObjectInstance(MemoryStream& strm){
-        handle = strm.readInt<uint16_t>();
-        objectInfo = strm.readInt<uint16_t>();
-        x = strm.readInt<uint32_t>();
-        y = strm.readInt<uint32_t>();
-        parentType = strm.readInt<uint16_t>();
-        parentHandle = strm.readInt<uint16_t>();
-        layer = strm.readInt<uint16_t>();
-        unk = strm.readInt<uint16_t>();
+    ObjectInstance(MemoryStream* strm){
+        handle = strm->readInt<uint16_t>();
+        objectInfo = strm->readInt<uint16_t>();
+        x = strm->readInt<uint32_t>();
+        y = strm->readInt<uint32_t>();
+        parentType = strm->readInt<uint16_t>();
+        parentHandle = strm->readInt<uint16_t>();
+        layer = strm->readInt<uint16_t>();
+        unk = strm->readInt<uint16_t>();
     }
 };
 
@@ -224,13 +224,13 @@ struct ObjectInstances : public DataPoint
     vector<ObjectInstance> items;
     uint32_t unk;
     ObjectInstances(){ items.clear(); }
-    ObjectInstances(MemoryStream& strm){ (*this)(strm); }
-    void operator()(MemoryStream& strm){
+    ObjectInstances(MemoryStream* strm){ (*this)(strm); }
+    void operator()(MemoryStream* strm){
         /*if (mode == MODE_FLAG_COMPRESSED)*/ getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-        MemoryStream& strm2 = read(strm.data);
+        MemoryStream& strm2 = read(strm->data);
         items.resize(strm2.readInt<uint32_t>());
         for(auto obj = items.begin(); obj != items.end(); obj++)
-            *obj = ObjectInstance(strm2);
+            *obj = ObjectInstance(&strm2);
         unk = strm2.readInt<uint32_t>();
     }
     void operator=(const DataPoint& rhs){ ID = rhs.ID; mode = rhs.mode; location = rhs.location; fileLen = rhs.fileLen; dataLocation = rhs.dataLocation; defDataLen = rhs.defDataLen; infDataLen = infDataLen; }
@@ -265,10 +265,10 @@ struct Frame : public DataPoint
     DataPoint fadeOut; //FadeOut
     //checksum
     Frame(){}
-    Frame(MemoryStream& strm, bool unicode){ (*this)(strm, unicode); }
-    void operator()(MemoryStream& strm, bool unicode){
-		strm.position = location;
-        while(strm.position < location + fileLen && strm.position < strm.data->size())
+    Frame(MemoryStream* strm, bool unicode){ (*this)(strm, unicode); }
+    void operator()(MemoryStream* strm, bool unicode){
+		strm->position = location;
+        while(strm->position < location + fileLen && strm->position < strm->data->size())
         {
             DataPoint dp(strm);
             if (dp.ID < CHUNK_VITAPREV || dp.ID > CHUNK_LAST)
@@ -295,7 +295,7 @@ struct Frame : public DataPoint
         if(name.location != -1) {
             bool comp = (name.mode & MODE_FLAG_COMPRESSED) != 0;
             if (comp) name.getData(strm);//, 0, comp);
-            namestr = readString(name.read(strm.data), unicode);
+            namestr = readString(&name.read(strm->data), unicode);
         }
         // if(password.location != -1) password(strm);
         // if(header.locaiton != -1) header(strm);
@@ -316,18 +316,18 @@ struct ObjectHeader : public DataPoint
     uint32_t inkEffect;
     uint32_t inkEffectParam;
     ObjectHeader(){}
-    ObjectHeader(MemoryStream& strm) : DataPoint(strm) { (*this)(strm); } //need to add build version and 'compat'
-    void operator()(MemoryStream& strm){
+    ObjectHeader(MemoryStream* strm) : DataPoint(strm) { (*this)(strm); } //need to add build version and 'compat'
+    void operator()(MemoryStream* strm){
 		if (ID == CHUNK_LAST) return;
         getData(strm);//, 0, mode);//mode == MODE_FLAG_COMPRESSED);
-        MemoryStream& strm2 = read(strm.data);
+        MemoryStream& strm2 = read(strm->data);
         handle = strm2.readInt<uint16_t>();
         objType = strm2.readInt<uint16_t>();
         flags = strm2.readInt<uint16_t>();
         reserved = strm2.readInt<uint16_t>();
         inkEffect = strm2.readInt<uint32_t>();
         inkEffectParam = strm2.readInt<uint32_t>();
-        strm.position = location + fileLen;
+        strm->position = location + fileLen;
 		while (DataPoint(strm).ID != CHUNK_LAST);
     }
     void operator=(const DataPoint& rhs){ ID = rhs.ID; mode = rhs.mode; location = rhs.location; fileLen = rhs.fileLen; dataLocation = rhs.dataLocation; defDataLen = rhs.defDataLen; infDataLen = infDataLen; }
@@ -337,19 +337,19 @@ struct ObjectBank : public DataPoint
 {
     vector<ObjectHeader> items;
     ObjectBank(){ items.clear(); }
-    ObjectBank(MemoryStream& strm){ (*this)(strm); }
-    void operator()(MemoryStream& strm){
+    ObjectBank(MemoryStream* strm){ (*this)(strm); }
+    void operator()(MemoryStream* strm){
 		if ((mode & MODE_FLAG_COMPRESSED) != 0)
 		{
 			getData(strm);//, 0, (mode & MODE_FLAG_COMPRESSED) != 0);
-			MemoryStream& strm2 = read(strm.data);
+			MemoryStream& strm2 = read(strm->data);
 			items.resize(strm2.readInt<uint32_t>());
-			strm.position = dataLocation + defDataLen;
+			strm->position = dataLocation + defDataLen;
 		}
 		else
 		{
-			strm.position = dataLocation;
-			items.resize(strm.readInt<uint32_t>());
+			strm->position = dataLocation;
+			items.resize(strm->readInt<uint32_t>());
 		}
         for(auto it = items.begin(); it != items.end(); it++){
             *it = ObjectHeader(strm);
@@ -384,8 +384,8 @@ struct SourceExplorer
     void loadIntoMem(string path);
     //void readEntries();
     void loadFromMem();
-    uint64_t packData(MemoryStream& strm, vector<uint16_t>& state);
-    void gameData(MemoryStream& strm);
+    uint64_t packData(MemoryStream* strm, vector<uint16_t>* state);
+    void gameData(MemoryStream* strm);
     string product(uint16_t vnum);
     
     DataPoint game;
@@ -407,7 +407,7 @@ struct SourceExplorer
     DataPoint fontBank;
     vector<DataPoint> font;
 
-    void getEntries(MemoryStream& strm, vector<uint16_t>& state);
+    void getEntries(MemoryStream* strm, vector<uint16_t>* state);
     void draw(renderMenu_t rm);
 };
 

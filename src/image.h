@@ -37,11 +37,11 @@ struct Color
     static Color from8bit(uint8_t RGB);
     static Color from15bit(uint16_t RGB);
     static Color from16bit(uint16_t RGB);
-    static Color from8bit(MemoryStream& strm);
-    static Color from15bit(MemoryStream& strm);
-    static Color from16bit(MemoryStream& strm);
-    static Color from24bit(MemoryStream& strm);
-    static Color from32bit(MemoryStream& strm);
+    static Color from8bit(MemoryStream* strm);
+    static Color from15bit(MemoryStream* strm);
+    static Color from16bit(MemoryStream* strm);
+    static Color from24bit(MemoryStream* strm);
+    static Color from32bit(MemoryStream* strm);
 };
 
 struct Bitmap
@@ -82,11 +82,11 @@ public:
 
     Image();
     ~Image();
-    GLuint generateImage(MemoryStream& strm, bool fucked = false, uint16_t widthovrd = 0, uint16_t heightovrd = 0); //returns tex
+    GLuint generateImage(MemoryStream* strm, bool fucked = false, uint16_t widthovrd = 0, uint16_t heightovrd = 0); //returns tex
 
-    static Color getNext(MemoryStream& strm, uint8_t mode);
-    //static vector<Color> getNext(MemoryStream& strm, uint8_t mode, uint32_t count);
-    static void getNext(MemoryStream& strm, uint8_t mode, uint32_t count);
+    static Color getNext(MemoryStream* strm, uint8_t mode);
+    //static vector<Color> getNext(MemoryStream* strm, uint8_t mode, uint32_t count);
+    static void getNext(MemoryStream* strm, uint8_t mode, uint32_t count);
     static uint8_t getSize(uint8_t mode);
     static uint16_t getPadding(uint16_t width, uint8_t colSize, uint8_t pad = 2);
 };
