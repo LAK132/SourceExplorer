@@ -19,7 +19,7 @@ void genTree(ResourceEntry* res, const char* name = "", Image* viewImage = nullp
 {
 	if (res == nullptr) return;
     static string errtxt = "";
-    char str[100];
+    char str[MAXDIRLEN];
     sprintf(str, "%s 0x%I32x##%I64x", name, res->ID, (uint64_t)&(*res));
     if(ImGui::TreeNode(str))
     {
@@ -29,11 +29,11 @@ void genTree(ResourceEntry* res, const char* name = "", Image* viewImage = nullp
         ImGui::Text(str);
         sprintf(str, "Location: 0x%zx", res->location);
         ImGui::Text(str);
-        sprintf(str, "Pre Data Size: 0x%I64x", res->preData.fileLen);
+        sprintf(str, "Pre Data Size: 0x%zx", res->preData.fileLen);
         ImGui::Text(str);
-        sprintf(str, "Data Location: 0x%I64x", res->mainData.location);
+        sprintf(str, "Data Location: 0x%zx", res->mainData.location);
         ImGui::Text(str);
-        sprintf(str, "Data Length: 0x%I64x", res->mainData.dataLen);
+        sprintf(str, "Data Length: 0x%zx", res->mainData.dataLen);
         ImGui::Text(str);
         if(ImGui::Button("View Pre Data"))
         {
@@ -339,8 +339,8 @@ void loop()
                             break;
                         }
                     }
-                    char cstr[100];
-                    sprintf(cstr, "%s##%I64x", framename.c_str(), it->location);
+                    char cstr[MAXDIRLEN];
+                    sprintf(cstr, "%s##%zx", framename.c_str(), it->location);
                     if(ImGui::TreeNode(cstr)) {
                         string framepass = "";
                         for (auto it2 = it->chunks.begin(); it2 != it->chunks.end(); it2++) {
@@ -390,8 +390,8 @@ void loop()
                             break;
                         }
                     }
-                    char cstr[100];
-                    sprintf(cstr, "%s##%I64x", objname.c_str(), it->location);
+                    char cstr[MAXDIRLEN];
+                    sprintf(cstr, "%s##%zx", objname.c_str(), it->location);
                     if(ImGui::TreeNode(cstr)) {
                         genTree(&*it);
                         ImGui::TreePop();
@@ -404,8 +404,8 @@ void loop()
             for (auto it = srcexp.game.chunks.begin(); it != srcexp.game.chunks.end(); it++) {
                 if (it->ID == CHUNK_IMAGEBANK) {
                     for (auto it2 = it->chunks.begin(); it2 != it->chunks.end(); it2++) {
-                        char cstr[100];
-                        sprintf(cstr, "Image 0x%x##%I64x", it2->ID, it2->location);
+                        char cstr[MAXDIRLEN];
+                        sprintf(cstr, "Image 0x%x##%zx", it2->ID, it2->location);
                         if(ImGui::TreeNode(cstr)) 
                         {
                             if(ImGui::Button("View As Image"))
@@ -497,7 +497,7 @@ void loop()
         }
         if (ImGui::BeginPopupModal("Open", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            static char dir[100] = DEFAULT_GAME;
+            static char dir[MAXDIRLEN] = DEFAULT_GAME;
             static string errtxt = "";
             ImGui::InputText("Game Dir", dir, IM_ARRAYSIZE(dir));
             if (ImGui::Button("Open File"))
@@ -534,7 +534,7 @@ void loop()
         }
         if (ImGui::BeginPopupModal("Dump Images", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            static char dir[100] = DEFAULT_DUMP;
+            static char dir[MAXDIRLEN] = DEFAULT_DUMP;
             static string errtxt = "";
             ImGui::InputText("Dir", dir, IM_ARRAYSIZE(dir));
             if (ImGui::Button("Dump Images"))

@@ -4,6 +4,8 @@
 #define DEFAULT_GAME "C:\\FiveNightsatFreddys1.exe"
 #define DEFAULT_DUMP "C:\\FiveNightsatFreddys1Images\\"
 
+#define MAXDIRLEN 256
+
 //#define DEBUG
 #define DEBUG if(debugConsole)
 
