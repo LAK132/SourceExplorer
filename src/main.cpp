@@ -24,162 +24,73 @@ SOFTWARE.
 
 #include "main.h"
 
+se::source_explorer_t SrcExp;
+
 #ifndef MAXDIRLEN
 #define MAXDIRLEN 512
 #endif
 
-#define DUMP_FUNCTION(name) void name (const fs::path&path, se::game_t&state, se::resource_entry_t&entry, se::resource_entry_t&parent)
-typedef DUMP_FUNCTION(dump_function_t);
-
-// void Dump(std::atomic<float> &completed, const fs::path &path, se::game_t &state,
-//     chunk_t ID, dump_function_t *func)
-// {
-//     completed = 0.0f;
-//     size_t count = 0;
-//     for (auto it = state.game.chunks.begin(); it != state.game.chunks.end(); ++it)
-//     {
-//         if (it->ID == ID)
-//         {
-//             func(path, state, *it, state.game);
-//         }
-//         completed = ((float)count / (float)state.game.chunks.size()) * 100.0f;
-//         ++count;
-//     }
-// }
-
-// void DumpBank(std::atomic<float> &completed, const fs::path &path, se::game_t &state,
-//     chunk_t ID, dump_function_t *func)
-// {
-//     for (auto bank = state.game.chunks.begin(); bank != state.game.chunks.end(); ++bank)
-//     {
-//         if (bank->ID == ID)
-//         {
-//             completed = 0.0f;
-//             size_t count = 0;
-//             for (auto it = bank->chunks.begin(); it != bank->chunks.end(); ++it)
-//             {
-//                 func(path, state, *it, *bank);
-//                 completed = ((float)count / (float)bank->chunks.size()) * 100.0f;
-//                 ++count;
-//             }
-//             break;
-//         }
-//     }
-// }
-
-// dump_function_t DumpSound;
-// void DumpSound(const fs::path &path, se::game_t &state,
-//     se::resource_entry_t &entry, se::resource_entry_t &parent)
-DUMP_FUNCTION(DumpSound)
-{
-    lak::memstrm_t sndheader(entry.decodeHeader());
-
-    uint32_t checksum = sndheader.readInt<uint32_t>(); (void)checksum;
-    uint32_t references = sndheader.readInt<uint32_t>(); (void)references;
-    uint32_t decompLen = sndheader.readInt<uint32_t>(); (void)decompLen;
-    sound_mode_t type = sndheader.readInt<sound_mode_t>(); // uint32_t
-    uint32_t reserved = sndheader.readInt<uint32_t>(); (void)reserved;
-    uint32_t nameLen = sndheader.readInt<uint32_t>();
-
-    lak::memstrm_t sound(entry.decode());
-
-    std::u16string name = sound.readString<char16_t>(nameLen);
-    switch(type)
-    {
-        case WAVE: name += u".wav"; break;
-        case MIDI: name += u".midi"; break;
-        default: name += u".mp3"; break;
-    }
-    WDEBUG(L"\nDumping Music '" << lak::strconv<wchar_t>(name) << L"'");
-
-    fs::path dir = path / name;
-    std::vector<uint8_t> file(sound.cursor(), sound.end());
-
-    if (!lak::SaveFile(dir, file))
-    {
-        WERROR(L"Failed To Save File '" << dir << L"'");
-    }
-}
-
-// dump_function_t DumpMusic;
-// void DumpMusic(const fs::path &path, se::game_t &state,
-//     se::resource_entry_t &entry, se::resource_entry_t &parent)
-DUMP_FUNCTION(DumpMusic)
-{
-    lak::memstrm_t sound(entry.decode());
-
-    uint32_t checksum = sound.readInt<uint32_t>(); (void)checksum;
-    uint32_t references = sound.readInt<uint32_t>(); (void)references;
-    uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
-    sound_mode_t type = sound.readInt<sound_mode_t>(); // uint32_t
-    uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
-    uint32_t nameLen = sound.readInt<uint32_t>();
-
-    std::u16string name = sound.readString<char16_t>(nameLen);
-    switch(type)
-    {
-        case WAVE: name += u".wav"; break;
-        case MIDI: name += u".midi"; break;
-        default: name += u".mp3"; break;
-    }
-    WDEBUG(L"\nDumping Music '" << lak::strconv<wchar_t>(name) << L"'");
-
-    fs::path dir = path / name;
-    std::vector<uint8_t> file(sound.cursor(), sound.end());
-
-    if (!lak::SaveFile(dir, file))
-    {
-        WERROR(L"Failed To Save File '" << dir << L"'");
-    }
-}
-
-// dump_function_t DumpImage;
-// void DumpImage(const fs::path &path, se::game_t &state,
-//     se::resource_entry_t &entry, se::resource_entry_t &parent)
-DUMP_FUNCTION(DumpImage)
-{
-    DEBUG("\nDumping Image 0x" << entry.ID);
-
-    char strid[100];
-    sprintf(strid, "%x.png", entry.ID);
-
-    lak::memstrm_t imgstrm(entry.decode());
-
-    const se::image_t &image = se::CreateImage(imgstrm, state.oldGame);
-
-    fs::path dir = path / strid;
-    if (1 != stbi_write_png(dir.u8string().c_str(),
-        (int)image.bitmap.size.x, (int)image.bitmap.size.y, 4,
-        &(image.bitmap.pixels[0].r), (int)(image.bitmap.size.x * 4)))
-    {
-        WERROR(L"Failed To Save File '" << L"'");
-    }
-}
-
 using dump_data_t = std::tuple<
-    std::atomic<float> &,
-    const fs::path &,
-    se::game_t &
+    se::source_explorer_t &,
+    std::atomic<float> &
 >;
 
-using dump_bank_function_t = void (
-    std::atomic<float> &,
-    const fs::path &,
-    se::game_t &
+using dump_function_t = void (
+    se::source_explorer_t &,
+    std::atomic<float> &
 );
+
+bool OpenGame()
+{
+    static std::tuple<se::source_explorer_t&> data = {SrcExp};
+
+    static std::thread *thread = nullptr;
+    static std::atomic<bool> finished = false;
+    static bool popupOpen = false;
+
+    if (lak::AwaitPopup("Open Game", popupOpen, thread, finished, &se::LoadGame, data))
+    {
+        ImGui::Text("Loading, please wait...");
+        if (popupOpen)
+            ImGui::EndPopup();
+    }
+    else
+    {
+        return true;
+    }
+    return false;
+}
+
+bool DumpStuff(const char *str_id, dump_function_t *func)
+{
+    static std::atomic<float> completed = 0.0f;
+    static dump_data_t data = {SrcExp, completed};
+
+    static std::thread *thread = nullptr;
+    static std::atomic<bool> finished = false;
+    static bool popupOpen = false;
+
+    if (lak::AwaitPopup(str_id, popupOpen, thread, finished, func, data))
+    {
+        ImGui::Text("Dumping, please wait...");
+        ImGui::ProgressBar(completed);
+        if (popupOpen)
+            ImGui::EndPopup();
+    }
+    else
+    {
+        return true;
+    }
+    return false;
+}
 
 ///
 /// loop()
 /// Called every loop
 ///
-void Update(se::source_explorer_t &srcexp, MemoryEditor &memEdit)
+void Update()
 {
-    static bool loaded = false;
-
     bool mainOpen = true;
-    static bool openGame = false;
-    static bool dumpImages = false;
-    static bool dumpSounds = false;
 
     static ImGuiStyle &style = ImGui::GetStyle();
     static ImGuiIO &io = ImGui::GetIO();
@@ -198,9 +109,10 @@ void Update(se::source_explorer_t &srcexp, MemoryEditor &memEdit)
         {
             if (ImGui::BeginMenu("File"))
             {
-                openGame |= ImGui::MenuItem("Open...", nullptr);
-                dumpImages |= ImGui::MenuItem("Dump Images", nullptr);
-                dumpSounds |= ImGui::MenuItem("Dump Sounds", nullptr);
+                SrcExp.exe.attempt |= ImGui::MenuItem("Open...", nullptr);
+                SrcExp.images.attempt |= ImGui::MenuItem("Dump Images", nullptr);
+                SrcExp.sounds.attempt |= ImGui::MenuItem("Dump Sounds", nullptr);
+                SrcExp.music.attempt |= ImGui::MenuItem("Dump Music", nullptr);
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Credits"))
@@ -221,10 +133,10 @@ void Update(se::source_explorer_t &srcexp, MemoryEditor &memEdit)
         lak::HoriSplitter(leftSize, rightSize, contentSize.x);
         ImGui::BeginChild("Left", ImVec2(leftSize, -1), true, ImGuiWindowFlags_NoSavedSettings);
         {
-            if (loaded)
+            if (SrcExp.loaded)
             {
                 // ViewGame(srcexp);
-                srcexp.state.game.view(srcexp);
+                SrcExp.state.game.view(SrcExp);
             }
         }
         ImGui::EndChild();
@@ -262,7 +174,7 @@ void Update(se::source_explorer_t &srcexp, MemoryEditor &memEdit)
                     static int dataMode = 0;
                     static bool raw = false;
                     static const se::entry_t *last = nullptr;
-                    bool update = last != srcexp.view;
+                    bool update = last != SrcExp.view;
 
                     update |= ImGui::RadioButton("EXE", &dataMode, 0);
                     ImGui::SameLine();
@@ -275,35 +187,35 @@ void Update(se::source_explorer_t &srcexp, MemoryEditor &memEdit)
 
                     if (dataMode == 0) // EXE
                     {
-                        memEdit.DrawContents(&(srcexp.state.file.memory[0]), srcexp.state.file.size());
+                        SrcExp.editor.DrawContents(&(SrcExp.state.file.memory[0]), SrcExp.state.file.size());
                     }
                     else if (dataMode == 1) // Header
                     {
-                        if (update && srcexp.view != nullptr)
-                            srcexp.buffer = raw
-                                ? srcexp.view->header.data.memory
-                                : srcexp.view->decodeHeader().memory;
+                        if (update && SrcExp.view != nullptr)
+                            SrcExp.buffer = raw
+                                ? SrcExp.view->header.data.memory
+                                : SrcExp.view->decodeHeader().memory;
 
-                        memEdit.DrawContents(&(srcexp.buffer[0]), srcexp.buffer.size());
+                        SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
                     }
                     else if (dataMode == 2) // Data
                     {
-                        if (update && srcexp.view != nullptr)
-                            srcexp.buffer = raw
-                                ? srcexp.view->data.data.memory
-                                : srcexp.view->decode().memory;
+                        if (update && SrcExp.view != nullptr)
+                            SrcExp.buffer = raw
+                                ? SrcExp.view->data.data.memory
+                                : SrcExp.view->decode().memory;
 
-                        memEdit.DrawContents(&(srcexp.buffer[0]), srcexp.buffer.size());
+                        SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
                     }
                     else dataMode = 0;
 
-                    last = srcexp.view;
+                    last = SrcExp.view;
                 }
                 else if (selected == 1)
                 {
-                    if (srcexp.image.valid())
-                        ImGui::Image((ImTextureID)(intptr_t)srcexp.image.get(),
-                            ImVec2((float)srcexp.image.size().x, (float)srcexp.image.size().y));
+                    if (SrcExp.image.valid())
+                        ImGui::Image((ImTextureID)(intptr_t)SrcExp.image.get(),
+                            ImVec2((float)SrcExp.image.size().x, (float)SrcExp.image.size().y));
                 }
                 else selected = 0;
             // }
@@ -315,75 +227,199 @@ void Update(se::source_explorer_t &srcexp, MemoryEditor &memEdit)
 
     // ImGui::ShowDemoWindow();
 
-    if (openGame)
+    if (SrcExp.exe.attempt)
     {
-        static std::tuple<se::source_explorer_t&> data = {srcexp};
-
-        static bool gotFile = false;
-        static std::thread *load = nullptr;
-        static std::atomic<bool> finished;
-
-        if (lak::OpenFileThread("Load Game", srcexp.file, gotFile,
-            load, finished, &se::LoadGame, data))
+        if (!SrcExp.exe.valid)
         {
-            openGame = false;
-            loaded = gotFile;
-            gotFile = false;
+            if (lak::OpenFile(SrcExp.exe.path, SrcExp.exe.valid))
+            {
+                if (!SrcExp.exe.valid)
+                {
+                    // User canceled
+                    SrcExp.loaded = false;
+                    SrcExp.exe.attempt = false;
+                }
+            }
+        }
+        else if (OpenGame())
+        {
+            SrcExp.loaded = true;
+            SrcExp.exe.valid = false;
+            SrcExp.exe.attempt = false;
         }
     }
 
-    if (dumpImages)
+    if (SrcExp.images.attempt)
     {
-        static fs::path dir = "";
-        static std::atomic<float> completed;
-        static dump_data_t data = {completed, dir, srcexp.state};
-
-        static bool gotFile = false;
-        static std::thread *load = nullptr;
-        static std::atomic<bool> finished;
-        static std::string errtxt = "";
-
-        static dump_bank_function_t *func = [](
-            std::atomic<float> &completed,
-            const fs::path &path,
-            se::game_t &state)
+        if (!SrcExp.images.valid)
         {
-            // DumpBank(completed, path, state, chunk_t::IMAGEBANK, &DumpImage);
-        };
+            if (lak::OpenFolder(SrcExp.images.path, SrcExp.images.valid))
+            {
+                if (!SrcExp.images.valid)
+                {
+                    // User canceled
+                    SrcExp.images.attempt = false;
+                }
+            }
+        }
+        else if (DumpStuff("Dump Image",
+            [](se::source_explorer_t &srcexp,std::atomic<float> &completed)
+            {
+                if (!srcexp.state.game.imageBank)
+                {
+                    DEBUG("No Image Bank");
+                    return;
+                }
 
-        if (lak::SaveFileThread("Dump Images", dir, gotFile,
-            load, finished, completed, func, data))
+                const size_t count = srcexp.state.game.imageBank->items.size();
+                size_t index = 0;
+                for (const auto &item : srcexp.state.game.imageBank->items)
+                {
+                    lak::memstrm_t strm = item.entry.decode();
+                    const se::image_t &image = se::CreateImage(strm, srcexp.state.oldGame);
+                    fs::path filename = srcexp.images.path / (std::to_string(index) + ".png");
+                    DEBUG(filename);
+                    if (stbi_write_png(filename.u8string().c_str(),
+                        (int)image.bitmap.size.x, (int)image.bitmap.size.y, 4,
+                        &(image.bitmap.pixels[0].r), (int)(image.bitmap.size.x * 4)) != 1)
+                    {
+                        ERROR("Failed To Save File '" << filename << "'");
+                    }
+                    completed = (float)((double)(index++) / (double)count);
+                }
+            }
+        ))
         {
-            dumpImages = false;
-            gotFile = false;
+            SrcExp.images.valid = false;
+            SrcExp.images.attempt = false;
         }
     }
 
-    if (dumpSounds)
+    if (SrcExp.sounds.attempt)
     {
-        static fs::path dir = "", file = "";
-        static std::atomic<float> completed;
-        static dump_data_t data = {completed, dir, srcexp.state};
-
-        static bool gotFile = false;
-        static std::thread *load = nullptr;
-        static std::atomic<bool> finished;
-        static std::string errtxt = "";
-
-        static dump_bank_function_t *func = [](
-            std::atomic<float> &completed,
-            const fs::path &path,
-            se::game_t &state)
+        if (!SrcExp.sounds.valid)
         {
-            // DumpBank(completed, path, state, chunk_t::SOUNDBANK, &DumpSound);
-            // DumpBank(completed, path, state, chunk_t::MUSICBANK, &DumpMusic);
-        };
+            if (lak::OpenFolder(SrcExp.sounds.path, SrcExp.sounds.valid))
+            {
+                if (!SrcExp.sounds.valid)
+                {
+                    // User canceled
+                    SrcExp.sounds.attempt = false;
+                }
+            }
+        }
+        else if (DumpStuff("Dump Sounds",
+            [](se::source_explorer_t &srcexp,std::atomic<float> &completed)
+            {
+                if (!srcexp.state.game.soundBank)
+                {
+                    DEBUG("No Sound Bank");
+                    return;
+                }
 
-        if (lak::OpenFileThread("Dump Sounds", dir, file,
-            gotFile, load, finished, func, data))
+                const size_t count = srcexp.state.game.soundBank->items.size();
+                size_t index = 0;
+                for (const auto &item : srcexp.state.game.soundBank->items)
+                {
+                    lak::memstrm_t header = item.entry.decodeHeader();
+
+                    uint32_t checksum = header.readInt<uint32_t>(); (void)checksum;
+                    uint32_t references = header.readInt<uint32_t>(); (void)references;
+                    uint32_t decompLen = header.readInt<uint32_t>(); (void)decompLen;
+                    sound_mode_t type = header.readInt<sound_mode_t>(); // uint32_t
+                    uint32_t reserved = header.readInt<uint32_t>(); (void)reserved;
+                    // uint32_t nameLen = header.readInt<uint32_t>();
+                    // DEBUG("nameLen " << nameLen);
+
+                    lak::memstrm_t sound = item.entry.decode();
+
+                    // std::u16string name = sound.readString<char16_t>(nameLen);
+                    std::u16string name = sound.readString<char16_t>();
+                    switch(type)
+                    {
+                        case WAVE: name += u".wav"; break;
+                        case MIDI: name += u".midi"; break;
+                        default: name += u".mp3"; break;
+                    }
+
+                    fs::path filename = srcexp.sounds.path / name;
+                    DEBUG(filename);
+                    std::vector<uint8_t> file(sound.cursor(), sound.end());
+
+                    if (!lak::SaveFile(filename, file))
+                    {
+                        ERROR("Failed To Save File '" << filename << "'");
+                    }
+
+                    completed = (float)((double)(index++) / (double)count);
+                }
+            }
+        ))
         {
-            dumpSounds = false;
-            gotFile = false;
+            SrcExp.sounds.valid = false;
+            SrcExp.sounds.attempt = false;
+        }
+    }
+
+    if (SrcExp.music.attempt)
+    {
+        if (!SrcExp.music.valid)
+        {
+            if (lak::OpenFolder(SrcExp.music.path, SrcExp.music.valid))
+            {
+                if (!SrcExp.music.valid)
+                {
+                    // User canceled
+                    SrcExp.music.attempt = false;
+                }
+            }
+        }
+        else if (DumpStuff("Dump Music",
+            [](se::source_explorer_t &srcexp,std::atomic<float> &completed)
+            {
+                if (!srcexp.state.game.musicBank)
+                {
+                    DEBUG("No Music Bank");
+                    return;
+                }
+
+                const size_t count = srcexp.state.game.musicBank->items.size();
+                size_t index = 0;
+                for (const auto &item : srcexp.state.game.musicBank->items)
+                {
+                    lak::memstrm_t sound = item.entry.decode();
+
+                    uint32_t checksum = sound.readInt<uint32_t>(); (void)checksum;
+                    uint32_t references = sound.readInt<uint32_t>(); (void)references;
+                    uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
+                    sound_mode_t type = sound.readInt<sound_mode_t>(); // uint32_t
+                    uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
+                    uint32_t nameLen = sound.readInt<uint32_t>();
+
+                    std::u16string name = sound.readString<char16_t>(nameLen);
+                    switch(type)
+                    {
+                        case WAVE: name += u".wav"; break;
+                        case MIDI: name += u".midi"; break;
+                        default: name += u".mp3"; break;
+                    }
+
+                    fs::path filename = srcexp.music.path / name;
+                    DEBUG(filename);
+                    std::vector<uint8_t> file(sound.cursor(), sound.end());
+
+                    if (!lak::SaveFile(filename, file))
+                    {
+                        ERROR("Failed To Save File '" << filename << "'");
+                    }
+
+                    completed = (float)((double)(index++) / (double)count);
+                }
+            }
+        ))
+        {
+            SrcExp.music.valid = false;
+            SrcExp.music.attempt = false;
         }
     }
 }
@@ -411,7 +447,6 @@ int main()
     style.WindowRounding = 0;
     assert(ImGui::ImplInit(window));
 
-    se::source_explorer_t srcexp;
     MemoryEditor memEdit;
 
     for (bool running = true; running;)
@@ -439,59 +474,15 @@ int main()
 
                 /* --- Drag and drop events --- */
 
-                // /*
                 case SDL_DROPFILE: {
-                    std::string fileDir = "";
                     if (event.drop.file != nullptr)
                     {
-                        fileDir = event.drop.file;
+                        SrcExp.exe.path = event.drop.file;
+                        SrcExp.exe.valid = true;
+                        SrcExp.exe.attempt = true;
                         SDL_free(event.drop.file);
                     }
-                    SDL_ShowSimpleMessageBox(
-                        SDL_MESSAGEBOX_INFORMATION,
-                        "File dropped on window",
-                        fileDir.c_str(),
-                        window.window
-                    );
                 } break;
-
-                case SDL_DROPTEXT: {
-                    std::string fileDir = "";
-                    if (event.drop.file != nullptr)
-                    {
-                        fileDir = event.drop.file;
-                        SDL_free(event.drop.file);
-                    }
-                    SDL_ShowSimpleMessageBox(
-                        SDL_MESSAGEBOX_INFORMATION,
-                        "Text dropped on window",
-                        fileDir.c_str(),
-                        window.window
-                    );
-                } break;
-
-                case SDL_DROPBEGIN: {
-                    std::string fileDir = "";
-                    if (event.drop.file != nullptr)
-                    {
-                        fileDir = event.drop.file;
-                        SDL_free(event.drop.file);
-                    }
-                    printf("File '%s' drop begin on window %d\n",
-                        fileDir.c_str(), event.window.windowID);
-                } break;
-
-                case SDL_DROPCOMPLETE: {
-                    std::string fileDir = "";
-                    if (event.drop.file != nullptr)
-                    {
-                        fileDir = event.drop.file;
-                        SDL_free(event.drop.file);
-                    }
-                    printf("File '%s' drop complete on window %d\n",
-                        fileDir.c_str(), event.window.windowID);
-                } break;
-                // */
             }
         }
 
@@ -501,7 +492,7 @@ int main()
 
         // --- BEGIN UPDATE ---
 
-        Update(srcexp, memEdit);
+        Update();
 
         // --- END UPDATE ---
 
