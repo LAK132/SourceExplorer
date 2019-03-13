@@ -16,7 +16,6 @@ namespace SourceExplorer
     error_t LoadGame(source_explorer_t &srcexp)
     {
         DEBUG("\nLoading Game");
-        DEBUG("Path: '" << srcexp.exe.path.u8string() << "'");
 
         srcexp.state = game_t{};
 
@@ -620,12 +619,13 @@ namespace SourceExplorer
 
     error_t title_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("title_t");
         entry.read(game, strm);
         error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
@@ -634,9 +634,9 @@ namespace SourceExplorer
                 else
                     value = lak::strconv<char16_t>(entry.decode().readString<char>());
             } break;
-            case MODE2: result = error_t::NO_MODE2;
-            case MODE3: result = error_t::NO_MODE3;
-            default: result = error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -662,12 +662,13 @@ namespace SourceExplorer
 
     error_t author_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("author_t");
         entry.read(game, strm);
         error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
@@ -676,9 +677,9 @@ namespace SourceExplorer
                 else
                     value = lak::strconv<char16_t>(entry.decode().readString<char>());
             } break;
-            case MODE2: result = error_t::NO_MODE2;
-            case MODE3: result = error_t::NO_MODE3;
-            default: result = error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -704,12 +705,13 @@ namespace SourceExplorer
 
     error_t copyright_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("copyright_t");
         entry.read(game, strm);
         error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
@@ -718,9 +720,9 @@ namespace SourceExplorer
                 else
                     value = lak::strconv<char16_t>(entry.decode().readString<char>());
             } break;
-            case MODE2: result = error_t::NO_MODE2;
-            case MODE3: result = error_t::NO_MODE3;
-            default: result = error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -746,12 +748,13 @@ namespace SourceExplorer
 
     error_t output_path_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("output_path_t");
         entry.read(game, strm);
         error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
@@ -760,9 +763,9 @@ namespace SourceExplorer
                 else
                     value = lak::strconv<char16_t>(entry.decode().readString<char>());
             } break;
-            case MODE2: result = error_t::NO_MODE2;
-            case MODE3: result = error_t::NO_MODE3;
-            default: result = error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -788,12 +791,13 @@ namespace SourceExplorer
 
     error_t project_path_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("project_path_t");
         entry.read(game, strm);
         error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
@@ -802,9 +806,9 @@ namespace SourceExplorer
                 else
                     value = lak::strconv<char16_t>(entry.decode().readString<char>());
             } break;
-            case MODE2: result = error_t::NO_MODE2;
-            case MODE3: result = error_t::NO_MODE3;
-            default: result = error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -830,7 +834,9 @@ namespace SourceExplorer
 
     error_t vitalise_preview_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("vitalise_preview_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -841,12 +847,12 @@ namespace SourceExplorer
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
             } break;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t vitalise_preview_t::view(source_explorer_t &srcexp) const
@@ -868,21 +874,23 @@ namespace SourceExplorer
 
     error_t menu_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("menu_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: return error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
             } break;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t menu_t::view(source_explorer_t &srcexp) const
@@ -904,7 +912,9 @@ namespace SourceExplorer
 
     error_t extension_path_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("extension_path_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -921,10 +931,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t extension_path_t::view(source_explorer_t &srcexp) const
@@ -946,7 +956,9 @@ namespace SourceExplorer
 
     error_t extensions_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("extensions_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -963,10 +975,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t extensions_t::view(source_explorer_t &srcexp) const
@@ -988,7 +1000,9 @@ namespace SourceExplorer
 
     error_t global_events_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("global_events_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1005,10 +1019,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t global_events_t::view(source_explorer_t &srcexp) const
@@ -1030,20 +1044,22 @@ namespace SourceExplorer
 
     error_t extension_data_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("extension_data_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
             case MODE0: {
                 ReadDynamicData(strm, entry.header);
             } break;
-            case MODE1: return error_t::NO_MODE1;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t extension_data_t::view(source_explorer_t &srcexp) const
@@ -1065,7 +1081,9 @@ namespace SourceExplorer
 
     error_t additional_extensions_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("additional_extensions_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1082,10 +1100,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t additional_extensions_t::view(source_explorer_t &srcexp) const
@@ -1107,7 +1125,9 @@ namespace SourceExplorer
 
     error_t application_doc_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("application_doc_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1124,10 +1144,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t application_doc_t::view(source_explorer_t &srcexp) const
@@ -1149,7 +1169,9 @@ namespace SourceExplorer
 
     error_t other_extenion_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("other_extenion_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1166,10 +1188,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t other_extenion_t::view(source_explorer_t &srcexp) const
@@ -1191,7 +1213,9 @@ namespace SourceExplorer
 
     error_t global_values_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("global_values_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1208,10 +1232,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t global_values_t::view(source_explorer_t &srcexp) const
@@ -1233,7 +1257,9 @@ namespace SourceExplorer
 
     error_t global_strings_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("global_strings_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1250,10 +1276,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t global_strings_t::view(source_explorer_t &srcexp) const
@@ -1275,7 +1301,9 @@ namespace SourceExplorer
 
     error_t extension_list_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("extension_list_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1286,12 +1314,12 @@ namespace SourceExplorer
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
             } break;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t extension_list_t::view(source_explorer_t &srcexp) const
@@ -1313,21 +1341,23 @@ namespace SourceExplorer
 
     error_t icon_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("icon_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: return error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
             } break;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t icon_t::view(source_explorer_t &srcexp) const
@@ -1349,7 +1379,9 @@ namespace SourceExplorer
 
     error_t demo_version_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("demo_version_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1366,10 +1398,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t demo_version_t::view(source_explorer_t &srcexp) const
@@ -1391,11 +1423,13 @@ namespace SourceExplorer
 
     error_t security_number_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("security_number_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: return error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
@@ -1406,10 +1440,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t security_number_t::view(source_explorer_t &srcexp) const
@@ -1431,20 +1465,22 @@ namespace SourceExplorer
 
     error_t binary_files_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("binary_files_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
             case MODE0: {
                 ReadDynamicData(strm, entry.header);
             } break;
-            case MODE1: return error_t::NO_MODE1;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t binary_files_t::view(source_explorer_t &srcexp) const
@@ -1466,7 +1502,9 @@ namespace SourceExplorer
 
     error_t menu_images_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("menu_images_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1483,10 +1521,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t menu_images_t::view(source_explorer_t &srcexp) const
@@ -1508,7 +1546,9 @@ namespace SourceExplorer
 
     error_t about_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("about_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1525,10 +1565,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t about_t::view(source_explorer_t &srcexp) const
@@ -1550,7 +1590,9 @@ namespace SourceExplorer
 
     error_t global_value_names_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("global_value_names_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1567,10 +1609,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t global_value_names_t::view(source_explorer_t &srcexp) const
@@ -1592,7 +1634,9 @@ namespace SourceExplorer
 
     error_t global_string_names_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("global_string_names_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1609,10 +1653,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t global_string_names_t::view(source_explorer_t &srcexp) const
@@ -1634,7 +1678,9 @@ namespace SourceExplorer
 
     error_t movement_extensions_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("movement_extensions_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1651,10 +1697,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t movement_extensions_t::view(source_explorer_t &srcexp) const
@@ -1676,20 +1722,22 @@ namespace SourceExplorer
 
     error_t object_bank2_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("object_bank2_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
             case MODE0: {
                 ReadFixedData(strm, entry.header, 0x8);
             } break;
-            case MODE1: return error_t::NO_MODE1;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t object_bank2_t::view(source_explorer_t &srcexp) const
@@ -1711,20 +1759,22 @@ namespace SourceExplorer
 
     error_t exe_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("exe_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
             case MODE0: {
                 ReadDynamicData(strm, entry.header);
             } break;
-            case MODE1: return error_t::NO_MODE1;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t exe_t::view(source_explorer_t &srcexp) const
@@ -1746,6 +1796,7 @@ namespace SourceExplorer
 
     error_t protection_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("protection_t");
         entry.read(game, strm);
         error_t result = error_t::OK;
 
@@ -1754,12 +1805,12 @@ namespace SourceExplorer
             case MODE0: {
                 ReadDynamicData(strm, entry.header);
             } break;
-            case MODE1: result = error_t::NO_MODE2;
+            case MODE1: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
             case MODE2: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            case MODE3: result = error_t::NO_MODE3;
-            default: result = error_t::INVALID_MODE;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1784,21 +1835,23 @@ namespace SourceExplorer
 
     error_t shaders_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("shaders_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
-            case MODE0: return error_t::NO_MODE0;
+            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
             case MODE1: {
                 ReadFixedData(strm, entry.header, 0x4);
                 ReadCompressedData(strm, entry.data);
             } break;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t shaders_t::view(source_explorer_t &srcexp) const
@@ -1820,8 +1873,9 @@ namespace SourceExplorer
 
     error_t extended_header_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("extended_header_t");
         entry.read(game, strm);
-
+        error_t result = error_t::OK;
         switch (entry.mode)
         {
             case MODE0: {
@@ -1837,10 +1891,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t extended_header_t::view(source_explorer_t &srcexp) const
@@ -1862,20 +1916,22 @@ namespace SourceExplorer
 
     error_t spacer_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("spacer_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
             case MODE0: {
                 ReadDynamicData(strm, entry.header);
             } break;
-            case MODE1: return error_t::NO_MODE1;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t spacer_t::view(source_explorer_t &srcexp) const
@@ -1897,7 +1953,9 @@ namespace SourceExplorer
 
     error_t chunk_224F_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("chunk_224F_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
@@ -1914,10 +1972,10 @@ namespace SourceExplorer
             case MODE3: {
                 ReadDynamicData(strm, entry.data);
             } break;
-            default: return error_t::INVALID_MODE;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t chunk_224F_t::view(source_explorer_t &srcexp) const
@@ -1939,20 +1997,22 @@ namespace SourceExplorer
 
     error_t title2_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("title2_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
             case MODE0: {
                 ReadDynamicData(strm, entry.header);
             } break;
-            case MODE1: return error_t::NO_MODE1;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t title2_t::view(source_explorer_t &srcexp) const
@@ -1976,23 +2036,27 @@ namespace SourceExplorer
     {
         error_t name_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("name_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
                 case MODE0: {
-                    ReadDynamicData(strm, entry.header);
+                    ReadDynamicData(strm, entry.data);
+                    value = entry.decode().readString<char16_t>();
                 } break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
+                    value = entry.decode().readString<char16_t>();
                 } break;
-                case MODE2: return error_t::NO_MODE2;
-                case MODE3: return error_t::NO_MODE3;
-                default: return error_t::INVALID_MODE;
+                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t name_t::view(source_explorer_t &srcexp) const
@@ -2014,7 +2078,9 @@ namespace SourceExplorer
 
         error_t properties_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("properties_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2031,10 +2097,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t properties_t::view(source_explorer_t &srcexp) const
@@ -2056,7 +2122,9 @@ namespace SourceExplorer
 
         error_t effect_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("effect_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2073,10 +2141,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t effect_t::view(source_explorer_t &srcexp) const
@@ -2098,12 +2166,13 @@ namespace SourceExplorer
 
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("item_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2114,7 +2183,7 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: result = error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -2134,13 +2203,14 @@ namespace SourceExplorer
                     case OBJEFCT:
                         effect = std::make_unique<effect_t>();
                         result = effect->read(game, strm);
+                        break;
 
                     case LAST:
                         end = std::make_unique<last_t>();
                         result = end->read(game, strm);
                         goto finished;
 
-                    default: result = error_t::INVALID_CHUNK; break;
+                    default: goto finished; // probably should error
                 }
             }
 
@@ -2152,11 +2222,17 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Object##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID,
+                (name ? lak::strconv<char>(name->value).c_str() : "- Object"), entry.position))
             {
                 ImGui::Separator();
 
                 entry.view(srcexp);
+
+                if (name) name->view(srcexp);
+                if (properties) properties->view(srcexp);
+                if (effect) effect->view(srcexp);
+                if (end) end->view(srcexp);
 
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -2167,6 +2243,7 @@ namespace SourceExplorer
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("bank_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -2175,10 +2252,10 @@ namespace SourceExplorer
                 case MODE0: {
                     ReadFixedData(strm, entry.header, 0x8);
                 } break;
-                case MODE1: result = error_t::NO_MODE1;
-                case MODE2: result = error_t::NO_MODE2;
-                case MODE3: result = error_t::NO_MODE3;
-                default: result = error_t::INVALID_MODE;
+                case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -2224,11 +2301,13 @@ namespace SourceExplorer
     {
         error_t handles_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("handles_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2239,10 +2318,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t handles_t::view(source_explorer_t &srcexp) const
@@ -2264,23 +2343,27 @@ namespace SourceExplorer
 
         error_t name_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("name_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
                 case MODE0: {
-                    ReadDynamicData(strm, entry.header);
+                    ReadDynamicData(strm, entry.data);
+                    value = entry.decode().readString<char16_t>();
                 } break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
+                    value = entry.decode().readString<char16_t>();
                 } break;
-                case MODE2: return error_t::NO_MODE2;
-                case MODE3: return error_t::NO_MODE3;
-                default: return error_t::INVALID_MODE;
+                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t name_t::view(source_explorer_t &srcexp) const
@@ -2302,7 +2385,9 @@ namespace SourceExplorer
 
         error_t header_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("header_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2319,10 +2404,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t header_t::view(source_explorer_t &srcexp) const
@@ -2344,7 +2429,9 @@ namespace SourceExplorer
 
         error_t password_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("password_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2361,10 +2448,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t password_t::view(source_explorer_t &srcexp) const
@@ -2386,11 +2473,13 @@ namespace SourceExplorer
 
         error_t palette_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("palette_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2401,10 +2490,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t palette_t::view(source_explorer_t &srcexp) const
@@ -2426,11 +2515,13 @@ namespace SourceExplorer
 
         error_t object_instance_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("object_instance_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2441,10 +2532,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t object_instance_t::view(source_explorer_t &srcexp) const
@@ -2466,7 +2557,9 @@ namespace SourceExplorer
 
         error_t fade_in_frame_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("fade_in_frame_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2483,10 +2576,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t fade_in_frame_t::view(source_explorer_t &srcexp) const
@@ -2508,7 +2601,9 @@ namespace SourceExplorer
 
         error_t fade_out_frame_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("fade_out_frame_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2525,10 +2620,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t fade_out_frame_t::view(source_explorer_t &srcexp) const
@@ -2550,11 +2645,13 @@ namespace SourceExplorer
 
         error_t fade_in_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("fade_in_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2565,10 +2662,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t fade_in_t::view(source_explorer_t &srcexp) const
@@ -2590,11 +2687,13 @@ namespace SourceExplorer
 
         error_t fade_out_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("fade_out_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2605,10 +2704,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t fade_out_t::view(source_explorer_t &srcexp) const
@@ -2630,11 +2729,13 @@ namespace SourceExplorer
 
         error_t events_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("events_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2645,10 +2746,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t events_t::view(source_explorer_t &srcexp) const
@@ -2670,7 +2771,9 @@ namespace SourceExplorer
 
         error_t play_head_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("play_head_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2687,10 +2790,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t play_head_t::view(source_explorer_t &srcexp) const
@@ -2712,7 +2815,9 @@ namespace SourceExplorer
 
         error_t additional_item_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("additional_item_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2729,10 +2834,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t additional_item_t::view(source_explorer_t &srcexp) const
@@ -2754,7 +2859,9 @@ namespace SourceExplorer
 
         error_t additional_item_instance_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("additional_item_instance_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2771,10 +2878,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t additional_item_instance_t::view(source_explorer_t &srcexp) const
@@ -2796,11 +2903,13 @@ namespace SourceExplorer
 
         error_t layers_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("layers_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2811,10 +2920,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t layers_t::view(source_explorer_t &srcexp) const
@@ -2836,11 +2945,13 @@ namespace SourceExplorer
 
         error_t virtual_size_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("virtual_size_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2851,10 +2962,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t virtual_size_t::view(source_explorer_t &srcexp) const
@@ -2876,7 +2987,9 @@ namespace SourceExplorer
 
         error_t demo_file_path_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("demo_file_path_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2893,10 +3006,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t demo_file_path_t::view(source_explorer_t &srcexp) const
@@ -2918,7 +3031,9 @@ namespace SourceExplorer
 
         error_t random_seed_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("random_seed_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -2935,10 +3050,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t random_seed_t::view(source_explorer_t &srcexp) const
@@ -2960,11 +3075,13 @@ namespace SourceExplorer
 
         error_t layer_effect_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("layer_effect_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
@@ -2975,10 +3092,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t layer_effect_t::view(source_explorer_t &srcexp) const
@@ -3000,7 +3117,9 @@ namespace SourceExplorer
 
         error_t blueray_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("blueray_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -3017,10 +3136,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t blueray_t::view(source_explorer_t &srcexp) const
@@ -3042,20 +3161,22 @@ namespace SourceExplorer
 
         error_t movement_time_base_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("movement_time_base_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
                 case MODE0: {
                     ReadDynamicData(strm, entry.header);
                 } break;
-                case MODE1: return error_t::NO_MODE1;
-                case MODE2: return error_t::NO_MODE2;
-                case MODE3: return error_t::NO_MODE3;
-                default: return error_t::INVALID_MODE;
+                case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t movement_time_base_t::view(source_explorer_t &srcexp) const
@@ -3077,7 +3198,9 @@ namespace SourceExplorer
 
         error_t mosaic_image_table_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("mosaic_image_table_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -3094,10 +3217,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t mosaic_image_table_t::view(source_explorer_t &srcexp) const
@@ -3119,21 +3242,23 @@ namespace SourceExplorer
 
         error_t effects_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("effects_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
-                case MODE0: return error_t::NO_MODE0;
+                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
                 case MODE1: {
                     ReadFixedData(strm, entry.header, 0x4);
                     ReadCompressedData(strm, entry.data);
                 } break;
-                case MODE2: return error_t::NO_MODE2;
-                case MODE3: return error_t::NO_MODE3;
-                default: return error_t::INVALID_MODE;
+                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t effects_t::view(source_explorer_t &srcexp) const
@@ -3155,7 +3280,9 @@ namespace SourceExplorer
 
         error_t iphone_options_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("iphone_options_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -3172,10 +3299,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t iphone_options_t::view(source_explorer_t &srcexp) const
@@ -3197,6 +3324,7 @@ namespace SourceExplorer
 
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("item_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3215,7 +3343,7 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: result = error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -3342,7 +3470,7 @@ namespace SourceExplorer
                         result = end->read(game, strm);
                         goto finished;
 
-                    default: result = error_t::INVALID_CHUNK; break;
+                    default: goto finished;
                 }
             }
 
@@ -3354,11 +3482,36 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Frame##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID,
+                (name ? lak::strconv<char>(name->value).c_str() : "- Frame"), entry.position))
             {
                 ImGui::Separator();
 
                 entry.view(srcexp);
+
+                if (name) name->view(srcexp);
+                if (header) header->view(srcexp);
+                if (password) password->view(srcexp);
+                if (palette) palette->view(srcexp);
+                if (objectInstance) objectInstance->view(srcexp);
+                if (fadeInFrame) fadeInFrame->view(srcexp);
+                if (fadeOutFrame) fadeOutFrame->view(srcexp);
+                if (fadeIn) fadeIn->view(srcexp);
+                if (fadeOut) fadeOut->view(srcexp);
+                if (events) events->view(srcexp);
+                if (playHead) playHead->view(srcexp);
+                if (additionalItem) additionalItem->view(srcexp);
+                if (layers) layers->view(srcexp);
+                if (layerEffect) layerEffect->view(srcexp);
+                if (virtualSize) virtualSize->view(srcexp);
+                if (demoFilePath) demoFilePath->view(srcexp);
+                if (randomSeed) randomSeed->view(srcexp);
+                if (blueray) blueray->view(srcexp);
+                if (movementTimeBase) movementTimeBase->view(srcexp);
+                if (mosaicImageTable) mosaicImageTable->view(srcexp);
+                if (effects) effects->view(srcexp);
+                if (iphoneOptions) iphoneOptions->view(srcexp);
+                if (end) end->view(srcexp);
 
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -3369,6 +3522,7 @@ namespace SourceExplorer
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("bank_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3377,10 +3531,10 @@ namespace SourceExplorer
                 case MODE0: {
                     ReadDynamicData(strm, entry.header);
                 } break;
-                case MODE1: result = error_t::NO_MODE1;
-                case MODE2: result = error_t::NO_MODE2;
-                case MODE3: result = error_t::NO_MODE3;
-                default: result = error_t::INVALID_MODE;
+                case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -3426,6 +3580,7 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("item_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3437,7 +3592,7 @@ namespace SourceExplorer
                 case MODE1: result = error_t::NO_MODE1; break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3456,7 +3611,9 @@ namespace SourceExplorer
                 if (ImGui::Button("View Image"))
                 {
                     auto strm = entry.decode();
-                    srcexp.image = std::move(CreateImage(strm, srcexp.state.oldGame).initTexture().texture);
+                    srcexp.image = std::move(CreateImage(
+                        strm, srcexp.dumpColorTrans, srcexp.state.oldGame
+                    ).initTexture().texture);
                 }
 
                 ImGui::Separator();
@@ -3468,7 +3625,9 @@ namespace SourceExplorer
 
         error_t end_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("end_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -3485,10 +3644,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t end_t::view(source_explorer_t &srcexp) const
@@ -3510,6 +3669,7 @@ namespace SourceExplorer
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("bank_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3578,6 +3738,7 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("item_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3589,7 +3750,7 @@ namespace SourceExplorer
                 case MODE1: result = error_t::NO_MODE1; break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3614,7 +3775,9 @@ namespace SourceExplorer
 
         error_t end_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("end_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -3631,10 +3794,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t end_t::view(source_explorer_t &srcexp) const
@@ -3656,6 +3819,7 @@ namespace SourceExplorer
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("bank_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3724,6 +3888,7 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("item_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3739,7 +3904,7 @@ namespace SourceExplorer
                 } break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3764,7 +3929,9 @@ namespace SourceExplorer
 
         error_t end_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("end_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -3781,10 +3948,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t end_t::view(source_explorer_t &srcexp) const
@@ -3806,6 +3973,7 @@ namespace SourceExplorer
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("bank_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3874,6 +4042,7 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("item_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -3885,7 +4054,7 @@ namespace SourceExplorer
                 case MODE1: result = error_t::NO_MODE1; break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3910,7 +4079,9 @@ namespace SourceExplorer
 
         error_t end_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("end_t");
             entry.read(game, strm);
+            error_t result = error_t::OK;
 
             switch (entry.mode)
             {
@@ -3927,10 +4098,10 @@ namespace SourceExplorer
                 case MODE3: {
                     ReadDynamicData(strm, entry.data);
                 } break;
-                default: return error_t::INVALID_MODE;
+                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            return error_t::OK;
+            return result;
         }
 
         error_t end_t::view(source_explorer_t &srcexp) const
@@ -3952,6 +4123,7 @@ namespace SourceExplorer
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
+            DEBUG("bank_t");
             entry.read(game, strm);
             error_t result = error_t::OK;
 
@@ -4018,20 +4190,22 @@ namespace SourceExplorer
 
     error_t last_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("last_t");
         entry.read(game, strm);
+        error_t result = error_t::OK;
 
         switch (entry.mode)
         {
             case MODE0: {
                 ReadFixedData(strm, entry.header, 0x4);
             } break;
-            case MODE1: return error_t::NO_MODE1;
-            case MODE2: return error_t::NO_MODE2;
-            case MODE3: return error_t::NO_MODE3;
-            default: return error_t::INVALID_MODE;
+            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
         }
 
-        return error_t::OK;
+        return result;
     }
 
     error_t last_t::view(source_explorer_t &srcexp) const
@@ -4053,6 +4227,7 @@ namespace SourceExplorer
 
     error_t header_t::read(game_t &game, lak::memstrm_t &strm)
     {
+        DEBUG("header_t");
         entry.read(game, strm);
         error_t result = error_t::OK;
 
@@ -4203,11 +4378,11 @@ namespace SourceExplorer
                     result = movementExtensions->read(game, strm);
                     break;
 
-                case OBJECTBANK2:
-                    DEBUG("Reading Object Bank 2");
-                    objectBank2 = std::make_unique<object_bank2_t>();
-                    result = objectBank2->read(game, strm);
-                    break;
+                // case OBJECTBANK2:
+                //     DEBUG("Reading Object Bank 2");
+                //     objectBank2 = std::make_unique<object_bank2_t>();
+                //     result = objectBank2->read(game, strm);
+                //     break;
 
                 case EXEONLY:
                     DEBUG("Reading EXE Only");
@@ -4294,6 +4469,7 @@ namespace SourceExplorer
                     break;
 
                 case OBJECTBANK:
+                case OBJECTBANK2:
                     DEBUG("Reading Object Bank");
                     objectBank = std::make_unique<object::bank_t>();
                     result = objectBank->read(game, strm);

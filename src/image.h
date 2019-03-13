@@ -44,7 +44,7 @@ namespace SourceExplorer
     uint16_t BitmapPaddingSize(
         uint16_t width,
         uint8_t colSize,
-        uint8_t pad = 2
+        uint8_t bytes = 2
     );
 
     struct image_t
@@ -75,12 +75,14 @@ namespace SourceExplorer
 
     image_t CreateImage(
         lak::memstrm_t &strm,
+        const bool colorTrans,
         const bool old
     );
 
     // "fucked" version
     image_t CreateImage(
         lak::memstrm_t &strm,
+        const bool colorTrans,
         const bool old,
         const lak::vec2u16_t sizeOverride
     );

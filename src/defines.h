@@ -14,20 +14,20 @@ namespace SourceExplorer
 {
     enum error_t
     {
-        OK = 0,
+        OK = 0x0,
 
-        INVALID_EXE_SIGNATURE = 1,
-        INVALID_PE_SIGNATURE = 2,
-        INVALID_GAME_HEADER = 3,
+        INVALID_EXE_SIGNATURE   = 0x1,
+        INVALID_PE_SIGNATURE    = 0x2,
+        INVALID_GAME_HEADER     = 0x3,
 
-        INVALID_STATE = 4,
-        INVALID_MODE = 5,
-        INVALID_CHUNK = 6,
+        INVALID_STATE           = 0x4,
+        INVALID_MODE            = 0x5,
+        INVALID_CHUNK           = 0x6,
 
-        NO_MODE0 = 7,
-        NO_MODE1 = 8,
-        NO_MODE2 = 9,
-        NO_MODE3 = 10
+        NO_MODE0                = 0x7,
+        NO_MODE1                = 0x8,
+        NO_MODE2                = 0x9,
+        NO_MODE3                = 0xA
     };
 }
 
@@ -319,13 +319,14 @@ enum graphics_mode_t : uint8_t
 
 enum image_flag_t : uint8_t
 {
-    RLE     = 1 << 0,
-    RLEW    = 1 << 1,
-    RLET    = 1 << 2,
-    LZX     = 1 << 3,
-    ALPHA   = 1 << 4,
-    ACE     = 1 << 5,
-    MAC     = 1 << 6
+    NONE    = 0,
+    RLE     = 1 << 0, // 0x1
+    RLEW    = 1 << 1, // 0x2
+    RLET    = 1 << 2, // 0x4
+    LZX     = 1 << 3, // 0x8
+    ALPHA   = 1 << 4, // 0x10
+    ACE     = 1 << 5, // 0x20
+    MAC     = 1 << 6  // 0x30
 };
 
 // static image_flag_t operator | (const image_flag_t A, const image_flag_t B)
