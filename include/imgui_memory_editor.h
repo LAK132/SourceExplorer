@@ -36,6 +36,7 @@
 
 #pragma once
 #include <stdio.h>  // sprintf, scanf
+#include <imgui.h>
 
 struct MemoryEditor
 {
@@ -258,7 +259,7 @@ struct MemoryEditor
                     struct UserData
                     {
                         // FIXME: We should have a way to retrieve the text edit cursor position more easily in the API, this is rather tedious. This is such a ugly mess we may be better off not using InputText() at all here.
-                        static int Callback(ImGuiTextEditCallbackData* data)
+                        static int Callback(ImGuiInputTextCallbackData* data)
                         {
                             UserData* user_data = (UserData*)data->UserData;
                             if (!data->HasSelection())
@@ -380,7 +381,7 @@ struct MemoryEditor
         if (ImGui::BeginPopup("context"))
         {
             ImGui::PushItemWidth(56);
-            if (ImGui::DragInt("##rows", &Rows, 0.2f, 4, 32, "%.0f rows")) ContentsWidthChanged = true;
+            if (ImGui::DragInt("##rows", &Rows, 0.2f, 4, 32, "%d rows")) ContentsWidthChanged = true;
             ImGui::PopItemWidth();
             ImGui::Checkbox("Show HexII", &OptShowHexII);
             if (ImGui::Checkbox("Show Ascii", &OptShowAscii)) ContentsWidthChanged = true;

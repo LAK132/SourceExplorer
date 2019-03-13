@@ -1,87 +1,102 @@
 #include <stdint.h>
 #include <iostream>
-using std::cout;
-using std::endl;
 #include <string>
-using std::string;
 #include <vector>
-using std::vector;
-#include <miniz.h>
 #include <istream>
 #include <fstream>
-using std::ifstream;
-using std::ios;
 #include <cmath>
-using std::ceil;
-#include "defines.h"
-#include "memorystream.h"
+extern "C" {
+#include <GL/gl3w.h>
+}
 
-#include <GL/gl3w.h>    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
+#include "lak.h"
+
+#include "defines.h"
 
 #ifndef IMAGE_H
 #define IMAGE_H
 
-struct Color
+namespace SourceExplorer
 {
-    uint8_t r = 0, g = 0, b = 0, a = 255;
-    Color();
-    Color(uint8_t R, uint8_t G, uint8_t B, uint8_t A = 255);
-    bool operator==(const Color& rhs) const;
-    static Color from8bit(uint8_t RGB);
-    static Color from15bit(uint16_t RGB);
-    static Color from16bit(uint16_t RGB);
-    static Color from8bit(MemoryStream& strm);
-    static Color from15bit(MemoryStream& strm);
-    static Color from16bit(MemoryStream& strm);
-    static Color from24bit(MemoryStream& strm);
-    static Color from32bit(MemoryStream& strm);
-};
+    // struct color_t
+    // {
+    //     uint8_t r = 0, g = 0, b = 0, a = 255;
+    // };
 
-struct Bitmap
-{
-    size_t w, h;
-    vector<Color> pixels;
-    Bitmap();
-    Bitmap(size_t width, size_t height);
-    vector<uint8_t> toRGB();
-    vector<uint8_t> toRGBA();
-    Color* operator[](size_t idx);
-};
+    lak::color4_t ColorFrom8bit(uint8_t RGB);
+    lak::color4_t ColorFrom15bit(uint16_t RGB);
+    lak::color4_t ColorFrom16bit(uint16_t RGB);
 
-class Image
-{
-public:
-    bool old = false;
-    uint32_t dataSize = 0;
-    uint16_t handle = 0;
-    uint16_t checksum; //uint8_t for old
-    uint32_t reference = 0;
-    uint16_t width = 0;
-    uint16_t height = 0;
-    uint8_t graphicsMode = 4;
-    uint8_t flags = 0;
-    uint8_t paletteEntries = 0;
-    vector<Color> palette;
-    uint32_t count = 0;
-    uint16_t xHotspot = 0;
-    uint16_t yHotspot = 0;
-    uint16_t xAction = 0;
-    uint16_t yAction = 0;
-    //uint8_t transparency[4];
-    Color transparent;
+    lak::color4_t ColorFrom8bit(lak::memstrm_t &strm);
+    lak::color4_t ColorFrom15bit(lak::memstrm_t &strm);
+    lak::color4_t ColorFrom16bit(lak::memstrm_t &strm);
+    lak::color4_t ColorFrom24bit(lak::memstrm_t &strm);
+    lak::color4_t ColorFrom32bit(lak::memstrm_t &strm);
 
-    Bitmap bitmap;
-    GLuint tex;
+    lak::color4_t ColorFromMode(lak::memstrm_t &strm, const graphics_mode_t mode);
 
-    Image();
-    ~Image();
-    GLuint generateImage(MemoryStream& strm, bool fucked = false, uint16_t widthovrd = 0, uint16_t heightovrd = 0); //returns tex
+    struct bitmap_t
+    {
+        lak::vec2s_t size;
+        std::vector<lak::color4_t> pixels;
 
-    static Color getNext(MemoryStream& strm, uint8_t mode);
-    //static vector<Color> getNext(MemoryStream& strm, uint8_t mode, uint32_t count);
-    static void getNext(MemoryStream& strm, uint8_t mode, uint32_t count);
-    static uint8_t getSize(uint8_t mode);
-    static uint16_t getPadding(uint16_t width, uint8_t colSize, uint8_t pad = 2);
-};
+        lak::color4_t &operator[](const size_t index);
+        lak::color4_t &operator[](const lak::vec2s_t index);
+        lak::color4_t &operator()(const size_t x, const size_t y);
+        void resize(const lak::vec2s_t toSize);
+    };
+
+    uint16_t BitmapPaddingSize(
+        uint16_t width,
+        uint8_t colSize,
+        uint8_t pad = 2
+    );
+
+    struct image_t
+    {
+        using handle_t = uint16_t;
+
+        bool old = false;
+        uint32_t dataSize = 0;
+        handle_t handle = 0;
+        uint16_t checksum; // uint8_t if old
+        uint32_t reference = 0;
+        lak::vec2u16_t size = {};
+        graphics_mode_t graphicsMode = GRAPHICS4;
+        image_flag_t flags = RLE;
+
+        uint32_t count = 0;
+        lak::vec2u16_t hotspot = {};
+        lak::vec2u16_t action = {};
+
+        uint8_t paletteEntries = 0;
+        std::vector<lak::color4_t> palette = {};
+        lak::color4_t transparent = {};
+        bitmap_t bitmap = {};
+
+        lak::glTexture_t texture;
+        image_t &initTexture();
+    };
+
+    image_t CreateImage(
+        lak::memstrm_t &strm,
+        const bool old
+    );
+
+    // "fucked" version
+    image_t CreateImage(
+        lak::memstrm_t &strm,
+        const bool old,
+        const lak::vec2u16_t sizeOverride
+    );
+
+    GLuint CreateTexture(
+        const image_t &image
+    );
+
+    void ViewImage(
+        const image_t &image
+    );
+}
 
 #endif

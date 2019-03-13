@@ -1,31 +1,27 @@
-call "D:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %1
-
-set OUTDIR=out
 set BINDIR=bin
+set OBJDIR=obj
+
+set INCDIRS=include include\SDL include\imgui include\imgui\misc\cpp
 set LIBDIR=lib
-set LIBS=SDL2main.lib SDL2.lib 
-set APP=app.exe
+set LIBS=SDL2main.lib SDL2.lib
 
-set SOURCES=main imgui libs 
+set SOURCE=src\main.cpp
+set BINARY=app.exe
 
-set imgui_SRC=../dear-imgui
-set imgui_OBJ=imgui.cpp imgui_draw.cpp
-set imgui_INC=../dear-imgui
+set CXX=cl /nologo /std:c++17 /D_CRT_SECURE_NO_WARNINGS /MD /EHsc
 
-set libs_SRC=lib
-set libs_OBJ=gl3w.c miniz.c imgui_impl_sdl_gl3.cpp
-set libs_INC=include include/SDL ../dear-imgui
+if "%mode%"=="clean" goto :eof
 
-set main_SRC=src
-set main_OBJ=main.cpp image.cpp explorer.cpp memorystream.cpp
-set main_INC=include include/SDL ../dear-imgui
+call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %1 /vcvars_ver=14.20
 
+if "%mode%"=="release" goto release
+if "%mode%"=="debug" goto debug
+
+:debug
+set COMPFLAGS=/Zi /bigobj
+set LINKFLAGS=/SUBSYSTEM:CONSOLE /DEBUG
 goto :eof
 
-:allcpp
-for /f %%F in ('dir /b "!%~1!"') do (
-    if "%%~xF"==".cpp" set %~2=!%~2! %%F
-    if "%%~xF"==".cc" set %~2=!%~2! %%F
-    if "%%~xF"==".c" set %~2=!%~2! %%F
-)
-EXIT /B
+:release
+set COMPCOM=/DNDEBUG /bigobj
+set LINKCOM=/SUBSYSTEM:CONSOLE
