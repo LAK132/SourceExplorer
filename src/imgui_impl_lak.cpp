@@ -697,6 +697,13 @@ namespace lak
         return true;
     }
 
+    fs::path LongestDirectoryPathCopy(fs::path &path)
+    {
+        fs::path result = path;
+        LongestDirectoryPath(result);
+        return result;
+    }
+
     bool CorrectPath(fs::path &root, fs::path &filename)
     {
         if (!fs::is_directory(root))
@@ -728,7 +735,7 @@ namespace lak
     {
         if (ImGui::BeginChild(str_id, size_arg))
         {
-            for (auto &dir : fs::directory_iterator(path))
+            for (auto &dir : fs::directory_iterator(LongestDirectoryPathCopy(path)))
             {
                 if (ImGui::Selectable(dir.path().filename().string().c_str()))
                 {
@@ -761,7 +768,8 @@ namespace lak
 
         if (lak::InputPath("string", path))
         {
-            lak::LongestDirectoryPath(path);
+            if (!lak::LongestDirectoryPath(path))
+                path = path.lexically_normal();
             result = true;
         }
 
