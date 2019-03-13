@@ -854,10 +854,25 @@ namespace SourceExplorer
         std::u16string copyright;
     };
 
+    struct file_state_t
+    {
+        fs::path path;
+        bool valid;
+        bool attempt;
+    };
+
     struct source_explorer_t
     {
         game_t state;
-        fs::path file;
+
+        bool loaded = false;
+        file_state_t exe;
+        file_state_t images;
+        file_state_t sounds;
+        file_state_t music;
+
+        MemoryEditor editor;
+
         // const resource_entry_t *view = nullptr;
         const entry_t *view = nullptr;
         lak::glTexture_t image;
