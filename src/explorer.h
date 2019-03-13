@@ -960,10 +960,6 @@ namespace SourceExplorer
         const resource_entry_t &entry
     );
 
-    // uint16_t ReadHandle(
-    //     const resource_entry_t &entry
-    // );
-
     std::vector<uint8_t> Decode(
         const std::vector<uint8_t> &encoded,
         chunk_t ID,
@@ -979,77 +975,5 @@ namespace SourceExplorer
         chunk_t ID,
         encoding_t mode
     );
-
-    // struct GameEntry
-    // {
-    //     shared_ptr<ResourceEntry> header;
-    //     shared_ptr<ResourceEntry> title;
-    //     shared_ptr<ResourceEntry> copyright;
-    //     shared_ptr<ResourceEntry> author;
-    //     shared_ptr<ResourceEntry> projectPath;
-    //     shared_ptr<ResourceEntry> outputPath;
-    //     shared_ptr<ResourceEntry> icon;
-    //     shared_ptr<ResourceEntry> shaders;
-    //     shared_ptr<ResourceEntry> extensions;
-    //     shared_ptr<ResourceEntry> serial;
-    //     shared_ptr<ResourceEntry> exeOnly;
-    //     shared_ptr<ResourceEntry> menu;
-    //     shared_ptr<ResourceEntry> frameHandles;
-
-    //     shared_ptr<ResourceEntry> soundBank;
-    //     shared_ptr<ResourceEntry> musicBank;
-    //     shared_ptr<ResourceEntry> fontBank;
-    //     shared_ptr<ResourceEntry> imageBank;
-    //     shared_ptr<ResourceEntry> objectBank;
-
-    //     shared_ptr<ResourceEntry> extendedHeader;
-    //     shared_ptr<ResourceEntry> aboutText;
-    //     shared_ptr<ResourceEntry> globalStrings;
-    //     shared_ptr<ResourceEntry> globalValues;
-    //     shared_ptr<ResourceEntry> fileBank;
-
-    //     vector<shared_ptr<ResourceEntry>> frameBank;
-    // };
-
-    // struct FrameEntry
-    // {
-    //     shared_ptr<ResourceEntry> frameHeaderEntry = nullptr;
-    //     shared_ptr<ResourceEntry> nameEntry = nullptr;
-    //     shared_ptr<ResourceEntry> objectsEntry = nullptr;
-    // };
-
-    // class SourceExplorer
-    // {
-    // public:
-    //     vector<PackFile> packFiles;
-    //     uint16_t numHeaderSections;
-    //     string gamePath;
-    //     string gameDir;
-    //     MemoryStream gameBuffer;
-    //     uint64_t dataPos;
-    //     //vector<ResourceEntry> resources;
-    //     vector<uint64_t> resourcePos;
-    //     bool addingTextures;
-    //     bool addingSounds;
-    //     bool addingFonts;
-    //     bool entry;
-    //     vector<uint16_t> gameState;
-    //     bool unicode = false;
-    //     bool oldGame;
-    //     bool cnc = false;
-    //     uint16_t numSections;
-    //     product_code_t runtimeVersion;
-    //     uint16_t runtimeSubVersion;
-    //     uint32_t productVersion;
-    //     uint32_t productBuild;
-    //     shared_ptr<ResourceEntry> game;
-
-    //     void loadGame(string path);
-    //     void readEntries();
-    //     void readGameData(vector<uint16_t>& state);
-    //     uint64_t packData(MemoryStream& strm, vector<uint16_t>& state);
-    //     void gameData(MemoryStream& strm);
-    //     string product(uint16_t vnum);
-    // };
 }
 #endif

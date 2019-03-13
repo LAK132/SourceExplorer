@@ -3,14 +3,6 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-// constexpr std::string_view DEFAULT_GAME = "D:\\Google Drive\\Five Nights at Freddys\\Discord\\Clickteam Dumps\\customnight.exe";
-// constexpr std::string_view DEFAULT_DUMP = "R:\\test\\test\\test\\";
-
-#define DEFAULT_GAME "D:\\Google Drive\\Five Nights at Freddys\\Discord\\Clickteam Dumps\\customnight.exe"
-#define DEFAULT_DUMP "R:\\test\\test\\test\\"
-
-// #define MAXDIRLEN 256
-
 // Executable Signature
 static const uint16_t WIN_EXE_SIG = 0x5A4D;
 // Position of Pointer to PE Header
@@ -241,31 +233,6 @@ enum encoding_t : uint16_t
 #define DEFAULTMODE encoding_t::MODE0
 #define COMPRESSEDMODE encoding_t::MODE1
 #define ENCRYPTEDMODE encoding_t::MODE2
-
-// //
-// // Get Data Flags
-// //
-// // #define PRE_READNEXT PRE_READ4
-// enum get_data_flag_t : uint16_t
-// {
-//     NONE = 0,
-
-//     PRE_READINT     = 1 << 0,
-//     PRE_READ4       = 1 << 1,
-//     PRE_READ8       = 1 << 2,
-//     PRE_READ14      = 1 << 3,
-//     PRE_READ15      = 1 << 4,
-
-//     MAIN_NORM       = 1 << 5,
-//     MAIN_ENCR       = 1 << 6,
-//     MAIN_COMP       = 1 << 7,
-//     MAIN_REV_COMP   = 1 << 8
-// };
-
-// static get_data_flag_t operator | (const get_data_flag_t A, const get_data_flag_t B)
-// {
-//     return (get_data_flag_t)((uint16_t)A | (uint16_t)B);
-// }
 
 //
 // Sound Modes

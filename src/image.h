@@ -18,11 +18,6 @@ extern "C" {
 
 namespace SourceExplorer
 {
-    // struct color_t
-    // {
-    //     uint8_t r = 0, g = 0, b = 0, a = 255;
-    // };
-
     lak::color4_t ColorFrom8bit(uint8_t RGB);
     lak::color4_t ColorFrom15bit(uint16_t RGB);
     lak::color4_t ColorFrom16bit(uint16_t RGB);

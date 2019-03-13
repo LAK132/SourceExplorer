@@ -131,39 +131,6 @@ namespace SourceExplorer
         }
     }
 
-    // vector<uint8_t> Bitmap::toRGB()
-    // {
-    //     vector<uint8_t> rtn(w * h * 3);
-    //     size_t i = 0;
-    //     for (size_t y = 0; y < h; y++)
-    //     {
-    //         for (size_t x = 0; x < w; x++)
-    //         {
-    //             rtn[i++] = (*this)[x][y].r;
-    //             rtn[i++] = (*this)[x][y].g;
-    //             rtn[i++] = (*this)[x][y].b;
-    //         }
-    //     }
-    //     return rtn;
-    // }
-
-    // vector<uint8_t> Bitmap::toRGBA()
-    // {
-    //     vector<uint8_t> rtn(w * h * 4);
-    //     size_t i = 0;
-    //     for (size_t y = 0; y < h; y++)
-    //     {
-    //         for (size_t x = 0; x < w; x++)
-    //         {
-    //             rtn[i++] = (*this)[x][y].r;
-    //             rtn[i++] = (*this)[x][y].g;
-    //             rtn[i++] = (*this)[x][y].b;
-    //             rtn[i++] = (*this)[x][y].a;
-    //         }
-    //     }
-    //     return rtn;
-    // }
-
     lak::color4_t &bitmap_t::operator[](const size_t index)
     {
         return pixels[index];

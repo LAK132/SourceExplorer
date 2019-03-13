@@ -55,10 +55,4 @@ bool DecodeChunk(
 
 std::vector<uint8_t> KeyString(const std::u16string &str);
 
-// void MakeDecryptionKey(
-//     const char *a1,
-//     const char *a3,
-//     const bool unicode
-// );
-
 #endif
