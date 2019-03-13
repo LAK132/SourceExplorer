@@ -16,11 +16,11 @@ namespace SourceExplorer
     error_t LoadGame(source_explorer_t &srcexp)
     {
         DEBUG("\nLoading Game");
-        DEBUG("Path: '" << srcexp.file.u8string() << "'");
+        DEBUG("Path: '" << srcexp.exe.path.u8string() << "'");
 
         srcexp.state = game_t{};
 
-        srcexp.state.file.memory = lak::LoadFile(srcexp.file);
+        srcexp.state.file.memory = lak::LoadFile(srcexp.exe.path);
 
         DEBUG("File Size: 0x" << srcexp.state.file.memory.size());
 
