@@ -752,7 +752,8 @@ namespace lak
             if (ImGui::Button("<- Back"))
             {
                 path /= "..";
-                lak::LongestDirectoryPath(path);
+                if (!lak::LongestDirectoryPath(path))
+                    path = path.lexically_normal();
                 result = true;
             }
             ImGui::SameLine();
