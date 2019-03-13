@@ -1,157 +1,1055 @@
 #include <stdint.h>
 #include <iostream>
-using std::cout;
-using std::endl;
 #include <assert.h>
 #include <string>
-using std::string;
-#include <miniz.h>
 #include <istream>
 #include <fstream>
-using std::ifstream;
-using std::ios;
+#include <memory>
+#include <atomic>
+#include <stack>
+#include <vector>
+#include <unordered_map>
+
+#include "imgui_impl_lak.h"
+#include "lak.h"
+#include "strconv.h"
 #include "defines.h"
-#include "memorystream.h"
-#include "image.h"
-//#include "gamedeconstructor.h"
-//#include "resources/resourceentry.h"
+#include "tinflate.hpp"
 
 #ifndef EXPLORER_H
 #define EXPLORER_H
 
-extern bool debugConsole;
+#include "encryption.h"
+#include "image.h"
 
-struct PackFile
+#ifdef DEBUG
+#undef DEBUG
+#endif
+#define DEBUG(x) if (SourceExplorer::debugConsole) std::cout << std::hex << x << "\n" << std::flush;
+
+#ifdef WDEBUG
+#undef WDEBUG
+#endif
+#define WDEBUG(x) if (SourceExplorer::debugConsole) std::wcout << std::hex << x << L"\n" << std::flush;
+
+#ifdef ERROR
+#undef ERROR
+#endif
+#define ERROR(x) std::cerr << std::hex << x << "\n" << std::flush;
+
+#ifdef WERROR
+#undef WERROR
+#endif
+#define WERROR(x) std::wcerr << std::hex << x << L"\n" << std::flush;
+
+namespace SourceExplorer
 {
-    string filename;
-    uint32_t bingo;
-    vector<uint8_t> data;
-};
+    extern bool debugConsole;
+    extern m128i_t _xmmword;
+    extern std::vector<uint8_t> _magic_key;
+    extern uint8_t _magic_char;
+    struct game_t;
+    struct source_explorer_t;
 
-vector<uint8_t> readCompressed(MemoryStream& strm, uint32_t datalen, uint32_t complen, bool* decompress = nullptr);
-vector<uint8_t> readCompressed(vector<uint8_t>& compressed, uint32_t datalen, bool* decompress = nullptr);
-string readASCII(MemoryStream& strm);
-string readUnicode(MemoryStream& strm);
+    struct pack_file_t
+    {
+        std::u16string filename;
+        bool wide;
+        uint32_t bingo;
+        std::vector<uint8_t> data;
+    };
 
-struct DataPoint
-{
-    size_t location = 0;
-    size_t dataLen = 0;
-    size_t fileLen = 0;
-    bool compressed = false;
-    DataPoint();
-    DataPoint(size_t loc, size_t flen);
-    DataPoint(size_t loc, size_t flen, size_t alen);
-    DataPoint(MemoryStream& strm, size_t flen);
-    DataPoint(MemoryStream& strm, size_t flen, size_t alen);
-    void operator()(size_t loc, size_t flen);
-    void operator()(size_t loc, size_t flen, size_t alen);
-    void operator()(MemoryStream& strm, size_t flen);
-    void operator()(MemoryStream& strm, size_t flen, size_t alen);
-    void clear();
-    MemoryStream read(vector<uint8_t>* memory);
-    MemoryStream rawStream(vector<uint8_t>* memory);
-    MemoryStream decompressedStream(vector<uint8_t>* memory);
-};
+    struct data_point_t
+    {
+        size_t position = 0;
+        size_t expectedSize;
+        lak::memstrm_t data;
+        lak::memstrm_t decode(const chunk_t ID, const encoding_t mode) const;
+    };
 
-struct ResourceEntry
-{
-    uint16_t ID = 0xFFFF;
-    uint16_t mode = 0xFFFF;
-    size_t location = 0;
+    struct entry_t
+    {
+        chunk_t ID;
+        encoding_t mode;
+        size_t position;
 
-    DataPoint preData;
-    DataPoint mainData;
+        data_point_t header;
+        data_point_t data;
 
-    //uint64_t dataLoc;
-    //uint32_t dataLen = 0;
-    //uint32_t compressedDataLen = 0;
-    //vector<uint8_t> preData;
-    //vector<ResourceEntry*> chunks; //glfw3 is fucking with these pointers
-    vector<ResourceEntry> chunks;
-    void* extraData = nullptr;
+        void read(game_t &game, lak::memstrm_t &strm);
+        void view(source_explorer_t &srcexp) const;
 
-    ResourceEntry();
-    ResourceEntry(MemoryStream& strm, vector<uint16_t>& state);
-    ~ResourceEntry();
-    //void getData(MemoryStream& strm, int16_t predlen, int16_t mainflen, int16_t maindlen);
-    void getData(MemoryStream& strm, uint8_t readMode);
-    uint32_t findNext(MemoryStream& strm);
-    int32_t findUntilNext(MemoryStream& strm, uint32_t pos, const vector<uint8_t>& toFind);
-    bool fetchChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry* chunk);
-    void setChild(MemoryStream& strm, vector<uint16_t>& state, ResourceEntry& chunk);
-};
+        lak::memstrm_t decode() const;
+        lak::memstrm_t decodeHeader() const;
+    };
 
-struct GameEntry
-{
-    ResourceEntry header;
-    ResourceEntry title;
-    ResourceEntry copyright;
-    ResourceEntry author;
-    ResourceEntry projectPath;
-    ResourceEntry outputPath;
-    ResourceEntry icon;
-    ResourceEntry shaders;
-    ResourceEntry extensions;
-    ResourceEntry serial;
-    ResourceEntry exeOnly;
-    ResourceEntry menu;
-    ResourceEntry frameHandles;
+    struct title_t
+    {
+        entry_t entry;
+        std::u16string value;
 
-    ResourceEntry soundBank;
-    ResourceEntry musicBank;
-    ResourceEntry fontBank;
-    ResourceEntry imageBank;
-    ResourceEntry objectBank;
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
 
-    ResourceEntry extendedHeader;
-    ResourceEntry aboutText;
-    ResourceEntry globalStrings;
-    ResourceEntry globalValues;
-    ResourceEntry fileBank;
+    struct author_t
+    {
+        entry_t entry;
+        std::u16string value;
 
-    vector<ResourceEntry> frameBank;
-};
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
 
-struct FrameEntry
-{
-    ResourceEntry* frameHeaderEntry = nullptr;
-    ResourceEntry* nameEntry = nullptr;
-    ResourceEntry* objectsEntry = nullptr;
-};
+    struct copyright_t
+    {
+        entry_t entry;
+        std::u16string value;
 
-class SourceExplorer
-{
-public:
-    vector<PackFile> packFiles;
-    uint16_t numHeaderSections;
-    string gamePath;
-    string gameDir;
-    MemoryStream gameBuffer;
-    uint64_t dataPos;
-    //vector<ResourceEntry> resources;
-    vector<uint64_t> resourcePos;
-    bool addingTextures;
-    bool addingSounds;
-    bool addingFonts;
-    bool entry;
-    vector<uint16_t> gameState;
-    bool unicode = false;
-    bool oldGame;
-    bool cnc = false;
-    uint16_t numSections;
-    uint16_t runtimeVersion;
-    uint16_t runtimeSubVersion;
-    uint32_t productVersion;
-    uint32_t productBuild;
-    ResourceEntry game;
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
 
-    void loadGame(string path);
-    void readEntries();
-    void readGameData(vector<uint16_t>& state);
-    uint64_t packData(MemoryStream& strm, vector<uint16_t>& state);
-    void gameData(MemoryStream& strm);
-    string product(uint16_t vnum);
-};
+    struct output_path_t
+    {
+        entry_t entry;
+        std::u16string value;
 
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct project_path_t
+    {
+        entry_t entry;
+        std::u16string value;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct vitalise_preview_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct menu_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct extension_path_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct extensions_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct global_events_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct extension_data_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct additional_extensions_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct application_doc_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct other_extenion_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct global_values_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct global_strings_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct extension_list_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct icon_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct demo_version_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct security_number_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct binary_files_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct menu_images_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct about_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct global_value_names_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct global_string_names_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct movement_extensions_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct object_bank2_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct exe_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct protection_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct shaders_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct extended_header_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct spacer_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct chunk_224F_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct title2_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct last_t
+    {
+        entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    namespace object
+    {
+        struct name_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct properties_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct effect_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct item_t // OBJHEAD
+        {
+            entry_t entry;
+            std::unique_ptr<name_t> name;
+            std::unique_ptr<properties_t> properties;
+            std::unique_ptr<effect_t> effect;
+            std::unique_ptr<last_t> end;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct bank_t
+        {
+            entry_t entry;
+            std::vector<item_t> items;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+    }
+
+    namespace frame
+    {
+        struct handles_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct header_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct name_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct password_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct palette_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct object_instance_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_in_frame_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_out_frame_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_in_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_out_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct events_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct play_head_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct additional_item_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct additional_item_instance_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct layers_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct virtual_size_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct demo_file_path_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct random_seed_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct layer_effect_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct blueray_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct movement_time_base_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct mosaic_image_table_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct effects_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct iphone_options_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct item_t
+        {
+            entry_t entry;
+            std::unique_ptr<name_t> name;
+            std::unique_ptr<header_t> header;
+            std::unique_ptr<password_t> password;
+            std::unique_ptr<palette_t> palette;
+            std::unique_ptr<object_instance_t> objectInstance;
+            std::unique_ptr<fade_in_frame_t> fadeInFrame;
+            std::unique_ptr<fade_out_frame_t> fadeOutFrame;
+            std::unique_ptr<fade_in_t> fadeIn;
+            std::unique_ptr<fade_out_t> fadeOut;
+            std::unique_ptr<events_t> events;
+            std::unique_ptr<play_head_t> playHead;
+            std::unique_ptr<additional_item_t> additionalItem;
+            std::unique_ptr<additional_item_instance_t> additionalItemInstance;
+            std::unique_ptr<layers_t> layers;
+            std::unique_ptr<virtual_size_t> virtualSize;
+            std::unique_ptr<demo_file_path_t> demoFilePath;
+            std::unique_ptr<random_seed_t> randomSeed;
+            std::unique_ptr<layer_effect_t> layerEffect;
+            std::unique_ptr<blueray_t> blueray;
+            std::unique_ptr<movement_time_base_t> movementTimeBase;
+            std::unique_ptr<mosaic_image_table_t> mosaicImageTable;
+            std::unique_ptr<effects_t> effects;
+            std::unique_ptr<iphone_options_t> iphoneOptions;
+            std::unique_ptr<last_t> end;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct bank_t
+        {
+            entry_t entry;
+            std::vector<item_t> items;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+    }
+
+    namespace image
+    {
+        struct item_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct end_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct bank_t
+        {
+            entry_t entry;
+            std::vector<item_t> items;
+            std::unique_ptr<end_t> end;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+    }
+
+    namespace font
+    {
+        struct item_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct end_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct bank_t
+        {
+            entry_t entry;
+            std::vector<item_t> items;
+            std::unique_ptr<end_t> end;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+    }
+
+    namespace sound
+    {
+        struct item_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct end_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct bank_t
+        {
+            entry_t entry;
+            std::vector<item_t> items;
+            std::unique_ptr<end_t> end;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+    }
+
+    namespace music
+    {
+        struct item_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct end_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct bank_t
+        {
+            entry_t entry;
+            std::vector<item_t> items;
+            std::unique_ptr<end_t> end;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+    }
+
+    struct header_t
+    {
+        entry_t entry;
+
+        std::unique_ptr<title_t> title;
+        std::unique_ptr<author_t> author;
+        std::unique_ptr<copyright_t> copyright;
+        std::unique_ptr<output_path_t> outputPath;
+        std::unique_ptr<project_path_t> projectPath;
+
+        std::unique_ptr<vitalise_preview_t> vitalisePreview;
+        std::unique_ptr<menu_t> menu;
+        std::unique_ptr<extension_path_t> extensionPath;
+        std::unique_ptr<extensions_t> extensions; // deprecated
+        std::unique_ptr<extension_data_t> extensionData;
+        std::unique_ptr<additional_extensions_t> additionalExtensions;
+        std::unique_ptr<application_doc_t> appDoc;
+        std::unique_ptr<other_extenion_t> otherExtension;
+        std::unique_ptr<extension_list_t> extensionList;
+        std::unique_ptr<icon_t> icon;
+        std::unique_ptr<demo_version_t> demoVersion;
+        std::unique_ptr<security_number_t> security;
+        std::unique_ptr<binary_files_t> binaryFiles;
+        std::unique_ptr<menu_images_t> menuImages;
+        std::unique_ptr<about_t> about;
+        std::unique_ptr<movement_extensions_t> movementExtensions;
+        std::unique_ptr<object_bank2_t> objectBank2;
+        std::unique_ptr<exe_t> exe;
+        std::unique_ptr<protection_t> protection;
+        std::unique_ptr<shaders_t> shaders;
+        std::unique_ptr<extended_header_t> extendedHeader;
+        std::unique_ptr<spacer_t> spacer;
+        std::unique_ptr<chunk_224F_t> chunk224F;
+        std::unique_ptr<title2_t> title2;
+
+        std::unique_ptr<global_events_t> globalEvents;
+        std::unique_ptr<global_strings_t> globalStrings;
+        std::unique_ptr<global_string_names_t> globalStringNames;
+        std::unique_ptr<global_values_t> globalValues;
+        std::unique_ptr<global_value_names_t> globalValueNames;
+
+        std::unique_ptr<frame::handles_t> frameHandles;
+        std::unique_ptr<frame::bank_t> frameBank;
+        std::unique_ptr<object::bank_t> objectBank;
+        std::unique_ptr<image::bank_t> imageBank;
+        std::unique_ptr<sound::bank_t> soundBank;
+        std::unique_ptr<music::bank_t> musicBank;
+        std::unique_ptr<font::bank_t> fontBank;
+
+        std::unique_ptr<last_t> last;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct game_t
+    {
+        std::string gamePath;
+        std::string gameDir;
+
+        lak::memstrm_t file;
+
+        std::vector<pack_file_t> packFiles;
+        uint64_t dataPos;
+        uint16_t numHeaderSections;
+        uint16_t numSections;
+
+        product_code_t runtimeVersion;
+        uint16_t runtimeSubVersion;
+        uint32_t productVersion;
+        uint32_t productBuild;
+
+        std::stack<chunk_t> state;
+
+        bool unicode = false;
+        bool oldGame = false;
+        bool cnc = false;
+        std::vector<uint8_t> protection;
+
+        header_t game;
+
+        std::u16string project;
+        std::u16string title;
+        std::u16string copyright;
+    };
+
+    struct source_explorer_t
+    {
+        game_t state;
+        fs::path file;
+        // const resource_entry_t *view = nullptr;
+        const entry_t *view = nullptr;
+        lak::glTexture_t image;
+        std::vector<uint8_t> buffer;
+    };
+
+    struct resource_entry_t
+    {
+        chunk_t ID = DEFAULT;
+        chunk_t parent = DEFAULT;
+
+        encoding_t mode = DEFAULTMODE;
+
+        data_point_t info;
+        data_point_t header;
+        data_point_t data;
+
+        std::vector<resource_entry_t> chunks;
+
+        lak::memstrm_t streamHeader() const;
+        lak::memstrm_t stream() const;
+        lak::memstrm_t decodeHeader() const;
+        lak::memstrm_t decode() const;
+    };
+
+    // struct object_entry_t
+    // {
+    //     const resource_entry_t &entry;
+    //     const resource_entry_t *propEntry = nullptr;
+    //     const resource_entry_t *nameEntry = nullptr;
+    //     uint16_t handle;
+    //     int16_t type;
+    //     std::u16string name;
+    // };
+
+    // struct image_entry_t
+    // {
+    //     const resource_entry_t &entry;
+    //     uint16_t handle;
+    // };
+
+    error_t LoadGame(
+        source_explorer_t &srcexp
+    );
+
+    error_t ParsePEHeader(
+        lak::memstrm_t &strm,
+        game_t &gameState
+    );
+
+    uint64_t ParsePackData(
+        lak::memstrm_t &strm,
+        game_t &gameState
+    );
+
+    // error_t ReadEntry(
+    //     lak::memstrm_t &strm,
+    //     std::stack<chunk_t> &state,
+    //     resource_entry_t &entry
+    // );
+
+    // error_t ReadEntryData(
+    //     lak::memstrm_t &strm,
+    //     resource_entry_t &entry,
+    //     get_data_flag_t readMode
+    // );
+
+    error_t ReadFixedData(
+        lak::memstrm_t &strm,
+        data_point_t &data,
+        const size_t size
+    );
+
+    error_t ReadDynamicData(
+        lak::memstrm_t &strm,
+        data_point_t &data
+    );
+
+    error_t ReadToCompressedData(
+        lak::memstrm_t &strm,
+        data_point_t &data
+    );
+
+    error_t ReadCompressedData(
+        lak::memstrm_t &strm,
+        data_point_t &data
+    );
+
+    error_t ReadReverseCompressedData(
+        lak::memstrm_t &strm,
+        data_point_t &data
+    );
+
+    std::u16string ReadString(
+        const resource_entry_t &entry,
+        const bool unicode
+    );
+
+    const char *GetTypeString(
+        const resource_entry_t &entry
+    );
+
+    // uint16_t ReadHandle(
+    //     const resource_entry_t &entry
+    // );
+
+    std::vector<uint8_t> Decode(
+        const std::vector<uint8_t> &encoded,
+        chunk_t ID,
+        encoding_t mode
+    );
+
+    std::vector<uint8_t> Decompress(
+        const std::vector<uint8_t> &compressed
+    );
+
+    std::vector<uint8_t> Decrypt(
+        const std::vector<uint8_t> &encrypted,
+        chunk_t ID,
+        encoding_t mode
+    );
+
+    // struct GameEntry
+    // {
+    //     shared_ptr<ResourceEntry> header;
+    //     shared_ptr<ResourceEntry> title;
+    //     shared_ptr<ResourceEntry> copyright;
+    //     shared_ptr<ResourceEntry> author;
+    //     shared_ptr<ResourceEntry> projectPath;
+    //     shared_ptr<ResourceEntry> outputPath;
+    //     shared_ptr<ResourceEntry> icon;
+    //     shared_ptr<ResourceEntry> shaders;
+    //     shared_ptr<ResourceEntry> extensions;
+    //     shared_ptr<ResourceEntry> serial;
+    //     shared_ptr<ResourceEntry> exeOnly;
+    //     shared_ptr<ResourceEntry> menu;
+    //     shared_ptr<ResourceEntry> frameHandles;
+
+    //     shared_ptr<ResourceEntry> soundBank;
+    //     shared_ptr<ResourceEntry> musicBank;
+    //     shared_ptr<ResourceEntry> fontBank;
+    //     shared_ptr<ResourceEntry> imageBank;
+    //     shared_ptr<ResourceEntry> objectBank;
+
+    //     shared_ptr<ResourceEntry> extendedHeader;
+    //     shared_ptr<ResourceEntry> aboutText;
+    //     shared_ptr<ResourceEntry> globalStrings;
+    //     shared_ptr<ResourceEntry> globalValues;
+    //     shared_ptr<ResourceEntry> fileBank;
+
+    //     vector<shared_ptr<ResourceEntry>> frameBank;
+    // };
+
+    // struct FrameEntry
+    // {
+    //     shared_ptr<ResourceEntry> frameHeaderEntry = nullptr;
+    //     shared_ptr<ResourceEntry> nameEntry = nullptr;
+    //     shared_ptr<ResourceEntry> objectsEntry = nullptr;
+    // };
+
+    // class SourceExplorer
+    // {
+    // public:
+    //     vector<PackFile> packFiles;
+    //     uint16_t numHeaderSections;
+    //     string gamePath;
+    //     string gameDir;
+    //     MemoryStream gameBuffer;
+    //     uint64_t dataPos;
+    //     //vector<ResourceEntry> resources;
+    //     vector<uint64_t> resourcePos;
+    //     bool addingTextures;
+    //     bool addingSounds;
+    //     bool addingFonts;
+    //     bool entry;
+    //     vector<uint16_t> gameState;
+    //     bool unicode = false;
+    //     bool oldGame;
+    //     bool cnc = false;
+    //     uint16_t numSections;
+    //     product_code_t runtimeVersion;
+    //     uint16_t runtimeSubVersion;
+    //     uint32_t productVersion;
+    //     uint32_t productBuild;
+    //     shared_ptr<ResourceEntry> game;
+
+    //     void loadGame(string path);
+    //     void readEntries();
+    //     void readGameData(vector<uint16_t>& state);
+    //     uint64_t packData(MemoryStream& strm, vector<uint16_t>& state);
+    //     void gameData(MemoryStream& strm);
+    //     string product(uint16_t vnum);
+    // };
+}
 #endif
