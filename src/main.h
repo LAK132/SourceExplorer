@@ -55,19 +55,6 @@ namespace se = SourceExplorer;
 #ifndef MAIN_H
 #define MAIN_H
 
-// struct userData_t
-// {
-//     float clearCol[4] = {0.0f, 0.3125f, 0.3125f, 1.0f};
-
-//     ImGuiIO* io = nullptr;
-//     ImGuiStyle* style = nullptr;
-
-//     SourceExplorer srcexp;
-//     MemoryEditor memEdit = MemoryEditor();
-//     vector<uint8_t> gameMem;
-//     Image gameImage;
-// };
-
 void credits()
 {
     ImGui::PushID("Credits");
