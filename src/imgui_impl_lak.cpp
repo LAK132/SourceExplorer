@@ -1091,12 +1091,10 @@ namespace lak
             return false;
 
         ImGuiContext &g = *GImGui;
-        const char *label_end = g.TempBuffer + ImFormatStringV(
-            g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args
-        );
-        bool is_open = ImGui::TreeNodeBehavior(
-            window->GetID(g.TempBuffer, label_end), 0, g.TempBuffer, label_end
-        );
+
+        ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
+
+        bool is_open = ImGui::TreeNodeBehavior(window->GetID(g.TempBuffer), 0, g.TempBuffer);
 
         va_end(args);
         return is_open;

@@ -646,7 +646,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Title", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Title##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -688,7 +688,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Author", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Author##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -730,7 +730,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Copyright", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Copyright##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -772,7 +772,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Output Path", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Output Path##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -814,7 +814,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Project Path", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Project Path##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -853,7 +853,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Vitalise Preview", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Vitalise Preview##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -889,7 +889,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Menu", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Menu##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -931,7 +931,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Extension Path", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Extension Path##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -973,7 +973,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Extensions", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Extensions##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1015,7 +1015,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Global Events", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Global Events##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1050,7 +1050,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Extension Data", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Extension Data##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1092,7 +1092,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Additional Extensions", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Additional Extensions##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1134,7 +1134,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Application Doc", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Application Doc##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1176,7 +1176,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Other Extension", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Other Extension##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1218,7 +1218,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Global Values", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Global Values##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1260,7 +1260,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Global Strings", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Global Strings##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1298,7 +1298,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Extension List", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Extension List##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1334,7 +1334,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Icon", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Icon##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1376,7 +1376,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Demo Version", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Demo Version##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1416,7 +1416,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Security Number", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Security Number##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1451,7 +1451,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Binary Files", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1493,7 +1493,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Menu Images", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Menu Images##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1535,7 +1535,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX About", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX About##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1577,7 +1577,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Global Value Names", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Global Value Names##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1619,7 +1619,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Global String Names", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Global String Names##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1661,7 +1661,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Movement Extensions", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Movement Extensions##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1696,7 +1696,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Object Bank 2", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Object Bank 2##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1731,7 +1731,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX EXE Only", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX EXE Only##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1769,7 +1769,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Protection", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Protection##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1805,7 +1805,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Shaders", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Shaders##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1847,7 +1847,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Extended Header", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1882,7 +1882,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Spacer", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Spacer##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1924,7 +1924,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Chunk 224F", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Chunk 224F##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1959,7 +1959,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Title 2", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Title 2##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -1999,7 +1999,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Name", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Name##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2041,7 +2041,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Properties", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Properties##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2083,7 +2083,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Effect", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Effect##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2152,7 +2152,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Object", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Object##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2202,7 +2202,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Object Bank", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Object Bank##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2249,7 +2249,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Frame Handles", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Frame Handles##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2287,7 +2287,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Name", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Name##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2329,7 +2329,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Header", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Header##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2371,7 +2371,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Password", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Password##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2411,7 +2411,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Palette", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Palette##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2451,7 +2451,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Object Instance", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Object Instance##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2493,7 +2493,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Fade In Frame", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Fade In Frame##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2535,7 +2535,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Fade Out Frame", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Fade Out Frame##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2575,7 +2575,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Fade In", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Fade In##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2615,7 +2615,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Fade Out", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Fade Out##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2655,7 +2655,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Events", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Events##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2697,7 +2697,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Play Head", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Play Head##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2739,7 +2739,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Additional Item", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Additional Item##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2781,7 +2781,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Additional Item Instance", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Additional Item Instance##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2821,7 +2821,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Layers", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Layers##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2861,7 +2861,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Virtual Size", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Virtual Size##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2903,7 +2903,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Demo File Path", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Demo File Path##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2945,7 +2945,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Random Seed", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -2985,7 +2985,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Layer Effect", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Layer Effect##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3027,7 +3027,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Blueray", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Blueray##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3062,7 +3062,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Movement Time Base", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Movement Time Base##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3104,7 +3104,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Mosaic Image Table", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Mosaic Image Table##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3140,7 +3140,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Effects", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Effects##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3182,7 +3182,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX iPhone Options", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX iPhone Options##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3354,7 +3354,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Frame", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Frame##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3404,7 +3404,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Frame Bank", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Frame Bank##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3447,7 +3447,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Image", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Image##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3495,7 +3495,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Image Bank End", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Image Bank End##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3554,7 +3554,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Image Bank", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Image Bank##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3599,7 +3599,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Font", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Font##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3641,7 +3641,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Font Bank End", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Font Bank End##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3700,7 +3700,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Font Bank", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Font Bank##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3749,7 +3749,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Sound", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Sound##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3791,7 +3791,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Sound Bank End", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Sound Bank End##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3850,7 +3850,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Sound Bank", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Sound Bank##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3895,7 +3895,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Music", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Music##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3937,7 +3937,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Music Bank End", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Music Bank End##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -3996,7 +3996,7 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Music Bank", (size_t)entry.ID))
+            if (lak::TreeNode("0x%zX Music Bank##%zX", (size_t)entry.ID, entry.position))
             {
                 ImGui::Separator();
 
@@ -4038,7 +4038,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Last", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Last##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
@@ -4344,7 +4344,7 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Game Header", (size_t)entry.ID))
+        if (lak::TreeNode("0x%zX Game Header##%zX", (size_t)entry.ID, entry.position))
         {
             ImGui::Separator();
 
