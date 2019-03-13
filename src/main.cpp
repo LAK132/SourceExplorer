@@ -113,6 +113,7 @@ void Update()
                 SrcExp.images.attempt |= ImGui::MenuItem("Dump Images", nullptr);
                 SrcExp.sounds.attempt |= ImGui::MenuItem("Dump Sounds", nullptr);
                 SrcExp.music.attempt |= ImGui::MenuItem("Dump Music", nullptr);
+                SrcExp.shaders.attempt |= ImGui::MenuItem("Dump Shaders", nullptr);
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Credits"))
@@ -120,6 +121,7 @@ void Update()
                 credits();
                 ImGui::EndMenu();
             }
+            ImGui::Checkbox("Enable Color Transparency?", &SrcExp.dumpColorTrans);
             ImGui::Checkbox("Print to debug console? (May cause SE to run slower)", &se::debugConsole);
             ImGui::EndMenuBar();
         }
@@ -210,7 +212,7 @@ void Update()
             {
                 if (!SrcExp.exe.valid)
                 {
-                    // User canceled
+                    // User cancelled
                     SrcExp.loaded = false;
                     SrcExp.exe.attempt = false;
                 }
@@ -232,13 +234,13 @@ void Update()
             {
                 if (!SrcExp.images.valid)
                 {
-                    // User canceled
+                    // User cancelled
                     SrcExp.images.attempt = false;
                 }
             }
         }
         else if (DumpStuff("Dump Image",
-            [](se::source_explorer_t &srcexp,std::atomic<float> &completed)
+            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
             {
                 if (!srcexp.state.game.imageBank)
                 {
@@ -251,9 +253,9 @@ void Update()
                 for (const auto &item : srcexp.state.game.imageBank->items)
                 {
                     lak::memstrm_t strm = item.entry.decode();
-                    const se::image_t &image = se::CreateImage(strm, srcexp.state.oldGame);
+                    const se::image_t &image = se::CreateImage(strm,
+                        srcexp.dumpColorTrans, srcexp.state.oldGame);
                     fs::path filename = srcexp.images.path / (std::to_string(index) + ".png");
-                    DEBUG(filename);
                     if (stbi_write_png(filename.u8string().c_str(),
                         (int)image.bitmap.size.x, (int)image.bitmap.size.y, 4,
                         &(image.bitmap.pixels[0].r), (int)(image.bitmap.size.x * 4)) != 1)
@@ -278,13 +280,13 @@ void Update()
             {
                 if (!SrcExp.sounds.valid)
                 {
-                    // User canceled
+                    // User cancelled
                     SrcExp.sounds.attempt = false;
                 }
             }
         }
         else if (DumpStuff("Dump Sounds",
-            [](se::source_explorer_t &srcexp,std::atomic<float> &completed)
+            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
             {
                 if (!srcexp.state.game.soundBank)
                 {
@@ -318,7 +320,6 @@ void Update()
                     }
 
                     fs::path filename = srcexp.sounds.path / name;
-                    DEBUG(filename);
                     std::vector<uint8_t> file(sound.cursor(), sound.end());
 
                     if (!lak::SaveFile(filename, file))
@@ -344,13 +345,13 @@ void Update()
             {
                 if (!SrcExp.music.valid)
                 {
-                    // User canceled
+                    // User cancelled
                     SrcExp.music.attempt = false;
                 }
             }
         }
         else if (DumpStuff("Dump Music",
-            [](se::source_explorer_t &srcexp,std::atomic<float> &completed)
+            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
             {
                 if (!srcexp.state.game.musicBank)
                 {
@@ -380,7 +381,6 @@ void Update()
                     }
 
                     fs::path filename = srcexp.music.path / name;
-                    DEBUG(filename);
                     std::vector<uint8_t> file(sound.cursor(), sound.end());
 
                     if (!lak::SaveFile(filename, file))
@@ -395,6 +395,67 @@ void Update()
         {
             SrcExp.music.valid = false;
             SrcExp.music.attempt = false;
+        }
+    }
+
+    if (SrcExp.shaders.attempt)
+    {
+        if (!SrcExp.shaders.valid)
+        {
+            if (lak::OpenFolder(SrcExp.shaders.path, SrcExp.shaders.valid))
+            {
+                if (!SrcExp.shaders.valid)
+                {
+                    // User cancelled
+                    SrcExp.shaders.attempt = false;
+                }
+            }
+        }
+        else if (DumpStuff("Dump Shaders",
+            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
+            {
+                if (!srcexp.state.game.shaders)
+                {
+                    DEBUG("No Shaders");
+                    return;
+                }
+
+                lak::memstrm_t strm = srcexp.state.game.shaders->entry.decode();
+
+                uint32_t count = strm.readInt<uint32_t>();
+                std::vector<uint32_t> offsets;
+                offsets.reserve(count);
+
+                while (count --> 0)
+                    offsets.emplace_back(strm.readInt<uint32_t>());
+
+                for (auto offset : offsets)
+                {
+                    strm.position = offset;
+                    uint32_t nameOffset = strm.readInt<uint32_t>();
+                    uint32_t dataOffset = strm.readInt<uint32_t>();
+                    uint32_t paramOffset = strm.readInt<uint32_t>(); (void)paramOffset;
+                    uint32_t backTex = strm.readInt<uint32_t>(); (void)backTex;
+
+                    strm.position = offset + nameOffset;
+                    fs::path filename = srcexp.shaders.path / strm.readString<char>();
+
+                    strm.position = offset + dataOffset;
+                    std::string file = strm.readString<char>();
+
+                    DEBUG(filename);
+                    if (!lak::SaveFile(filename, std::vector<uint8_t>(file.begin(), file.end())))
+                    {
+                        ERROR("Failed To Save File '" << filename << "'");
+                    }
+
+                    completed = (float)((double)count++ / (double)offsets.size());
+                }
+            }
+        ))
+        {
+            SrcExp.shaders.valid = false;
+            SrcExp.shaders.attempt = false;
         }
     }
 }

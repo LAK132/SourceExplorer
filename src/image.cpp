@@ -62,6 +62,7 @@ namespace SourceExplorer
         rtn.b = strm.readInt<uint8_t>();
         rtn.g = strm.readInt<uint8_t>();
         rtn.r = strm.readInt<uint8_t>();
+        rtn.a = 255;
         return rtn;
     }
 
@@ -81,6 +82,7 @@ namespace SourceExplorer
         rtn.r = strm.readInt<uint8_t>();
         rtn.g = strm.readInt<uint8_t>();
         rtn.b = strm.readInt<uint8_t>();
+        rtn.a = 255;
         return rtn;
     }
 
@@ -152,10 +154,10 @@ namespace SourceExplorer
         pixels.resize(size.x * size.y);
     }
 
-    uint16_t BitmapPaddingSize(uint16_t width, uint8_t colSize, uint8_t pad)
+    uint16_t BitmapPaddingSize(uint16_t width, uint8_t colSize, uint8_t bytes)
     {
-        uint16_t num = pad - ((width * colSize) % pad);
-        return (uint16_t)std::ceil((double)(num == pad ? 0 : num) / (double)colSize);
+        uint16_t num = bytes - ((width * colSize) % bytes);
+        return (uint16_t)std::ceil((double)(num == bytes ? 0 : num) / (double)colSize);
     }
 
     image_t &image_t::initTexture()
@@ -177,7 +179,92 @@ namespace SourceExplorer
         return *this;
     }
 
-    void _CreateImage(lak::memstrm_t &strm, image_t &img)
+    size_t ReadRLE(lak::memstrm_t &strm, bitmap_t &bitmap, graphics_mode_t mode)
+    {
+        const size_t pointSize = ColorModeSize(mode);
+        const uint16_t pad = BitmapPaddingSize(bitmap.size.x, pointSize);
+        size_t pos = 0;
+        size_t i = 0;
+
+        size_t start = strm.position;
+
+        while(true)
+        {
+            uint8_t command = strm.readInt<uint8_t>();
+
+            if (command == 0)
+                break;
+
+            if (command > 128)
+            {
+                command -= 128;
+                for (uint8_t n = 0; n < command; ++n)
+                {
+                    if ((pos++) % (bitmap.size.x + pad) < bitmap.size.x)
+                        bitmap[i++] = ColorFromMode(strm, mode);
+                    else
+                        strm.position += pointSize;
+                }
+            }
+            else
+            {
+                lak::color4_t col = ColorFromMode(strm, mode);
+                for (uint8_t n = 0; n < command; ++n)
+                {
+                    if ((pos++) % (bitmap.size.x + pad) < bitmap.size.x)
+                        bitmap[i++] = col;
+                }
+            }
+        }
+
+        return strm.position - start;
+    }
+
+    size_t ReadRGB(lak::memstrm_t &strm, bitmap_t &bitmap, graphics_mode_t mode)
+    {
+        const size_t pointSize = ColorModeSize(mode);
+        const uint16_t pad = BitmapPaddingSize(bitmap.size.x, pointSize);
+        size_t i = 0;
+
+        size_t start = strm.position;
+
+        for (size_t y = 0; y < bitmap.size.y; ++y)
+        {
+            for (size_t x = 0; x < bitmap.size.x; ++x)
+            {
+                bitmap[i++] = ColorFromMode(strm, mode);
+            }
+            strm.position += pad * pointSize;
+        }
+
+        return strm.position - start;
+    }
+
+    void ReadAlpha(lak::memstrm_t &strm, bitmap_t &bitmap)
+    {
+        const uint16_t pad = BitmapPaddingSize(bitmap.size.x, 1, 4);
+        size_t i = 0;
+
+        for (size_t y = 0; y < bitmap.size.y; ++y)
+        {
+            for (size_t x = 0; x < bitmap.size.x; ++x)
+            {
+                bitmap[i++].a = strm.readInt<uint8_t>();
+            }
+            strm.position += pad;
+        }
+    }
+
+    void ReadTransparent(lak::color4_t &transparent, bitmap_t &bitmap)
+    {
+        for (size_t i = 0; i < bitmap.pixels.size(); ++i)
+        {
+            if (bitmap[i] == transparent)
+                bitmap[i].a = transparent.a;
+        }
+    }
+
+    void _CreateImage(lak::memstrm_t &strm, image_t &img, const bool colorTrans)
     {
         img.bitmap.resize(img.size);
 
@@ -186,56 +273,54 @@ namespace SourceExplorer
         uint16_t pad = BitmapPaddingSize(img.size.x, colSize);
         DEBUG("Bitmap Padding: 0x" << (uint32_t)pad);
 
-        uint32_t n = 0;
-        // size_t pos = strm.position;
-        // uint32_t length = img.dataSize / colSize;
-
-        for (uint32_t y = 0; y < img.size.y; ++y)
+        lak::memstrm_t newStrm;
+        if (img.flags & image_flag_t::LZX)
         {
-            for (uint32_t x = 0; x < img.size.x; ++x)
-            {
-                img.bitmap(x,y) = ColorFromMode(strm, img.graphicsMode);
-                if ((img.flags & image_flag_t::ALPHA) == 0 && img.bitmap(x,y) == img.transparent)
-                    img.bitmap(x,y).a = img.transparent.a;
-                n += colSize;
-            }
-            // skip padding
-            for (uint32_t x = 0; x < pad; ++x)
-            {
-                ColorFromMode(strm, img.graphicsMode);
-                n += colSize;
-            }
+            uint32_t decompressed = strm.readInt<uint32_t>(); (void)decompressed;
+            newStrm = Decompress(strm.readBytes(strm.readInt<uint32_t>())); // is this right?
+        }
+        else
+        {
+            newStrm = strm;
         }
 
-        DEBUG("n: 0x" << n);
-        uint32_t leftover = img.dataSize - n;
-        DEBUG("Leftover: 0x" << leftover);
-        if ((img.flags & image_flag_t::ALPHA) != 0)
+        size_t alphaSize = 0;
+        if (img.flags & (image_flag_t::RLE | image_flag_t::RLEW | image_flag_t::RLET))
         {
-            uint32_t count = (leftover - (img.size.y * img.size.x)) / img.size.y;
-            for (uint32_t y = 0; y < img.size.y; ++y)
-            {
-                for (uint32_t x = 0; x < img.size.x; ++x)
-                {
-                    img.bitmap(x,y).a = strm.readInt<uint8_t>();
-                }
-                strm.readBytes((count > 0 ? count : 0));
-            }
+            size_t bytesRead = ReadRLE(newStrm, img.bitmap, img.graphicsMode);
+            DEBUG("Bytes Read: 0x" << bytesRead);
+            alphaSize = img.dataSize - bytesRead;
+        }
+        else
+        {
+            size_t bytesRead = ReadRGB(newStrm, img.bitmap, img.graphicsMode);
+            DEBUG("Bytes Read: 0x" << bytesRead);
+            alphaSize = img.dataSize - bytesRead;
+        }
+        DEBUG("Alpha Size: 0x" << alphaSize);
+
+        if (img.flags & image_flag_t::ALPHA)
+        {
+            ReadAlpha(newStrm, img.bitmap);
+        }
+        else if (colorTrans)
+        {
+            ReadTransparent(img.transparent, img.bitmap);
         }
     }
 
-    image_t CreateImage(lak::memstrm_t &strm, const bool old)
+    image_t CreateImage(lak::memstrm_t &strm, const bool colorTrans, const bool old)
     {
         DEBUG("\nCreating Image");
         image_t img;
         img.old = old;
         DEBUG("Old: " << (old ? "true" : "false"));
-        img.handle = strm.readInt<uint16_t>();
+        // img.handle = strm.readInt<uint16_t>();
         DEBUG("Handle: 0x" << (uint32_t)img.handle);
         if (old)
-            img.checksum = strm.readInt<uint8_t>();
-        else
             img.checksum = strm.readInt<uint16_t>();
+        else
+            img.checksum = strm.readInt<uint32_t>();
         DEBUG("Checksum: 0x" << (uint32_t)img.checksum);
         img.reference = strm.readInt<uint32_t>();
         DEBUG("Reference: 0x" << (uint32_t)img.reference);
@@ -266,18 +351,18 @@ namespace SourceExplorer
         DEBUG("Action: 0x" << (uint32_t)img.action.x << " * 0x" << (uint32_t)img.action.y);
         if (!old) img.transparent = ColorFrom32bitRGBA(strm);
 
-        _CreateImage(strm, img);
+        _CreateImage(strm, img, colorTrans);
         return img;
     }
 
-    image_t CreateImage(lak::memstrm_t &strm, const bool old, const lak::vec2u16_t sizeOverride)
+    image_t CreateImage(lak::memstrm_t &strm, const bool colorTrans, const bool old, const lak::vec2u16_t sizeOverride)
     {
         DEBUG("\nCreating Image");
         image_t img;
         img.old = old;
         img.size = sizeOverride;
 
-        _CreateImage(strm, img);
+        _CreateImage(strm, img, colorTrans);
         return img;
     }
 

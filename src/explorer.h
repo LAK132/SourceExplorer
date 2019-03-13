@@ -373,6 +373,7 @@ namespace SourceExplorer
         struct name_t
         {
             entry_t entry;
+            std::u16string value;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
@@ -437,6 +438,7 @@ namespace SourceExplorer
         struct name_t
         {
             entry_t entry;
+            std::u16string value;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
@@ -866,10 +868,12 @@ namespace SourceExplorer
         game_t state;
 
         bool loaded = false;
+        bool dumpColorTrans = false;
         file_state_t exe;
         file_state_t images;
         file_state_t sounds;
         file_state_t music;
+        file_state_t shaders;
 
         MemoryEditor editor;
 
