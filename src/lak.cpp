@@ -45,10 +45,10 @@ namespace lak
         file.seekg(0);
 
         std::vector<uint8_t> result;
-        result.reserve(fileSize);
 
-        while (fileSize --> 0)
-            result.emplace_back(file.get());
+        result.resize(fileSize);
+
+        file.read(reinterpret_cast<char*>(&result[0]), result.size());
 
         file.close();
 
