@@ -72,11 +72,16 @@ namespace SourceExplorer
         chunk_t ID;
         encoding_t mode;
         size_t position;
+        size_t end;
 
         data_point_t header;
         data_point_t data;
 
         void read(game_t &game, lak::memstrm_t &strm);
+        void readMode0(game_t &game, lak::memstrm_t &strm);
+        void readMode1(game_t &game, lak::memstrm_t &strm);
+        void readMode2(game_t &game, lak::memstrm_t &strm);
+        void readMode3(game_t &game, lak::memstrm_t &strm);
         void view(source_explorer_t &srcexp) const;
 
         lak::memstrm_t decode() const;
