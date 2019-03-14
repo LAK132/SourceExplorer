@@ -169,6 +169,8 @@ void Update()
                 if (dataMode == 0) // EXE
                 {
                     SrcExp.editor.DrawContents(&(SrcExp.state.file.memory[0]), SrcExp.state.file.size());
+                    if (update && SrcExp.view != nullptr)
+                        SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position, SrcExp.view->position + 2);
                 }
                 else if (dataMode == 1) // Header
                 {
