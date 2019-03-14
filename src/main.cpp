@@ -180,6 +180,8 @@ void Update()
                             : SrcExp.view->decodeHeader().memory;
 
                     SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
+                    if (update)
+                        SrcExp.editor.GotoAddrAndHighlight(0, 0);
                 }
                 else if (dataMode == 2) // Data
                 {
@@ -189,6 +191,8 @@ void Update()
                             : SrcExp.view->decode().memory;
 
                     SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
+                    if (update)
+                        SrcExp.editor.GotoAddrAndHighlight(0, 0);
                 }
                 else dataMode = 0;
 
@@ -300,24 +304,78 @@ void Update()
                 size_t index = 0;
                 for (const auto &item : srcexp.state.game.soundBank->items)
                 {
-                    lak::memstrm_t header = item.entry.decodeHeader();
-
-                    uint32_t checksum = header.readInt<uint32_t>(); (void)checksum;
-                    uint32_t references = header.readInt<uint32_t>(); (void)references;
-                    uint32_t decompLen = header.readInt<uint32_t>(); (void)decompLen;
-                    sound_mode_t type = header.readInt<sound_mode_t>(); // uint32_t
-                    uint32_t reserved = header.readInt<uint32_t>(); (void)reserved;
-                    // uint32_t nameLen = header.readInt<uint32_t>();
-                    // DEBUG("nameLen " << nameLen);
-
                     lak::memstrm_t sound = item.entry.decode();
 
-                    // std::u16string name = sound.readString<char16_t>(nameLen);
-                    std::u16string name = sound.readString<char16_t>();
+                    std::u16string name;
+                    sound_mode_t type;
+                    if (srcexp.state.oldGame)
+                    {
+                        uint16_t checksum = sound.readInt<uint16_t>(); (void)checksum;
+                        uint32_t references = sound.readInt<uint32_t>(); (void)references;
+                        uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
+                        type = sound.readInt<sound_mode_t>(); // uint32_t
+                        uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
+                        uint32_t nameLen = sound.readInt<uint32_t>();
+
+                        name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+
+                        uint16_t format = sound.readInt<uint16_t>(); (void)format;
+                        uint16_t channelCount = sound.readInt<uint16_t>(); (void)channelCount;
+                        uint32_t sampleRate = sound.readInt<uint32_t>(); (void)sampleRate;
+                        uint32_t byteRate = sound.readInt<uint32_t>(); (void)byteRate;
+                        uint16_t blockAlign = sound.readInt<uint16_t>(); (void)blockAlign;
+                        uint16_t bitsPerSample = sound.readInt<uint16_t>(); (void)bitsPerSample;
+                        uint16_t unknown = sound.readInt<uint16_t>(); (void)unknown;
+                        uint32_t chunkSize = sound.readInt<uint32_t>();
+                        std::vector<uint8_t> data = sound.readBytes(chunkSize); (void) data;
+
+                        lak::memstrm_t output;
+                        output.writeString<char>("RIFF", false);
+                        output.writeInt<int32_t>(data.size() - 44);
+                        output.writeString<char>("WAVEfmt ", false);
+                        output.writeInt<uint32_t>(0x10);
+                        output.writeInt<uint16_t>(format);
+                        output.writeInt<uint16_t>(channelCount);
+                        output.writeInt<uint32_t>(sampleRate);
+                        output.writeInt<uint32_t>(byteRate);
+                        output.writeInt<uint16_t>(blockAlign);
+                        output.writeInt<uint16_t>(bitsPerSample);
+                        output.writeString<char>("data", false);
+                        output.writeInt<uint32_t>(chunkSize);
+                        output.writeBytes(data);
+                        output.position = 0;
+                        sound = std::move(output);
+                    }
+                    else
+                    {
+                        lak::memstrm_t header = item.entry.decodeHeader();
+                        uint32_t checksum = header.readInt<uint32_t>(); (void)checksum;
+                        uint32_t references = header.readInt<uint32_t>(); (void)references;
+                        uint32_t decompLen = header.readInt<uint32_t>(); (void)decompLen;
+                        type = header.readInt<sound_mode_t>(); // uint32_t
+                        uint32_t reserved = header.readInt<uint32_t>(); (void)reserved;
+                        uint32_t nameLen = header.readInt<uint32_t>();
+
+                        if (srcexp.state.unicode)
+                        {
+                            name = sound.readStringExact<char16_t>(nameLen);
+                        }
+                        else
+                        {
+                            name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+                        }
+
+                        if (sound.peekString<char>(4) == "OggS")
+                        {
+                            type = OGGS;
+                        }
+                    }
+
                     switch(type)
                     {
                         case WAVE: name += u".wav"; break;
                         case MIDI: name += u".midi"; break;
+                        case OGGS: name += u".ogg"; break;
                         default: name += u".mp3"; break;
                     }
 
@@ -367,14 +425,38 @@ void Update()
                 {
                     lak::memstrm_t sound = item.entry.decode();
 
-                    uint32_t checksum = sound.readInt<uint32_t>(); (void)checksum;
-                    uint32_t references = sound.readInt<uint32_t>(); (void)references;
-                    uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
-                    sound_mode_t type = sound.readInt<sound_mode_t>(); // uint32_t
-                    uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
-                    uint32_t nameLen = sound.readInt<uint32_t>();
+                    std::u16string name;
+                    sound_mode_t type;
+                    if (srcexp.state.oldGame)
+                    {
+                        uint16_t checksum = sound.readInt<uint16_t>(); (void)checksum;
+                        uint32_t references = sound.readInt<uint32_t>(); (void)references;
+                        uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
+                        type = sound.readInt<sound_mode_t>(); // uint32_t
+                        uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
+                        uint32_t nameLen = sound.readInt<uint32_t>();
 
-                    std::u16string name = sound.readString<char16_t>(nameLen);
+                        name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+                    }
+                    else
+                    {
+                        uint32_t checksum = sound.readInt<uint32_t>(); (void)checksum;
+                        uint32_t references = sound.readInt<uint32_t>(); (void)references;
+                        uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
+                        type = sound.readInt<sound_mode_t>(); // uint32_t
+                        uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
+                        uint32_t nameLen = sound.readInt<uint32_t>();
+
+                        if (srcexp.state.unicode)
+                        {
+                            name = sound.readStringExact<char16_t>(nameLen);
+                        }
+                        else
+                        {
+                            name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+                        }
+                    }
+
                     switch(type)
                     {
                         case WAVE: name += u".wav"; break;
@@ -485,7 +567,7 @@ int main()
     style.WindowRounding = 0;
     assert(ImGui::ImplInit(window));
 
-    MemoryEditor memEdit;
+    tinf_init();
 
     for (bool running = true; running;)
     {
@@ -574,3 +656,5 @@ int main()
 #include "tinflate.cpp"
 
 #include "explorer.cpp"
+
+#include "tinflate.c"
