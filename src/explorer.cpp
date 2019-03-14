@@ -2,7 +2,7 @@
 
 namespace SourceExplorer
 {
-    bool debugConsole = true;
+    bool debugConsole = false;
     m128i_t _xmmword;
     std::vector<uint8_t> _magic_key;
     uint8_t _magic_char;
@@ -151,31 +151,51 @@ namespace SourceExplorer
             DEBUG("Pos: 0x" << strm.position);
         }
 
-        strm.position = pos;
-        uint16_t firstShort = strm.readInt<uint16_t>();
-        strm.position = pos;
-        uint32_t pameMagic = strm.readInt<uint32_t>();
-        strm.position = pos;
-        uint64_t packMagic = strm.readInt<uint64_t>();
-        strm.position = pos;
+        while (true)
+        {
+            strm.position = pos;
+            uint16_t firstShort = strm.readInt<uint16_t>();
+            DEBUG("First Short: 0x" << firstShort);
+            strm.position = pos;
+            uint32_t pameMagic = strm.readInt<uint32_t>();
+            DEBUG("PAME Magic: 0x" << pameMagic);
+            strm.position = pos;
+            uint64_t packMagic = strm.readInt<uint64_t>();
+            DEBUG("Pack Magic: 0x" << packMagic);
+            strm.position = pos;
 
-        if (firstShort == HEADER || pameMagic == HEADER_GAME)
-        {
-            DEBUG("Old Game");
-            gameState.oldGame = true;
-            gameState.state = {}; // gameState.state.clear();
-            gameState.state.push(OLD);
+            if (firstShort == HEADER || pameMagic == HEADER_GAME)
+            {
+                DEBUG("Old Game");
+                gameState.oldGame = true;
+                gameState.state = {}; // gameState.state.clear();
+                gameState.state.push(OLD);
+                break;
+            }
+            else if (packMagic == HEADERPACK)
+            {
+                DEBUG("New Game");
+                gameState.oldGame = false;
+                gameState.state = {}; // gameState.state.clear();
+                gameState.state.push(NEW);
+                pos = ParsePackData(strm, gameState);
+                break;
+            }
+            else if (firstShort == 0x222C)
+            {
+                strm.position += 4;
+                strm.position += strm.readInt<uint32_t>();
+                pos = strm.position;
+            }
+            else if (firstShort == 0x7F7F)
+            {
+                pos += 8;
+            }
+            else return INVALID_GAME_HEADER;
+
+            if (pos > strm.size())
+                return INVALID_GAME_HEADER;
         }
-        else if (packMagic == HEADERPACK)
-        {
-            DEBUG("New Game");
-            gameState.oldGame = false;
-            gameState.state = {}; // gameState.state.clear();
-            gameState.state.push(NEW);
-            pos = ParsePackData(strm, gameState);
-        }
-        else
-            return INVALID_GAME_HEADER;
 
         uint32_t header = strm.readInt<uint32_t>();
         DEBUG("Header: 0x" << header);
@@ -285,7 +305,7 @@ namespace SourceExplorer
             uint32_t read = strm.readInt<uint16_t>();
             // size_t strstart = strm.position;
 
-            DEBUG("Pack 0x" << i+1 << " of 0x" << count << ", filename length: 0x" << read);
+            DEBUG("Pack 0x" << i+1 << " of 0x" << count << ", filename length: 0x" << read << ", pos: 0x" << strm.position);
 
             if (unicode)
                 gameState.packFiles[i].filename = strm.readString<char16_t>(read);
@@ -305,12 +325,13 @@ namespace SourceExplorer
 
             DEBUG("Bingo: 0x" << gameState.packFiles[i].bingo);
 
-            if (unicode)
-                read = strm.readInt<uint32_t>();
-            else
-                read = strm.readInt<uint16_t>();
+            // if (unicode)
+            //     read = strm.readInt<uint32_t>();
+            // else
+            //     read = strm.readInt<uint16_t>();
+            read = strm.readInt<uint32_t>();
 
-            DEBUG("Pack File Data Size: 0x" << read);
+            DEBUG("Pack File Data Size: 0x" << read << ", Pos: 0x" << strm.position);
             gameState.packFiles[i].data = strm.readBytes(read);
         }
 
@@ -617,7 +638,7 @@ namespace SourceExplorer
         return error_t::OK;
     }
 
-    error_t entry_t::readMode0(game_t &game, lak::memstrm_t &strm)
+    error_t entry_t::readMode0(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
         if (game.oldGame)
@@ -626,24 +647,22 @@ namespace SourceExplorer
         }
         else
         {
-            ReadFixedData(strm, header, 0x4);
+            ReadFixedData(strm, header, headerSize);
         }
         end = strm.position;
         return error_t::OK;
     }
 
-    error_t entry_t::readMode1(game_t &game, lak::memstrm_t &strm)
+    error_t entry_t::readMode1(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
         if (game.oldGame)
         {
-            // ReadReverseCompressedData(strm, data);
-            // ReadFixedData(strm, data, strm.readInt<uint32_t>());
             ReadSizedCompressedData(strm, data);
         }
         else
         {
-            ReadFixedData(strm, header, 0x4);
+            ReadFixedData(strm, header, headerSize);
             ReadCompressedData(strm, data);
         }
         end = strm.position;
@@ -724,9 +743,11 @@ namespace SourceExplorer
         ImGui::Text("Mode: MODE%zu", (size_t)mode);
 
         ImGui::Text("Header Position: 0x%zX", header.position);
+        ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
         ImGui::Text("Header Size: 0x%zX", header.data.size());
 
         ImGui::Text("Data Position: 0x%zX", data.position);
+        ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
         ImGui::Text("Data Size: 0x%zX", data.data.size());
 
         if (ImGui::Button("View Memory"))
@@ -1527,7 +1548,8 @@ namespace SourceExplorer
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+            // case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+            case MODE0: result = entry.readMode0(game, strm); break; // for old games
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
@@ -2302,19 +2324,6 @@ namespace SourceExplorer
                 default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
             }
 
-            while (entry.old && result == error_t::OK)
-            {
-                switch (strm.peekInt<chunk_t>())
-                {
-                    case FRAME:
-                        items.emplace_back();
-                        result = items.back().read(game, strm);
-                        break;
-
-                    default: goto finished;
-                }
-            }
-
             finished:
             return result;
         }
@@ -2328,9 +2337,6 @@ namespace SourceExplorer
                 ImGui::Separator();
 
                 entry.view(srcexp);
-
-                for (const item_t &item : items)
-                    item.view(srcexp);
 
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -3340,18 +3346,14 @@ namespace SourceExplorer
 
             while (result == error_t::OK)
             {
-                switch (strm.peekInt<chunk_t>())
+                if (strm.peekInt<chunk_t>() == FRAME)
                 {
-                    case FRAME:
-                        items.emplace_back();
-                        result = items.back().read(game, strm);
-                        break;
-
-                    default: goto finished;
+                    items.emplace_back();
+                    result = items.back().read(game, strm);
                 }
+                else break;
             }
 
-            finished:
             return result;
         }
 
@@ -3567,7 +3569,7 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = entry.readMode0(game, strm); break;
+                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
@@ -4114,12 +4116,6 @@ namespace SourceExplorer
                     result = movementExtensions->read(game, strm);
                     break;
 
-                // case OBJECTBANK2:
-                //     DEBUG("Reading Object Bank 2");
-                //     objectBank2 = std::make_unique<object_bank2_t>();
-                //     result = objectBank2->read(game, strm);
-                //     break;
-
                 case EXEONLY:
                     DEBUG("Reading EXE Only");
                     exe = std::make_unique<exe_t>();
@@ -4203,6 +4199,23 @@ namespace SourceExplorer
                     frameBank = std::make_unique<frame::bank_t>();
                     result = frameBank->read(game, strm);
                     break;
+
+                case FRAME:
+                    DEBUG("Reading Frame (Missing Frame Bank)");
+                    frameBank = std::make_unique<frame::bank_t>();
+                    while (result == error_t::OK) {
+                        if (strm.peekInt<chunk_t>() == FRAME) {
+                            frameBank->items.emplace_back();
+                            result = frameBank->items.back().read(game, strm);
+                        } else break;
+                    }
+                    break;
+
+                // case OBJECTBANK2:
+                //     DEBUG("Reading Object Bank 2");
+                //     objectBank2 = std::make_unique<object_bank2_t>();
+                //     result = objectBank2->read(game, strm);
+                //     break;
 
                 case OBJECTBANK:
                 case OBJECTBANK2:
