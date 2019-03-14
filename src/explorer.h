@@ -81,8 +81,8 @@ namespace SourceExplorer
         data_point_t data;
 
         error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t readMode0(game_t &game, lak::memstrm_t &strm);
-        error_t readMode1(game_t &game, lak::memstrm_t &strm);
+        error_t readMode0(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0x4);
+        error_t readMode1(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0x4);
         error_t readMode2(game_t &game, lak::memstrm_t &strm);
         error_t readMode3(game_t &game, lak::memstrm_t &strm);
         error_t readItem(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0);
@@ -651,7 +651,6 @@ namespace SourceExplorer
         struct handles_t
         {
             entry_t entry;
-            std::vector<item_t> items;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
@@ -881,7 +880,7 @@ namespace SourceExplorer
         game_t state;
 
         bool loaded = false;
-        bool dumpColorTrans = false;
+        bool dumpColorTrans = true;
         file_state_t exe;
         file_state_t images;
         file_state_t sounds;

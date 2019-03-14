@@ -73,6 +73,7 @@ bool DumpStuff(const char *str_id, dump_function_t *func)
     if (lak::AwaitPopup(str_id, popupOpen, thread, finished, func, data))
     {
         ImGui::Text("Dumping, please wait...");
+        ImGui::Checkbox("Print to debug console?", &se::debugConsole);
         ImGui::ProgressBar(completed);
         if (popupOpen)
             ImGui::EndPopup();
@@ -111,8 +112,8 @@ void Update()
             {
                 SrcExp.exe.attempt |= ImGui::MenuItem("Open...", nullptr);
                 SrcExp.images.attempt |= ImGui::MenuItem("Dump Images", nullptr);
-                SrcExp.sounds.attempt |= ImGui::MenuItem("Dump Sounds", nullptr);
                 SrcExp.music.attempt |= ImGui::MenuItem("Dump Music", nullptr);
+                SrcExp.sounds.attempt |= ImGui::MenuItem("Dump Sounds", nullptr);
                 SrcExp.shaders.attempt |= ImGui::MenuItem("Dump Shaders", nullptr);
                 ImGui::EndMenu();
             }
