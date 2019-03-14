@@ -170,7 +170,7 @@ void Update()
                 {
                     SrcExp.editor.DrawContents(&(SrcExp.state.file.memory[0]), SrcExp.state.file.size());
                     if (update && SrcExp.view != nullptr)
-                        SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position, SrcExp.view->position + 2);
+                        SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position, SrcExp.view->end);
                 }
                 else if (dataMode == 1) // Header
                 {
