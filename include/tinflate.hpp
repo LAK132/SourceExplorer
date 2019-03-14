@@ -44,24 +44,24 @@ namespace lak
 
     enum tinflate_error_t
     {
-        OK = 0,
+        OK                          = 0x0,
 
-        NO_DATA,
+        NO_DATA                     = 0x1,
 
-        INVALID_PARAMETER,
-        CUSTOM_DICTIONARY,
+        INVALID_PARAMETER           = 0x2,
+        CUSTOM_DICTIONARY           = 0x3,
 
-        INVALID_STATE,
-        INVALID_BLOCK_CODE,
-        OUT_OF_DATA,
-        CORRUPT_STREAM,
-        HUFFMAN_TABLE_GEN_FAILED,
-        INVALID_SYMBOL,
-        INVALID_DISTANCE,
+        INVALID_STATE               = 0x4,
+        INVALID_BLOCK_CODE          = 0x5,
+        OUT_OF_DATA                 = 0x6,
+        CORRUPT_STREAM              = 0x7,
+        HUFFMAN_TABLE_GEN_FAILED    = 0x8,
+        INVALID_SYMBOL              = 0x9,
+        INVALID_DISTANCE            = 0xA,
 
-        NO_SYMBOLS,
-        TOO_MANY_SYMBOLS,
-        INCOMPLETE_TREE
+        NO_SYMBOLS                  = 0xB,
+        TOO_MANY_SYMBOLS            = 0xC,
+        INCOMPLETE_TREE             = 0xD
     };
 
     struct decompression_state_t

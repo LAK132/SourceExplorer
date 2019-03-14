@@ -174,9 +174,17 @@ namespace lak
         {
             return memory.begin();
         }
+        inline std::vector<uint8_t>::const_iterator cbegin()
+        {
+            return memory.cbegin();
+        }
         inline std::vector<uint8_t>::iterator end()
         {
             return memory.end();
+        }
+        inline std::vector<uint8_t>::const_iterator cend()
+        {
+            return memory.cend();
         }
         inline std::vector<uint8_t>::iterator cursor()
         {
@@ -185,6 +193,11 @@ namespace lak
         inline size_t size() const
         {
             return memory.size();
+        }
+        inline size_t remaining() const
+        {
+            assert(position <= memory.size());
+            return memory.size() - position;
         }
         inline memstrm_t &clear()
         {
@@ -196,6 +209,11 @@ namespace lak
         {
             position = to;
             return *this;
+        }
+        uint8_t *get()
+        {
+            assert(position < memory.size());
+            return &(memory[position]);
         }
         vec4u8_t readRGBA()
         {
@@ -219,6 +237,14 @@ namespace lak
             result.assign(memory.begin() + position, memory.begin() + position + count);
             position += count;
             return result;
+        }
+        void writeBytes(const std::vector<uint8_t> &bytes)
+        {
+            if (memory.size() < position + bytes.size())
+                memory.resize(position + bytes.size());
+
+            for (const auto b : bytes)
+                memory[position++] = b;
         }
         // Returns the position to where it was before this call
         std::vector<uint8_t> readBytesFrom(const size_t from, const size_t count)
@@ -267,6 +293,15 @@ namespace lak
             position += sizeof(T);
             return result;
         }
+        template<typename T>
+        void writeInt(const T value)
+        {
+            if (memory.size() < position + sizeof(T))
+                memory.resize(position + sizeof(T));
+
+            *reinterpret_cast<T*>(&(memory[position])) = value;
+            position += sizeof(T);
+        }
         template<typename C>
         std::basic_string<C> readString()
         {
@@ -292,7 +327,60 @@ namespace lak
                 if (c == 0) break;
                 str += c;
             }
+
             return str;
+        }
+        template<typename C>
+        std::basic_string<C> peekString(size_t maxCount)
+        {
+            if (maxCount == 0) return std::basic_string<C>();
+
+            size_t start = position;
+            std::basic_string<C> str;
+            C c;
+            while (maxCount --> 0)
+            {
+                c = readInt<C>();
+                if (c == 0) break;
+                str += c;
+            }
+            position = start;
+
+            return str;
+        }
+        template<typename C>
+        std::basic_string<C> readStringExact(size_t count)
+        {
+            if (count == 0) return std::basic_string<C>();
+
+            size_t stop = position + (count * sizeof(C));
+            std::basic_string<C> str;
+            C c;
+            for (size_t i = 0; i < count; ++i)
+            {
+                c = readInt<C>();
+                if (c == 0) break;
+                str += c;
+            }
+
+            position = stop;
+            return str;
+        }
+        template<typename C>
+        void writeString(std::basic_string<C> str, const bool terminate = true)
+        {
+            if (memory.size() < position + (sizeof(C) * str.size()))
+                memory.resize(position + (sizeof(C) * str.size()));
+
+            for (const auto c : str)
+            {
+                if (c == 0)
+                    break;
+                writeInt<C>(c);
+            }
+
+            if (terminate)
+                writeInt<C>(0);
         }
     };
 
@@ -318,7 +406,8 @@ namespace lak
             finished->store(false);
             thread = new std::thread(
                 [](std::atomic<bool> *finished, R(*f)(T...), const std::tuple<D...> *data) {
-                    std::apply(f, *data);
+                    try { std::apply(f, *data); }
+                    catch (std::exception e) { (void)e; }
                     finished->store(true);
                 },
                 finished, func, &data

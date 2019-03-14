@@ -27,7 +27,9 @@ namespace SourceExplorer
         NO_MODE0                = 0x7,
         NO_MODE1                = 0x8,
         NO_MODE2                = 0x9,
-        NO_MODE3                = 0xA
+        NO_MODE3                = 0xA,
+
+        OUT_OF_DATA             = 0xB
     };
 }
 
@@ -241,7 +243,7 @@ enum sound_mode_t : uint32_t
 {
     WAVE    = 1 << 0,
     MIDI    = 1 << 1,
-    // 1 << 2,
+    OGGS    = 1 << 2,
     // 1 << 3,
     LOC     = 1 << 4,
     PFD     = 1 << 5,

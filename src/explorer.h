@@ -9,12 +9,14 @@
 #include <stack>
 #include <vector>
 #include <unordered_map>
+#include <iterator>
 
 #include "imgui_impl_lak.h"
 #include "lak.h"
 #include "strconv.h"
 #include "defines.h"
 #include "tinflate.hpp"
+#include "tinf.h"
 
 #ifndef EXPLORER_H
 #define EXPLORER_H
@@ -73,19 +75,24 @@ namespace SourceExplorer
         encoding_t mode;
         size_t position;
         size_t end;
+        bool old;
 
         data_point_t header;
         data_point_t data;
 
-        void read(game_t &game, lak::memstrm_t &strm);
-        void readMode0(game_t &game, lak::memstrm_t &strm);
-        void readMode1(game_t &game, lak::memstrm_t &strm);
-        void readMode2(game_t &game, lak::memstrm_t &strm);
-        void readMode3(game_t &game, lak::memstrm_t &strm);
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t readMode0(game_t &game, lak::memstrm_t &strm);
+        error_t readMode1(game_t &game, lak::memstrm_t &strm);
+        error_t readMode2(game_t &game, lak::memstrm_t &strm);
+        error_t readMode3(game_t &game, lak::memstrm_t &strm);
+        error_t readItem(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0);
+        error_t readSound(game_t &game, lak::memstrm_t &strm, const size_t headerSize);
         void view(source_explorer_t &srcexp) const;
 
         lak::memstrm_t decode() const;
         lak::memstrm_t decodeHeader() const;
+        lak::memstrm_t raw() const;
+        lak::memstrm_t rawHeader() const;
     };
 
     struct title_t
@@ -424,14 +431,6 @@ namespace SourceExplorer
 
     namespace frame
     {
-        struct handles_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
         struct header_t
         {
             entry_t entry;
@@ -644,6 +643,15 @@ namespace SourceExplorer
             std::unique_ptr<effects_t> effects;
             std::unique_ptr<iphone_options_t> iphoneOptions;
             std::unique_ptr<last_t> end;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct handles_t
+        {
+            entry_t entry;
+            std::vector<item_t> items;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
@@ -970,7 +978,14 @@ namespace SourceExplorer
         data_point_t &data
     );
 
-    error_t ReadReverseCompressedData(
+    // <chunk size> <uncompressed size> <data>
+    error_t ReadSizedCompressedData(
+        lak::memstrm_t &strm,
+        data_point_t &data
+    );
+
+    // <uncompressed size> <data>
+    error_t ReadStreamCompressedData(
         lak::memstrm_t &strm,
         data_point_t &data
     );
@@ -992,6 +1007,11 @@ namespace SourceExplorer
 
     std::vector<uint8_t> Decompress(
         const std::vector<uint8_t> &compressed
+    );
+
+    std::vector<uint8_t> StreamDecompress(
+        lak::memstrm_t &strm,
+        const size_t outSize
     );
 
     std::vector<uint8_t> Decrypt(
