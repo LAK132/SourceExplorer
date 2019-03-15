@@ -3447,7 +3447,7 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = entry.readMode0(game, strm); break;
+                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
@@ -3720,7 +3720,7 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = entry.readMode0(game, strm); break;
+                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
@@ -3859,7 +3859,7 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = entry.readMode0(game, strm); break;
+                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
