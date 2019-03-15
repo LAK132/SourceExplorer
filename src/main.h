@@ -59,7 +59,7 @@ namespace se = SourceExplorer;
 void credits()
 {
     ImGui::PushID("Credits");
-    if(ImGui::TreeNode("ImGui"))
+    if (ImGui::TreeNode("ImGui"))
     {
         ImGui::Text(R"(https://github.com/ocornut/imgui
 
@@ -83,28 +83,39 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-        )");
+SOFTWARE.)");
         ImGui::TreePop();
     }
-    if(ImGui::TreeNode("gl3w"))
+    if (ImGui::TreeNode("gl3w"))
     {
         ImGui::Text("https://github.com/skaslev/gl3w");
         ImGui::TreePop();
     }
-    if(ImGui::TreeNode("SDL2"))
+    if (ImGui::TreeNode("SDL2"))
     {
         ImGui::Text("https://www.libsdl.org/");
         ImGui::TreePop();
     }
-    if(ImGui::TreeNode("tinflate"))
+    if (ImGui::TreeNode("tinflate"))
     {
         ImGui::Text("http://achurch.org/tinflate.c");
         ImGui::TreePop();
     }
-    if(ImGui::TreeNode("stb_image_write"))
+    if (ImGui::TreeNode("tinf"))
+    {
+        ImGui::Text("https://github.com/jibsen/tinf");
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("stb_image_write"))
     {
         ImGui::Text("https://github.com/nothings/stb/blob/master/stb_image_write.h");
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("Anaconda/Chowdren"))
+    {
+        ImGui::Text("https://github.com/Matt-Esch/anaconda");
+        ImGui::Text("http://mp2.dk/anaconda/");
+        ImGui::Text("http://mp2.dk/chowdren/");
         ImGui::TreePop();
     }
     ImGui::PopID();
