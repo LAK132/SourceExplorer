@@ -3189,6 +3189,9 @@ namespace SourceExplorer
                 default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
+            if (entry.old)
+                strm.position = entry.position + 0x8;
+
             while (result == error_t::OK)
             {
                 switch (strm.peekInt<chunk_t>())
@@ -3311,11 +3314,12 @@ namespace SourceExplorer
                     case LAST:
                         end = std::make_unique<last_t>();
                         result = end->read(game, strm);
-                        goto finished;
-
                     default: goto finished;
                 }
             }
+
+            if (entry.old)
+                strm.position = entry.end;
 
             finished:
             return result;
@@ -3380,16 +3384,12 @@ namespace SourceExplorer
                 default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
-            while (result == error_t::OK)
-            {
-                if (strm.peekInt<chunk_t>() == FRAME)
+            items.clear();
+            while (result == error_t::OK && strm.peekInt<chunk_t>() == FRAME)
                 {
                     items.emplace_back();
                     result = items.back().read(game, strm);
                 }
-                else break;
-            }
-
             return result;
         }
 
@@ -4238,12 +4238,12 @@ namespace SourceExplorer
 
                 case FRAME:
                     DEBUG("Reading Frame (Missing Frame Bank)");
+                    if (frameBank) ERROR("Frame Bank Already Exists");
                     frameBank = std::make_unique<frame::bank_t>();
-                    while (result == error_t::OK) {
-                        if (strm.peekInt<chunk_t>() == FRAME) {
+                    frameBank->items.clear();
+                    while (result == error_t::OK && strm.peekInt<chunk_t>() == FRAME) {
                             frameBank->items.emplace_back();
                             result = frameBank->items.back().read(game, strm);
-                        } else break;
                     }
                     break;
 
