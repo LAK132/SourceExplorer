@@ -138,67 +138,70 @@ void Update()
         ImGui::SameLine();
         ImGui::BeginChild("Right", ImVec2(rightSize, -1), true, ImGuiWindowFlags_NoSavedSettings);
         {
-            static int selected = 0;
-            ImGui::RadioButton("Memory", &selected, 0);
-            ImGui::SameLine();
-            ImGui::RadioButton("Image", &selected, 1);
-            ImGui::Separator();
-
-            if (selected == 0)
+            if (SrcExp.loaded)
             {
-                static int dataMode = 0;
-                static bool raw = false;
-                static const se::entry_t *last = nullptr;
-                bool update = last != SrcExp.view;
-
-                update |= ImGui::RadioButton("EXE", &dataMode, 0);
+                static int selected = 0;
+                ImGui::RadioButton("Memory", &selected, 0);
                 ImGui::SameLine();
-                update |= ImGui::RadioButton("Header", &dataMode, 1);
-                ImGui::SameLine();
-                update |= ImGui::RadioButton("Data", &dataMode, 2);
-                ImGui::SameLine();
-                update |= ImGui::Checkbox("Raw", &raw);
+                ImGui::RadioButton("Image", &selected, 1);
                 ImGui::Separator();
 
-                if (dataMode == 0) // EXE
+                if (selected == 0)
                 {
-                    SrcExp.editor.DrawContents(&(SrcExp.state.file.memory[0]), SrcExp.state.file.size());
-                    if (update && SrcExp.view != nullptr)
-                        SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position, SrcExp.view->end);
+                    static int dataMode = 0;
+                    static bool raw = false;
+                    static const se::entry_t *last = nullptr;
+                    bool update = last != SrcExp.view;
+
+                    update |= ImGui::RadioButton("EXE", &dataMode, 0);
+                    ImGui::SameLine();
+                    update |= ImGui::RadioButton("Header", &dataMode, 1);
+                    ImGui::SameLine();
+                    update |= ImGui::RadioButton("Data", &dataMode, 2);
+                    ImGui::SameLine();
+                    update |= ImGui::Checkbox("Raw", &raw);
+                    ImGui::Separator();
+
+                    if (dataMode == 0) // EXE
+                    {
+                        SrcExp.editor.DrawContents(&(SrcExp.state.file.memory[0]), SrcExp.state.file.size());
+                        if (update && SrcExp.view != nullptr)
+                            SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position, SrcExp.view->end);
+                    }
+                    else if (dataMode == 1) // Header
+                    {
+                        if (update && SrcExp.view != nullptr)
+                            SrcExp.buffer = raw
+                                ? SrcExp.view->header.data.memory
+                                : SrcExp.view->decodeHeader().memory;
+
+                        SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
+                        if (update)
+                            SrcExp.editor.GotoAddrAndHighlight(0, 0);
+                    }
+                    else if (dataMode == 2) // Data
+                    {
+                        if (update && SrcExp.view != nullptr)
+                            SrcExp.buffer = raw
+                                ? SrcExp.view->data.data.memory
+                                : SrcExp.view->decode().memory;
+
+                        SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
+                        if (update)
+                            SrcExp.editor.GotoAddrAndHighlight(0, 0);
+                    }
+                    else dataMode = 0;
+
+                    last = SrcExp.view;
                 }
-                else if (dataMode == 1) // Header
+                else if (selected == 1)
                 {
-                    if (update && SrcExp.view != nullptr)
-                        SrcExp.buffer = raw
-                            ? SrcExp.view->header.data.memory
-                            : SrcExp.view->decodeHeader().memory;
-
-                    SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
-                    if (update)
-                        SrcExp.editor.GotoAddrAndHighlight(0, 0);
+                    if (SrcExp.image.valid())
+                        ImGui::Image((ImTextureID)(intptr_t)SrcExp.image.get(),
+                            ImVec2((float)SrcExp.image.size().x, (float)SrcExp.image.size().y));
                 }
-                else if (dataMode == 2) // Data
-                {
-                    if (update && SrcExp.view != nullptr)
-                        SrcExp.buffer = raw
-                            ? SrcExp.view->data.data.memory
-                            : SrcExp.view->decode().memory;
-
-                    SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
-                    if (update)
-                        SrcExp.editor.GotoAddrAndHighlight(0, 0);
-                }
-                else dataMode = 0;
-
-                last = SrcExp.view;
+                else selected = 0;
             }
-            else if (selected == 1)
-            {
-                if (SrcExp.image.valid())
-                    ImGui::Image((ImTextureID)(intptr_t)SrcExp.image.get(),
-                        ImVec2((float)SrcExp.image.size().x, (float)SrcExp.image.size().y));
-            }
-            else selected = 0;
         }
         ImGui::EndChild();
         ImGui::End();
@@ -206,6 +209,7 @@ void Update()
 
     if (SrcExp.exe.attempt)
     {
+        SrcExp.loaded = false;
         if (!SrcExp.exe.valid)
         {
             if (lak::OpenFile(SrcExp.exe.path, SrcExp.exe.valid))
@@ -213,7 +217,6 @@ void Update()
                 if (!SrcExp.exe.valid)
                 {
                     // User cancelled
-                    SrcExp.loaded = false;
                     SrcExp.exe.attempt = false;
                 }
             }
