@@ -1021,13 +1021,18 @@ namespace SourceExplorer
         encoding_t mode
     );
 
+    std::vector<uint8_t> Inflate(
+        const std::vector<uint8_t> &deflated
+    );
+
     std::vector<uint8_t> Decompress(
-        const std::vector<uint8_t> &compressed
+        const std::vector<uint8_t> &compressed,
+        unsigned int outSize
     );
 
     std::vector<uint8_t> StreamDecompress(
         lak::memstrm_t &strm,
-        const size_t outSize
+        unsigned int outSize
     );
 
     std::vector<uint8_t> Decrypt(

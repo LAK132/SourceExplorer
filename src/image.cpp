@@ -294,7 +294,7 @@ namespace SourceExplorer
         if (img.flags & image_flag_t::LZX)
         {
             uint32_t decompressed = strm.readInt<uint32_t>(); (void)decompressed;
-            newStrm = Decompress(strm.readBytes(strm.readInt<uint32_t>())); // is this right?
+            newStrm = Inflate(strm.readBytes(strm.readInt<uint32_t>())); // is this right?
         }
         else
         {
