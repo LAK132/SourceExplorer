@@ -557,31 +557,36 @@ namespace SourceExplorer
             case MODE2:
                 return Decrypt(encoded, id, mode);
             case MODE1:
-                return Decompress(encoded);
+                return Inflate(encoded);
             default:
                 if (encoded.size() > 0 && encoded[0] == 0x78)
-                    return Decompress(encoded);
+                    return Inflate(encoded);
                 else
                     return encoded;
         }
     }
 
-    std::vector<uint8_t> Decompress(const std::vector<uint8_t> &compressed)
+    std::vector<uint8_t> Inflate(const std::vector<uint8_t> &deflated)
     {
         std::deque<uint8_t> buffer;
-        lak::tinflate_error_t err = lak::tinflate(compressed, buffer, nullptr);
+        lak::tinflate_error_t err = lak::tinflate(deflated, buffer, nullptr);
         if (err == lak::tinflate_error_t::OK)
             return std::vector<uint8_t>(buffer.begin(), buffer.end());
         else
-            return compressed;
+            return deflated;
     }
 
-    std::vector<uint8_t> StreamDecompress(lak::memstrm_t &strm, const size_t outSize)
+    std::vector<uint8_t> Decompress(const std::vector<uint8_t> &compressed, unsigned int outSize)
     {
-        std::vector<uint8_t> result;
-        result.resize(outSize);
-        unsigned int size = (unsigned int)result.size();
-        strm.position += tinf_uncompress(&(result[0]), &size, strm.get(), strm.remaining());
+        std::vector<uint8_t> result; result.resize(outSize);
+        tinf_uncompress(&(result[0]), &outSize, &(compressed[0]), compressed.size());
+        return result;
+    }
+
+    std::vector<uint8_t> StreamDecompress(lak::memstrm_t &strm, unsigned int outSize)
+    {
+        std::vector<uint8_t> result; result.resize(outSize);
+        strm.position += tinf_uncompress(&(result[0]), &outSize, strm.get(), strm.remaining());
         return result;
     }
 
@@ -601,7 +606,7 @@ namespace SourceExplorer
             {
                 if (mem.size() <= 4) return mem;
                 // dataLen = *reinterpret_cast<uint32_t*>(&mem[0]);
-                return Decompress(std::vector<uint8_t>(mem.begin()+4, mem.end()));
+                return Inflate(std::vector<uint8_t>(mem.begin()+4, mem.end()));
             }
             DEBUG("MODE 3 Decryption Failed");
             return mem;
@@ -723,6 +728,7 @@ namespace SourceExplorer
         if (game.oldGame)
         {
             ReadStreamCompressedData(strm, data);
+            mode = MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
         }
         else
         {
@@ -740,6 +746,7 @@ namespace SourceExplorer
         if (game.oldGame)
         {
             ReadStreamCompressedData(strm, data);
+            mode = MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
         }
         else
         {
@@ -753,6 +760,10 @@ namespace SourceExplorer
 
     void entry_t::view(source_explorer_t &srcexp) const
     {
+        if (old)
+            ImGui::Text("Old Entry");
+        else
+            ImGui::Text("New Entry");
         ImGui::Text("Position: 0x%zX", position);
         ImGui::Text("End Pos: 0x%zX", end);
         ImGui::Text("Size: 0x%zX", end - position);
@@ -779,17 +790,23 @@ namespace SourceExplorer
         {
             switch (mode)
             {
-                case MODE0:
+                case MODE0: result = data.data; break;
                 case MODE1: {
                     result = data.data;
-                    if (result.size() < data.expectedSize)
+                    uint8_t magic = result.readInt<uint8_t>();
+                    uint16_t len = result.readInt<uint16_t>();
+                    if (magic == 0x0F && len == (data.expectedSize & 0xFFFF))
                     {
-                        result = StreamDecompress(result, data.expectedSize);
+                        result = result.readBytes(result.remaining());
+                    }
+                    else
+                    {
+                        result.position -= 3;
+                        result = Decompress(result.memory, data.expectedSize);
                     }
                 } break;
-                case MODE2:
-                case MODE3:
-                    DEBUG("Mode 2/3");
+                case MODE2: ERROR("No Old Decode for Mode 2"); break;
+                case MODE3: ERROR("No Old Decode for Mode 3"); break;
                 default: break;
             }
         }
@@ -802,11 +819,11 @@ namespace SourceExplorer
                     result = Decrypt(data.data.memory, ID, mode);
                     break;
                 case MODE1:
-                    result = Decompress(data.data.memory);
+                    result = Inflate(data.data.memory);
                     break;
                 default:
                     if (data.data.memory.size() > 0 && data.data.memory[0] == 0x78)
-                        result = Decompress(data.data.memory);
+                        result = Inflate(data.data.memory);
                     else
                         result = data.data.memory;
                     break;
@@ -831,11 +848,11 @@ namespace SourceExplorer
                     result = Decrypt(header.data.memory, ID, mode);
                     break;
                 case MODE1:
-                    result = Decompress(header.data.memory);
+                    result = Inflate(header.data.memory);
                     break;
                 default:
                     if (header.data.memory.size() > 0 && header.data.memory[0] == 0x78)
-                        result = Decompress(header.data.memory);
+                        result = Inflate(header.data.memory);
                     else
                         result = header.data.memory;
                     break;
@@ -864,13 +881,9 @@ namespace SourceExplorer
         {
             switch (entry.mode)
             {
-                case MODE0: {
-                    result = lak::strconv<char16_t>(strm.readString<char>());
-                } break;
+                case MODE0:
                 case MODE1: {
-                    uint8_t unknown = strm.readInt<uint8_t>(); (void)unknown;
-                    uint16_t len = strm.readInt<uint16_t>(); (void)len;
-                    result = lak::strconv<char16_t>(strm.readString<char>(len));
+                    result = lak::strconv<char16_t>(strm.readString<char>());
                 } break;
                 case MODE2: DEBUG("No String Mode 2 " << entry.ID); break;
                 case MODE3: DEBUG("No String Mode 3 " << entry.ID); break;
@@ -920,7 +933,8 @@ namespace SourceExplorer
             ImGui::Separator();
 
             entry.view(srcexp);
-            ImGui::Text("Value: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
             ImGui::TreePop();
@@ -957,7 +971,8 @@ namespace SourceExplorer
             ImGui::Separator();
 
             entry.view(srcexp);
-            ImGui::Text("Value: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
             ImGui::TreePop();
@@ -994,7 +1009,8 @@ namespace SourceExplorer
             ImGui::Separator();
 
             entry.view(srcexp);
-            ImGui::Text("Value: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
             ImGui::TreePop();
@@ -1031,7 +1047,8 @@ namespace SourceExplorer
             ImGui::Separator();
 
             entry.view(srcexp);
-            ImGui::Text("Value: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
             ImGui::TreePop();
@@ -1068,7 +1085,8 @@ namespace SourceExplorer
             ImGui::Separator();
 
             entry.view(srcexp);
-            ImGui::Text("Value: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
             ImGui::TreePop();
