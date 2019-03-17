@@ -18,10 +18,10 @@ if "%mode%"=="release" goto release
 if "%mode%"=="debug" goto debug
 
 :debug
-set COMPFLAGS=/Zi /bigobj
+set COMPFLAGS=/Zi /bigobj /O2
 set LINKFLAGS=/SUBSYSTEM:CONSOLE /DEBUG
 goto :eof
 
 :release
-set COMPCOM=/DNDEBUG /bigobj
+set COMPCOM=/DNDEBUG /bigobj /O2
 set LINKCOM=/SUBSYSTEM:CONSOLE
