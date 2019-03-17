@@ -180,6 +180,7 @@ namespace SourceExplorer
             uint64_t packMagic = strm.readInt<uint64_t>();
             DEBUG("Pack Magic: 0x" << packMagic);
             strm.position = pos;
+            DEBUG("Pos: 0x" << pos);
 
             if (firstShort == HEADER || pameMagic == HEADER_GAME)
             {
@@ -900,9 +901,9 @@ namespace SourceExplorer
         {
             case MODE0: result = entry.readMode0(game, strm); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         value = ReadStringEntry(game, entry);
@@ -937,9 +938,9 @@ namespace SourceExplorer
         {
             case MODE0: result = entry.readMode0(game, strm); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         value = ReadStringEntry(game, entry);
@@ -974,9 +975,9 @@ namespace SourceExplorer
         {
             case MODE0: result = entry.readMode0(game, strm); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         value = ReadStringEntry(game, entry);
@@ -1011,9 +1012,9 @@ namespace SourceExplorer
         {
             case MODE0: result = entry.readMode0(game, strm); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         value = ReadStringEntry(game, entry);
@@ -1048,9 +1049,9 @@ namespace SourceExplorer
         {
             case MODE0: result = entry.readMode0(game, strm); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         value = ReadStringEntry(game, entry);
@@ -1085,9 +1086,9 @@ namespace SourceExplorer
         {
             case MODE0: result = entry.readMode0(game, strm); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1117,11 +1118,11 @@ namespace SourceExplorer
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+            case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1155,7 +1156,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1189,7 +1190,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1223,7 +1224,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1257,10 +1258,10 @@ namespace SourceExplorer
                 ReadDynamicData(strm, entry.header);
                 entry.end = strm.position;
             } break;
-            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1294,7 +1295,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1328,7 +1329,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1362,7 +1363,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1396,7 +1397,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1430,7 +1431,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1465,9 +1466,9 @@ namespace SourceExplorer
                 entry.end = strm.position;
             } break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1497,11 +1498,11 @@ namespace SourceExplorer
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+            case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1535,7 +1536,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1565,12 +1566,12 @@ namespace SourceExplorer
 
         switch (entry.mode)
         {
-            // case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+            // case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
             case MODE0: result = entry.readMode0(game, strm); break; // for old games
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1604,10 +1605,10 @@ namespace SourceExplorer
                 ReadDynamicData(strm, entry.header);
                 entry.end = strm.position;
             } break;
-            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1641,7 +1642,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1675,7 +1676,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1709,7 +1710,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1743,7 +1744,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1777,7 +1778,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1811,10 +1812,10 @@ namespace SourceExplorer
                 ReadFixedData(strm, entry.header, 0x8);
                 entry.end = strm.position;
             } break;
-            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1848,10 +1849,10 @@ namespace SourceExplorer
                 ReadDynamicData(strm, entry.header);
                 entry.end = strm.position;
             } break;
-            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1885,10 +1886,10 @@ namespace SourceExplorer
                 ReadDynamicData(strm, entry.header);
                 entry.end = strm.position;
             } break;
-            case MODE1: result = error_t::NO_MODE2; DEBUG("No Mode 1 " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE2; ERROR("No Mode 1 " << entry.ID); break;
             case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1918,11 +1919,11 @@ namespace SourceExplorer
 
         switch (entry.mode)
         {
-            case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+            case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
             case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1956,7 +1957,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -1990,10 +1991,10 @@ namespace SourceExplorer
                 ReadDynamicData(strm, entry.header);
                 entry.end = strm.position;
             } break;
-            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -2027,7 +2028,7 @@ namespace SourceExplorer
             case MODE1: result = entry.readMode1(game, strm); break;
             case MODE2: result = entry.readMode2(game, strm); break;
             case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -2061,10 +2062,10 @@ namespace SourceExplorer
                 ReadDynamicData(strm, entry.header);
                 entry.end = strm.position;
             } break;
-            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
@@ -2101,9 +2102,9 @@ namespace SourceExplorer
                     entry.end = strm.position;
                 } break;
                 case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             if (result == error_t::OK)
@@ -2143,7 +2144,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2177,7 +2178,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2207,11 +2208,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -2280,10 +2281,10 @@ namespace SourceExplorer
                     ReadFixedData(strm, entry.header, 0x8);
                     entry.end = strm.position;
                 } break;
-                case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -2338,7 +2339,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             finished:
@@ -2374,9 +2375,9 @@ namespace SourceExplorer
                     entry.end = strm.position;
                 } break;
                 case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             if (result == error_t::OK)
@@ -2416,7 +2417,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2450,7 +2451,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2480,11 +2481,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2514,11 +2515,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2552,7 +2553,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2586,7 +2587,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2616,11 +2617,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2650,11 +2651,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2684,11 +2685,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2722,7 +2723,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2756,7 +2757,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2790,7 +2791,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2820,11 +2821,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2854,11 +2855,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2892,7 +2893,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2926,7 +2927,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2956,11 +2957,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2994,7 +2995,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3028,10 +3029,10 @@ namespace SourceExplorer
                     ReadDynamicData(strm, entry.header);
                     entry.end = strm.position;
                 } break;
-                case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3065,7 +3066,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3095,11 +3096,11 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3133,7 +3134,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3167,7 +3168,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -3355,10 +3356,10 @@ namespace SourceExplorer
                     ReadDynamicData(strm, entry.header);
                     entry.end = strm.position;
                 } break;
-                case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-                case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             while (result == error_t::OK)
@@ -3409,7 +3410,7 @@ namespace SourceExplorer
                 case MODE1: result = error_t::NO_MODE1; break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3451,7 +3452,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3556,7 +3557,7 @@ namespace SourceExplorer
                 case MODE1: result = error_t::NO_MODE1; break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3590,7 +3591,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3690,7 +3691,7 @@ namespace SourceExplorer
                 case MODE1: result = error_t::NO_MODE1; break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3724,7 +3725,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3829,7 +3830,7 @@ namespace SourceExplorer
                 case MODE1: result = error_t::NO_MODE1; break;
                 case MODE2: result = error_t::NO_MODE2; break;
                 case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3863,7 +3864,7 @@ namespace SourceExplorer
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -3962,10 +3963,10 @@ namespace SourceExplorer
         switch (entry.mode)
         {
             case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = error_t::NO_MODE1; DEBUG("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; DEBUG("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; DEBUG("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; DEBUG("Invalid Mode " << entry.ID); break;
+            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
+            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
+            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
+            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
         return result;
