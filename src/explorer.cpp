@@ -19,7 +19,7 @@
 
 namespace SourceExplorer
 {
-    bool debugConsole = false;
+    bool debugConsole = true;
     m128i_t _xmmword;
     std::vector<uint8_t> _magic_key;
     uint8_t _magic_char;
