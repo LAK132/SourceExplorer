@@ -2334,7 +2334,7 @@ namespace SourceExplorer
 
             switch (entry.mode)
             {
-                case MODE0: result = error_t::NO_MODE0; DEBUG("No Mode 0 " << entry.ID); break;
+                case MODE0: result = entry.readMode0(game, strm); break;
                 case MODE1: result = entry.readMode1(game, strm); break;
                 case MODE2: result = entry.readMode2(game, strm); break;
                 case MODE3: result = entry.readMode3(game, strm); break;
