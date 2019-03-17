@@ -543,7 +543,7 @@ void Update()
 
 int main()
 {
-    lak::glWindow_t window = lak::InitGL("Source Explorer", {640, 480}, true);
+    lak::glWindow_t window = lak::InitGL("Source Explorer", {1280, 720}, true);
 
     uint16_t targetFrameFreq = 59; // FPS
     float targetFrameTime = 1.0f / (float) targetFrameFreq; // SPF
