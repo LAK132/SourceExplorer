@@ -418,7 +418,7 @@ namespace SourceExplorer
             data.data = strm.readBytes(compressed - 4);
             return error_t::OK;
         }
-        data.data = {};
+        data.data = lak::memstrm_t{};
         return error_t::OK;
     }
 
@@ -2360,7 +2360,6 @@ namespace SourceExplorer
                 default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
-            finished:
             return result;
         }
 

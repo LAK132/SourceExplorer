@@ -407,7 +407,7 @@ namespace lak
             thread = new std::thread(
                 [](std::atomic<bool> *finished, R(*f)(T...), const std::tuple<D...> *data) {
                     try { std::apply(f, *data); }
-                    catch (std::exception e) { (void)e; }
+                    catch (...) { }
                     finished->store(true);
                 },
                 finished, func, &data
