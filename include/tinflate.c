@@ -31,6 +31,8 @@
  *    any source distribution.
  */
 
+// Unused variable removed by LAK132
+
 #include "tinf.h"
 
 /* ------------------------------ *
@@ -72,7 +74,7 @@ unsigned short dist_base[30];
 /* special ordering of code length codes */
 const unsigned char clcidx[] = {
     18, 17, 16, 0, 1, 2, 3, 4, 5,
-    6, 7, 8, 9, 10, 11, 12, 13, 
+    6, 7, 8, 9, 10, 11, 12, 13,
     14, 15
 };
 
@@ -340,7 +342,7 @@ static int tinf_inflate_block_data(TINF_DATA *d, TINF_TREE *lt, TINF_TREE *dt)
 /* inflate an uncompressed block of data */
 static int tinf_inflate_uncompressed_block(TINF_DATA *d)
 {
-   unsigned int length, invlength;
+   unsigned int length;
    unsigned int i;
 
    /* get length */
@@ -419,7 +421,7 @@ int tinf_uncompress(void *dest, unsigned int *destLen,
 
       /* read block type (2 bits) */
       btype = tinf_read_bits(&d, 3, 0);
-      
+
       /* read final block flag */
       bfinal = tinf_getbit(&d);
 
