@@ -395,9 +395,9 @@ namespace SourceExplorer
         return CreateTexture(image.bitmap);
     }
 
-    void ViewImage(const lak::glTexture_t &texture)
+    void ViewImage(const lak::glTexture_t &texture, const float scale)
     {
         ImGui::Image((ImTextureID)(uintptr_t)texture.get(),
-            ImVec2((float)texture.size().x, (float)texture.size().y));
+            ImVec2(scale * (float)texture.size().x, scale * (float)texture.size().y));
     }
 }

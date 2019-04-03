@@ -113,7 +113,8 @@ namespace SourceExplorer
     );
 
     void ViewImage(
-        const lak::glTexture_t &texture
+        const lak::glTexture_t &texture,
+        const float scale = 1.0f
     );
 }
 
