@@ -131,12 +131,28 @@ void Update()
         {
             if (SrcExp.loaded)
             {
-                ImGui::Text("Product Build: 0x%zu", (size_t)SrcExp.state.productBuild);
-                ImGui::Text("Product Version: 0x%zu", (size_t)SrcExp.state.productVersion);
-                ImGui::Text("Runtime Version: 0x%zu", (size_t)SrcExp.state.runtimeVersion);
-                ImGui::Text("Runtime Sub-Version: 0x%zu", (size_t)SrcExp.state.runtimeSubVersion);
+                if (SrcExp.state.game.title)
+                    ImGui::Text("Title: %s", lak::strconv<char>(SrcExp.state.game.title->value).c_str());
+                if (SrcExp.state.game.author)
+                    ImGui::Text("Author: %s", lak::strconv<char>(SrcExp.state.game.author->value).c_str());
+                if (SrcExp.state.game.copyright)
+                    ImGui::Text("Copyright: %s", lak::strconv<char>(SrcExp.state.game.copyright->value).c_str());
+                if (SrcExp.state.game.outputPath)
+                    ImGui::Text("Output: %s", lak::strconv<char>(SrcExp.state.game.outputPath->value).c_str());
+                if (SrcExp.state.game.projectPath)
+                    ImGui::Text("Project: %s", lak::strconv<char>(SrcExp.state.game.projectPath->value).c_str());
+
+                ImGui::Separator();
+
                 ImGui::Text("New Game: %s", SrcExp.state.oldGame ? "No" : "Yes");
                 ImGui::Text("Unicode: %s", SrcExp.state.unicode ? "Yes" : "No");
+                ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.productBuild);
+                ImGui::Text("Product Version: %zu", (size_t)SrcExp.state.productVersion);
+                ImGui::Text("Runtime Version: %zu", (size_t)SrcExp.state.runtimeVersion);
+                ImGui::Text("Runtime Sub-Version: %zu", (size_t)SrcExp.state.runtimeSubVersion);
+
+                ImGui::Separator();
+
                 SrcExp.state.game.view(SrcExp);
             }
         }
