@@ -219,8 +219,7 @@ void Update()
                 else if (selected == 1)
                 {
                     if (SrcExp.image.valid())
-                        ImGui::Image((ImTextureID)(intptr_t)SrcExp.image.get(),
-                            ImVec2((float)SrcExp.image.size().x, (float)SrcExp.image.size().y));
+                        se::ViewImage(SrcExp.image);
                 }
                 else selected = 0;
             }
