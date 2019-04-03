@@ -62,8 +62,7 @@ namespace lak
         if (!file.is_open())
             return false;
 
-        for (auto d : data)
-            file << d;
+        file.write((const char *)&data[0], data.size());
 
         file.close();
 
