@@ -218,8 +218,13 @@ void Update()
                 }
                 else if (selected == 1)
                 {
+                    static float scale = 1.0f;
                     if (SrcExp.image.valid())
-                        se::ViewImage(SrcExp.image);
+                    {
+                        ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
+                        ImGui::Separator();
+                        se::ViewImage(SrcExp.image, scale);
+                }
                 }
                 else selected = 0;
             }
