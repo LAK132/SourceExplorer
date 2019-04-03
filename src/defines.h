@@ -207,6 +207,7 @@ enum chunk_t : uint16_t
     FRAMEEFFECTS    = 0x3349,
     // iPhone Options // Not in Anaconda
     FRAMEIPHONEOPTS = 0x334A,
+    FRAMECHUNK334C  = 0x334C,
     // Object Chunks (0x44XX)
     // Not a data chunk
     PAERROR         = 0x4150,

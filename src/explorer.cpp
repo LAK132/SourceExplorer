@@ -3175,6 +3175,40 @@ namespace SourceExplorer
             return result;
         }
 
+        error_t chunk_334C_t::read(game_t &game, lak::memstrm_t &strm)
+        {
+            DEBUG("chunk_334C_t");
+            error_t result = entry.read(game, strm);
+
+            switch (entry.mode)
+            {
+                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
+                case MODE1: result = entry.readMode1(game, strm); break;
+                case MODE2: result = entry.readMode2(game, strm); break;
+                case MODE3: result = entry.readMode3(game, strm); break;
+                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
+            }
+
+            return result;
+        }
+
+        error_t chunk_334C_t::view(source_explorer_t &srcexp) const
+        {
+            error_t result = error_t::OK;
+
+            if (lak::TreeNode("0x%zX Chunk 334C##%zX", (size_t)entry.ID, entry.position))
+            {
+                ImGui::Separator();
+
+                entry.view(srcexp);
+
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
+
+            return result;
+        }
+
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
             DEBUG("item_t");
@@ -3311,6 +3345,11 @@ namespace SourceExplorer
                         result = iphoneOptions->read(game, strm);
                         break;
 
+                    case FRAMECHUNK334C:
+                        chunk334C = std::make_unique<chunk_334C_t>();
+                        result = chunk334C->read(game, strm);
+                        break;
+
                     case LAST:
                         end = std::make_unique<last_t>();
                         result = end->read(game, strm);
@@ -3358,6 +3397,7 @@ namespace SourceExplorer
                 if (mosaicImageTable) mosaicImageTable->view(srcexp);
                 if (effects) effects->view(srcexp);
                 if (iphoneOptions) iphoneOptions->view(srcexp);
+                if (chunk334C) chunk334C->view(srcexp);
                 if (end) end->view(srcexp);
 
                 ImGui::Separator();
