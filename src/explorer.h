@@ -296,6 +296,7 @@ namespace SourceExplorer
     struct about_t
     {
         entry_t entry;
+        std::u16string value;
 
         error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
