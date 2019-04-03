@@ -408,7 +408,7 @@ namespace SourceExplorer
         return error_t::OK;
     }
 
-    error_t ReadSizedCompressedData(lak::memstrm_t &strm, data_point_t &data)
+    error_t ReadRevCompressedData(lak::memstrm_t &strm, data_point_t &data)
     {
         data.position = strm.position;
         uint32_t compressed = strm.readInt<uint32_t>();
@@ -654,77 +654,42 @@ namespace SourceExplorer
     error_t entry_t::read(game_t &game, lak::memstrm_t &strm)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
+
         position = strm.position;
         old = game.oldGame;
         ID = strm.readInt<chunk_t>();
         mode = strm.readInt<encoding_t>();
-        return error_t::OK;
-    }
 
-    error_t entry_t::readMode0(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
-    {
-        if (!strm.remaining()) return error_t::OUT_OF_DATA;
-        if (game.oldGame)
+        if (mode == encoding_t::MODE1)
         {
-            ReadFixedData(strm, data, strm.readInt<uint32_t>());
+            if (game.oldGame)
+            {
+                ReadRevCompressedData(strm, data);
+            }
+            else
+            {
+                ReadFixedData(strm, header, 0x4);
+                ReadCompressedData(strm, data);
+            }
         }
         else
         {
-            ReadFixedData(strm, header, headerSize);
+            ReadDynamicData(strm, data);
         }
         end = strm.position;
-        return error_t::OK;
-    }
 
-    error_t entry_t::readMode1(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
-    {
-        if (!strm.remaining()) return error_t::OUT_OF_DATA;
-        if (game.oldGame)
-        {
-            ReadSizedCompressedData(strm, data);
-        }
-        else
-        {
-            ReadFixedData(strm, header, headerSize);
-            ReadCompressedData(strm, data);
-        }
-        end = strm.position;
-        return error_t::OK;
-    }
-
-    error_t entry_t::readMode2(game_t &game, lak::memstrm_t &strm)
-    {
-        if (!strm.remaining()) return error_t::OUT_OF_DATA;
-        if (game.oldGame)
-        {
-            // ReadFixedData(strm, data, strm.readInt<uint32_t>());
-        }
-        else
-        {
-            ReadFixedData(strm, data, strm.readInt<uint32_t>());
-        }
-        end = strm.position;
-        return error_t::OK;
-    }
-
-    error_t entry_t::readMode3(game_t &game, lak::memstrm_t &strm)
-    {
-        if (!strm.remaining()) return error_t::OUT_OF_DATA;
-        if (game.oldGame)
-        {
-            // ReadFixedData(strm, data, strm.readInt<uint32_t>());
-        }
-        else
-        {
-            ReadFixedData(strm, data, strm.readInt<uint32_t>());
-        }
-        end = strm.position;
         return error_t::OK;
     }
 
     error_t entry_t::readItem(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
+
+        position = strm.position;
+        old = game.oldGame;
+        ID = strm.readInt<chunk_t>();
+        mode = strm.readInt<encoding_t>();
+
         if (game.oldGame)
         {
             ReadStreamCompressedData(strm, data);
@@ -737,12 +702,19 @@ namespace SourceExplorer
             ReadCompressedData(strm, data);
         }
         end = strm.position;
+
         return error_t::OK;
     }
 
     error_t entry_t::readSound(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
+
+        position = strm.position;
+        old = game.oldGame;
+        ID = strm.readInt<chunk_t>();
+        mode = strm.readInt<encoding_t>();
+
         if (game.oldGame)
         {
             ReadStreamCompressedData(strm, data);
@@ -755,6 +727,7 @@ namespace SourceExplorer
             ReadDynamicData(strm, data);
         }
         end = strm.position;
+
         return error_t::OK;
     }
 
@@ -875,61 +848,74 @@ namespace SourceExplorer
     {
         std::u16string result;
 
-        lak::memstrm_t strm = entry.decode();
-
         if (game.oldGame)
         {
             switch (entry.mode)
             {
                 case MODE0:
                 case MODE1: {
-                    result = lak::strconv<char16_t>(strm.readString<char>());
+                    result = lak::strconv<char16_t>(entry.decode().readString<char>());
                 } break;
-                case MODE2: DEBUG("No String Mode 2 " << entry.ID); break;
-                case MODE3: DEBUG("No String Mode 3 " << entry.ID); break;
-                default: DEBUG("Invalid String Mode " << entry.ID); break;
+                default: {
+                    ERROR("Invalid String Mode '" << entry.mode << "' Chunk '" << entry.ID << "'");
+                } break;
             }
         }
         else
         {
-            if (!game.unicode)
-            {
-                result = lak::strconv<char16_t>(strm.readString<char>());
-            }
+            if (game.unicode)
+                result = entry.decode().readString<char16_t>();
             else
-            {
-                result = strm.readString<char16_t>();
-            }
+                result = lak::strconv<char16_t>(entry.decode().readString<char>());
         }
 
         return result;
     }
 
-    error_t title_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t basic_chunk_t::read(game_t &game, lak::memstrm_t &strm)
     {
-        DEBUG("title_t");
+        DEBUG("Reading Basic Chunk");
         error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        value = ReadStringEntry(game, entry);
-
         return result;
     }
 
-    error_t title_t::view(source_explorer_t &srcexp) const
+    error_t basic_chunk_t::basic_view(source_explorer_t &srcexp, const char *name) const
     {
         error_t result = error_t::OK;
 
-        std::string str = lak::strconv<char>(value);
-        if (lak::TreeNode("0x%zX Title '%s'##%zX", (size_t)entry.ID, str.c_str(), entry.position))
+        if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+
+        return result;
+    }
+
+    error_t string_chunk_t::read(game_t &game, lak::memstrm_t &strm)
+    {
+        DEBUG("Reading String Chunk");
+        error_t result = entry.read(game, strm);
+        value = ReadStringEntry(game, entry);
+        return result;
+    }
+
+    error_t string_chunk_t::view(source_explorer_t &srcexp, const char *name, const bool preview) const
+    {
+        error_t result = error_t::OK;
+        std::string str = string();
+        bool open = false;
+
+        if (preview)
+            open = lak::TreeNode("0x%zX %s '%s'##%zX", (size_t)entry.ID, name, str.c_str(), entry.position);
+        else
+            open = lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position);
+
+        if (open)
         {
             ImGui::Separator();
 
@@ -944,1307 +930,184 @@ namespace SourceExplorer
         return result;
     }
 
-    error_t author_t::read(game_t &game, lak::memstrm_t &strm)
+    std::u16string string_chunk_t::u16string() const
     {
-        DEBUG("author_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        value = ReadStringEntry(game, entry);
-
-        return result;
+        return value;
     }
 
-    error_t author_t::view(source_explorer_t &srcexp) const
+    std::u8string string_chunk_t::u8string() const
     {
-        error_t result = error_t::OK;
-
-        std::string str = lak::strconv<char>(value);
-        if (lak::TreeNode("0x%zX Author '%s'##%zX", (size_t)entry.ID, str.c_str(), entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-            ImGui::Text("String: '%s'", str.c_str());
-            ImGui::Text("String Length: 0x%zX", value.size());
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
+        return lak::strconv<char8_t>(value);
     }
 
-    error_t copyright_t::read(game_t &game, lak::memstrm_t &strm)
+    std::string string_chunk_t::string() const
     {
-        DEBUG("copyright_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        value = ReadStringEntry(game, entry);
-
-        return result;
-    }
-
-    error_t copyright_t::view(source_explorer_t &srcexp) const
-    {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Copyright##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
-            ImGui::Text("String Length: 0x%zX", value.size());
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t output_path_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("output_path_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        value = ReadStringEntry(game, entry);
-
-        return result;
-    }
-
-    error_t output_path_t::view(source_explorer_t &srcexp) const
-    {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Output Path##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
-            ImGui::Text("String Length: 0x%zX", value.size());
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t project_path_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("project_path_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        value = ReadStringEntry(game, entry);
-
-        return result;
-    }
-
-    error_t project_path_t::view(source_explorer_t &srcexp) const
-    {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Project Path##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
-            ImGui::Text("String Length: 0x%zX", value.size());
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t vitalise_preview_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("vitalise_preview_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return lak::strconv<char>(value);
     }
 
     error_t vitalise_preview_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Vitalise Preview##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t menu_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("menu_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Vitalise Preview");
     }
 
     error_t menu_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Menu##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t extension_path_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("extension_path_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Menu");
     }
 
     error_t extension_path_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Extension Path##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t extensions_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("extensions_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Extension Path");
     }
 
     error_t extensions_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Extensions##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t global_events_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("global_events_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Extensions");
     }
 
     error_t global_events_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Global Events##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t extension_data_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("extension_data_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadDynamicData(strm, entry.header);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Global Events");
     }
 
     error_t extension_data_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Extension Data##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t additional_extensions_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("additional_extensions_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Extension Data");
     }
 
     error_t additional_extensions_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Additional Extensions##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t application_doc_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("application_doc_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Additional Extensions");
     }
 
     error_t application_doc_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Application Doc##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t other_extenion_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("other_extenion_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Appliocation Doc");
     }
 
     error_t other_extenion_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Other Extension##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t global_values_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("global_values_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Other Extension");
     }
 
     error_t global_values_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Global Values##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t global_strings_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("global_strings_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Global Values");
     }
 
     error_t global_strings_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Global Strings##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t extension_list_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("extension_list_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadDynamicData(strm, entry.header);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Global Strings");
     }
 
     error_t extension_list_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Extension List##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t icon_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("icon_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Extension List");
     }
 
     error_t icon_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Icon##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t demo_version_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("demo_version_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Icon");
     }
 
     error_t demo_version_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Demo Version##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t security_number_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("security_number_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            // case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-            case MODE0: result = entry.readMode0(game, strm); break; // for old games
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Demo Version");
     }
 
     error_t security_number_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Security Number##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t binary_files_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("binary_files_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadDynamicData(strm, entry.header);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Security Number");
     }
 
     error_t binary_files_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t menu_images_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("menu_images_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Binary Files");
     }
 
     error_t menu_images_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Menu Images##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t about_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("about_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm, 0x8); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        value = ReadStringEntry(game, entry);
-
-        return result;
-    }
-
-    error_t about_t::view(source_explorer_t &srcexp) const
-    {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX About##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
-            ImGui::Text("String Length: 0x%zX", value.size());
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t global_value_names_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("global_value_names_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Menu Images");
     }
 
     error_t global_value_names_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Global Value Names##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t global_string_names_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("global_string_names_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Global Value Names");
     }
 
     error_t global_string_names_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Global String Names##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t movement_extensions_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("movement_extensions_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Global String Names");
     }
 
     error_t movement_extensions_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Movement Extensions##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t object_bank2_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("object_bank2_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadFixedData(strm, entry.header, 0x8);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Movement Extensions");
     }
 
     error_t object_bank2_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Object Bank 2##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t exe_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("exe_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadDynamicData(strm, entry.header);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Object Bank 2");
     }
 
     error_t exe_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX EXE Only##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t protection_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("protection_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadDynamicData(strm, entry.header);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = error_t::NO_MODE2; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "EXE Only");
     }
 
     error_t protection_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Protection##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t shaders_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("shaders_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Protection");
     }
 
     error_t shaders_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Shaders##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t extended_header_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("extended_header_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Shaders");
     }
 
     error_t extended_header_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t spacer_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("spacer_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadDynamicData(strm, entry.header);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Extended Header");
     }
 
     error_t spacer_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Spacer##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t chunk_224F_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("chunk_224F_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = entry.readMode3(game, strm); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Spacer");
     }
 
     error_t chunk_224F_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Chunk 224F##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
-    }
-
-    error_t title2_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("title2_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: {
-                ReadDynamicData(strm, entry.header);
-                entry.end = strm.position;
-            } break;
-            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
+        return basic_view(srcexp, "Chunk 224F");
     }
 
     error_t title2_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Title 2##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
+        return basic_view(srcexp, "Title 2");
     }
 
     namespace object
     {
-        error_t name_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("name_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: {
-                    ReadDynamicData(strm, entry.data);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            if (result == error_t::OK)
-            {
-                // value = entry.decode().readString<char16_t>();
-                value = ReadStringEntry(game, entry);
-            }
-
-            return result;
-        }
-
-        error_t name_t::view(source_explorer_t &srcexp) const
-        {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Name##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t properties_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("properties_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
-        }
-
         error_t properties_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Properties##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t effect_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("effect_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Properties");
         }
 
         error_t effect_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Effect##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Effect");
         }
 
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("item_t");
+            DEBUG("Reading Object");
             error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
 
             while (result == error_t::OK)
             {
                 switch (strm.peekInt<chunk_t>())
                 {
                     case OBJNAME:
-                        name = std::make_unique<name_t>();
+                        name = std::make_unique<string_chunk_t>();
                         result = name->read(game, strm);
                         break;
 
@@ -2261,9 +1124,7 @@ namespace SourceExplorer
                     case LAST:
                         end = std::make_unique<last_t>();
                         result = end->read(game, strm);
-                        goto finished;
-
-                    default: goto finished; // probably should error
+                    default: goto finished;
                 }
             }
 
@@ -2275,14 +1136,14 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID,
-                (name ? lak::strconv<char>(name->value).c_str() : "- Object"), entry.position))
+            if (lak::TreeNode("0x%zX '%s'##%zX", (size_t)entry.ID,
+                (name ? lak::strconv<char>(name->value).c_str() : ""), entry.position))
             {
                 ImGui::Separator();
 
                 entry.view(srcexp);
 
-                if (name) name->view(srcexp);
+                if (name) name->view(srcexp, "Name", true);
                 if (properties) properties->view(srcexp);
                 if (effect) effect->view(srcexp);
                 if (end) end->view(srcexp);
@@ -2296,35 +1157,21 @@ namespace SourceExplorer
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("bank_t");
+            DEBUG("Reading Object Bank");
             error_t result = entry.read(game, strm);
 
-            switch (entry.mode)
+            strm.position = entry.data.position;
+
+            items.resize(strm.readInt<uint32_t>());
+
+            for (auto &item : items)
             {
-                case MODE0: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
+                if (result != error_t::OK) break;
+                result = item.read(game, strm);
             }
 
-            while (result == error_t::OK)
-            {
-                switch (strm.peekInt<chunk_t>())
-                {
-                    case OBJHEAD:
-                        items.emplace_back();
-                        result = items.back().read(game, strm);
-                        break;
+            strm.position = entry.end;
 
-                    default: goto finished;
-                }
-            }
-
-            finished:
             return result;
         }
 
@@ -2332,7 +1179,8 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Object Bank##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX Object Bank (%zu Items)##%zX",
+                (size_t)entry.ID, items.size(), entry.position))
             {
                 ImGui::Separator();
 
@@ -2352,607 +1200,87 @@ namespace SourceExplorer
 
     namespace frame
     {
-        error_t handles_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("handles_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                // case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE0: result = entry.readMode2(game, strm); break; // TODO: what. regression?
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
-        }
-
-        error_t handles_t::view(source_explorer_t &srcexp) const
-        {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Frame Handles##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t name_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("name_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: {
-                    ReadDynamicData(strm, entry.data);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            if (result == error_t::OK)
-            {
-                // value = entry.decode().readString<char16_t>();
-                value = ReadStringEntry(game, entry);
-            }
-
-            return result;
-        }
-
-        error_t name_t::view(source_explorer_t &srcexp) const
-        {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Name##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t header_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("header_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
-        }
-
         error_t header_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Header##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t password_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("password_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Header");
         }
 
         error_t password_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Password##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t palette_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("palette_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Password");
         }
 
         error_t palette_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Palette##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t object_instance_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("object_instance_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Palette");
         }
 
         error_t object_instance_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Object Instance##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t fade_in_frame_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("fade_in_frame_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Object Instance");
         }
 
         error_t fade_in_frame_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Fade In Frame##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t fade_out_frame_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("fade_out_frame_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Fade In Frame");
         }
 
         error_t fade_out_frame_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Fade Out Frame##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t fade_in_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("fade_in_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Fade Out Frame");
         }
 
         error_t fade_in_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Fade In##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t fade_out_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("fade_out_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Fade In");
         }
 
         error_t fade_out_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Fade Out##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t events_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("events_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Fade Out");
         }
 
         error_t events_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Events##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t play_head_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("play_head_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Events");
         }
 
         error_t play_head_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Play Head##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t additional_item_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("additional_item_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Play Head");
         }
 
         error_t additional_item_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Additional Item##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t additional_item_instance_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("additional_item_instance_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Additional Item");
         }
 
         error_t additional_item_instance_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Additional Item Instance##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t layers_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("layers_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Additional Item Instance");
         }
 
         error_t layers_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Layers##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t virtual_size_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("virtual_size_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Layers");
         }
 
         error_t virtual_size_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Virtual Size##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t demo_file_path_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("demo_file_path_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Virtual Size");
         }
 
         error_t demo_file_path_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Demo File Path##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Demo File Path");
         }
 
         error_t random_seed_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("random_seed_t");
+            DEBUG("Reading Random Seed");
             error_t result = entry.read(game, strm);
 
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
+            value = entry.decode().readInt<int16_t>();
 
             return result;
         }
@@ -2966,26 +1294,10 @@ namespace SourceExplorer
                 ImGui::Separator();
 
                 entry.view(srcexp);
+                ImGui::Text("Value: %i", (int)value);
 
                 ImGui::Separator();
                 ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t layer_effect_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("layer_effect_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
             }
 
             return result;
@@ -2993,251 +1305,52 @@ namespace SourceExplorer
 
         error_t layer_effect_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Layer Effect##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t blueray_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("blueray_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Layer Effect");
         }
 
         error_t blueray_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Blueray##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t movement_time_base_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("movement_time_base_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: {
-                    ReadDynamicData(strm, entry.header);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Blueray");
         }
 
         error_t movement_time_base_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Movement Time Base##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t mosaic_image_table_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("mosaic_image_table_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Movement Time Base");
         }
 
         error_t mosaic_image_table_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Mosaic Image Table##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t effects_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("effects_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = error_t::NO_MODE0; ERROR("No Mode 0 " << entry.ID); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Mosaic Image Table");
         }
 
         error_t effects_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Effects##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t iphone_options_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("iphone_options_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "Effects");
         }
 
         error_t iphone_options_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX iPhone Options##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
-        }
-
-        error_t chunk_334C_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("chunk_334C_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
+            return basic_view(srcexp, "iPhone Options");
         }
 
         error_t chunk_334C_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Chunk 334C##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Chunk 334C");
         }
 
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("item_t");
+            DEBUG("Reading Frame");
             error_t result = entry.read(game, strm);
 
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            if (entry.old)
-                strm.position = entry.position + 0x8;
+            strm.position = entry.position + 0x8;
 
             while (result == error_t::OK)
             {
                 switch (strm.peekInt<chunk_t>())
                 {
                     case FRAMENAME:
-                        name = std::make_unique<name_t>();
+                        name = std::make_unique<string_chunk_t>();
                         result = name->read(game, strm);
                         break;
 
@@ -3363,8 +1476,7 @@ namespace SourceExplorer
                 }
             }
 
-            if (entry.old)
-                strm.position = entry.end;
+            strm.position = entry.end;
 
             finished:
             return result;
@@ -3374,14 +1486,14 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID,
-                (name ? lak::strconv<char>(name->value).c_str() : "- Frame"), entry.position))
+            if (lak::TreeNode("0x%zX '%s'##%zX", (size_t)entry.ID,
+                (name ? lak::strconv<char>(name->value).c_str() : ""), entry.position))
             {
                 ImGui::Separator();
 
                 entry.view(srcexp);
 
-                if (name) name->view(srcexp);
+                if (name) name->view(srcexp, "Name", true);
                 if (header) header->view(srcexp);
                 if (password) password->view(srcexp);
                 if (palette) palette->view(srcexp);
@@ -3413,29 +1525,23 @@ namespace SourceExplorer
             return result;
         }
 
+        error_t handles_t::view(source_explorer_t &srcexp) const
+        {
+            return basic_view(srcexp, "Handles");
+        }
+
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("bank_t");
+            DEBUG("Reading Frame Bank");
             error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: {
-                    ReadDynamicData(strm, entry.header);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-                case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-                case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
 
             items.clear();
             while (result == error_t::OK && strm.peekInt<chunk_t>() == FRAME)
-                {
-                    items.emplace_back();
-                    result = items.back().read(game, strm);
-                }
+            {
+                items.emplace_back();
+                result = items.back().read(game, strm);
+            }
+
             return result;
         }
 
@@ -3443,7 +1549,8 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Frame Bank##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX Frame Bank (%zu Items)##%zX",
+                (size_t)entry.ID, items.size(), entry.position))
             {
                 ImGui::Separator();
 
@@ -3465,18 +1572,8 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("item_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: entry.readItem(game, strm); break;
-                case MODE1: result = error_t::NO_MODE1; break;
-                case MODE2: result = error_t::NO_MODE2; break;
-                case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
+            DEBUG("Reading Image");
+            error_t result = entry.readItem(game, strm);
             return result;
         }
 
@@ -3505,82 +1602,34 @@ namespace SourceExplorer
             return result;
         }
 
-        error_t end_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("end_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
-        }
-
         error_t end_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Image Bank End##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Image Bank End");
         }
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("bank_t");
+            DEBUG("Reading Image Bank");
             error_t result = entry.read(game, strm);
 
-            switch (entry.mode)
+            strm.position = entry.data.position;
+
+            items.resize(strm.readInt<uint32_t>());
+
+            for (auto &item : items)
             {
-                case MODE0: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    ReadCompressedData(strm, entry.data);
-                    entry.end = strm.position;
-                } break;
-                case MODE2: result = error_t::NO_MODE2; break;
-                case MODE3: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    ReadCompressedData(strm, entry.data);
-                    entry.end = strm.position;
-                } break;
-                default: result = error_t::INVALID_MODE; break;
+                if (result != error_t::OK) break;
+                result = item.read(game, strm);
             }
 
-            while (result == error_t::OK)
-            {
-                switch (strm.peekInt<chunk_t>())
-                {
-                    case ENDIMAGE:
-                        end = std::make_unique<end_t>();
-                        result = end->read(game, strm);
-                        goto finished;
+            strm.position = entry.end;
 
-                    default:
-                        items.emplace_back();
-                        result = items.back().read(game, strm);
-                        break;
-                }
+            if (strm.peekInt<chunk_t>() == chunk_t::ENDIMAGE)
+            {
+                end = std::make_unique<end_t>();
+                if (end) result = end->read(game, strm);
             }
 
-            finished:
             return result;
         }
 
@@ -3588,7 +1637,8 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Image Bank##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX Image Bank (%zu Items)##%zX",
+                (size_t)entry.ID, items.size(), entry.position))
             {
                 ImGui::Separator();
 
@@ -3612,18 +1662,8 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("item_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: entry.readItem(game, strm); break;
-                case MODE1: result = error_t::NO_MODE1; break;
-                case MODE2: result = error_t::NO_MODE2; break;
-                case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
+            DEBUG("Reading Font");
+            error_t result = entry.readItem(game, strm);
             return result;
         }
 
@@ -3644,77 +1684,34 @@ namespace SourceExplorer
             return result;
         }
 
-        error_t end_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("end_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
-        }
-
         error_t end_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Font Bank End##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Font Bank End");
         }
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("bank_t");
+            DEBUG("Reading Font Bank");
             error_t result = entry.read(game, strm);
 
-            switch (entry.mode)
+            strm.position = entry.data.position;
+
+            items.resize(strm.readInt<uint32_t>());
+
+            for (auto &item : items)
             {
-                case MODE0: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    entry.end = strm.position;
-                } break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; break;
+                if (result != error_t::OK) break;
+                result = item.read(game, strm);
             }
 
-            while (result == error_t::OK)
-            {
-                switch (strm.peekInt<chunk_t>())
-                {
-                    case ENDFONT:
-                        end = std::make_unique<end_t>();
-                        result = end->read(game, strm);
-                        goto finished;
+            strm.position = entry.end;
 
-                    default:
-                        items.emplace_back();
-                        result = items.back().read(game, strm);
-                        break;
-                }
+            if (strm.peekInt<chunk_t>() == chunk_t::ENDFONT)
+            {
+                end = std::make_unique<end_t>();
+                if (end) result = end->read(game, strm);
             }
 
-            finished:
             return result;
         }
 
@@ -3722,7 +1719,8 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Font Bank##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX Font Bank (%zu Items)##%zX",
+                (size_t)entry.ID, items.size(), entry.position))
             {
                 ImGui::Separator();
 
@@ -3746,18 +1744,8 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("item_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: entry.readSound(game, strm, 0x18); break;
-                case MODE1: result = error_t::NO_MODE1; break;
-                case MODE2: result = error_t::NO_MODE2; break;
-                case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
+            DEBUG("Reading Sound");
+            error_t result = entry.readSound(game, strm, 0x18);
             return result;
         }
 
@@ -3778,82 +1766,34 @@ namespace SourceExplorer
             return result;
         }
 
-        error_t end_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("end_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
-        }
-
         error_t end_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Sound Bank End##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Sound Bank End");
         }
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("bank_t");
+            DEBUG("Reading Sound Bank");
             error_t result = entry.read(game, strm);
 
-            switch (entry.mode)
+            strm.position = entry.data.position;
+
+            items.resize(strm.readInt<uint32_t>());
+
+            for (auto &item : items)
             {
-                case MODE0: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    entry.end = strm.position;
-                } break;
-                case MODE1: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    ReadCompressedData(strm, entry.data);
-                    entry.end = strm.position;
-                } break;
-                case MODE2: result = error_t::NO_MODE2; break;
-                case MODE3: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    ReadCompressedData(strm, entry.data);
-                    entry.end = strm.position;
-                } break;
-                default: result = error_t::INVALID_MODE; break;
+                if (result != error_t::OK) break;
+                result = item.read(game, strm);
             }
 
-            while (result == error_t::OK)
-            {
-                switch (strm.peekInt<chunk_t>())
-                {
-                    case ENDSOUND:
-                        end = std::make_unique<end_t>();
-                        result = end->read(game, strm);
-                        goto finished;
+            strm.position = entry.end;
 
-                    default:
-                        items.emplace_back();
-                        result = items.back().read(game, strm);
-                        break;
-                }
+            if (strm.peekInt<chunk_t>() == chunk_t::ENDSOUND)
+            {
+                end = std::make_unique<end_t>();
+                if (end) result = end->read(game, strm);
             }
 
-            finished:
             return result;
         }
 
@@ -3861,7 +1801,8 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Sound Bank##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX Sound Bank (%zu Items)##%zX",
+                (size_t)entry.ID, items.size(), entry.position))
             {
                 ImGui::Separator();
 
@@ -3885,17 +1826,8 @@ namespace SourceExplorer
     {
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("item_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: entry.readItem(game, strm); break;
-                case MODE1: result = error_t::NO_MODE1; break;
-                case MODE2: result = error_t::NO_MODE2; break;
-                case MODE3: result = error_t::NO_MODE3; break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
+            DEBUG("Reading Music");
+            error_t result = entry.readItem(game, strm);
 
             return result;
         }
@@ -3917,81 +1849,34 @@ namespace SourceExplorer
             return result;
         }
 
-        error_t end_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("end_t");
-            error_t result = entry.read(game, strm);
-
-            switch (entry.mode)
-            {
-                case MODE0: result = entry.readMode0(game, strm, 0x8); break;
-                case MODE1: result = entry.readMode1(game, strm); break;
-                case MODE2: result = entry.readMode2(game, strm); break;
-                case MODE3: result = entry.readMode3(game, strm); break;
-                default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-            }
-
-            return result;
-        }
-
         error_t end_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Music Bank End##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Music Banke End");
         }
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
         {
-            DEBUG("bank_t");
+            DEBUG("Reading Music Bank");
             error_t result = entry.read(game, strm);
 
-            switch (entry.mode)
+            strm.position = entry.data.position;
+
+            items.resize(strm.readInt<uint32_t>());
+
+            for (auto &item : items)
             {
-                case MODE0: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                } break;
-                case MODE1: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    ReadCompressedData(strm, entry.data);
-                } break;
-                case MODE2: result = error_t::NO_MODE2; break;
-                case MODE3: {
-                    ReadFixedData(strm, entry.header, 0x8);
-                    ReadCompressedData(strm, entry.data);
-                } break;
-                default: result = error_t::INVALID_MODE; break;
+                if (result != error_t::OK) break;
+                result = item.read(game, strm);
             }
 
-            entry.end = strm.position;
+            strm.position = entry.end;
 
-            while (result == error_t::OK)
+            if (strm.peekInt<chunk_t>() == chunk_t::ENDMUSIC)
             {
-                switch (strm.peekInt<chunk_t>())
-                {
-                    case ENDMUSIC:
-                        end = std::make_unique<end_t>();
-                        result = end->read(game, strm);
-                        goto finished;
-
-                    default:
-                        items.emplace_back();
-                        result = items.back().read(game, strm);
-                        break;
-                }
+                end = std::make_unique<end_t>();
+                if (end) result = end->read(game, strm);
             }
 
-            finished:
             return result;
         }
 
@@ -3999,7 +1884,8 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Music Bank##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX Music Bank (%zu Items)##%zX",
+                (size_t)entry.ID, items.size(), entry.position))
             {
                 ImGui::Separator();
 
@@ -4019,53 +1905,15 @@ namespace SourceExplorer
         }
     }
 
-    error_t last_t::read(game_t &game, lak::memstrm_t &strm)
-    {
-        DEBUG("last_t");
-        error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = error_t::NO_MODE1; ERROR("No Mode 1 " << entry.ID); break;
-            case MODE2: result = error_t::NO_MODE2; ERROR("No Mode 2 " << entry.ID); break;
-            case MODE3: result = error_t::NO_MODE3; ERROR("No Mode 3 " << entry.ID); break;
-            default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
-        }
-
-        return result;
-    }
-
     error_t last_t::view(source_explorer_t &srcexp) const
     {
-        error_t result = error_t::OK;
-
-        if (lak::TreeNode("0x%zX Last##%zX", (size_t)entry.ID, entry.position))
-        {
-            ImGui::Separator();
-
-            entry.view(srcexp);
-
-            ImGui::Separator();
-            ImGui::TreePop();
-        }
-
-        return result;
+        return basic_view(srcexp, "Last");
     }
 
     error_t header_t::read(game_t &game, lak::memstrm_t &strm)
     {
-        DEBUG("header_t");
+        DEBUG("Reading Header");
         error_t result = entry.read(game, strm);
-
-        switch (entry.mode)
-        {
-            case MODE0: result = entry.readMode0(game, strm); break;
-            case MODE1: result = entry.readMode1(game, strm); break;
-            case MODE2: result = entry.readMode2(game, strm); break;
-            case MODE3: result = error_t::NO_MODE3; break;
-            default: result = error_t::INVALID_MODE; break;
-        }
 
         while (result == error_t::OK)
         {
@@ -4074,32 +1922,38 @@ namespace SourceExplorer
             {
                 case TITLE:
                     DEBUG("Reading Title");
-                    title = std::make_unique<title_t>();
+                    title = std::make_unique<string_chunk_t>();
                     result = title->read(game, strm);
                     break;
 
                 case AUTHOR:
                     DEBUG("Reading Author");
-                    author = std::make_unique<author_t>();
+                    author = std::make_unique<string_chunk_t>();
                     result = author->read(game, strm);
                     break;
 
                 case COPYRIGHT:
                     DEBUG("Reading Copyright");
-                    copyright = std::make_unique<copyright_t>();
+                    copyright = std::make_unique<string_chunk_t>();
                     result = copyright->read(game, strm);
                     break;
 
                 case PROJPATH:
                     DEBUG("Reading Project Path");
-                    projectPath = std::make_unique<project_path_t>();
+                    projectPath = std::make_unique<string_chunk_t>();
                     result = projectPath->read(game, strm);
                     break;
 
                 case OUTPATH:
                     DEBUG("Reading Project Output Path");
-                    outputPath = std::make_unique<output_path_t>();
+                    outputPath = std::make_unique<string_chunk_t>();
                     result = outputPath->read(game, strm);
+                    break;
+
+                case ABOUT:
+                    DEBUG("Reading About");
+                    about = std::make_unique<string_chunk_t>();
+                    result = about->read(game, strm);
                     break;
 
                 case VITAPREV:
@@ -4184,12 +2038,6 @@ namespace SourceExplorer
                     DEBUG("Reading Menu Images");
                     menuImages = std::make_unique<menu_images_t>();
                     result = menuImages->read(game, strm);
-                    break;
-
-                case ABOUT:
-                    DEBUG("Reading About");
-                    about = std::make_unique<about_t>();
-                    result = about->read(game, strm);
                     break;
 
                 case MOVEMNTEXTNS:
@@ -4357,11 +2205,12 @@ namespace SourceExplorer
 
             entry.view(srcexp);
 
-            if (title) title->view(srcexp);
-            if (author) author->view(srcexp);
-            if (copyright) copyright->view(srcexp);
-            if (outputPath) outputPath->view(srcexp);
-            if (projectPath) projectPath->view(srcexp);
+            if (title) title->view(srcexp, "Title", true);
+            if (author) author->view(srcexp, "Author", true);
+            if (copyright) copyright->view(srcexp, "Copyright", true);
+            if (outputPath) outputPath->view(srcexp, "Output Path");
+            if (projectPath) projectPath->view(srcexp, "Project Path");
+            if (about) about->view(srcexp, "About");
 
             if (vitalisePreview) vitalisePreview->view(srcexp);
             if (menu) menu->view(srcexp);
@@ -4377,7 +2226,6 @@ namespace SourceExplorer
             if (security) security->view(srcexp);
             if (binaryFiles) binaryFiles->view(srcexp);
             if (menuImages) menuImages->view(srcexp);
-            if (about) about->view(srcexp);
             if (movementExtensions) movementExtensions->view(srcexp);
             if (objectBank2) objectBank2->view(srcexp);
             if (exe) exe->view(srcexp);
