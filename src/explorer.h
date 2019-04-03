@@ -98,12 +98,8 @@ namespace SourceExplorer
         data_point_t data;
 
         error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t readMode0(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0x4);
-        error_t readMode1(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0x4);
-        error_t readMode2(game_t &game, lak::memstrm_t &strm);
-        error_t readMode3(game_t &game, lak::memstrm_t &strm);
-        error_t readItem(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0);
         error_t readSound(game_t &game, lak::memstrm_t &strm, const size_t headerSize);
+        error_t readItem(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0);
         void view(source_explorer_t &srcexp) const;
 
         lak::memstrm_t decode() const;
@@ -112,323 +108,186 @@ namespace SourceExplorer
         lak::memstrm_t rawHeader() const;
     };
 
-    struct title_t
+    struct basic_chunk_t
     {
         entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t basic_view(source_explorer_t &srcexp, const char *name) const;
+    };
+
+    struct string_chunk_t : public basic_chunk_t
+    {
         std::u16string value;
 
         error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t view(source_explorer_t &srcexp, const char *name, const bool preview = false) const;
+
+        std::u16string u16string() const;
+        std::u8string u8string() const;
+        std::string string() const;
+    };
+
+    struct vitalise_preview_t : public basic_chunk_t
+    {
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct author_t
+    struct menu_t : public basic_chunk_t
     {
-        entry_t entry;
-        std::u16string value;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct copyright_t
+    struct extension_path_t : public basic_chunk_t
     {
-        entry_t entry;
-        std::u16string value;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct output_path_t
+    struct extensions_t : public basic_chunk_t
     {
-        entry_t entry;
-        std::u16string value;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct project_path_t
+    struct global_events_t : public basic_chunk_t
     {
-        entry_t entry;
-        std::u16string value;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct vitalise_preview_t
+    struct extension_data_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct menu_t
+    struct additional_extensions_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct extension_path_t
+    struct application_doc_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct extensions_t
+    struct other_extenion_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct global_events_t
+    struct global_values_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct extension_data_t
+    struct global_strings_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct additional_extensions_t
+    struct extension_list_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct application_doc_t
+    struct icon_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct other_extenion_t
+    struct demo_version_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct global_values_t
+    struct security_number_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct global_strings_t
+    struct binary_files_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct extension_list_t
+    struct menu_images_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct icon_t
+    struct global_value_names_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct demo_version_t
+    struct global_string_names_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct security_number_t
+    struct movement_extensions_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct binary_files_t
+    struct object_bank2_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct menu_images_t
+    struct exe_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct about_t
+    struct protection_t : public basic_chunk_t
     {
-        entry_t entry;
-        std::u16string value;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct global_value_names_t
+    struct shaders_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct global_string_names_t
+    struct extended_header_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct movement_extensions_t
+    struct spacer_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct object_bank2_t
+    struct chunk_224F_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct exe_t
+    struct title2_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct protection_t
+    struct last_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t view(source_explorer_t &srcexp) const;
-    };
-
-    struct shaders_t
-    {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t view(source_explorer_t &srcexp) const;
-    };
-
-    struct extended_header_t
-    {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t view(source_explorer_t &srcexp) const;
-    };
-
-    struct spacer_t
-    {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t view(source_explorer_t &srcexp) const;
-    };
-
-    struct chunk_224F_t
-    {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t view(source_explorer_t &srcexp) const;
-    };
-
-    struct title2_t
-    {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t view(source_explorer_t &srcexp) const;
-    };
-
-    struct last_t
-    {
-        entry_t entry;
-
-        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
     namespace object
     {
-        struct name_t
+        struct properties_t : public basic_chunk_t
         {
-            entry_t entry;
-            std::u16string value;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct properties_t
+        struct effect_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct effect_t
+        struct item_t : public basic_chunk_t // OBJHEAD
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct item_t // OBJHEAD
-        {
-            entry_t entry;
-            std::unique_ptr<name_t> name;
+            std::unique_ptr<string_chunk_t> name;
             std::unique_ptr<properties_t> properties;
             std::unique_ptr<effect_t> effect;
             std::unique_ptr<last_t> end;
@@ -437,9 +296,8 @@ namespace SourceExplorer
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct bank_t
+        struct bank_t : public basic_chunk_t
         {
-            entry_t entry;
             std::vector<item_t> items;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
@@ -449,203 +307,128 @@ namespace SourceExplorer
 
     namespace frame
     {
-        struct header_t
+        struct header_t : public basic_chunk_t
         {
-            entry_t entry;
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct password_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct palette_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct object_instance_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_in_frame_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_out_frame_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_in_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct fade_out_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct events_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct play_head_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct additional_item_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct additional_item_instance_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct layers_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct virtual_size_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct demo_file_path_t : public basic_chunk_t
+        {
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct random_seed_t : public basic_chunk_t
+        {
+            int16_t value;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct name_t
+        struct layer_effect_t : public basic_chunk_t
         {
-            entry_t entry;
-            std::u16string value;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct password_t
+        struct blueray_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct palette_t
+        struct movement_time_base_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct object_instance_t
+        struct mosaic_image_table_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct fade_in_frame_t
+        struct effects_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct fade_out_frame_t
+        struct iphone_options_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct fade_in_t
+        struct chunk_334C_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct fade_out_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct events_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct play_head_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct additional_item_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct additional_item_instance_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct layers_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct virtual_size_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct demo_file_path_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct random_seed_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct layer_effect_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct blueray_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct movement_time_base_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct mosaic_image_table_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct effects_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct iphone_options_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
-            error_t view(source_explorer_t &srcexp) const;
-        };
-
-        struct chunk_334C_t
-        {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
         struct item_t
         {
             entry_t entry;
-            std::unique_ptr<name_t> name;
+            std::unique_ptr<string_chunk_t> name;
             std::unique_ptr<header_t> header;
             std::unique_ptr<password_t> password;
             std::unique_ptr<palette_t> palette;
@@ -675,17 +458,13 @@ namespace SourceExplorer
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct handles_t
+        struct handles_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct bank_t
+        struct bank_t : public basic_chunk_t
         {
-            entry_t entry;
             std::vector<item_t> items;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
@@ -695,25 +474,19 @@ namespace SourceExplorer
 
     namespace image
     {
-        struct item_t
+        struct item_t : public basic_chunk_t
         {
-            entry_t entry;
-
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct end_t
+        struct end_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct bank_t
+        struct bank_t : public basic_chunk_t
         {
-            entry_t entry;
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
@@ -724,25 +497,19 @@ namespace SourceExplorer
 
     namespace font
     {
-        struct item_t
+        struct item_t : public basic_chunk_t
         {
-            entry_t entry;
-
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct end_t
+        struct end_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct bank_t
+        struct bank_t : public basic_chunk_t
         {
-            entry_t entry;
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
@@ -753,25 +520,19 @@ namespace SourceExplorer
 
     namespace sound
     {
-        struct item_t
+        struct item_t : public basic_chunk_t
         {
-            entry_t entry;
-
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct end_t
+        struct end_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct bank_t
+        struct bank_t : public basic_chunk_t
         {
-            entry_t entry;
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
@@ -782,25 +543,19 @@ namespace SourceExplorer
 
     namespace music
     {
-        struct item_t
+        struct item_t : public basic_chunk_t
         {
-            entry_t entry;
-
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct end_t
+        struct end_t : public basic_chunk_t
         {
-            entry_t entry;
-
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct bank_t
+        struct bank_t : public basic_chunk_t
         {
-            entry_t entry;
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
@@ -809,15 +564,13 @@ namespace SourceExplorer
         };
     }
 
-    struct header_t
+    struct header_t : public basic_chunk_t
     {
-        entry_t entry;
-
-        std::unique_ptr<title_t> title;
-        std::unique_ptr<author_t> author;
-        std::unique_ptr<copyright_t> copyright;
-        std::unique_ptr<output_path_t> outputPath;
-        std::unique_ptr<project_path_t> projectPath;
+        std::unique_ptr<string_chunk_t> title;
+        std::unique_ptr<string_chunk_t> author;
+        std::unique_ptr<string_chunk_t> copyright;
+        std::unique_ptr<string_chunk_t> outputPath;
+        std::unique_ptr<string_chunk_t> projectPath;
 
         std::unique_ptr<vitalise_preview_t> vitalisePreview;
         std::unique_ptr<menu_t> menu;
@@ -833,7 +586,7 @@ namespace SourceExplorer
         std::unique_ptr<security_number_t> security;
         std::unique_ptr<binary_files_t> binaryFiles;
         std::unique_ptr<menu_images_t> menuImages;
-        std::unique_ptr<about_t> about;
+        std::unique_ptr<string_chunk_t> about;
         std::unique_ptr<movement_extensions_t> movementExtensions;
         std::unique_ptr<object_bank2_t> objectBank2;
         std::unique_ptr<exe_t> exe;
@@ -999,13 +752,14 @@ namespace SourceExplorer
         data_point_t &data
     );
 
+    // <uncompressed size> <data size> <data>
     error_t ReadCompressedData(
         lak::memstrm_t &strm,
         data_point_t &data
     );
 
     // <chunk size> <uncompressed size> <data>
-    error_t ReadSizedCompressedData(
+    error_t ReadRevCompressedData(
         lak::memstrm_t &strm,
         data_point_t &data
     );
