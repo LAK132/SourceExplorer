@@ -928,12 +928,13 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Title##%zX", (size_t)entry.ID, entry.position))
+        std::string str = lak::strconv<char>(value);
+        if (lak::TreeNode("0x%zX Title '%s'##%zX", (size_t)entry.ID, str.c_str(), entry.position))
         {
             ImGui::Separator();
 
             entry.view(srcexp);
-            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String: '%s'", str.c_str());
             ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
@@ -966,12 +967,13 @@ namespace SourceExplorer
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Author##%zX", (size_t)entry.ID, entry.position))
+        std::string str = lak::strconv<char>(value);
+        if (lak::TreeNode("0x%zX Author '%s'##%zX", (size_t)entry.ID, str.c_str(), entry.position))
         {
             ImGui::Separator();
 
             entry.view(srcexp);
-            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String: '%s'", str.c_str());
             ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
