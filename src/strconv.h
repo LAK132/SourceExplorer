@@ -30,11 +30,9 @@ SOFTWARE.
 
 // char8_t typdef for C++ < 20
 #if __cplusplus <= 201703L
-namespace lak {
-    typedef uint_least8_t char8_t;
-}
+typedef uint_least8_t char8_t;
 namespace std {
-    typedef basic_string<lak::char8_t> u8string;
+    typedef basic_string<char8_t> u8string;
 }
 #endif
 
