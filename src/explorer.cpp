@@ -1699,6 +1699,8 @@ namespace SourceExplorer
             default: result = error_t::INVALID_MODE; ERROR("Invalid Mode " << entry.ID); break;
         }
 
+        value = ReadStringEntry(game, entry);
+
         return result;
     }
 
@@ -1711,6 +1713,8 @@ namespace SourceExplorer
             ImGui::Separator();
 
             entry.view(srcexp);
+            ImGui::Text("String: '%s'", lak::strconv<char>(value).c_str());
+            ImGui::Text("String Length: 0x%zX", value.size());
 
             ImGui::Separator();
             ImGui::TreePop();
