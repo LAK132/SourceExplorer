@@ -1005,9 +1005,75 @@ namespace SourceExplorer
         return basic_view(srcexp, "Extension List");
     }
 
+    error_t icon_t::read(game_t &game, lak::memstrm_t &strm)
+    {
+        DEBUG("Reading Icon");
+        error_t result = entry.read(game, strm);
+
+        auto dstrm = entry.decode();
+        dstrm.position = dstrm.peekInt<uint32_t>();
+
+        std::vector<lak::color4_t> palette;
+        palette.resize(16 * 16);
+
+        for (auto &point : palette)
+        {
+            point.b = dstrm.readInt<uint8_t>();
+            point.g = dstrm.readInt<uint8_t>();
+            point.r = dstrm.readInt<uint8_t>();
+            // point.a = dstrm.readInt<uint8_t>();
+            point.a = 0xFF;
+            ++dstrm.position;
+        }
+
+        bitmap.resize({16, 16});
+
+        for (size_t y = 0; y < bitmap.size.y; ++y)
+        {
+            for (size_t x = 0; x < bitmap.size.x; ++x)
+            {
+                bitmap[{x, (bitmap.size.y - 1) - y}] = palette[dstrm.readInt<uint8_t>()];
+            }
+        }
+
+        for (size_t i = 0; i < (bitmap.size.x * bitmap.size.y) / 8; ++i)
+        {
+            uint8_t mask = dstrm.readInt<uint8_t>();
+            for (size_t j = 0; j < 8; ++j)
+            {
+                if (0x1 & (mask >> (8 - j)))
+                {
+                    bitmap[i * j].a = 0x00;
+                }
+                else
+                {
+                    bitmap[i * j].a = 0xFF;
+                }
+            }
+        }
+
+        return result;
+    }
+
     error_t icon_t::view(source_explorer_t &srcexp) const
     {
-        return basic_view(srcexp, "Icon");
+        error_t result = error_t::OK;
+
+        if (lak::TreeNode("0x%zX Icon##%zX", (size_t)entry.ID, entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+
+            if (ImGui::Button("View Image"))
+            {
+                srcexp.image = CreateTexture(bitmap);
+            }
+
+            ImGui::TreePop();
+        }
+
+        return result;
     }
 
     error_t demo_version_t::view(source_explorer_t &srcexp) const
