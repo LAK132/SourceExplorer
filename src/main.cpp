@@ -131,6 +131,12 @@ void Update()
         {
             if (SrcExp.loaded)
             {
+                ImGui::Text("Product Build: 0x%zu", (size_t)SrcExp.state.productBuild);
+                ImGui::Text("Product Version: 0x%zu", (size_t)SrcExp.state.productVersion);
+                ImGui::Text("Runtime Version: 0x%zu", (size_t)SrcExp.state.runtimeVersion);
+                ImGui::Text("Runtime Sub-Version: 0x%zu", (size_t)SrcExp.state.runtimeSubVersion);
+                ImGui::Text("New Game: %s", SrcExp.state.oldGame ? "No" : "Yes");
+                ImGui::Text("Unicode: %s", SrcExp.state.unicode ? "Yes" : "No");
                 SrcExp.state.game.view(SrcExp);
             }
         }
