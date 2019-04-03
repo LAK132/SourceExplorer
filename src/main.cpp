@@ -273,7 +273,7 @@ void Update()
             {
                 if (!srcexp.state.game.imageBank)
                 {
-                    DEBUG("No Image Bank");
+                    ERROR("No Image Bank");
                     return;
                 }
 
@@ -319,7 +319,7 @@ void Update()
             {
                 if (!srcexp.state.game.soundBank)
                 {
-                    DEBUG("No Sound Bank");
+                    ERROR("No Sound Bank");
                     return;
                 }
 
@@ -438,7 +438,7 @@ void Update()
             {
                 if (!srcexp.state.game.musicBank)
                 {
-                    DEBUG("No Music Bank");
+                    ERROR("No Music Bank");
                     return;
                 }
 
@@ -523,7 +523,7 @@ void Update()
             {
                 if (!srcexp.state.game.shaders)
                 {
-                    DEBUG("No Shaders");
+                    ERROR("No Shaders");
                     return;
                 }
 
