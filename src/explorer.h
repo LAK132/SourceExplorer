@@ -190,6 +190,9 @@ namespace SourceExplorer
 
     struct icon_t : public basic_chunk_t
     {
+        bitmap_t bitmap;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
