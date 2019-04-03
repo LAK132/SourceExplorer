@@ -104,12 +104,16 @@ namespace SourceExplorer
         const lak::vec2u16_t sizeOverride
     );
 
-    GLuint CreateTexture(
+    lak::glTexture_t CreateTexture(
+        const bitmap_t &bitmap
+    );
+
+    lak::glTexture_t CreateTexture(
         const image_t &image
     );
 
     void ViewImage(
-        const image_t &image
+        const lak::glTexture_t &texture
     );
 }
 

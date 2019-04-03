@@ -180,19 +180,7 @@ namespace SourceExplorer
     image_t &image_t::initTexture()
     {
         DEBUG("Generating Texture");
-        texture = lak::glTexture_t({bitmap.size.x, bitmap.size.y});
-
-        glBindTexture(GL_TEXTURE_2D, texture.get());
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)bitmap.size.x, (GLsizei)bitmap.size.y,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, &(bitmap.pixels[0].r));
-
+        texture = CreateTexture(bitmap);
         return *this;
     }
 
@@ -383,9 +371,8 @@ namespace SourceExplorer
         return img;
     }
 
-    GLuint CreateTexture(const image_t &image)
+    lak::glTexture_t CreateTexture(const bitmap_t &bitmap)
     {
-        DEBUG("Creating Texture");
         GLuint tex;
         glGenTextures(1, &tex);
 
@@ -397,15 +384,20 @@ namespace SourceExplorer
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)image.bitmap.size.x, (GLsizei)image.bitmap.size.y,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, &(image.bitmap.pixels[0].r));
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)bitmap.size.x, (GLsizei)bitmap.size.y,
+            0, GL_RGBA, GL_UNSIGNED_BYTE, &(bitmap.pixels[0].r));
 
-        return tex;
+        return lak::glTexture_t(std::move(tex), bitmap.size);
     }
 
-    void ViewImage(const image_t &img)
+    lak::glTexture_t CreateTexture(const image_t &image)
     {
-        ImGui::Image((ImTextureID)(uintptr_t)img.texture.get(),
-            ImVec2((float)img.texture.size().x, (float)img.texture.size().y));
+        return CreateTexture(image.bitmap);
+    }
+
+    void ViewImage(const lak::glTexture_t &texture)
+    {
+        ImGui::Image((ImTextureID)(uintptr_t)texture.get(),
+            ImVec2((float)texture.size().x, (float)texture.size().y));
     }
 }
