@@ -633,6 +633,14 @@ namespace SourceExplorer
             error_t view(source_explorer_t &srcexp) const;
         };
 
+        struct chunk_334C_t
+        {
+            entry_t entry;
+
+            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
         struct item_t
         {
             entry_t entry;
@@ -659,6 +667,7 @@ namespace SourceExplorer
             std::unique_ptr<mosaic_image_table_t> mosaicImageTable;
             std::unique_ptr<effects_t> effects;
             std::unique_ptr<iphone_options_t> iphoneOptions;
+            std::unique_ptr<chunk_334C_t> chunk334C;
             std::unique_ptr<last_t> end;
 
             error_t read(game_t &game, lak::memstrm_t &strm);
