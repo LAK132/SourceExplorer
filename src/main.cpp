@@ -108,6 +108,7 @@ void Update()
                 SrcExp.music.attempt |= ImGui::MenuItem("Dump Music", nullptr);
                 SrcExp.sounds.attempt |= ImGui::MenuItem("Dump Sounds", nullptr);
                 SrcExp.shaders.attempt |= ImGui::MenuItem("Dump Shaders", nullptr);
+                SrcExp.appicon.attempt |= ImGui::MenuItem("Dump App Icon", nullptr);
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Credits"))
@@ -224,7 +225,7 @@ void Update()
                         ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
                         ImGui::Separator();
                         se::ViewImage(SrcExp.image, scale);
-                }
+                    }
                 }
                 else selected = 0;
             }
@@ -298,6 +299,67 @@ void Update()
         {
             SrcExp.images.valid = false;
             SrcExp.images.attempt = false;
+        }
+    }
+
+    if (SrcExp.appicon.attempt)
+    {
+        if (!SrcExp.appicon.valid)
+        {
+            if (lak::OpenFolder(SrcExp.appicon.path, SrcExp.appicon.valid))
+            {
+                if (!SrcExp.appicon.valid)
+                {
+                    // User cancelled
+                    SrcExp.appicon.attempt = false;
+                }
+            }
+        }
+        else if (DumpStuff("Dump App Icon",
+            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
+            {
+                if (!srcexp.state.game.icon)
+                {
+                    ERROR("No Icon");
+                    return;
+                }
+
+                se::bitmap_t &bitmap = srcexp.state.game.icon->bitmap;
+
+                fs::path filename = srcexp.appicon.path / "favicon.ico";
+                std::ofstream file(filename, std::ios::binary | std::ios::out | std::ios::ate);
+                if (!file.is_open())
+                    return;
+
+                int len;
+                unsigned char *png = stbi_write_png_to_mem(&(bitmap.pixels[0].r), (int)(bitmap.size.x * 4),
+                    (int)bitmap.size.x, (int)bitmap.size.y, 4, &len);
+
+                lak::memstrm_t strm;
+                strm.memory.reserve(0x16);
+                strm.writeInt<uint16_t>(0); // reserved
+                strm.writeInt<uint16_t>(1); // .ICO
+                strm.writeInt<uint16_t>(1); // 1 image
+                strm.writeInt<uint8_t> ((uint8_t)bitmap.size.x);
+                strm.writeInt<uint8_t> ((uint8_t)bitmap.size.y);
+                strm.writeInt<uint8_t> (0); // no palette
+                strm.writeInt<uint8_t> (0); // reserved
+                strm.writeInt<uint16_t>(1); // color plane
+                strm.writeInt<uint16_t>(8 * 4); // bits per pixel
+                strm.writeInt<uint32_t>((uint32_t)len);
+                strm.writeInt<uint32_t>(strm.position + sizeof(uint32_t));
+
+                file.write((const char *)&strm.memory[0], strm.position);
+                file.write((const char *)png, len);
+
+                STBIW_FREE(png);
+
+                file.close();
+            }
+        ))
+        {
+            SrcExp.appicon.valid = false;
+            SrcExp.appicon.attempt = false;
         }
     }
 
