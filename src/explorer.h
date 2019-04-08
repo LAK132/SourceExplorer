@@ -40,6 +40,7 @@
 
 #include "encryption.h"
 #include "image.h"
+#include "object.h"
 
 #ifdef DEBUG
 #undef DEBUG
@@ -91,7 +92,7 @@ namespace SourceExplorer
         union
         {
             uint32_t handle;
-        chunk_t ID;
+            chunk_t ID;
         };
         encoding_t mode;
         size_t position;
@@ -315,9 +316,16 @@ namespace SourceExplorer
             std::unique_ptr<last_t> end;
 
             uint16_t handle;
-            int16_t type;
+            object_type_t type;
             uint32_t inkEffect;
             uint32_t inkEffectParam;
+
+            union
+            {
+                quick_backdrop_t quickBackdrop;
+                backdrop_t backdrop;
+                common_t common;
+            };
 
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
@@ -669,6 +677,9 @@ namespace SourceExplorer
         std::u16string project;
         std::u16string title;
         std::u16string copyright;
+
+        std::unordered_map<uint32_t, size_t> imageHandles;
+        std::unordered_map<uint16_t, size_t> objectHandles;
     };
 
     struct file_state_t
@@ -831,6 +842,16 @@ namespace SourceExplorer
         const std::vector<uint8_t> &encrypted,
         chunk_t ID,
         encoding_t mode
+    );
+
+    object::item_t *GetObject(
+        game_t &game,
+        uint16_t handle
+    );
+
+    image::item_t *GetImage(
+        game_t &game,
+        uint32_t handle
     );
 }
 #endif

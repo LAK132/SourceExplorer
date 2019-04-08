@@ -1,0 +1,126 @@
+// Copyright (c) Mathias Kaerlev 2012, LAK132 2019
+
+// This file is part of Anaconda.
+
+// Anaconda is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Anaconda is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
+
+#include "lak.h"
+#include "defines.h"
+
+#ifndef OBJECT_H
+#define OBJECT_H
+
+namespace SourceExplorer
+{
+    namespace object
+    {
+        enum object_type_t : int16_t
+        {
+            PLAYER          = -7,
+            KEYBOARD        = -6,
+            CREATE          = -5,
+            TIMER           = -4,
+            GAME            = -3,
+            SPEAKER         = -2,
+            SYSTEM          = -1,
+            QUICK_BACKDROP  = 0,
+            BACKDROP        = 1,
+            ACTIVE          = 2,
+            TEXT            = 3,
+            QUESTION        = 4,
+            SCORE           = 5,
+            LIVES           = 6,
+            COUNTER         = 7,
+            RTF             = 8,
+            SUB_APPLICATION = 9
+        };
+
+        enum shape_type_t : uint16_t
+        {
+            LINE_SHAPE      = 1,
+            RECTANGLE_SHAPE = 2,
+            ELLIPSE_SHAPE   = 3
+        };
+
+        enum fill_type_t : uint16_t
+        {
+            NONE_FILL       = 0,
+            SOLID_FILL      = 1,
+            GRADIENT_FILL   = 2,
+            MOTIF_FILL      = 3
+        };
+
+        enum line_flags_t : uint16_t
+        {
+            NONE        = 0,
+            INVERSE_X   = 1 << 0,
+            INVERSE_Y   = 1 << 1
+        };
+
+        enum gradient_flags_t : uint16_t
+        {
+            HORIZONTAL  = 0,
+            VERTICAL    = 1,
+        };
+
+        struct shape_t
+        {
+            fill_type_t fill;
+            shape_type_t shape;
+            line_flags_t line;
+            gradient_flags_t gradient;
+            uint16_t borderSize;
+            lak::color4_t borderColor;
+            lak::color4_t color1, color2;
+            uint16_t image;
+
+            void read(lak::memstrm_t &strm);
+        };
+
+        struct quick_backdrop_t
+        {
+            uint32_t size;
+            uint16_t obstacle;
+            uint16_t collision;
+            uint32_t width;
+            uint32_t height;
+            shape_t shape;
+
+            void read(lak::memstrm_t &strm);
+        };
+
+        struct backdrop_t
+        {
+            uint32_t size;
+            uint16_t obstacle;
+            uint16_t collision;
+            uint32_t width;
+            uint32_t height;
+            uint16_t image;
+
+            void read(lak::memstrm_t &strm);
+        };
+
+        struct common_t
+        {
+            void read(lak::memstrm_t &strm);
+        };
+    }
+
+    std::string GetObjectTypeString(
+        object::object_type_t type
+    );
+}
+
+#endif // OBJECT_H
