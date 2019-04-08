@@ -77,6 +77,24 @@ namespace SourceExplorer
         DEBUG("Title: " << lak::strconv<char>(srcexp.state.title));
         DEBUG("Copyright: " << lak::strconv<char>(srcexp.state.copyright));
 
+        if (srcexp.state.game.imageBank)
+        {
+            const auto &images = srcexp.state.game.imageBank->items;
+            for (size_t i = 0; i < images.size(); ++i)
+            {
+                srcexp.state.imageHandles[images[i].entry.handle] = i;
+            }
+        }
+
+        if (srcexp.state.game.objectBank)
+        {
+            const auto &objects = srcexp.state.game.objectBank->items;
+            for (size_t i = 0; i < objects.size(); ++i)
+            {
+                srcexp.state.objectHandles[objects[i].handle] = i;
+            }
+        }
+
         return err;
     }
 
@@ -629,6 +647,26 @@ namespace SourceExplorer
         }
     }
 
+    object::item_t *GetObject(game_t &game, uint16_t handle)
+    {
+        if (game.game.objectBank &&
+            game.objectHandles[handle] < game.game.objectBank->items.size())
+        {
+            return &game.game.objectBank->items[game.objectHandles[handle]];
+        }
+        return nullptr;
+    }
+
+    image::item_t *GetImage(game_t &game, uint32_t handle)
+    {
+        if (game.game.imageBank &&
+            game.imageHandles[handle] < game.game.imageBank->items.size())
+        {
+            return &game.game.imageBank->items[game.imageHandles[handle]];
+        }
+        return nullptr;
+    }
+
     lak::memstrm_t resource_entry_t::streamHeader() const
     {
         return header.data;
@@ -735,7 +773,7 @@ namespace SourceExplorer
             if (compressed)
                 ReadCompressedData(strm, data);
             else
-            ReadDynamicData(strm, data);
+                ReadDynamicData(strm, data);
         }
         end = strm.position;
 
@@ -1204,7 +1242,7 @@ namespace SourceExplorer
 
             auto dstrm = entry.decode();
             handle = dstrm.readInt<uint16_t>();
-            type = dstrm.readInt<int16_t>();
+            type = dstrm.readInt<object_type_t>();
             dstrm.readInt<uint16_t>(); // flags
             dstrm.readInt<uint16_t>(); // "no longer used"
             inkEffect = dstrm.readInt<uint32_t>();
@@ -1235,8 +1273,26 @@ namespace SourceExplorer
                     default: goto finished;
                 }
             }
-
             finished:
+
+            if (properties)
+            {
+                auto pstrm = properties->entry.decode();
+                switch (type)
+                {
+                    case QUICK_BACKDROP: {
+                        quickBackdrop.read(pstrm);
+                    } break;
+                    case BACKDROP: {
+                        backdrop.read(pstrm);
+                    } break;
+                    default: {
+                        common.read(pstrm);
+                    } break;
+                }
+            }
+            else ERROR("Object Missing Properties");
+
             return result;
         }
 
@@ -1260,6 +1316,21 @@ namespace SourceExplorer
                 if (properties) properties->view(srcexp);
                 if (effect) effect->view(srcexp);
                 if (end) end->view(srcexp);
+
+                switch (type)
+                {
+                    case QUICK_BACKDROP: {
+                        auto *img = GetImage(srcexp.state, quickBackdrop.shape.image);
+                        if (img != nullptr) img->view(srcexp);
+                    } break;
+                    case BACKDROP: {
+                        auto *img = GetImage(srcexp.state, backdrop.image);
+                        if (img != nullptr) img->view(srcexp);
+                    } break;
+                    default: {
+
+                    } break;
+                }
 
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -2318,3 +2389,4 @@ namespace SourceExplorer
 
 #include "encryption.cpp"
 #include "image.cpp"
+#include "object.cpp"
