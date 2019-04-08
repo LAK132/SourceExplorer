@@ -77,6 +77,11 @@ namespace SourceExplorer
         DEBUG("Title: " << lak::strconv<char>(srcexp.state.title));
         DEBUG("Copyright: " << lak::strconv<char>(srcexp.state.copyright));
 
+        return err;
+    }
+
+    void GetEncryptionKey(game_t &gameState)
+    {
         _xmmword.m128i_u32[0] = 0;
         _xmmword.m128i_u32[1] = 1;
         _xmmword.m128i_u32[2] = 2;
@@ -85,13 +90,13 @@ namespace SourceExplorer
         _magic_char = '6';
 
         _magic_key.clear();
-        _magic_key = KeyString(srcexp.state.title);
         _magic_key.reserve(256);
-        if (_magic_key.size() < 256)
-            _magic_key += KeyString(srcexp.state.copyright);
-        if (_magic_key.size() < 256)
-            _magic_key += KeyString(srcexp.state.project);
-
+        if (gameState.game.title)
+            _magic_key += KeyString(gameState.game.title->value);
+        if (_magic_key.size() < 256 && gameState.game.copyright )
+            _magic_key += KeyString(gameState.game.copyright->value);
+        if (_magic_key.size() < 256 && gameState.game.projectPath)
+            _magic_key += KeyString(gameState.game.projectPath->value);
         _magic_key.resize(256);
 
         uint8_t *keyPtr = &(_magic_key[0]);
@@ -107,8 +112,6 @@ namespace SourceExplorer
             ++keyPtr;
         }
         *keyPtr = accum;
-
-        return err;
     }
 
     error_t ParsePEHeader(lak::memstrm_t &strm, game_t &gameState)
@@ -659,6 +662,9 @@ namespace SourceExplorer
         old = game.oldGame;
         ID = strm.readInt<chunk_t>();
         mode = strm.readInt<encoding_t>();
+
+        if ((mode == encoding_t::MODE2 || mode == encoding_t::MODE3) && _magic_key.size() < 256)
+            GetEncryptionKey(game);
 
         if (mode == encoding_t::MODE1)
         {

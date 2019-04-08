@@ -733,6 +733,10 @@ namespace SourceExplorer
         source_explorer_t &srcexp
     );
 
+    void GetEncryptionKey(
+        game_t &gameState
+    );
+
     error_t ParsePEHeader(
         lak::memstrm_t &strm,
         game_t &gameState
