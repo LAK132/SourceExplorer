@@ -1202,6 +1202,14 @@ namespace SourceExplorer
             DEBUG("Reading Object");
             error_t result = entry.read(game, strm);
 
+            auto dstrm = entry.decode();
+            handle = dstrm.readInt<uint16_t>();
+            type = dstrm.readInt<int16_t>();
+            dstrm.readInt<uint16_t>(); // flags
+            dstrm.readInt<uint16_t>(); // "no longer used"
+            inkEffect = dstrm.readInt<uint32_t>();
+            inkEffectParam = dstrm.readInt<uint32_t>();
+
             while (result == error_t::OK)
             {
                 switch (strm.peekInt<chunk_t>())
@@ -1242,6 +1250,11 @@ namespace SourceExplorer
                 ImGui::Separator();
 
                 entry.view(srcexp);
+
+                ImGui::Text("Handle: 0x%zX", (size_t)handle);
+                ImGui::Text("Type: 0x%zX", (size_t)type);
+                ImGui::Text("Ink Effect: 0x%zX", (size_t)inkEffect);
+                ImGui::Text("Ink Effect Parameter: 0x%zX", (size_t)inkEffectParam);
 
                 if (name) name->view(srcexp, "Name", true);
                 if (properties) properties->view(srcexp);

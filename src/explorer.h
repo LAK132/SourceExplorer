@@ -314,6 +314,11 @@ namespace SourceExplorer
             std::unique_ptr<effect_t> effect;
             std::unique_ptr<last_t> end;
 
+            uint16_t handle;
+            int16_t type;
+            uint32_t inkEffect;
+            uint32_t inkEffectParam;
+
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
