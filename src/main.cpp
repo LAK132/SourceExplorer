@@ -173,7 +173,7 @@ void Update()
                 {
                     static int dataMode = 0;
                     static bool raw = false;
-                    static const se::entry_t *last = nullptr;
+                    static const se::basic_entry_t *last = nullptr;
                     bool update = last != SrcExp.view;
 
                     update |= ImGui::RadioButton("EXE", &dataMode, 0);
@@ -285,7 +285,7 @@ void Update()
                     lak::memstrm_t strm = item.entry.decode();
                     const se::image_t &image = se::CreateImage(strm,
                         srcexp.dumpColorTrans, srcexp.state.oldGame);
-                    fs::path filename = srcexp.images.path / (std::to_string(index) + ".png");
+                    fs::path filename = srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
                     if (stbi_write_png(filename.u8string().c_str(),
                         (int)image.bitmap.size.x, (int)image.bitmap.size.y, 4,
                         &(image.bitmap.pixels[0].r), (int)(image.bitmap.size.x * 4)) != 1)

@@ -651,7 +651,7 @@ namespace SourceExplorer
         return lak::memstrm_t(Decode(data.memory, ID, mode));
     }
 
-    error_t entry_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t chunk_entry_t::read(game_t &game, lak::memstrm_t &strm)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
 
@@ -681,57 +681,7 @@ namespace SourceExplorer
         return error_t::OK;
     }
 
-    error_t entry_t::readItem(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
-    {
-        if (!strm.remaining()) return error_t::OUT_OF_DATA;
-
-        position = strm.position;
-        old = game.oldGame;
-        ID = strm.readInt<chunk_t>();
-        mode = strm.readInt<encoding_t>();
-
-        if (game.oldGame)
-        {
-            ReadStreamCompressedData(strm, data);
-            mode = MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
-        }
-        else
-        {
-            if (headerSize > 0)
-                ReadFixedData(strm, header, headerSize);
-            ReadCompressedData(strm, data);
-        }
-        end = strm.position;
-
-        return error_t::OK;
-    }
-
-    error_t entry_t::readSound(game_t &game, lak::memstrm_t &strm, const size_t headerSize)
-    {
-        if (!strm.remaining()) return error_t::OUT_OF_DATA;
-
-        position = strm.position;
-        old = game.oldGame;
-        ID = strm.readInt<chunk_t>();
-        mode = strm.readInt<encoding_t>();
-
-        if (game.oldGame)
-        {
-            ReadStreamCompressedData(strm, data);
-            mode = MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
-        }
-        else
-        {
-            if (headerSize > 0)
-                ReadFixedData(strm, header, headerSize);
-            ReadDynamicData(strm, data);
-        }
-        end = strm.position;
-
-        return error_t::OK;
-    }
-
-    void entry_t::view(source_explorer_t &srcexp) const
+    void chunk_entry_t::view(source_explorer_t &srcexp) const
     {
         if (old)
             ImGui::Text("Old Entry");
@@ -756,7 +706,61 @@ namespace SourceExplorer
             srcexp.view = this;
     }
 
-    lak::memstrm_t entry_t::decode() const
+    error_t item_entry_t::read(game_t &game, lak::memstrm_t &strm, bool compressed, size_t headersize)
+    {
+        if (!strm.remaining()) return error_t::OUT_OF_DATA;
+
+        position = strm.position;
+        old = game.oldGame;
+        mode = MODE0;
+        handle = strm.readInt<uint32_t>();
+        if (!game.oldGame && game.productBuild >= 284) --handle;
+
+        if (game.oldGame)
+        {
+            ReadStreamCompressedData(strm, data);
+            mode = MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
+        }
+        else
+        {
+            if (headersize > 0)
+                ReadFixedData(strm, header, headersize);
+
+            if (compressed)
+                ReadCompressedData(strm, data);
+            else
+            ReadDynamicData(strm, data);
+        }
+        end = strm.position;
+
+        return error_t::OK;
+    }
+
+    void item_entry_t::view(source_explorer_t &srcexp) const
+    {
+        if (old)
+            ImGui::Text("Old Entry");
+        else
+            ImGui::Text("New Entry");
+        ImGui::Text("Position: 0x%zX", position);
+        ImGui::Text("End Pos: 0x%zX", end);
+        ImGui::Text("Size: 0x%zX", end - position);
+
+        ImGui::Text("Handle: 0x%zX", (size_t)handle);
+
+        ImGui::Text("Header Position: 0x%zX", header.position);
+        ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
+        ImGui::Text("Header Size: 0x%zX", header.data.size());
+
+        ImGui::Text("Data Position: 0x%zX", data.position);
+        ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
+        ImGui::Text("Data Size: 0x%zX", data.data.size());
+
+        if (ImGui::Button("View Memory"))
+            srcexp.view = this;
+    }
+
+    lak::memstrm_t basic_entry_t::decode() const
     {
         lak::memstrm_t result;
         if (old)
@@ -805,7 +809,7 @@ namespace SourceExplorer
         return result;
     }
 
-    lak::memstrm_t entry_t::decodeHeader() const
+    lak::memstrm_t basic_entry_t::decodeHeader() const
     {
         lak::memstrm_t result;
         if (old)
@@ -834,17 +838,17 @@ namespace SourceExplorer
         return result;
     }
 
-    lak::memstrm_t entry_t::raw() const
+    lak::memstrm_t basic_entry_t::raw() const
     {
         return data.data;
     }
 
-    lak::memstrm_t entry_t::rawHeader() const
+    lak::memstrm_t basic_entry_t::rawHeader() const
     {
         return header.data;
     }
 
-    std::u16string ReadStringEntry(game_t &game, const entry_t &entry)
+    std::u16string ReadStringEntry(game_t &game, const chunk_entry_t &entry)
     {
         std::u16string result;
 
@@ -880,6 +884,30 @@ namespace SourceExplorer
     }
 
     error_t basic_chunk_t::basic_view(source_explorer_t &srcexp, const char *name) const
+    {
+        error_t result = error_t::OK;
+
+        if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+
+        return result;
+    }
+
+    error_t basic_item_t::read(game_t &game, lak::memstrm_t &strm)
+    {
+        DEBUG("Reading Basic Chunk");
+        error_t result = entry.read(game, strm, true);
+        return result;
+    }
+
+    error_t basic_item_t::basic_view(source_explorer_t &srcexp, const char *name) const
     {
         error_t result = error_t::OK;
 
@@ -1636,18 +1664,11 @@ namespace SourceExplorer
 
     namespace image
     {
-        error_t item_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("Reading Image");
-            error_t result = entry.readItem(game, strm);
-            return result;
-        }
-
         error_t item_t::view(source_explorer_t &srcexp) const
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX Image##%zX", (size_t)entry.ID, entry.position))
+            if (lak::TreeNode("0x%zX Image##%zX", (size_t)entry.handle, entry.position))
             {
                 ImGui::Separator();
 
@@ -1726,28 +1747,9 @@ namespace SourceExplorer
 
     namespace font
     {
-        error_t item_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("Reading Font");
-            error_t result = entry.readItem(game, strm);
-            return result;
-        }
-
         error_t item_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Font##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Font");
         }
 
         error_t end_t::view(source_explorer_t &srcexp) const
@@ -1811,25 +1813,13 @@ namespace SourceExplorer
         error_t item_t::read(game_t &game, lak::memstrm_t &strm)
         {
             DEBUG("Reading Sound");
-            error_t result = entry.readSound(game, strm, 0x18);
+            error_t result = entry.read(game, strm, false, 0x18);
             return result;
         }
 
         error_t item_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Sound##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Sound");
         }
 
         error_t end_t::view(source_explorer_t &srcexp) const
@@ -1890,34 +1880,14 @@ namespace SourceExplorer
 
     namespace music
     {
-        error_t item_t::read(game_t &game, lak::memstrm_t &strm)
-        {
-            DEBUG("Reading Music");
-            error_t result = entry.readItem(game, strm);
-
-            return result;
-        }
-
         error_t item_t::view(source_explorer_t &srcexp) const
         {
-            error_t result = error_t::OK;
-
-            if (lak::TreeNode("0x%zX Music##%zX", (size_t)entry.ID, entry.position))
-            {
-                ImGui::Separator();
-
-                entry.view(srcexp);
-
-                ImGui::Separator();
-                ImGui::TreePop();
-            }
-
-            return result;
+            return basic_view(srcexp, "Music");
         }
 
         error_t end_t::view(source_explorer_t &srcexp) const
         {
-            return basic_view(srcexp, "Music Banke End");
+            return basic_view(srcexp, "Music Bank End");
         }
 
         error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
