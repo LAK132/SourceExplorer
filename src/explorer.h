@@ -86,9 +86,13 @@ namespace SourceExplorer
         lak::memstrm_t decode(const chunk_t ID, const encoding_t mode) const;
     };
 
-    struct entry_t
+    struct basic_entry_t
     {
+        union
+        {
+            uint32_t handle;
         chunk_t ID;
+        };
         encoding_t mode;
         size_t position;
         size_t end;
@@ -97,20 +101,35 @@ namespace SourceExplorer
         data_point_t header;
         data_point_t data;
 
-        error_t read(game_t &game, lak::memstrm_t &strm);
-        error_t readSound(game_t &game, lak::memstrm_t &strm, const size_t headerSize);
-        error_t readItem(game_t &game, lak::memstrm_t &strm, const size_t headerSize = 0);
-        void view(source_explorer_t &srcexp) const;
-
         lak::memstrm_t decode() const;
         lak::memstrm_t decodeHeader() const;
         lak::memstrm_t raw() const;
         lak::memstrm_t rawHeader() const;
     };
 
+    struct chunk_entry_t : public basic_entry_t
+    {
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        void view(source_explorer_t &srcexp) const;
+    };
+
+    struct item_entry_t : public basic_entry_t
+    {
+        error_t read(game_t &game, lak::memstrm_t &strm, bool compressed, size_t headersize = 0);
+        void view(source_explorer_t &srcexp) const;
+    };
+
     struct basic_chunk_t
     {
-        entry_t entry;
+        chunk_entry_t entry;
+
+        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t basic_view(source_explorer_t &srcexp, const char *name) const;
+    };
+
+    struct basic_item_t
+    {
+        item_entry_t entry;
 
         error_t read(game_t &game, lak::memstrm_t &strm);
         error_t basic_view(source_explorer_t &srcexp, const char *name) const;
@@ -428,9 +447,8 @@ namespace SourceExplorer
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct item_t
+        struct item_t : public basic_chunk_t
         {
-            entry_t entry;
             std::unique_ptr<string_chunk_t> name;
             std::unique_ptr<header_t> header;
             std::unique_ptr<password_t> password;
@@ -477,9 +495,8 @@ namespace SourceExplorer
 
     namespace image
     {
-        struct item_t : public basic_chunk_t
+        struct item_t : public basic_item_t
         {
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -500,9 +517,8 @@ namespace SourceExplorer
 
     namespace font
     {
-        struct item_t : public basic_chunk_t
+        struct item_t : public basic_item_t
         {
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -523,7 +539,7 @@ namespace SourceExplorer
 
     namespace sound
     {
-        struct item_t : public basic_chunk_t
+        struct item_t : public basic_item_t
         {
             error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
@@ -546,9 +562,8 @@ namespace SourceExplorer
 
     namespace music
     {
-        struct item_t : public basic_chunk_t
+        struct item_t : public basic_item_t
         {
-            error_t read(game_t &game, lak::memstrm_t &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -674,7 +689,7 @@ namespace SourceExplorer
         MemoryEditor editor;
 
         // const resource_entry_t *view = nullptr;
-        const entry_t *view = nullptr;
+        const basic_entry_t *view = nullptr;
         lak::glTexture_t image;
         std::vector<uint8_t> buffer;
     };
