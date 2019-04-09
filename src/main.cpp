@@ -163,18 +163,39 @@ void Update()
         {
             if (SrcExp.loaded)
             {
+                static const se::basic_entry_t *last = nullptr;
+                bool update = last != SrcExp.view;
+
                 static int selected = 0;
                 ImGui::RadioButton("Memory", &selected, 0);
                 ImGui::SameLine();
                 ImGui::RadioButton("Image", &selected, 1);
+                ImGui::SameLine();
+                static bool crypto = false;
+                ImGui::Checkbox("Crypto", &crypto);
                 ImGui::Separator();
+
+                if (crypto)
+                {
+                    int magic_char = se::_magic_char;
+                    if (ImGui::InputInt("Magic Char", &magic_char))
+                    {
+                        se::_magic_char = magic_char;
+                        se::GetEncryptionKey(SrcExp.state);
+                        update = true;
+                    }
+                    if (ImGui::Button("Generate Crypto Key"))
+                    {
+                        se::GetEncryptionKey(SrcExp.state);
+                        update = true;
+                    }
+                    ImGui::Separator();
+                }
 
                 if (selected == 0)
                 {
                     static int dataMode = 0;
                     static bool raw = false;
-                    static const se::basic_entry_t *last = nullptr;
-                    bool update = last != SrcExp.view;
 
                     update |= ImGui::RadioButton("EXE", &dataMode, 0);
                     ImGui::SameLine();
@@ -183,6 +204,8 @@ void Update()
                     update |= ImGui::RadioButton("Data", &dataMode, 2);
                     ImGui::SameLine();
                     update |= ImGui::Checkbox("Raw", &raw);
+                    ImGui::SameLine();
+                    update |= ImGui::RadioButton("Magic Key", &dataMode, 3);
                     ImGui::Separator();
 
                     if (dataMode == 0) // EXE
@@ -210,6 +233,12 @@ void Update()
                                 : SrcExp.view->decode().memory;
 
                         SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
+                        if (update)
+                            SrcExp.editor.GotoAddrAndHighlight(0, 0);
+                    }
+                    else if (dataMode == 3) // _magic_key
+                    {
+                        SrcExp.editor.DrawContents(&(se::_magic_key[0]), se::_magic_key.size());
                         if (update)
                             SrcExp.editor.GotoAddrAndHighlight(0, 0);
                     }
