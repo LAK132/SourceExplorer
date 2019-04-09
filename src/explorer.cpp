@@ -1287,7 +1287,7 @@ namespace SourceExplorer
                         backdrop.read(pstrm);
                     } break;
                     default: {
-                        common.read(pstrm);
+                        common.read(pstrm, !game.oldGame && game.productBuild >= 284);
                     } break;
                 }
             }
