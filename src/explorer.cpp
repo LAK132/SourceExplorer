@@ -1300,8 +1300,10 @@ namespace SourceExplorer
         {
             error_t result = error_t::OK;
 
-            if (lak::TreeNode("0x%zX '%s'##%zX", (size_t)entry.ID,
-                (name ? lak::strconv<char>(name->value).c_str() : ""), entry.position))
+            if (lak::TreeNode("0x%zX %s '%s'##%zX", (size_t)entry.ID,
+                GetObjectTypeString(type).c_str(),
+                (name ? lak::strconv<char>(name->value).c_str() : ""),
+                entry.position))
             {
                 ImGui::Separator();
 
