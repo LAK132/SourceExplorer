@@ -23,6 +23,7 @@ namespace SourceExplorer
     m128i_t _xmmword;
     std::vector<uint8_t> _magic_key;
     uint8_t _magic_char;
+    bool _284_mode = false;
 
     std::vector<uint8_t> &operator += (std::vector<uint8_t> &lhs, const std::vector<uint8_t> &rhs)
     {
@@ -48,6 +49,23 @@ namespace SourceExplorer
         }
 
         DEBUG("Successfully Parsed PE Header");
+
+        _magic_key.clear();
+
+        _xmmword.m128i_u32[0] = 0;
+        _xmmword.m128i_u32[1] = 1;
+        _xmmword.m128i_u32[2] = 2;
+        _xmmword.m128i_u32[3] = 3;
+
+        if (!srcexp.state.oldGame && srcexp.state.productBuild == 284)
+            _284_mode = true;
+        else
+            _284_mode = false;
+
+        if (_284_mode)
+            _magic_char = 'c';
+        else
+            _magic_char = '6';
 
         err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
         if (err != error_t::OK)
@@ -100,22 +118,29 @@ namespace SourceExplorer
 
     void GetEncryptionKey(game_t &gameState)
     {
-        _xmmword.m128i_u32[0] = 0;
-        _xmmword.m128i_u32[1] = 1;
-        _xmmword.m128i_u32[2] = 2;
-        _xmmword.m128i_u32[3] = 3;
-
-        _magic_char = '6';
-
         _magic_key.clear();
         _magic_key.reserve(256);
-        if (gameState.game.title)
-            _magic_key += KeyString(gameState.game.title->value);
-        if (_magic_key.size() < 256 && gameState.game.copyright )
-            _magic_key += KeyString(gameState.game.copyright->value);
-        if (_magic_key.size() < 256 && gameState.game.projectPath)
-            _magic_key += KeyString(gameState.game.projectPath->value);
-        _magic_key.resize(256);
+
+        if (_284_mode)
+        {
+            if (gameState.game.projectPath)
+                _magic_key += KeyString(gameState.game.projectPath->value);
+            if (_magic_key.size() < 0x80 && gameState.game.title)
+                _magic_key += KeyString(gameState.game.title->value);
+            if (_magic_key.size() < 0x80 && gameState.game.copyright)
+                _magic_key += KeyString(gameState.game.copyright->value);
+        }
+        else
+        {
+            if (gameState.game.title)
+                _magic_key += KeyString(gameState.game.title->value);
+            if (_magic_key.size() < 0x80 && gameState.game.copyright)
+                _magic_key += KeyString(gameState.game.copyright->value);
+            if (_magic_key.size() < 0x80 && gameState.game.projectPath)
+                _magic_key += KeyString(gameState.game.projectPath->value);
+        }
+        _magic_key.resize(0x100);
+        std::memset(&_magic_key[0x80], 0, 0x80);
 
         uint8_t *keyPtr = &(_magic_key[0]);
         memset(keyPtr + 128, 0, 0x80U);
@@ -620,7 +645,7 @@ namespace SourceExplorer
             // size_t dataLen = *reinterpret_cast<const uint32_t*>(&encrypted[0]);
             std::vector<uint8_t> mem(encrypted.begin() + 4, encrypted.end());
 
-            if ((ID & 0x1) != 0)
+            if (!_284_mode && (ID & 0x1) != 0)
                 mem[0] ^= (ID & 0xFF) ^ (ID >> 0x8);
 
             if (DecodeChunk(mem, _magic_key, _xmmword))
@@ -638,7 +663,7 @@ namespace SourceExplorer
 
             std::vector<uint8_t> mem = encrypted;
 
-            if (ID & 0x1)
+            if (!_284_mode && ID & 0x1)
                 mem[0] ^= (ID & 0xFF) ^ (ID >> 0x8);
 
             if (!DecodeChunk(mem, _magic_key, _xmmword))
