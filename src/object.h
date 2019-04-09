@@ -114,7 +114,28 @@ namespace SourceExplorer
 
         struct common_t
         {
-            void read(lak::memstrm_t &strm);
+            uint32_t size;
+            uint16_t movements;
+            uint16_t animations;
+            uint16_t counter;
+            uint16_t system;
+            uint32_t fadeIn;
+            uint32_t fadeOut;
+            uint16_t values;
+            uint16_t strings;
+            uint16_t extension;
+            // std::vector<int16_t> qualifiers;
+
+            uint16_t version;
+            uint32_t flags;
+            uint32_t newFlags;
+            uint32_t preferences;
+            uint32_t identifier;
+            lak::color4_t backColor;
+
+            bool newObj;
+
+            void read(lak::memstrm_t &strm, bool newobj);
         };
     }
 

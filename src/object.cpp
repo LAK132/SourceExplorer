@@ -94,9 +94,58 @@ namespace SourceExplorer
             image = strm.readInt<uint16_t>();
         }
 
-        void common_t::read(lak::memstrm_t &strm)
+        void common_t::read(lak::memstrm_t &strm, bool newobj)
         {
+            newObj = newobj;
 
+            if (newObj)
+            {
+                counter = strm.readInt<uint16_t>();
+                version = strm.readInt<uint16_t>();
+                strm.position += 2;
+                movements = strm.readInt<uint16_t>();
+                extension = strm.readInt<uint16_t>();
+                animations = strm.readInt<uint16_t>();
+            }
+            else
+            {
+                movements = strm.readInt<uint16_t>();
+                animations = strm.readInt<uint16_t>();
+                version = strm.readInt<uint16_t>();
+                counter = strm.readInt<uint16_t>();
+                system = strm.readInt<uint16_t>();
+                strm.position += 2;
+            }
+
+            flags = strm.readInt<uint32_t>();
+
+            size_t end = strm.position + 8 * 2;
+
+            // qualifiers.clear();
+            // qualifiers.reserve(8);
+            // for (size_t i = 0; i < 8; ++i)
+            // {
+            //     int16_t qualifier = strm.readInt<int16_t>();
+            //     if (qualifier == -1)
+            //         break;
+            //     qualifiers.push_back(qualifier);
+            // }
+
+            strm.position = end;
+
+            if (newObj)
+                system = strm.readInt<uint16_t>();
+            else
+                extension = strm.readInt<uint16_t>();
+
+            values = strm.readInt<uint16_t>();
+            strings = strm.readInt<uint16_t>();
+            newFlags = strm.readInt<uint32_t>();
+            preferences = strm.readInt<uint32_t>();
+            identifier = strm.readInt<uint32_t>();
+            backColor = strm.readRGBA();
+            fadeIn = strm.readInt<uint32_t>();
+            fadeOut = strm.readInt<uint32_t>();
         }
     }
 }
