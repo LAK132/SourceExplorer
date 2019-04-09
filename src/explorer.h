@@ -68,6 +68,7 @@ namespace SourceExplorer
     extern m128i_t _xmmword;
     extern std::vector<uint8_t> _magic_key;
     extern uint8_t _magic_char;
+    extern bool _284_mode;
     struct game_t;
     struct source_explorer_t;
 
