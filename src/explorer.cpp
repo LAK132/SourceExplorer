@@ -57,10 +57,7 @@ namespace SourceExplorer
         _xmmword.m128i_u32[2] = 2;
         _xmmword.m128i_u32[3] = 3;
 
-        if (!srcexp.state.oldGame && srcexp.state.productBuild == 284)
-            _284_mode = true;
-        else
-            _284_mode = false;
+        _284_mode = !srcexp.state.oldGame && srcexp.state.productBuild == 284;
 
         if (_284_mode)
             _magic_char = 'c';
