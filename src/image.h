@@ -26,6 +26,8 @@ extern "C" {
 #include <GL/gl3w.h>
 }
 
+#include <lak/image.h>
+
 #include "lak.h"
 
 #include "defines.h"
@@ -46,17 +48,6 @@ namespace SourceExplorer
     lak::color4_t ColorFrom32bit(lak::memstrm_t &strm);
 
     lak::color4_t ColorFromMode(lak::memstrm_t &strm, const graphics_mode_t mode);
-
-    struct bitmap_t
-    {
-        lak::vec2s_t size;
-        std::vector<lak::color4_t> pixels;
-
-        lak::color4_t &operator[](const size_t index);
-        lak::color4_t &operator[](const lak::vec2s_t index);
-        lak::color4_t &operator()(const size_t x, const size_t y);
-        void resize(const lak::vec2s_t toSize);
-    };
 
     uint16_t BitmapPaddingSize(
         uint16_t width,
@@ -84,7 +75,7 @@ namespace SourceExplorer
         uint8_t paletteEntries = 0;
         std::vector<lak::color4_t> palette = {};
         lak::color4_t transparent = {};
-        bitmap_t bitmap = {};
+        lak::image4_t bitmap = {};
 
         lak::glTexture_t texture;
         image_t &initTexture();
@@ -105,7 +96,7 @@ namespace SourceExplorer
     );
 
     lak::glTexture_t CreateTexture(
-        const bitmap_t &bitmap
+        const lak::image4_t &bitmap
     );
 
     lak::glTexture_t CreateTexture(

@@ -235,6 +235,8 @@ namespace lak
     }
 }
 
+#include <lak/math.cpp>
+
 extern "C" {
 #include <GL/gl3w.c>
 }
