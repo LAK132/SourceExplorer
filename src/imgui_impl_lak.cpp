@@ -233,6 +233,10 @@ namespace ImGui
         context->mouseCursors[ImGuiMouseCursor_ResizeNWSE]   = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
         context->mouseCursors[ImGuiMouseCursor_Hand]         = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
 
+        context->mouseRelease[0] = false;
+        context->mouseRelease[1] = false;
+        context->mouseRelease[2] = false;
+
         switch (context->mode)
         {
             case SOFTWARE:
