@@ -26,13 +26,6 @@ SOFTWARE.
 
 namespace lak
 {
-    float mod(const float A, const float B)
-    {
-        const int64_t frac = (int64_t)(A / B);
-        const float result = A - ((float)frac * B);
-        return result;
-    }
-
     std::vector<uint8_t> LoadFile(const fs::path &path)
     {
         std::ifstream file(path, std::ios::binary | std::ios::ate);
