@@ -22,6 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <cstdlib>
+
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
@@ -37,27 +39,94 @@ SOFTWARE.
 
 namespace ImGui
 {
-    bool ImplInit(
-        const lak::glWindow_t &window
+    enum GraphicsMode
+    {
+        SOFTWARE = 0, OPENGL = 1, VULKAN = 2
+    };
+
+    typedef struct _ImplSRContext
+    {
+
+    } *ImplSRContext;
+
+    typedef struct _ImplGLContext
+    {
+        GLuint vertShader;
+        GLuint fragShader;
+        int attribTex;
+        int attribViewProj;
+        int attribPos;
+        int attribUV;
+        int attribCol;
+        unsigned int elements;
+        lak::glState_t state;
+    } *ImplGLContext;
+
+    typedef struct _ImplVkContext
+    {
+
+    } *ImplVkContext;
+
+    typedef struct _ImplContext
+    {
+        ImGuiContext *imContext;
+        SDL_Cursor *mouseCursors[ImGuiMouseCursor_COUNT];
+        bool mouseRelease[3];
+        GraphicsMode mode;
+        union
+        {
+            void *vdContext;
+            ImplSRContext srContext;
+            ImplGLContext glContext;
+            ImplVkContext vkContext;
+        };
+    } *ImplContext;
+
+    ImplContext ImplCreateContext(
+        GraphicsMode mode
     );
 
-    void ImplShutdown();
+    void ImplDestroyContext(
+        ImplContext context
+    );
+
+    // Run once at startup
+    void ImplInit();
+
+    // Run once per context
+    void ImplInitContext(
+        ImplContext context,
+        const lak::window_t &window
+    );
+
+    // Run once per context
+    void ImplShutdownContext(
+        ImplContext context
+    );
+
+    void ImplSetCurrentContext(
+        ImplContext context
+    );
 
     void ImplNewFrame(
+        ImplContext context,
         SDL_Window *window,
         const float deltaTime,
         const bool callBaseNewFrame = true
     );
 
     bool ImplProcessEvent(
+        ImplContext context,
         const SDL_Event &event
     );
 
     void ImplRender(
+        ImplContext context,
         const bool callBaseRender = true
     );
 
     void ImplRender(
+        ImplContext context,
         ImDrawData *drawData
     );
 
@@ -67,7 +136,7 @@ namespace ImGui
     );
 
     const char *ImplGetClipboard(
-        void *
+        char **clipboard
     );
 }
 

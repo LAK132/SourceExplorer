@@ -381,18 +381,53 @@ namespace lak
         vec2s_t _size = {0, 0};
     };
 
-    struct glWindow_t
+    struct window_t
     {
         SDL_DisplayMode displayMode;
-        SDL_Window *window;
-        SDL_GLContext context;
+        SDL_Window *window = nullptr;
+        SDL_GLContext glContext = nullptr;
+        void *srContext = nullptr;
         vec2u32_t size;
     };
 
-    glWindow_t InitGL(const char *title, vec2i_t screenSize, bool doubleBuffered = false,
-        uint8_t depthSize = 24, uint8_t colorSize = 8, uint8_t stencilSize = 8, int display = 0);
+    void InitSR(
+        window_t &wnd,
+        const char *title,
+        vec2i_t screenSize,
+        bool doubleBuffered = false,
+        int display = 0
+    );
 
-    void ShutdownGL(glWindow_t &window);
+    void ShutdownSR(
+        window_t &wnd
+    );
+
+    void InitGL(
+        window_t &wnd,
+        const char *title,
+        vec2i_t screenSize,
+        bool doubleBuffered = false,
+        uint8_t depthSize = 24,
+        uint8_t colorSize = 8,
+        uint8_t stencilSize = 8,
+        int display = 0
+    );
+
+    void ShutdownGL(
+        window_t &wnd
+    );
+
+    void InitVk(
+        window_t &wnd,
+        const char *title,
+        vec2i_t screenSize,
+        bool doubleBuffered = false,
+        int display = 0
+    );
+
+    void ShutdownVk(
+        window_t &wnd
+    );
 }
 
 #endif
