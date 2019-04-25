@@ -26,53 +26,38 @@ SOFTWARE.
 
 namespace ImGui
 {
-    SDL_Cursor *ImplMouseCursors[ImGuiMouseCursor_COUNT] = {nullptr};
-    char *ImplClipboard = nullptr;
+    ImplContext ImplCreateContext(GraphicsMode mode)
+    {
+        ImplContext result = (ImplContext)std::malloc(sizeof(ImplContext));
+        result->mode = mode;
+        switch (mode)
+        {
+            case SOFTWARE:
+                result->vdContext = std::malloc(sizeof(_ImplSRContext));
+                break;
+            case OPENGL:
+                result->vdContext = std::malloc(sizeof(_ImplGLContext));
+                break;
+            case VULKAN:
+                result->vdContext = std::malloc(sizeof(_ImplVkContext));
+                break;
+            default:
+                result->vdContext = nullptr;
+                break;
+        }
+        result->imContext = CreateContext();
+        return result;
+    }
 
-    // char ImplGLSLVersionStr[32] = "#version 130\n";
-    GLuint ImplVertShader = 0;
-    GLuint ImplFragShader = 0;
-    int ImplAttribTex = 0;
-    int ImplAttribViewProj = 0;
-    int ImplAttribPos = 0;
-    int ImplAttribUV = 0;
-    int ImplAttribCol = 0;
-    unsigned int ImplElements = 0;
-
-    const static size_t MouseButtonCount = 3;
-    bool ImplMouseRelease[MouseButtonCount] = {false};
-
-    // fuck you MSVC
-    #if __cplusplus <= 201703L
-    lak::glState_t ImplState;
-    #else
-    lak::glState_t ImplState = {
-        .program        = 0     /* generated in ImplInit */,
-        .texture        = 0     /* generated in ImplInit */,
-        .activeTexture  = GL_TEXTURE0,
-        .sampler        = 0     /* unused */,
-        .vertexArray    = 0     /* generated in ImplRender */,
-        .arrayBuffer    = 0     /* generated in ImplInit */,
-        .polygonMode    = {GL_FRONT_AND_BACK, GL_FILL},
-        .clipOrigin     = {}    /* unused */,
-        .viewport       = {}    /* generated in ImplRender */,
-        .scissorBox     = {}    /* unused */,
-        .blendRGB = {
-            .source         = GL_SRC_ALPHA,
-            .destination    = GL_ONE_MINUS_SRC_ALPHA,
-            .equation       = GL_FUNC_ADD
-        },
-        .blendAlpha = {
-            .source         = GL_SRC_ALPHA,
-            .destination    = GL_ONE_MINUS_SRC_ALPHA,
-            .equation       = GL_FUNC_ADD
-        },
-        .enableBlend        = GL_TRUE,
-        .enableCullFace     = GL_FALSE,
-        .enableDepthTest    = GL_FALSE,
-        .enableScissorTest  = GL_TRUE
-    };
-    #endif
+    void ImplDestroyContext(ImplContext context)
+    {
+        if (context != nullptr)
+        {
+            if (context->vdContext != nullptr)
+                std::free(context->vdContext);
+            std::free(context);
+        }
+    }
 
     inline void UpdateDisplaySize(const lak::vec2f_t window, const lak::vec2f_t display)
     {
@@ -83,32 +68,9 @@ namespace ImGui
         io.DisplayFramebufferScale.y = (window.y > 0) ? (display.y / window.y) : 0;
     }
 
-    bool ImplInit(const lak::glWindow_t &window)
+    char *ImplStaticClipboard = nullptr;
+    void ImplInit()
     {
-        #if __cplusplus <= 201703L
-        ImplState.program = 0;
-        ImplState.texture = 0;
-        ImplState.activeTexture = GL_TEXTURE0;
-        ImplState.sampler = 0;
-        ImplState.vertexArray = 0;
-        ImplState.arrayBuffer = 0;
-        ImplState.polygonMode[0] = GL_FRONT_AND_BACK;
-        ImplState.polygonMode[1] =  GL_FILL;
-        ImplState.clipOrigin = {};
-        ImplState.viewport = {};
-        ImplState.scissorBox = {};
-        ImplState.blendRGB.source = GL_SRC_ALPHA;
-        ImplState.blendRGB.destination = GL_ONE_MINUS_SRC_ALPHA;
-        ImplState.blendRGB.equation = GL_FUNC_ADD;
-        ImplState.blendAlpha.source = GL_SRC_ALPHA;
-        ImplState.blendAlpha.destination = GL_ONE_MINUS_SRC_ALPHA;
-        ImplState.blendAlpha.equation = GL_FUNC_ADD;
-        ImplState.enableBlend = GL_TRUE;
-        ImplState.enableCullFace = GL_FALSE;
-        ImplState.enableDepthTest = GL_FALSE;
-        ImplState.enableScissorTest = GL_TRUE;
-        #endif
-
         ImGuiIO &io = ImGui::GetIO();
 
         io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
@@ -141,17 +103,17 @@ namespace ImGui
         io.KeyMap[ImGuiKey_Z]           = SDL_SCANCODE_Z;
 
         io.SetClipboardTextFn = ImplSetClipboard;
-        io.GetClipboardTextFn = ImplGetClipboard;
+        io.GetClipboardTextFn = (const char*(*)(void*))ImplGetClipboard;
+        io.ClipboardUserData = (void *)&ImplStaticClipboard;
+    }
 
-        ImplMouseCursors[ImGuiMouseCursor_Arrow]        = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
-        ImplMouseCursors[ImGuiMouseCursor_TextInput]    = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
-        ImplMouseCursors[ImGuiMouseCursor_ResizeAll]    = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
-        ImplMouseCursors[ImGuiMouseCursor_ResizeNS]     = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
-        ImplMouseCursors[ImGuiMouseCursor_ResizeEW]     = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
-        ImplMouseCursors[ImGuiMouseCursor_ResizeNESW]   = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
-        ImplMouseCursors[ImGuiMouseCursor_ResizeNWSE]   = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
-        ImplMouseCursors[ImGuiMouseCursor_Hand]         = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+    void ImplInitSRContext(ImplSRContext context, const lak::window_t &window)
+    {
 
+    }
+
+    void ImplInitGLContext(ImplGLContext context, const lak::window_t &window)
+    {
         {
             int windW, windH, dispW, dispH;
             SDL_GetWindowSize(window.window, &windW, &windH);
@@ -159,14 +121,30 @@ namespace ImGui
             UpdateDisplaySize({(float)windW, (float)windH}, {(float)dispW, (float)dispH});
         }
 
-        #ifdef _WIN32
-        SDL_SysWMinfo wmInfo;
-        SDL_VERSION(&wmInfo.version);
-        SDL_GetWindowWMInfo(window.window, &wmInfo);
-        io.ImeWindowHandle = wmInfo.info.win.window;
-        #endif
+        context->state.program                   = 0;
+        context->state.texture                   = 0;
+        context->state.activeTexture             = GL_TEXTURE0;
+        context->state.sampler                   = 0;
+        context->state.vertexArray               = 0;
+        context->state.arrayBuffer               = 0;
+        context->state.polygonMode[0]            = GL_FRONT_AND_BACK;
+        context->state.polygonMode[1]            = GL_FILL;
+        context->state.clipOrigin                = {};
+        context->state.viewport                  = {};
+        context->state.scissorBox                = {};
 
-        // OpenGL init
+        context->state.blendRGB.source           = GL_SRC_ALPHA;
+        context->state.blendRGB.destination      = GL_ONE_MINUS_SRC_ALPHA;
+        context->state.blendRGB.equation         = GL_FUNC_ADD;
+
+        context->state.blendAlpha.source         = GL_SRC_ALPHA;
+        context->state.blendAlpha.destination    = GL_ONE_MINUS_SRC_ALPHA;
+        context->state.blendAlpha.equation       = GL_FUNC_ADD;
+
+        context->state.enableBlend               = GL_TRUE;
+        context->state.enableCullFace            = GL_FALSE;
+        context->state.enableDepthTest           = GL_FALSE;
+        context->state.enableScissorTest         = GL_TRUE;
 
         lak::glState_t backupState; backupState.backup();
 
@@ -185,9 +163,9 @@ namespace ImGui
             "   gl_Position = viewProj * vec4(vPosition.xy, 0, 1);\n"
             "}\n";
 
-        ImplVertShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(ImplVertShader, 1, &vertShader, nullptr);
-        glCompileShader(ImplVertShader);
+        context->vertShader = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(context->vertShader, 1, &vertShader, nullptr);
+        glCompileShader(context->vertShader);
         // TODO: Check Shader
 
         const GLchar *fragShader =
@@ -201,89 +179,159 @@ namespace ImGui
             "   pColor = fColor * texture(fTexture, fUV.st);\n"
             "}\n";
 
-        ImplFragShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(ImplFragShader, 1, &fragShader, nullptr);
-        glCompileShader(ImplFragShader);
+        context->fragShader = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(context->fragShader, 1, &fragShader, nullptr);
+        glCompileShader(context->fragShader);
         // TODO: Check Shader
 
-        ImplState.program = glCreateProgram();
-        glAttachShader(ImplState.program, ImplVertShader);
-        glAttachShader(ImplState.program, ImplFragShader);
-        glLinkProgram(ImplState.program);
+        context->state.program = glCreateProgram();
+        glAttachShader(context->state.program, context->vertShader);
+        glAttachShader(context->state.program, context->fragShader);
+        glLinkProgram(context->state.program);
 
-        ImplAttribTex       = glGetUniformLocation(ImplState.program, "fTexture");
-        ImplAttribViewProj  = glGetUniformLocation(ImplState.program, "viewProj");
-        ImplAttribPos       = glGetAttribLocation(ImplState.program, "vPosition");
-        ImplAttribUV        = glGetAttribLocation(ImplState.program, "vUV");
-        ImplAttribCol       = glGetAttribLocation(ImplState.program, "vColor");
+        context->attribTex       = glGetUniformLocation(context->state.program, "fTexture");
+        context->attribViewProj  = glGetUniformLocation(context->state.program, "viewProj");
+        context->attribPos       = glGetAttribLocation(context->state.program, "vPosition");
+        context->attribUV        = glGetAttribLocation(context->state.program, "vUV");
+        context->attribCol       = glGetAttribLocation(context->state.program, "vColor");
 
-        glGenBuffers(1, &ImplState.arrayBuffer);
-        glGenBuffers(1, &ImplElements);
+        glGenBuffers(1, &context->state.arrayBuffer);
+        glGenBuffers(1, &context->elements);
+
+        ImGuiIO &io = ImGui::GetIO();
 
         // Create fonts texture
         uint8_t *pixels;
         int width, height;
         io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-        glGenTextures(1, &ImplState.texture);
-        glBindTexture(GL_TEXTURE_2D, ImplState.texture);
+        glGenTextures(1, &context->state.texture);
+        glBindTexture(GL_TEXTURE_2D, context->state.texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
-        io.Fonts->TexID = (ImTextureID)(intptr_t)ImplState.texture;
+        io.Fonts->TexID = (ImTextureID)(intptr_t)context->state.texture;
 
         backupState.restore();
-
-        return true;
     }
 
-    void ImplShutdown()
+    void ImplInitVkContext(ImplVkContext context, const lak::window_t &window)
+    {
+
+    }
+
+    void ImplInitContext(ImplContext context, const lak::window_t &window)
+    {
+        context->mouseCursors[ImGuiMouseCursor_Arrow]        = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+        context->mouseCursors[ImGuiMouseCursor_TextInput]    = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
+        context->mouseCursors[ImGuiMouseCursor_ResizeAll]    = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
+        context->mouseCursors[ImGuiMouseCursor_ResizeNS]     = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
+        context->mouseCursors[ImGuiMouseCursor_ResizeEW]     = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
+        context->mouseCursors[ImGuiMouseCursor_ResizeNESW]   = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
+        context->mouseCursors[ImGuiMouseCursor_ResizeNWSE]   = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
+        context->mouseCursors[ImGuiMouseCursor_Hand]         = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+
+        switch (context->mode)
+        {
+            case SOFTWARE:
+                ImplInitSRContext(context->srContext, window);
+                break;
+            case OPENGL:
+                ImplInitGLContext(context->glContext, window);
+                break;
+            case VULKAN:
+                ImplInitVkContext(context->vkContext, window);
+                break;
+            default:
+                assert(false);
+                break;
+        }
+
+        #ifdef _WIN32
+        SDL_SysWMinfo wmInfo;
+        SDL_VERSION(&wmInfo.version);
+        SDL_GetWindowWMInfo(window.window, &wmInfo);
+        io.ImeWindowHandle = wmInfo.info.win.window;
+        #endif
+    }
+
+    void ImplShutdownSRContext(ImplSRContext context)
+    {
+
+    }
+
+    void ImplShutdownGLContext(ImplGLContext context)
+    {
+        if (context->state.arrayBuffer) glDeleteBuffers(1, &context->state.arrayBuffer);
+        context->state.arrayBuffer = 0;
+
+        if (context->elements) glDeleteBuffers(1, &context->elements);
+        context->elements = 0;
+
+        if (context->state.program && context->vertShader) glDetachShader(context->state.program, context->vertShader);
+        if (context->vertShader) glDeleteShader(context->vertShader);
+        context->vertShader = 0;
+
+        if (context->state.program && context->fragShader) glDetachShader(context->state.program, context->fragShader);
+        if (context->fragShader) glDeleteShader(context->fragShader);
+        context->fragShader = 0;
+
+        if (context->state.program) glDeleteProgram(context->state.program);
+        context->state.program = 0;
+
+        // Destroy Fonts Texture
+
+        if (context->state.texture)
+        {
+            ImGuiIO &io = ImGui::GetIO();
+            glDeleteTextures(1, &context->state.texture);
+            io.Fonts->TexID = 0;
+            context->state.texture = 0;
+        }
+    }
+
+    void ImplShutdownVkContext(ImplVkContext context)
+    {
+
+    }
+
+    void ImplShutdownContext(ImplContext context)
     {
         // SDL shutdown
 
-        if (ImplClipboard)
-            SDL_free(ImplClipboard);
-        ImplClipboard = nullptr;
-
-        for (SDL_Cursor *&cursor : ImplMouseCursors)
+        for (SDL_Cursor *&cursor : context->mouseCursors)
         {
             SDL_FreeCursor(cursor);
             cursor = nullptr;
         }
 
-        // OpenGL shutdown
-
-        if (ImplState.arrayBuffer) glDeleteBuffers(1, &ImplState.arrayBuffer);
-        ImplState.arrayBuffer = 0;
-
-        if (ImplElements) glDeleteBuffers(1, &ImplElements);
-        ImplElements = 0;
-
-        if (ImplState.program && ImplVertShader) glDetachShader(ImplState.program, ImplVertShader);
-        if (ImplVertShader) glDeleteShader(ImplVertShader);
-        ImplVertShader = 0;
-
-        if (ImplState.program && ImplFragShader) glDetachShader(ImplState.program, ImplFragShader);
-        if (ImplFragShader) glDeleteShader(ImplFragShader);
-        ImplFragShader = 0;
-
-        if (ImplState.program) glDeleteProgram(ImplState.program);
-        ImplState.program = 0;
-
-        // Destroy Fonts Texture
-
-        if (ImplState.texture)
+        switch (context->mode)
         {
-            ImGuiIO &io = ImGui::GetIO();
-            glDeleteTextures(1, &ImplState.texture);
-            io.Fonts->TexID = 0;
-            ImplState.texture = 0;
+            case SOFTWARE:
+                ImplShutdownSRContext(context->srContext);
+                break;
+            case OPENGL:
+                ImplShutdownGLContext(context->glContext);
+                break;
+            case VULKAN:
+                ImplShutdownVkContext(context->vkContext);
+                break;
+            default:
+                assert(false);
+                break;
         }
+
+        DestroyContext(context->imContext);
     }
 
-    void ImplNewFrame(SDL_Window *window, const float deltaTime, const bool callBaseNewFrame)
+    void ImplSetCurrentContext(ImplContext context)
+    {
+        SetCurrentContext(context->imContext);
+    }
+
+    void ImplNewFrame(ImplContext context, SDL_Window *window, const float deltaTime, const bool callBaseNewFrame)
     {
         ImGuiIO &io = ImGui::GetIO();
 
@@ -310,7 +358,7 @@ namespace ImGui
             }
             else
             {
-                SDL_SetCursor(ImplMouseCursors[cursor]);
+                SDL_SetCursor(context->mouseCursors[cursor]);
                 SDL_ShowCursor(SDL_TRUE);
             }
         }
@@ -319,7 +367,7 @@ namespace ImGui
             ImGui::NewFrame();
     }
 
-    bool ImplProcessEvent(const SDL_Event &event)
+    bool ImplProcessEvent(ImplContext context, const SDL_Event &event)
     {
         ImGuiIO &io = ImGui::GetIO();
 
@@ -355,17 +403,17 @@ namespace ImGui
                 {
                     case SDL_BUTTON_LEFT: {
                         io.MouseDown[0] = true;
-                        ImplMouseRelease[0] = false;
+                        context->mouseRelease[0] = false;
                     } break;
 
                     case SDL_BUTTON_RIGHT: {
                         io.MouseDown[1] = true;
-                        ImplMouseRelease[1] = false;
+                        context->mouseRelease[1] = false;
                     } break;
 
                     case SDL_BUTTON_MIDDLE: {
                         io.MouseDown[2] = true;
-                        ImplMouseRelease[2] = false;
+                        context->mouseRelease[2] = false;
                     } break;
 
                     default: return false;
@@ -375,15 +423,15 @@ namespace ImGui
                 switch (event.button.button)
                 {
                     case SDL_BUTTON_LEFT: {
-                        ImplMouseRelease[0] = true;
+                        context->mouseRelease[0] = true;
                     } break;
 
                     case SDL_BUTTON_RIGHT: {
-                        ImplMouseRelease[1] = true;
+                        context->mouseRelease[1] = true;
                     } break;
 
                     case SDL_BUTTON_MIDDLE: {
-                        ImplMouseRelease[2] = true;
+                        context->mouseRelease[2] = true;
                     } break;
 
                     default: return false;
@@ -410,34 +458,39 @@ namespace ImGui
         return false;
     }
 
-    void ImplRender(const bool callBaseRender)
+    void ImplRender(ImplContext context, const bool callBaseRender)
     {
         if (callBaseRender)
             Render();
-        ImplRender(ImGui::GetDrawData());
+        ImplRender(context, ImGui::GetDrawData());
     }
 
-    void ImplRender(ImDrawData *drawData)
+    void ImplSRRender(ImplSRContext context, ImDrawData *drawData)
+    {
+
+    }
+
+    void ImplGLRender(ImplGLContext context, ImDrawData *drawData)
     {
         assert(drawData != nullptr);
         ImGuiIO &io = ImGui::GetIO();
 
         lak::vec4f_t viewport;
         // int = float = float
-        ImplState.viewport.x = (GLint)(viewport.x = drawData->DisplayPos.x);
-        ImplState.viewport.y = (GLint)(viewport.y = drawData->DisplayPos.y);
-        ImplState.viewport.w = (GLint)(viewport.z = drawData->DisplaySize.x * io.DisplayFramebufferScale.x);
-        ImplState.viewport.h = (GLint)(viewport.w = drawData->DisplaySize.y * io.DisplayFramebufferScale.y);
-        if (ImplState.viewport.w <= 0 || ImplState.viewport.h <= 0)
+        context->state.viewport.x = (GLint)(viewport.x = drawData->DisplayPos.x);
+        context->state.viewport.y = (GLint)(viewport.y = drawData->DisplayPos.y);
+        context->state.viewport.w = (GLint)(viewport.z = drawData->DisplaySize.x * io.DisplayFramebufferScale.x);
+        context->state.viewport.h = (GLint)(viewport.w = drawData->DisplaySize.y * io.DisplayFramebufferScale.y);
+        if (context->state.viewport.w <= 0 || context->state.viewport.h <= 0)
             return;
 
         drawData->ScaleClipRects(io.DisplayFramebufferScale);
 
         lak::glState_t backupState; backupState.backup();
 
-        glGenVertexArrays(1, &ImplState.vertexArray);
+        glGenVertexArrays(1, &context->state.vertexArray);
 
-        ImplState.restore(); // calls glBindVertexArray
+        context->state.restore(); // calls glBindVertexArray
 
         {
             const float &W = drawData->DisplaySize.x;
@@ -451,27 +504,27 @@ namespace ImGui
                 { 0.0f,     0.0f,       -1.0f,  0.0f },
                 { O1,       O2,         0.0f,   1.0f }
             };
-            glUniformMatrix4fv(ImplAttribViewProj, 1, GL_FALSE, &orthoProj[0][0]);
+            glUniformMatrix4fv(context->attribViewProj, 1, GL_FALSE, &orthoProj[0][0]);
         }
-        glUniform1i(ImplAttribTex, 0);
+        glUniform1i(context->attribTex, 0);
         #ifdef GL_SAMPLER_BINDING
         glBindSampler(0, 0);
         #endif
 
-        glEnableVertexAttribArray(ImplAttribPos);
-        glVertexAttribPointer(ImplAttribPos, 2, GL_FLOAT, GL_FALSE,
+        glEnableVertexAttribArray(context->attribPos);
+        glVertexAttribPointer(context->attribPos, 2, GL_FLOAT, GL_FALSE,
             sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, pos));
 
-        glEnableVertexAttribArray(ImplAttribUV);
-        glVertexAttribPointer(ImplAttribUV, 2, GL_FLOAT, GL_FALSE,
+        glEnableVertexAttribArray(context->attribUV);
+        glVertexAttribPointer(context->attribUV, 2, GL_FLOAT, GL_FALSE,
             sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, uv));
 
-        glEnableVertexAttribArray(ImplAttribCol);
-        glVertexAttribPointer(ImplAttribCol, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+        glEnableVertexAttribArray(context->attribCol);
+        glVertexAttribPointer(context->attribCol, 4, GL_UNSIGNED_BYTE, GL_TRUE,
             sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, col));
 
-        glBindBuffer(GL_ARRAY_BUFFER, ImplState.arrayBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ImplElements);
+        glBindBuffer(GL_ARRAY_BUFFER, context->state.arrayBuffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, context->elements);
 
         for (int n = 0; n < drawData->CmdListsCount; ++n)
         {
@@ -532,11 +585,36 @@ namespace ImGui
 
         backupState.restore();
 
-        glDeleteVertexArrays(1, &ImplState.vertexArray);
-        ImplState.vertexArray = 0;
+        glDeleteVertexArrays(1, &context->state.vertexArray);
+        context->state.vertexArray = 0;
+    }
 
-        for (size_t i = 0; i < MouseButtonCount; ++i)
-            if (ImplMouseRelease[i])
+    void ImplVkRender(ImplVkContext context, ImDrawData *drawData)
+    {
+
+    }
+
+    void ImplRender(ImplContext context, ImDrawData *drawData)
+    {
+        switch (context->mode)
+        {
+            case SOFTWARE:
+                ImplSRRender(context->srContext, drawData);
+                break;
+            case OPENGL:
+                ImplGLRender(context->glContext, drawData);
+                break;
+            case VULKAN:
+                ImplVkRender(context->vkContext, drawData);
+                break;
+            default:
+                assert(false);
+                break;
+        }
+
+        ImGuiIO &io = ImGui::GetIO();
+        for (size_t i = 0; i < 3; ++i)
+            if (context->mouseRelease[i])
                 io.MouseDown[i] = false;
     }
 
@@ -545,12 +623,12 @@ namespace ImGui
         SDL_SetClipboardText(text);
     }
 
-    const char *ImplGetClipboard(void *)
+    const char *ImplGetClipboard(char **clipboard)
     {
-        if (ImplClipboard)
-            SDL_free(ImplClipboard);
-        ImplClipboard = SDL_GetClipboardText();
-        return ImplClipboard;
+        if (*clipboard)
+            SDL_free(*clipboard);
+        *clipboard = SDL_GetClipboardText();
+        return *clipboard;
     }
 }
 

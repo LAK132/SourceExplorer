@@ -62,7 +62,28 @@ namespace lak
         return true;
     }
 
-    glWindow_t InitGL(const char *title, vec2i_t screenSize, bool doubleBuffered,
+    void InitSR(window_t &wnd, const char *title, vec2i_t screenSize, bool doubleBuffered, int display)
+    {
+        SDL_SetMainReady();
+        assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+
+        wnd.size = screenSize;
+
+        SDL_GetCurrentDisplayMode(display, &wnd.displayMode);
+
+        wnd.window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            screenSize.x, screenSize.y, SDL_WINDOW_RESIZABLE);
+
+        // wnd.srContext = ;
+    }
+
+    void ShutdownSR(window_t &wnd)
+    {
+        SDL_DestroyWindow(wnd.window);
+        SDL_Quit();
+    }
+
+    void InitGL(window_t &wnd, const char *title, vec2i_t screenSize, bool doubleBuffered,
         uint8_t depthSize, uint8_t colorSize, uint8_t stencilSize, int display)
     {
         SDL_SetMainReady();
@@ -79,31 +100,49 @@ namespace lak
         assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3) == 0);
         assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) == 0);
 
-        glWindow_t window;
+        wnd.size = screenSize;
 
-        window.size = screenSize;
+        SDL_GetCurrentDisplayMode(display, &wnd.displayMode);
 
-        SDL_GetCurrentDisplayMode(display, &window.displayMode);
-
-        window.window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        wnd.window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             screenSize.x, screenSize.y, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-        window.context = SDL_GL_CreateContext(window.window);
+        wnd.glContext = SDL_GL_CreateContext(wnd.window);
 
         assert(gl3wInit() == GL3W_OK); // context must be created before calling this
 
-        SDL_GL_MakeCurrent(window.window, window.context);
+        SDL_GL_MakeCurrent(wnd.window, wnd.glContext);
 
         if (SDL_GL_SetSwapInterval(-1) == -1)
             assert(SDL_GL_SetSwapInterval(1) == 0);
-
-        return window;
     }
 
-    void ShutdownGL(glWindow_t &window)
+    void ShutdownGL(window_t &wnd)
     {
-        SDL_GL_DeleteContext(window.context);
-        SDL_DestroyWindow(window.window);
+        assert(wnd.glContext != nullptr);
+        SDL_GL_DeleteContext(wnd.glContext);
+        SDL_DestroyWindow(wnd.window);
+        SDL_Quit();
+    }
+
+    void InitVk(window_t &wnd, const char *title, vec2i_t screenSize, bool doubleBuffered, int display)
+    {
+        SDL_SetMainReady();
+        assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+
+        wnd.size = screenSize;
+
+        SDL_GetCurrentDisplayMode(display, &wnd.displayMode);
+
+        wnd.window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            screenSize.x, screenSize.y, SDL_WINDOW_RESIZABLE);
+
+        // wnd.srContext = ;
+    }
+
+    void ShutdownVk(window_t &wnd)
+    {
+        SDL_DestroyWindow(wnd.window);
         SDL_Quit();
     }
 

@@ -660,7 +660,8 @@ void Update()
 
 int main()
 {
-    lak::glWindow_t window = lak::InitGL("Source Explorer", {1280, 720}, true);
+    lak::window_t window;
+    lak::InitGL(window, "Source Explorer", {1280, 720}, true);
 
     uint16_t targetFrameFreq = 59; // FPS
     float targetFrameTime = 1.0f / (float) targetFrameFreq; // SPF
@@ -673,13 +674,15 @@ int main()
     glClearColor(0.0f, 0.3125f, 0.3125f, 1.0f);
     glEnable(GL_DEPTH_TEST);
 
-    ImGuiContext *imguiContext = ImGui::CreateContext();
+    ImGui::ImplContext context = ImGui::ImplCreateContext(ImGui::GraphicsMode::OPENGL);
+    ImGui::ImplInit();
+    ImGui::ImplInitContext(context, window);
+
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     ImGui::StyleColorsDark();
     ImGuiStyle &style = ImGui::GetStyle();
     style.WindowRounding = 0;
-    assert(ImGui::ImplInit(window));
 
     tinf_init();
 
@@ -687,7 +690,7 @@ int main()
     {
         /* --- BEGIN EVENTS --- */
 
-        for (SDL_Event event; SDL_PollEvent(&event); ImGui::ImplProcessEvent(event))
+        for (SDL_Event event; SDL_PollEvent(&event); ImGui::ImplProcessEvent(context, event))
         {
             switch (event.type)
             {
@@ -722,7 +725,7 @@ int main()
 
         // --- END EVENTS ---
 
-        ImGui::ImplNewFrame(window.window, frameTime);
+        ImGui::ImplNewFrame(context, window.window, frameTime);
 
         // --- BEGIN UPDATE ---
 
@@ -737,7 +740,7 @@ int main()
 
         // --- END DRAW ---
 
-        ImGui::ImplRender();
+        ImGui::ImplRender(context);
 
         SDL_GL_SwapWindow(window.window);
 
@@ -757,8 +760,7 @@ int main()
         } while (frameTime < targetFrameTime);
     }
 
-    ImGui::ImplShutdown();
-    ImGui::DestroyContext(imguiContext);
+    ImGui::ImplShutdownContext(context);
 
     lak::ShutdownGL(window);
 
