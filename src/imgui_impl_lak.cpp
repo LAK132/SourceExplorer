@@ -28,7 +28,7 @@ namespace ImGui
 {
     ImplContext ImplCreateContext(GraphicsMode mode)
     {
-        ImplContext result = (ImplContext)std::malloc(sizeof(ImplContext));
+        ImplContext result = (ImplContext)std::malloc(sizeof(_ImplContext));
         result->mode = mode;
         switch (mode)
         {
