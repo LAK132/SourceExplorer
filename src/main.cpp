@@ -316,8 +316,8 @@ void Update()
                         srcexp.dumpColorTrans, srcexp.state.oldGame);
                     fs::path filename = srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
                     if (stbi_write_png(filename.u8string().c_str(),
-                        (int)image.bitmap.size.x, (int)image.bitmap.size.y, 4,
-                        &(image.bitmap.pixels[0].r), (int)(image.bitmap.size.x * 4)) != 1)
+                        (int)image.bitmap.size().x, (int)image.bitmap.size().y, 4,
+                        &(image.bitmap[0].r), (int)(image.bitmap.size().x * 4)) != 1)
                     {
                         ERROR("Failed To Save File '" << filename << "'");
                     }
@@ -353,7 +353,7 @@ void Update()
                     return;
                 }
 
-                se::bitmap_t &bitmap = srcexp.state.game.icon->bitmap;
+                lak::image4_t &bitmap = srcexp.state.game.icon->bitmap;
 
                 fs::path filename = srcexp.appicon.path / "favicon.ico";
                 std::ofstream file(filename, std::ios::binary | std::ios::out | std::ios::ate);
@@ -361,16 +361,16 @@ void Update()
                     return;
 
                 int len;
-                unsigned char *png = stbi_write_png_to_mem(&(bitmap.pixels[0].r), (int)(bitmap.size.x * 4),
-                    (int)bitmap.size.x, (int)bitmap.size.y, 4, &len);
+                unsigned char *png = stbi_write_png_to_mem(&(bitmap[0].r), (int)(bitmap.size().x * 4),
+                    (int)bitmap.size().x, (int)bitmap.size().y, 4, &len);
 
                 lak::memstrm_t strm;
                 strm.memory.reserve(0x16);
                 strm.writeInt<uint16_t>(0); // reserved
                 strm.writeInt<uint16_t>(1); // .ICO
                 strm.writeInt<uint16_t>(1); // 1 image
-                strm.writeInt<uint8_t> ((uint8_t)bitmap.size.x);
-                strm.writeInt<uint8_t> ((uint8_t)bitmap.size.y);
+                strm.writeInt<uint8_t> ((uint8_t)bitmap.size().x);
+                strm.writeInt<uint8_t> ((uint8_t)bitmap.size().y);
                 strm.writeInt<uint8_t> (0); // no palette
                 strm.writeInt<uint8_t> (0); // reserved
                 strm.writeInt<uint16_t>(1); // color plane

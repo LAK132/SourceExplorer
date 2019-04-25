@@ -150,27 +150,6 @@ namespace SourceExplorer
         }
     }
 
-    lak::color4_t &bitmap_t::operator[](const size_t index)
-    {
-        return pixels[index];
-    }
-
-    lak::color4_t &bitmap_t::operator[](const lak::vec2s_t index)
-    {
-        return pixels[(index.y * size.x) + index.x];
-    }
-
-    lak::color4_t &bitmap_t::operator()(const size_t x, const size_t y)
-    {
-        return operator[]({x, y});
-    }
-
-    void bitmap_t::resize(const lak::vec2s_t toSize)
-    {
-        size = toSize;
-        pixels.resize(size.x * size.y);
-    }
-
     uint16_t BitmapPaddingSize(uint16_t width, uint8_t colSize, uint8_t bytes)
     {
         uint16_t num = bytes - ((width * colSize) % bytes);
@@ -184,10 +163,10 @@ namespace SourceExplorer
         return *this;
     }
 
-    size_t ReadRLE(lak::memstrm_t &strm, bitmap_t &bitmap, graphics_mode_t mode)
+    size_t ReadRLE(lak::memstrm_t &strm, lak::image4_t &bitmap, graphics_mode_t mode)
     {
         const size_t pointSize = ColorModeSize(mode);
-        const uint16_t pad = BitmapPaddingSize(bitmap.size.x, pointSize);
+        const uint16_t pad = BitmapPaddingSize(bitmap.size().x, pointSize);
         size_t pos = 0;
         size_t i = 0;
 
@@ -205,7 +184,7 @@ namespace SourceExplorer
                 command -= 128;
                 for (uint8_t n = 0; n < command; ++n)
                 {
-                    if ((pos++) % (bitmap.size.x + pad) < bitmap.size.x)
+                    if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
                         bitmap[i++] = ColorFromMode(strm, mode);
                     else
                         strm.position += pointSize;
@@ -216,7 +195,7 @@ namespace SourceExplorer
                 lak::color4_t col = ColorFromMode(strm, mode);
                 for (uint8_t n = 0; n < command; ++n)
                 {
-                    if ((pos++) % (bitmap.size.x + pad) < bitmap.size.x)
+                    if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
                         bitmap[i++] = col;
                 }
             }
@@ -225,17 +204,17 @@ namespace SourceExplorer
         return strm.position - start;
     }
 
-    size_t ReadRGB(lak::memstrm_t &strm, bitmap_t &bitmap, graphics_mode_t mode)
+    size_t ReadRGB(lak::memstrm_t &strm, lak::image4_t &bitmap, graphics_mode_t mode)
     {
         const size_t pointSize = ColorModeSize(mode);
-        const uint16_t pad = BitmapPaddingSize(bitmap.size.x, pointSize);
+        const uint16_t pad = BitmapPaddingSize(bitmap.size().x, pointSize);
         size_t i = 0;
 
         size_t start = strm.position;
 
-        for (size_t y = 0; y < bitmap.size.y; ++y)
+        for (size_t y = 0; y < bitmap.size().y; ++y)
         {
-            for (size_t x = 0; x < bitmap.size.x; ++x)
+            for (size_t x = 0; x < bitmap.size().x; ++x)
             {
                 bitmap[i++] = ColorFromMode(strm, mode);
             }
@@ -245,14 +224,14 @@ namespace SourceExplorer
         return strm.position - start;
     }
 
-    void ReadAlpha(lak::memstrm_t &strm, bitmap_t &bitmap)
+    void ReadAlpha(lak::memstrm_t &strm, lak::image4_t &bitmap)
     {
-        const uint16_t pad = BitmapPaddingSize(bitmap.size.x, 1, 4);
+        const uint16_t pad = BitmapPaddingSize(bitmap.size().x, 1, 4);
         size_t i = 0;
 
-        for (size_t y = 0; y < bitmap.size.y; ++y)
+        for (size_t y = 0; y < bitmap.size().y; ++y)
         {
-            for (size_t x = 0; x < bitmap.size.x; ++x)
+            for (size_t x = 0; x < bitmap.size().x; ++x)
             {
                 bitmap[i++].a = strm.readInt<uint8_t>();
             }
@@ -260,9 +239,9 @@ namespace SourceExplorer
         }
     }
 
-    void ReadTransparent(lak::color4_t &transparent, bitmap_t &bitmap)
+    void ReadTransparent(lak::color4_t &transparent, lak::image4_t &bitmap)
     {
-        for (size_t i = 0; i < bitmap.pixels.size(); ++i)
+        for (size_t i = 0; i < bitmap.contig_size(); ++i)
         {
             if (bitmap[i] == transparent)
                 bitmap[i].a = transparent.a;
@@ -371,7 +350,7 @@ namespace SourceExplorer
         return img;
     }
 
-    lak::glTexture_t CreateTexture(const bitmap_t &bitmap)
+    lak::glTexture_t CreateTexture(const lak::image4_t &bitmap)
     {
         GLuint tex;
         glGenTextures(1, &tex);
@@ -384,10 +363,10 @@ namespace SourceExplorer
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)bitmap.size.x, (GLsizei)bitmap.size.y,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, &(bitmap.pixels[0].r));
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)bitmap.size().x, (GLsizei)bitmap.size().y,
+            0, GL_RGBA, GL_UNSIGNED_BYTE, &(bitmap[0].r));
 
-        return lak::glTexture_t(std::move(tex), bitmap.size);
+        return lak::glTexture_t(std::move(tex), bitmap.size());
     }
 
     lak::glTexture_t CreateTexture(const image_t &image)

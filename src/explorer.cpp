@@ -1122,15 +1122,15 @@ namespace SourceExplorer
 
         bitmap.resize({16, 16});
 
-        for (size_t y = 0; y < bitmap.size.y; ++y)
+        for (size_t y = 0; y < bitmap.size().y; ++y)
         {
-            for (size_t x = 0; x < bitmap.size.x; ++x)
+            for (size_t x = 0; x < bitmap.size().x; ++x)
             {
-                bitmap[{x, (bitmap.size.y - 1) - y}] = palette[dstrm.readInt<uint8_t>()];
+                bitmap[{x, (bitmap.size().y - 1) - y}] = palette[dstrm.readInt<uint8_t>()];
             }
         }
 
-        for (size_t i = 0; i < (bitmap.size.x * bitmap.size.y) / 8; ++i)
+        for (size_t i = 0; i < bitmap.contig_size() / 8; ++i)
         {
             uint8_t mask = dstrm.readInt<uint8_t>();
             for (size_t j = 0; j < 8; ++j)
