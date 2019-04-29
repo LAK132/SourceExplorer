@@ -257,7 +257,7 @@ namespace ImGui
         SDL_SysWMinfo wmInfo;
         SDL_VERSION(&wmInfo.version);
         SDL_GetWindowWMInfo(window.window, &wmInfo);
-        io.ImeWindowHandle = wmInfo.info.win.window;
+        ImGui::GetIO().ImeWindowHandle = wmInfo.info.win.window;
         #endif
     }
 
