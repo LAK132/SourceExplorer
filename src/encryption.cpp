@@ -1,10 +1,10 @@
 #include "encryption.h"
 
 bool GenerateTable(decode_buffer_t &decodeBuffer, const std::vector<uint8_t> &magic_key,
-    const __m128i &xmmword, const char magic_char)
+    const m128i_t &xmmword, const char magic_char)
 {
-    __m128i *bufferPtr = (__m128i*)&(decodeBuffer[0]); // edx@1
-    __m128i offset = _mm_load_si128(&xmmword); // xmm1@1
+    __m128i *bufferPtr = decodeBuffer._m128i; // edx@1
+    __m128i offset = _mm_load_si128(&xmmword.m128i); // xmm1@1
     for (int i = 0; i < 64; ++i) // eax@1
     {
         _mm_storeu_si128(bufferPtr, _mm_add_epi32(_mm_shuffle_epi32(_mm_cvtsi32_si128(i * 4), 0), offset));
@@ -37,9 +37,9 @@ bool GenerateTable(decode_buffer_t &decodeBuffer, const std::vector<uint8_t> &ma
             v15 = false;
         }
 
-        i2 += (hash ^ *key) + decodeBuffer[0].m128i_i32[i];
+        i2 += (hash ^ *key) + decodeBuffer.m128i_i32[i];
 
-        std::swap(decodeBuffer[0].m128i_i32[i], decodeBuffer[0].m128i_i32[i2]);
+        std::swap(decodeBuffer.m128i_i32[i], decodeBuffer.m128i_i32[i2]);
     }
     return rtn;
 }
@@ -50,11 +50,11 @@ void DecodeWithTable(std::vector<uint8_t> &chunk, decode_buffer_t &decodeBuffer)
     uint8_t i2 = 0;
     for (uint8_t &elem : chunk)
     {
-        ++i; i2 += (uint8_t)decodeBuffer[0].m128i_i32[i];
+        ++i; i2 += (uint8_t)decodeBuffer.m128i_i32[i];
 
-        std::swap(decodeBuffer[0].m128i_i32[i], decodeBuffer[0].m128i_i32[i2]);
+        std::swap(decodeBuffer.m128i_i32[i], decodeBuffer.m128i_i32[i2]);
 
-        elem ^= decodeBuffer[0].m128i_u8[4 * (uint8_t)(decodeBuffer[0].m128i_i32[i2] + decodeBuffer[0].m128i_i32[i])];
+        elem ^= decodeBuffer.m128i_u8[4 * (uint8_t)(decodeBuffer.m128i_i32[i2] + decodeBuffer.m128i_i32[i])];
     }
 }
 
