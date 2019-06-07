@@ -1,0 +1,9 @@
+[submodule "include/memory"]
+	path = include/memory
+	url = https://github.com/LAK132/memory.git
+[submodule "include/strconv"]
+	path = include/strconv
+	url = https://github.com/LAK132/strconv.git
+[submodule "include/imgui"]
+	path = include/imgui
+	url = https://github.com/LAK132/ImSoft.git
