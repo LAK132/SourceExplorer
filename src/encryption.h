@@ -13,9 +13,6 @@
 
 #include "explorer.h"
 
-#ifdef _WIN32
-typedef __m128i m128i_t;
-#else
 union alignas(__m128i) m128i_t
 {
     __m128i     m128i;
@@ -31,9 +28,6 @@ union alignas(__m128i) m128i_t
     operator __m128i&() { return m128i; }
     operator const __m128i&() const { return m128i; }
 };
-#endif
-
-// using decode_buffer_t = m128i_t[64];
 
 union decode_buffer_t
 {
