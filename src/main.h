@@ -28,13 +28,15 @@ SOFTWARE.
 #include <vector>
 #include <queue>
 #include <exception>
-#include <filesystem>
 #include <atomic>
+#include <thread>
+#include <future>
+#include <filesystem>
 namespace fs = std::filesystem;
 
 // UI
 #include "lak.h"
-#include "strconv.h"
+#include <strconv/strconv.hpp>
 #include "imgui_impl_lak.h"
 #include <imgui_memory_editor.h>
 #include <imgui_stdlib.h>
@@ -109,6 +111,25 @@ SOFTWARE.)");
     if (ImGui::TreeNode("stb_image_write"))
     {
         ImGui::Text("https://github.com/nothings/stb/blob/master/stb_image_write.h");
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("Tiny C Compiler"))
+    {
+        ImGui::Text(R"(https://www.bellard.org/tcc/
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA)");
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Anaconda/Chowdren"))

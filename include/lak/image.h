@@ -74,12 +74,28 @@ namespace lak
         }
 
     private:
-        lak::vec2s_t _size;
-        std::vector<lak::color4_t> _value;
+        size_type _size;
+        std::vector<value_type> _value;
     };
 
     using image3_t = image<color3_t>;
     using image4_t = image<color4_t>;
+
+    image3_t ImageFromRGB24(uint8_t *pixels, vec2s_t size)
+    {
+        image3_t result;
+        result.resize(size);
+        std::memcpy(&result[0].x, pixels, size.x * size.y * 3);
+        return result;
+    }
+
+    image4_t ImageFromRGBA32(uint8_t *pixels, vec2s_t size)
+    {
+        image4_t result;
+        result.resize(size);
+        std::memcpy(&result[0].x, pixels, size.x * size.y * 4);
+        return result;
+    }
 }
 
 #endif // LAK_IMAGE_H

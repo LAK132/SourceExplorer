@@ -23,10 +23,13 @@ SOFTWARE.
 */
 
 #include <cstdlib>
+#include <cstring>
+#include <algorithm>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
+#include <imgui/examples/imgui_impl_softraster.h>
 
 #ifdef _WIN32
 #include "SDL_syswm.h"
@@ -35,18 +38,28 @@ SOFTWARE.
 #ifndef IMGUI_IMPL_LAK_H
 #define IMGUI_IMPL_LAK_H
 
+#include <lak/image.h>
+
 #include "lak.h"
 
 namespace ImGui
 {
-    enum GraphicsMode
+    enum class GraphicsMode
     {
         SOFTWARE = 0, OPENGL = 1, VULKAN = 2
     };
 
     typedef struct _ImplSRContext
     {
-
+        SDL_Window *window;
+        SDL_Surface *screenSurface;
+        texture_alpha8_t atlasTexture;
+        texture_color16_t screenTexture;
+        static const Uint32 screenFormat = SDL_PIXELFORMAT_RGB565;
+        // texture_color24_t screenTexture;
+        // static const Uint32 screenFormat = SDL_PIXELFORMAT_RGB888;
+        // texture_color32_t screenTexture;
+        // static const Uint32 screenFormat = SDL_PIXELFORMAT_ABGR8888;
     } *ImplSRContext;
 
     typedef struct _ImplGLContext

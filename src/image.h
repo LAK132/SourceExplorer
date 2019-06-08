@@ -41,13 +41,13 @@ namespace SourceExplorer
     lak::color4_t ColorFrom15bit(uint16_t RGB);
     lak::color4_t ColorFrom16bit(uint16_t RGB);
 
-    lak::color4_t ColorFrom8bit(lak::memstrm_t &strm);
-    lak::color4_t ColorFrom15bit(lak::memstrm_t &strm);
-    lak::color4_t ColorFrom16bit(lak::memstrm_t &strm);
-    lak::color4_t ColorFrom24bit(lak::memstrm_t &strm);
-    lak::color4_t ColorFrom32bit(lak::memstrm_t &strm);
+    lak::color4_t ColorFrom8bit(lak::memory &strm);
+    lak::color4_t ColorFrom15bit(lak::memory &strm);
+    lak::color4_t ColorFrom16bit(lak::memory &strm);
+    lak::color4_t ColorFrom24bit(lak::memory &strm);
+    lak::color4_t ColorFrom32bit(lak::memory &strm);
 
-    lak::color4_t ColorFromMode(lak::memstrm_t &strm, const graphics_mode_t mode);
+    lak::color4_t ColorFromMode(lak::memory &strm, const graphics_mode_t mode);
 
     uint16_t BitmapPaddingSize(
         uint16_t width,
@@ -65,8 +65,8 @@ namespace SourceExplorer
         uint16_t checksum; // uint8_t if old
         uint32_t reference = 0;
         lak::vec2u16_t size = {};
-        graphics_mode_t graphicsMode = GRAPHICS4;
-        image_flag_t flags = RLE;
+        graphics_mode_t graphicsMode = graphics_mode_t::GRAPHICS4;
+        image_flag_t flags = image_flag_t::RLE;
 
         uint32_t count = 0;
         lak::vec2u16_t hotspot = {};
@@ -82,14 +82,14 @@ namespace SourceExplorer
     };
 
     image_t CreateImage(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         const bool colorTrans,
         const bool old
     );
 
     // "fucked" version
     image_t CreateImage(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         const bool colorTrans,
         const bool old,
         const lak::vec2u16_t sizeOverride

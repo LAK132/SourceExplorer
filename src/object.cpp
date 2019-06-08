@@ -21,103 +21,118 @@ namespace SourceExplorer
 {
     std::string GetObjectTypeString(object::object_type_t type)
     {
-        using namespace object;
         switch (type)
         {
-            case object_type_t::PLAYER:          return "Player";
-            case object_type_t::KEYBOARD:        return "Keyboard";
-            case object_type_t::CREATE:          return "Create";
-            case object_type_t::TIMER:           return "Timer";
-            case object_type_t::GAME:            return "Game";
-            case object_type_t::SPEAKER:         return "Speaker";
-            case object_type_t::SYSTEM:          return "System";
-            case object_type_t::QUICK_BACKDROP:  return "Quick Backdrop";
-            case object_type_t::BACKDROP:        return "Backdrop";
-            case object_type_t::ACTIVE:          return "Active";
-            case object_type_t::TEXT:            return "Text";
-            case object_type_t::QUESTION:        return "Question";
-            case object_type_t::SCORE:           return "Score";
-            case object_type_t::LIVES:           return "Lives";
-            case object_type_t::COUNTER:         return "Counter";
-            case object_type_t::RTF:             return "RTF";
-            case object_type_t::SUB_APPLICATION: return "Sub Application";
+            case object::object_type_t::PLAYER:          return "Player";
+            case object::object_type_t::KEYBOARD:        return "Keyboard";
+            case object::object_type_t::CREATE:          return "Create";
+            case object::object_type_t::TIMER:           return "Timer";
+            case object::object_type_t::GAME:            return "Game";
+            case object::object_type_t::SPEAKER:         return "Speaker";
+            case object::object_type_t::SYSTEM:          return "System";
+            case object::object_type_t::QUICK_BACKDROP:  return "Quick Backdrop";
+            case object::object_type_t::BACKDROP:        return "Backdrop";
+            case object::object_type_t::ACTIVE:          return "Active";
+            case object::object_type_t::TEXT:            return "Text";
+            case object::object_type_t::QUESTION:        return "Question";
+            case object::object_type_t::SCORE:           return "Score";
+            case object::object_type_t::LIVES:           return "Lives";
+            case object::object_type_t::COUNTER:         return "Counter";
+            case object::object_type_t::RTF:             return "RTF";
+            case object::object_type_t::SUB_APPLICATION: return "Sub Application";
             default: return "Invalid";
         }
     }
 
     namespace object
     {
-        void shape_t::read(lak::memstrm_t &strm)
+        void shape_t::read(lak::memory &strm)
         {
-            borderSize = strm.readInt<uint16_t>();
-            borderColor = strm.readRGBA();
-            shape = strm.readInt<shape_type_t>();
-            fill = strm.readInt<fill_type_t>();
+            borderSize = strm.read_u16();
+            // borderColor = strm.readRGBA();
+            borderColor.r = strm.read_u8();
+            borderColor.g = strm.read_u8();
+            borderColor.b = strm.read_u8();
+            borderColor.a = strm.read_u8();
+            shape = (shape_type_t)strm.read_u16();
+            fill = (fill_type_t)strm.read_u16();
 
-            if (shape == shape_type_t::LINE_SHAPE)
+            if (shape == shape_type_t::LINE)
             {
-                line = strm.readInt<line_flags_t>();
+                line = (line_flags_t)strm.read_u16();
             }
-            else if (fill == fill_type_t::SOLID_FILL)
+            else if (fill == fill_type_t::SOLID)
             {
-                color1 = strm.readRGBA();
+                // color1 = strm.readRGBA();
+                color1.r = strm.read_u8();
+                color1.g = strm.read_u8();
+                color1.b = strm.read_u8();
+                color1.a = strm.read_u8();
             }
-            else if (fill == fill_type_t::GRADIENT_FILL)
+            else if (fill == fill_type_t::GRADIENT)
             {
-                color1 = strm.readRGBA();
-                color2 = strm.readRGBA();
-                gradient = strm.readInt<gradient_flags_t>();
+                // color1 = strm.readRGBA();
+                color1.r = strm.read_u8();
+                color1.g = strm.read_u8();
+                color1.b = strm.read_u8();
+                color1.a = strm.read_u8();
+                // color2 = strm.readRGBA();
+                color2.r = strm.read_u8();
+                color2.g = strm.read_u8();
+                color2.b = strm.read_u8();
+                color2.a = strm.read_u8();
+                gradient = (gradient_flags_t)strm.read_u16();
             }
-            else if (fill == fill_type_t::MOTIF_FILL)
+            else if (fill == fill_type_t::MOTIF)
             {
-                image = strm.readInt<uint16_t>();
+                image = strm.read_u16();
             }
         }
 
-        void quick_backdrop_t::read(lak::memstrm_t &strm)
+        void quick_backdrop_t::read(lak::memory &strm)
         {
-            size = strm.readInt<uint32_t>();
-            obstacle = strm.readInt<uint16_t>();
-            collision = strm.readInt<uint16_t>();
-            width = strm.readInt<uint32_t>();
-            height = strm.readInt<uint32_t>();
+            size = strm.read_u32();
+            obstacle = strm.read_u16();
+            collision = strm.read_u16();
+            width = strm.read_u32();
+            height = strm.read_u32();
             shape.read(strm);
         }
 
-        void backdrop_t::read(lak::memstrm_t &strm)
+        void backdrop_t::read(lak::memory &strm)
         {
-            size = strm.readInt<uint32_t>();
-            obstacle = strm.readInt<uint16_t>();
-            collision = strm.readInt<uint16_t>();
-            width = strm.readInt<uint32_t>();
-            height = strm.readInt<uint32_t>();
-            image = strm.readInt<uint16_t>();
+            size = strm.read_u32();
+            obstacle = strm.read_u16();
+            collision = strm.read_u16();
+            width = strm.read_u32();
+            height = strm.read_u32();
+            image = strm.read_u16();
         }
 
-        void common_t::read(lak::memstrm_t &strm, bool newobj)
+        void common_t::read(lak::memory &strm, bool newobj)
         {
             newObj = newobj;
 
             if (newObj)
             {
-                counter = strm.readInt<uint16_t>();
-                version = strm.readInt<uint16_t>();
+                counter = strm.read_u16();
+                version = strm.read_u16();
                 strm.position += 2;
-                movements = strm.readInt<uint16_t>();
-                extension = strm.readInt<uint16_t>();
-                animations = strm.readInt<uint16_t>();
+                movements = strm.read_u16();
+                extension = strm.read_u16();
+                animations = strm.read_u16();
             }
             else
             {
-                movements = strm.readInt<uint16_t>();
-                animations = strm.readInt<uint16_t>();
-                version = strm.readInt<uint16_t>();
-                counter = strm.readInt<uint16_t>();
-                system = strm.readInt<uint16_t>();
+                movements = strm.read_u16();
+                animations = strm.read_u16();
+                version = strm.read_u16();
+                counter = strm.read_u16();
+                system = strm.read_u16();
                 strm.position += 2;
             }
 
-            flags = strm.readInt<uint32_t>();
+            flags = strm.read_u32();
 
             size_t end = strm.position + 8 * 2;
 
@@ -125,7 +140,7 @@ namespace SourceExplorer
             // qualifiers.reserve(8);
             // for (size_t i = 0; i < 8; ++i)
             // {
-            //     int16_t qualifier = strm.readInt<int16_t>();
+            //     int16_t qualifier = strm.read_s16();
             //     if (qualifier == -1)
             //         break;
             //     qualifiers.push_back(qualifier);
@@ -134,18 +149,22 @@ namespace SourceExplorer
             strm.position = end;
 
             if (newObj)
-                system = strm.readInt<uint16_t>();
+                system = strm.read_u16();
             else
-                extension = strm.readInt<uint16_t>();
+                extension = strm.read_u16();
 
-            values = strm.readInt<uint16_t>();
-            strings = strm.readInt<uint16_t>();
-            newFlags = strm.readInt<uint32_t>();
-            preferences = strm.readInt<uint32_t>();
-            identifier = strm.readInt<uint32_t>();
-            backColor = strm.readRGBA();
-            fadeIn = strm.readInt<uint32_t>();
-            fadeOut = strm.readInt<uint32_t>();
+            values = strm.read_u16();
+            strings = strm.read_u16();
+            newFlags = strm.read_u32();
+            preferences = strm.read_u32();
+            identifier = strm.read_u32();
+            // backColor = strm.readRGBA();
+            backColor.r = strm.read_u8();
+            backColor.g = strm.read_u8();
+            backColor.b = strm.read_u8();
+            backColor.a = strm.read_u8();
+            fadeIn = strm.read_u32();
+            fadeOut = strm.read_u32();
         }
     }
 }

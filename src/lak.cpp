@@ -74,11 +74,12 @@ namespace lak
         wnd.window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             screenSize.x, screenSize.y, SDL_WINDOW_RESIZABLE);
 
-        // wnd.srContext = ;
+        // wnd.srContext = SDL_CreateRenderer(wnd.window, -1, 0);
     }
 
     void ShutdownSR(window_t &wnd)
     {
+        // SDL_DestroyRenderer(wnd.srContext);
         SDL_DestroyWindow(wnd.window);
         SDL_Quit();
     }
@@ -273,8 +274,6 @@ namespace lak
         return _size;
     }
 }
-
-#include <lak/math.cpp>
 
 extern "C" {
 #include <GL/gl3w.c>
