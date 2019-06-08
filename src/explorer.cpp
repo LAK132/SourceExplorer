@@ -20,6 +20,7 @@
 namespace SourceExplorer
 {
     bool debugConsole = true;
+    bool developerConsole = false;
     m128i_t _xmmword;
     std::vector<uint8_t> _magic_key;
     uint8_t _magic_char;
@@ -33,18 +34,19 @@ namespace SourceExplorer
 
     error_t LoadGame(source_explorer_t &srcexp)
     {
-        DEBUG("\nLoading Game");
+        DEBUG("Loading Game");
 
         srcexp.state = game_t{};
 
-        srcexp.state.file.memory = lak::LoadFile(srcexp.exe.path);
+        srcexp.state.file = lak::LoadFile(srcexp.exe.path);
 
-        DEBUG("File Size: 0x" << srcexp.state.file.memory.size());
+        DEBUG("File Size: 0x" << srcexp.state.file.size());
 
         error_t err = ParsePEHeader(srcexp.state.file, srcexp.state);
         if (err != error_t::OK)
         {
-            ERROR("Error Parsing PE Header " << (uint32_t)err);
+            ERROR("Error 0x" << (uint32_t)err << " While Parsing PE Header" <<
+                ", At: 0x" << srcexp.state.file.position);
             return err;
         }
 
@@ -67,10 +69,8 @@ namespace SourceExplorer
         err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
         if (err != error_t::OK)
         {
-            ERROR("Error Reading Entry " << (uint32_t)err);
-
-            // we can try to recover from this
-            // return err;
+            ERROR("Error Reading Entry: Error Code 0x" << (uint32_t)err <<
+                ", At: 0x" << srcexp.state.file.position);
         }
         else
         {
@@ -154,28 +154,36 @@ namespace SourceExplorer
         *keyPtr = accum;
     }
 
-    error_t ParsePEHeader(lak::memstrm_t &strm, game_t &gameState)
+    error_t ParsePEHeader(lak::memory &strm, game_t &gameState)
     {
-        DEBUG("\nParsing PE header");
+        DEBUG("Parsing PE header");
 
-        uint16_t exeSig = strm.readInt<uint16_t>();
+        uint16_t exeSig = strm.read_u16();
         DEBUG("EXE Signature: 0x" << exeSig);
         if (exeSig != WIN_EXE_SIG)
-            return INVALID_EXE_SIGNATURE;
+        {
+            ERROR("Invalid EXE Signature, Expected: 0x" << WIN_EXE_SIG <<
+                ", At: 0x" << (strm.position - 2));
+            return error_t::INVALID_EXE_SIGNATURE;
+        }
 
         strm.position = WIN_EXE_PNT;
-        strm.position = strm.readInt<uint16_t>();
-        DEBUG("EXE Pointer: 0x" << strm.position);
+        strm.position = strm.read_u16();
+        DEBUG("EXE Pointer: 0x" << strm.position <<
+            ", At: 0x" << (size_t)WIN_EXE_PNT);
 
-        int32_t peSig = strm.readInt<int32_t>();
+        int32_t peSig = strm.read_s32();
         DEBUG("PE Signature: 0x" << peSig);
-        DEBUG("Pos: 0x" << strm.position);
         if (peSig != WIN_PE_SIG)
-            return INVALID_PE_SIGNATURE;
+        {
+            ERROR("Invalid PE Signature, Expected: 0x" << WIN_PE_SIG <<
+                ", At: 0x" << (strm.position - 4));
+            return error_t::INVALID_PE_SIGNATURE;
+        }
 
         strm.position += 2;
 
-        uint16_t numHeaderSections = strm.readInt<uint16_t>();
+        uint16_t numHeaderSections = strm.read_u16();
         DEBUG("Number Of Header Sections: " << numHeaderSections);
 
         strm.position += 16;
@@ -189,19 +197,19 @@ namespace SourceExplorer
         for (uint16_t i = 0; i < numHeaderSections; ++i)
         {
             uint64_t start = strm.position;
-            std::string name = strm.readString<char>();
+            std::string name = strm.read_string();
             DEBUG("Name: " << name);
             if (name == ".extra")
             {
                 strm.position = start + 0x14;
-                pos = strm.readInt<int32_t>();
+                pos = strm.read_s32();
                 break;
             }
             else if (i >= numHeaderSections - 1)
             {
                 strm.position = start + 0x10;
-                uint32_t size = strm.readInt<uint32_t>();
-                uint32_t addr = strm.readInt<uint32_t>();
+                uint32_t size = strm.read_u32();
+                uint32_t addr = strm.read_u32();
                 DEBUG("Size: 0x" << size);
                 DEBUG("Addr: 0x" << addr);
                 pos = size + addr;
@@ -214,51 +222,58 @@ namespace SourceExplorer
         while (true)
         {
             strm.position = pos;
-            uint16_t firstShort = strm.readInt<uint16_t>();
+            uint16_t firstShort = strm.read_u16();
             DEBUG("First Short: 0x" << firstShort);
             strm.position = pos;
-            uint32_t pameMagic = strm.readInt<uint32_t>();
+            uint32_t pameMagic = strm.read_u32();
             DEBUG("PAME Magic: 0x" << pameMagic);
             strm.position = pos;
-            uint64_t packMagic = strm.readInt<uint64_t>();
+            uint64_t packMagic = strm.read_u64();
             DEBUG("Pack Magic: 0x" << packMagic);
             strm.position = pos;
             DEBUG("Pos: 0x" << pos);
 
-            if (firstShort == HEADER || pameMagic == HEADER_GAME)
+            if (firstShort == (uint16_t)chunk_t::HEADER || pameMagic == HEADER_GAME)
             {
                 DEBUG("Old Game");
                 gameState.oldGame = true;
-                gameState.state = {}; // gameState.state.clear();
-                gameState.state.push(OLD);
+                gameState.state = {};
+                gameState.state.push(chunk_t::OLD);
                 break;
             }
-            else if (packMagic == HEADERPACK)
+            else if (packMagic == HEADER_PACK)
             {
                 DEBUG("New Game");
                 gameState.oldGame = false;
-                gameState.state = {}; // gameState.state.clear();
-                gameState.state.push(NEW);
+                gameState.state = {};
+                gameState.state.push(chunk_t::NEW);
                 pos = ParsePackData(strm, gameState);
                 break;
             }
             else if (firstShort == 0x222C)
             {
                 strm.position += 4;
-                strm.position += strm.readInt<uint32_t>();
+                strm.position += strm.read_u32();
                 pos = strm.position;
             }
             else if (firstShort == 0x7F7F)
             {
                 pos += 8;
             }
-            else return INVALID_GAME_HEADER;
+            else
+            {
+                ERROR("Invalid Game Header");
+                return error_t::INVALID_GAME_HEADER;
+            }
 
             if (pos > strm.size())
-                return INVALID_GAME_HEADER;
+            {
+                ERROR("Invalid Game Header: pos (0x" << pos << ") > strm.size (0x" << strm.size() << ")");
+                return error_t::INVALID_GAME_HEADER;
+            }
         }
 
-        uint32_t header = strm.readInt<uint32_t>();
+        uint32_t header = strm.read_u32();
         DEBUG("Header: 0x" << header);
 
         gameState.unicode = false;
@@ -268,44 +283,49 @@ namespace SourceExplorer
             gameState.oldGame = false;
         }
         else if (header != HEADER_GAME)
-            return INVALID_GAME_HEADER;
+        {
+            ERROR("Invalid Game Header: 0x" << header <<
+                ", Expected: 0x" << HEADER_GAME <<
+                ", At: 0x" << (strm.position - 4));
+            return error_t::INVALID_GAME_HEADER;
+        }
 
         do {
-            gameState.runtimeVersion = strm.readInt<product_code_t>();
-            DEBUG("Runtime Version: 0x" << gameState.runtimeVersion);
-            if (gameState.runtimeVersion == CNCV1VER)
+            gameState.runtimeVersion = (product_code_t)strm.read_u16();
+            DEBUG("Runtime Version: 0x" << (int)gameState.runtimeVersion);
+            if (gameState.runtimeVersion == product_code_t::CNCV1VER)
             {
                 DEBUG("CNCV1VER");
                 // cnc = true;
                 // readCNC(strm);
                 break;
             }
-            gameState.runtimeSubVersion = strm.readInt<uint16_t>();
+            gameState.runtimeSubVersion = strm.read_u16();
             DEBUG("Runtime Sub-Version: 0x" << gameState.runtimeSubVersion);
-            gameState.productVersion = strm.readInt<uint32_t>();
+            gameState.productVersion = strm.read_u32();
             DEBUG("Product Version: 0x" << gameState.productVersion);
-            gameState.productBuild = strm.readInt<uint32_t>();
+            gameState.productBuild = strm.read_u32();
             DEBUG("Product Build: 0x" << gameState.productBuild);
         } while(0);
 
         return error_t::OK;
     }
 
-    uint64_t ParsePackData(lak::memstrm_t &strm, game_t &gameState)
+    uint64_t ParsePackData(lak::memory &strm, game_t &gameState)
     {
-        DEBUG("\nParsing pack data");
+        DEBUG("Parsing pack data");
 
         uint64_t start = strm.position;
-        uint64_t header = strm.readInt<uint64_t>();
+        uint64_t header = strm.read_u64();
         DEBUG("Header: 0x" << header);
-        uint32_t headerSize = strm.readInt<uint32_t>(); (void)headerSize;
+        uint32_t headerSize = strm.read_u32(); (void)headerSize;
         DEBUG("Header Size: 0x" << headerSize);
-        uint32_t dataSize = strm.readInt<uint32_t>();
+        uint32_t dataSize = strm.read_u32();
         DEBUG("Data Size: 0x" << dataSize);
 
         strm.position = start + dataSize - 0x20;
 
-        header = strm.readInt<uint32_t>();
+        header = strm.read_u32();
         DEBUG("Head: 0x" << header);
         bool unicode = header == HEADER_UNIC;
         if (unicode)
@@ -319,12 +339,12 @@ namespace SourceExplorer
 
         strm.position = start + 0x10;
 
-        uint32_t formatVersion = strm.readInt<uint32_t>(); (void) formatVersion;
+        uint32_t formatVersion = strm.read_u32(); (void) formatVersion;
         DEBUG("Format Version: 0x" << formatVersion);
 
         strm.position += 0x8;
 
-        int32_t count = strm.readInt<int32_t>();
+        int32_t count = strm.read_s32();
         assert(count >= 0);
         DEBUG("Pack Count: 0x" << count);
 
@@ -333,25 +353,25 @@ namespace SourceExplorer
 
         for (int32_t i = 0; i < count; ++i)
         {
-            if ((strm.memory.size() - strm.position) < 2)
+            if ((strm.size() - strm.position) < 2)
                 break;
 
-            uint32_t val = strm.readInt<uint16_t>();
-            if ((strm.memory.size() - strm.position) < val)
+            uint32_t val = strm.read_u16();
+            if ((strm.size() - strm.position) < val)
                 break;
 
             strm.position += val;
-            if ((strm.memory.size() - strm.position) < 4)
+            if ((strm.size() - strm.position) < 4)
                 break;
 
-            val = strm.readInt<uint32_t>();
-            if ((strm.memory.size() - strm.position) < val)
+            val = strm.read_u32();
+            if ((strm.size() - strm.position) < val)
                 break;
 
             strm.position += val;
         }
 
-        header = strm.readInt<uint32_t>();
+        header = strm.read_u32();
         DEBUG("Header: 0x" << header);
 
         bool hasBingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
@@ -363,15 +383,15 @@ namespace SourceExplorer
 
         for (int32_t i = 0; i < count; ++i)
         {
-            uint32_t read = strm.readInt<uint16_t>();
+            uint32_t read = strm.read_u16();
             // size_t strstart = strm.position;
 
             DEBUG("Pack 0x" << i+1 << " of 0x" << count << ", filename length: 0x" << read << ", pos: 0x" << strm.position);
 
             if (unicode)
-                gameState.packFiles[i].filename = strm.readString<char16_t>(read);
+                gameState.packFiles[i].filename = strm.read_u16string(read);
             else
-                gameState.packFiles[i].filename = lak::strconv<char16_t>(strm.readString<char>(read));
+                gameState.packFiles[i].filename = lak::strconv<char16_t>(strm.read_string(read));
 
             // strm.position = strstart + (unicode ? read * 2 : read);
 
@@ -380,23 +400,23 @@ namespace SourceExplorer
             DEBUG("Packfile '" << lak::strconv<char>(gameState.packFiles[i].filename) << "'");
 
             if (hasBingo)
-                gameState.packFiles[i].bingo = strm.readInt<uint32_t>();
+                gameState.packFiles[i].bingo = strm.read_u32();
             else
                 gameState.packFiles[i].bingo = 0;
 
             DEBUG("Bingo: 0x" << gameState.packFiles[i].bingo);
 
             // if (unicode)
-            //     read = strm.readInt<uint32_t>();
+            //     read = strm.read_u32();
             // else
-            //     read = strm.readInt<uint16_t>();
-            read = strm.readInt<uint32_t>();
+            //     read = strm.read_u16();
+            read = strm.read_u32();
 
             DEBUG("Pack File Data Size: 0x" << read << ", Pos: 0x" << strm.position);
-            gameState.packFiles[i].data = strm.readBytes(read);
+            gameState.packFiles[i].data = strm.read(read);
         }
 
-        header = strm.readInt<uint32_t>(); // PAMU sometimes
+        header = strm.read_u32(); // PAMU sometimes
         DEBUG("Header: 0x" << header);
 
         if (header == HEADER_GAME || header == HEADER_UNIC)
@@ -413,65 +433,65 @@ namespace SourceExplorer
         if (entry.data.data.size() > 0)
         {
             auto decode = entry.decode();
-            lak::memstrm_t strm(decode);
+            lak::memory strm(decode);
             if (unicode)
-                return strm.readString<char16_t>();
+                return strm.read_u16string();
             else
-                return lak::strconv<char16_t>(strm.readString<char>());
+                return lak::strconv<char16_t>(strm.read_string());
         }
         else
         {
             auto decode = entry.decodeHeader();
-            lak::memstrm_t strm(decode);
+            lak::memory strm(decode);
             if (unicode)
-                return strm.readString<char16_t>();
+                return strm.read_u16string();
             else
-                return lak::strconv<char16_t>(strm.readString<char>());
+                return lak::strconv<char16_t>(strm.read_string());
         }
     }
 
-    error_t ReadFixedData(lak::memstrm_t &strm, data_point_t &data, const size_t size)
+    error_t ReadFixedData(lak::memory &strm, data_point_t &data, const size_t size)
     {
         data.position = strm.position;
         data.expectedSize = 0;
-        data.data = strm.readBytes(size);
+        data.data = strm.read(size);
         return error_t::OK;
     }
 
-    error_t ReadDynamicData(lak::memstrm_t &strm, data_point_t &data)
+    error_t ReadDynamicData(lak::memory &strm, data_point_t &data)
     {
-        return ReadFixedData(strm, data, strm.readInt<uint32_t>());
+        return ReadFixedData(strm, data, strm.read_u32());
     }
 
-    error_t ReadCompressedData(lak::memstrm_t &strm, data_point_t &data)
+    error_t ReadCompressedData(lak::memory &strm, data_point_t &data)
     {
         data.position = strm.position;
-        data.expectedSize = strm.readInt<uint32_t>();
-        data.data = strm.readBytes(strm.readInt<uint32_t>());
+        data.expectedSize = strm.read_u32();
+        data.data = strm.read(strm.read_u32());
         return error_t::OK;
     }
 
-    error_t ReadRevCompressedData(lak::memstrm_t &strm, data_point_t &data)
+    error_t ReadRevCompressedData(lak::memory &strm, data_point_t &data)
     {
         data.position = strm.position;
-        uint32_t compressed = strm.readInt<uint32_t>();
-        data.expectedSize = strm.readInt<uint32_t>();
+        uint32_t compressed = strm.read_u32();
+        data.expectedSize = strm.read_u32();
         if (compressed >= 4)
         {
-            data.data = strm.readBytes(compressed - 4);
+            data.data = strm.read(compressed - 4);
             return error_t::OK;
         }
-        data.data = lak::memstrm_t{};
+        data.data = lak::memory{};
         return error_t::OK;
     }
 
-    error_t ReadStreamCompressedData(lak::memstrm_t &strm, data_point_t &data)
+    error_t ReadStreamCompressedData(lak::memory &strm, data_point_t &data)
     {
         data.position = strm.position;
-        data.expectedSize = strm.readInt<uint32_t>();
+        data.expectedSize = strm.read_u32();
         size_t start = strm.position;
         StreamDecompress(strm, data.expectedSize);
-        data.data = strm.readBytesToCursor(start);
+        data.data = strm.read_range(start);
         return error_t::OK;
     }
 
@@ -596,10 +616,10 @@ namespace SourceExplorer
     {
         switch (mode)
         {
-            case MODE3:
-            case MODE2:
+            case encoding_t::MODE3:
+            case encoding_t::MODE2:
                 return Decrypt(encoded, id, mode);
-            case MODE1:
+            case encoding_t::MODE1:
                 return Inflate(encoded);
             default:
                 if (encoded.size() > 0 && encoded[0] == 0x78)
@@ -626,7 +646,7 @@ namespace SourceExplorer
         return result;
     }
 
-    std::vector<uint8_t> StreamDecompress(lak::memstrm_t &strm, unsigned int outSize)
+    std::vector<uint8_t> StreamDecompress(lak::memory &strm, unsigned int outSize)
     {
         std::vector<uint8_t> result; result.resize(outSize);
         strm.position += tinf_uncompress(&(result[0]), &outSize, strm.get(), strm.remaining());
@@ -635,15 +655,15 @@ namespace SourceExplorer
 
     std::vector<uint8_t> Decrypt(const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode)
     {
-        if (mode == MODE3)
+        if (mode == encoding_t::MODE3)
         {
             if (encrypted.size() <= 4) return encrypted;
             // TODO: check endian
             // size_t dataLen = *reinterpret_cast<const uint32_t*>(&encrypted[0]);
             std::vector<uint8_t> mem(encrypted.begin() + 4, encrypted.end());
 
-            if (!_284_mode && (ID & 0x1) != 0)
-                mem[0] ^= (ID & 0xFF) ^ (ID >> 0x8);
+            if (!_284_mode && ((uint16_t)ID & 0x1) != 0)
+                mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
             if (DecodeChunk(mem, _magic_key, _xmmword))
             {
@@ -660,8 +680,8 @@ namespace SourceExplorer
 
             std::vector<uint8_t> mem = encrypted;
 
-            if (!_284_mode && ID & 0x1)
-                mem[0] ^= (ID & 0xFF) ^ (ID >> 0x8);
+            if (!_284_mode && (uint16_t)ID & 0x1)
+                mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
             if (!DecodeChunk(mem, _magic_key, _xmmword))
                 DEBUG("MODE 2 Decryption Failed");
@@ -689,39 +709,39 @@ namespace SourceExplorer
         return nullptr;
     }
 
-    lak::memstrm_t resource_entry_t::streamHeader() const
+    lak::memory resource_entry_t::streamHeader() const
     {
         return header.data;
     }
 
-    lak::memstrm_t resource_entry_t::stream() const
+    lak::memory resource_entry_t::stream() const
     {
         return data.data;
     }
 
-    lak::memstrm_t resource_entry_t::decodeHeader() const
+    lak::memory resource_entry_t::decodeHeader() const
     {
         return header.decode(ID, mode);
     }
 
-    lak::memstrm_t resource_entry_t::decode() const
+    lak::memory resource_entry_t::decode() const
     {
         return data.decode(ID, mode);
     }
 
-    lak::memstrm_t data_point_t::decode(const chunk_t ID, const encoding_t mode) const
+    lak::memory data_point_t::decode(const chunk_t ID, const encoding_t mode) const
     {
-        return lak::memstrm_t(Decode(data.memory, ID, mode));
+        return lak::memory(Decode(data._data, ID, mode));
     }
 
-    error_t chunk_entry_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t chunk_entry_t::read(game_t &game, lak::memory &strm)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
 
         position = strm.position;
         old = game.oldGame;
-        ID = strm.readInt<chunk_t>();
-        mode = strm.readInt<encoding_t>();
+        ID = (chunk_t)strm.read_u16();
+        mode = (encoding_t)strm.read_u16();
 
         if ((mode == encoding_t::MODE2 || mode == encoding_t::MODE3) && _magic_key.size() < 256)
             GetEncryptionKey(game);
@@ -772,20 +792,20 @@ namespace SourceExplorer
             srcexp.view = this;
     }
 
-    error_t item_entry_t::read(game_t &game, lak::memstrm_t &strm, bool compressed, size_t headersize)
+    error_t item_entry_t::read(game_t &game, lak::memory &strm, bool compressed, size_t headersize)
     {
         if (!strm.remaining()) return error_t::OUT_OF_DATA;
 
         position = strm.position;
         old = game.oldGame;
-        mode = MODE0;
-        handle = strm.readInt<uint32_t>();
+        mode = encoding_t::MODE0;
+        handle = strm.read_u32();
         if (!game.oldGame && game.productBuild >= 284) --handle;
 
         if (game.oldGame)
         {
             ReadStreamCompressedData(strm, data);
-            mode = MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
+            mode = encoding_t::MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
         }
         else
         {
@@ -826,30 +846,30 @@ namespace SourceExplorer
             srcexp.view = this;
     }
 
-    lak::memstrm_t basic_entry_t::decode() const
+    lak::memory basic_entry_t::decode() const
     {
-        lak::memstrm_t result;
+        lak::memory result;
         if (old)
         {
             switch (mode)
             {
-                case MODE0: result = data.data; break;
-                case MODE1: {
+                case encoding_t::MODE0: result = data.data; break;
+                case encoding_t::MODE1: {
                     result = data.data;
-                    uint8_t magic = result.readInt<uint8_t>();
-                    uint16_t len = result.readInt<uint16_t>();
+                    uint8_t magic = result.read_u8();
+                    uint16_t len = result.read_u16();
                     if (magic == 0x0F && len == (data.expectedSize & 0xFFFF))
                     {
-                        result = result.readBytes(result.remaining());
+                        result = result.read(result.remaining());
                     }
                     else
                     {
                         result.position -= 3;
-                        result = Decompress(result.memory, data.expectedSize);
+                        result = Decompress(result._data, data.expectedSize);
                     }
                 } break;
-                case MODE2: ERROR("No Old Decode for Mode 2"); break;
-                case MODE3: ERROR("No Old Decode for Mode 3"); break;
+                case encoding_t::MODE2: ERROR("No Old Decode For Mode 2"); break;
+                case encoding_t::MODE3: ERROR("No Old Decode For Mode 3"); break;
                 default: break;
             }
         }
@@ -857,27 +877,27 @@ namespace SourceExplorer
         {
             switch (mode)
             {
-                case MODE3:
-                case MODE2:
-                    result = Decrypt(data.data.memory, ID, mode);
+                case encoding_t::MODE3:
+                case encoding_t::MODE2:
+                    result = Decrypt(data.data._data, ID, mode);
                     break;
-                case MODE1:
-                    result = Inflate(data.data.memory);
+                case encoding_t::MODE1:
+                    result = Inflate(data.data._data);
                     break;
                 default:
-                    if (data.data.memory.size() > 0 && data.data.memory[0] == 0x78)
-                        result = Inflate(data.data.memory);
+                    if (data.data.size() > 0 && data.data[0] == 0x78)
+                        result = Inflate(data.data._data);
                     else
-                        result = data.data.memory;
+                        result = data.data._data;
                     break;
             }
         }
         return result;
     }
 
-    lak::memstrm_t basic_entry_t::decodeHeader() const
+    lak::memory basic_entry_t::decodeHeader() const
     {
-        lak::memstrm_t result;
+        lak::memory result;
         if (old)
         {
 
@@ -886,30 +906,30 @@ namespace SourceExplorer
         {
             switch (mode)
             {
-                case MODE3:
-                case MODE2:
-                    result = Decrypt(header.data.memory, ID, mode);
+                case encoding_t::MODE3:
+                case encoding_t::MODE2:
+                    result = Decrypt(header.data._data, ID, mode);
                     break;
-                case MODE1:
-                    result = Inflate(header.data.memory);
+                case encoding_t::MODE1:
+                    result = Inflate(header.data._data);
                     break;
                 default:
-                    if (header.data.memory.size() > 0 && header.data.memory[0] == 0x78)
-                        result = Inflate(header.data.memory);
+                    if (header.data.size() > 0 && header.data[0] == 0x78)
+                        result = Inflate(header.data._data);
                     else
-                        result = header.data.memory;
+                        result = header.data._data;
                     break;
             }
         }
         return result;
     }
 
-    lak::memstrm_t basic_entry_t::raw() const
+    lak::memory basic_entry_t::raw() const
     {
         return data.data;
     }
 
-    lak::memstrm_t basic_entry_t::rawHeader() const
+    lak::memory basic_entry_t::rawHeader() const
     {
         return header.data;
     }
@@ -922,27 +942,28 @@ namespace SourceExplorer
         {
             switch (entry.mode)
             {
-                case MODE0:
-                case MODE1: {
-                    result = lak::strconv<char16_t>(entry.decode().readString<char>());
+                case encoding_t::MODE0:
+                case encoding_t::MODE1: {
+                    result = lak::strconv<char16_t>(entry.decode().read_string());
                 } break;
                 default: {
-                    ERROR("Invalid String Mode '" << entry.mode << "' Chunk '" << entry.ID << "'");
+                    ERROR("Invalid String Mode: 0x" << (int)entry.mode <<
+                        ", Chunk: 0x" << (int)entry.ID);
                 } break;
             }
         }
         else
         {
             if (game.unicode)
-                result = entry.decode().readString<char16_t>();
+                result = entry.decode().read_u16string();
             else
-                result = lak::strconv<char16_t>(entry.decode().readString<char>());
+                result = lak::strconv<char16_t>(entry.decode().read_string());
         }
 
         return result;
     }
 
-    error_t basic_chunk_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t basic_chunk_t::read(game_t &game, lak::memory &strm)
     {
         DEBUG("Reading Basic Chunk");
         error_t result = entry.read(game, strm);
@@ -966,7 +987,7 @@ namespace SourceExplorer
         return result;
     }
 
-    error_t basic_item_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t basic_item_t::read(game_t &game, lak::memory &strm)
     {
         DEBUG("Reading Basic Chunk");
         error_t result = entry.read(game, strm, true);
@@ -990,7 +1011,7 @@ namespace SourceExplorer
         return result;
     }
 
-    error_t string_chunk_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t string_chunk_t::read(game_t &game, lak::memory &strm)
     {
         DEBUG("Reading String Chunk");
         error_t result = entry.read(game, strm);
@@ -1099,23 +1120,23 @@ namespace SourceExplorer
         return basic_view(srcexp, "Extension List");
     }
 
-    error_t icon_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t icon_t::read(game_t &game, lak::memory &strm)
     {
         DEBUG("Reading Icon");
         error_t result = entry.read(game, strm);
 
         auto dstrm = entry.decode();
-        dstrm.position = dstrm.peekInt<uint32_t>();
+        dstrm.position = dstrm.peek_u32();
 
         std::vector<lak::color4_t> palette;
         palette.resize(16 * 16);
 
         for (auto &point : palette)
         {
-            point.b = dstrm.readInt<uint8_t>();
-            point.g = dstrm.readInt<uint8_t>();
-            point.r = dstrm.readInt<uint8_t>();
-            // point.a = dstrm.readInt<uint8_t>();
+            point.b = dstrm.read_u8();
+            point.g = dstrm.read_u8();
+            point.r = dstrm.read_u8();
+            // point.a = dstrm.read_u8();
             point.a = 0xFF;
             ++dstrm.position;
         }
@@ -1126,13 +1147,13 @@ namespace SourceExplorer
         {
             for (size_t x = 0; x < bitmap.size().x; ++x)
             {
-                bitmap[{x, (bitmap.size().y - 1) - y}] = palette[dstrm.readInt<uint8_t>()];
+                bitmap[{x, (bitmap.size().y - 1) - y}] = palette[dstrm.read_u8()];
             }
         }
 
         for (size_t i = 0; i < bitmap.contig_size() / 8; ++i)
         {
-            uint8_t mask = dstrm.readInt<uint8_t>();
+            uint8_t mask = dstrm.read_u8();
             for (size_t j = 0; j < 8; ++j)
             {
                 if (0x1 & (mask >> (8 - j)))
@@ -1257,39 +1278,39 @@ namespace SourceExplorer
             return basic_view(srcexp, "Effect");
         }
 
-        error_t item_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t item_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Object");
             error_t result = entry.read(game, strm);
 
             auto dstrm = entry.decode();
-            handle = dstrm.readInt<uint16_t>();
-            type = dstrm.readInt<object_type_t>();
-            dstrm.readInt<uint16_t>(); // flags
-            dstrm.readInt<uint16_t>(); // "no longer used"
-            inkEffect = dstrm.readInt<uint32_t>();
-            inkEffectParam = dstrm.readInt<uint32_t>();
+            handle = dstrm.read_u16();
+            type = (object_type_t)dstrm.read_s16();
+            dstrm.read_u16(); // flags
+            dstrm.read_u16(); // "no longer used"
+            inkEffect = dstrm.read_u32();
+            inkEffectParam = dstrm.read_u32();
 
             while (result == error_t::OK)
             {
-                switch (strm.peekInt<chunk_t>())
+                switch ((chunk_t)strm.peek_u16())
                 {
-                    case OBJNAME:
+                    case chunk_t::OBJNAME:
                         name = std::make_unique<string_chunk_t>();
                         result = name->read(game, strm);
                         break;
 
-                    case OBJPROP:
+                    case chunk_t::OBJPROP:
                         properties = std::make_unique<properties_t>();
                         result = properties->read(game, strm);
                         break;
 
-                    case OBJEFCT:
+                    case chunk_t::OBJEFCT:
                         effect = std::make_unique<effect_t>();
                         result = effect->read(game, strm);
                         break;
 
-                    case LAST:
+                    case chunk_t::LAST:
                         end = std::make_unique<last_t>();
                         result = end->read(game, strm);
                     default: goto finished;
@@ -1302,10 +1323,10 @@ namespace SourceExplorer
                 auto pstrm = properties->entry.decode();
                 switch (type)
                 {
-                    case QUICK_BACKDROP: {
+                    case object_type_t::QUICK_BACKDROP: {
                         quickBackdrop.read(pstrm);
                     } break;
-                    case BACKDROP: {
+                    case object_type_t::BACKDROP: {
                         backdrop.read(pstrm);
                     } break;
                     default: {
@@ -1343,11 +1364,11 @@ namespace SourceExplorer
 
                 switch (type)
                 {
-                    case QUICK_BACKDROP: {
+                    case object_type_t::QUICK_BACKDROP: {
                         auto *img = GetImage(srcexp.state, quickBackdrop.shape.image);
                         if (img != nullptr) img->view(srcexp);
                     } break;
-                    case BACKDROP: {
+                    case object_type_t::BACKDROP: {
                         auto *img = GetImage(srcexp.state, backdrop.image);
                         if (img != nullptr) img->view(srcexp);
                     } break;
@@ -1363,14 +1384,14 @@ namespace SourceExplorer
             return result;
         }
 
-        error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t bank_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Object Bank");
             error_t result = entry.read(game, strm);
 
             strm.position = entry.data.position;
 
-            items.resize(strm.readInt<uint32_t>());
+            items.resize(strm.read_u32());
 
             for (auto &item : items)
             {
@@ -1423,9 +1444,83 @@ namespace SourceExplorer
             return basic_view(srcexp, "Palette");
         }
 
+        error_t object_instance_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Object Instance");
+
+            handle = strm.read_u16();
+            info = strm.read_u16();
+            position.x = strm.read_s32();
+            position.y = strm.read_s32();
+            parentType = strm.read_u16();
+            parentHandle = strm.read_u16();
+            layer = strm.read_u16();
+            unknown = strm.read_u16();
+
+            return error_t::OK;
+        }
+
         error_t object_instance_t::view(source_explorer_t &srcexp) const
         {
-            return basic_view(srcexp, "Object Instance");
+            if (lak::TreeNode("0x%zX", (size_t)handle))
+            {
+                ImGui::Separator();
+
+                ImGui::Text("Handle: 0x%zX", (size_t)handle);
+                ImGui::Text("Info: 0x%zX", (size_t)info);
+                ImGui::Text("Position: (%li, %li)", (long)position.x, (long)position.y);
+                ImGui::Text("Parent Type: 0x%zX", (size_t)parentType);
+                ImGui::Text("Parent Handle: 0x%zX", (size_t)parentHandle);
+                ImGui::Text("Layer: 0x%zX", (size_t)layer);
+                ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
+
+                auto *obj = GetObject(srcexp.state, handle);
+                if (obj != nullptr)
+                {
+                    obj->view(srcexp);
+                }
+
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
+
+            return error_t::OK;
+        }
+
+        error_t object_instances_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Object Instances");
+            error_t result = entry.read(game, strm);
+
+            auto hstrm = entry.decode();
+            objects.clear();
+            objects.resize(hstrm.read_u32());
+            DEBUG("Objects: 0x" << objects.size());
+            for (auto &handle : objects)
+                handle.read(game, hstrm);
+
+            return result;
+        }
+
+        error_t object_instances_t::view(source_explorer_t &srcexp) const
+        {
+            error_t result = error_t::OK;
+
+            if (lak::TreeNode("0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position))
+            {
+                ImGui::Separator();
+
+                entry.view(srcexp);
+
+                for (const auto &object : objects)
+                    object.view(srcexp);
+
+                ImGui::Separator();
+
+                ImGui::TreePop();
+            }
+
+            return result;
         }
 
         error_t fade_in_frame_t::view(source_explorer_t &srcexp) const
@@ -1483,12 +1578,12 @@ namespace SourceExplorer
             return basic_view(srcexp, "Demo File Path");
         }
 
-        error_t random_seed_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t random_seed_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Random Seed");
             error_t result = entry.read(game, strm);
 
-            value = entry.decode().readInt<int16_t>();
+            value = entry.decode().read_s16();
 
             return result;
         }
@@ -1546,7 +1641,7 @@ namespace SourceExplorer
             return basic_view(srcexp, "Chunk 334C");
         }
 
-        error_t item_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t item_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Frame");
             error_t result = entry.read(game, strm);
@@ -1555,129 +1650,129 @@ namespace SourceExplorer
 
             while (result == error_t::OK)
             {
-                switch (strm.peekInt<chunk_t>())
+                switch ((chunk_t)strm.peek_u16())
                 {
-                    case FRAMENAME:
+                    case chunk_t::FRAMENAME:
                         name = std::make_unique<string_chunk_t>();
                         result = name->read(game, strm);
                         break;
 
-                    case FRAMEHEADER:
+                    case chunk_t::FRAMEHEADER:
                         header = std::make_unique<header_t>();
                         result = header->read(game, strm);
                         break;
 
-                    case FRAMEPASSWORD:
+                    case chunk_t::FRAMEPASSWORD:
                         password = std::make_unique<password_t>();
                         result = password->read(game, strm);
                         break;
 
-                    case FRAMEPALETTE:
+                    case chunk_t::FRAMEPALETTE:
                         palette = std::make_unique<palette_t>();
                         result = palette->read(game, strm);
                         break;
 
-                    case OBJINST:
-                        objectInstance = std::make_unique<object_instance_t>();
-                        result = objectInstance->read(game, strm);
+                    case chunk_t::OBJINST:
+                        objectInstances = std::make_unique<object_instances_t>();
+                        result = objectInstances->read(game, strm);
                         break;
 
-                    case FRAMEFADEIF:
+                    case chunk_t::FRAMEFADEIF:
                         fadeInFrame = std::make_unique<fade_in_frame_t>();
                         result = fadeInFrame->read(game, strm);
                         break;
 
-                    case FRAMEFADEOF:
+                    case chunk_t::FRAMEFADEOF:
                         fadeOutFrame = std::make_unique<fade_out_frame_t>();
                         result = fadeOutFrame->read(game, strm);
                         break;
 
-                    case FRAMEFADEI:
+                    case chunk_t::FRAMEFADEI:
                         fadeIn = std::make_unique<fade_in_t>();
                         result = fadeIn->read(game, strm);
                         break;
 
-                    case FRAMEFADEO:
+                    case chunk_t::FRAMEFADEO:
                         fadeOut = std::make_unique<fade_out_t>();
                         result = fadeOut->read(game, strm);
                         break;
 
-                    case FRAMEEVENTS:
+                    case chunk_t::FRAMEEVENTS:
                         events = std::make_unique<events_t>();
                         result = events->read(game, strm);
                         break;
 
-                    case FRAMEPLYHEAD:
+                    case chunk_t::FRAMEPLYHEAD:
                         playHead = std::make_unique<play_head_t>();
                         result = playHead->read(game, strm);
                         break;
 
-                    case FRAMEADDITEM:
+                    case chunk_t::FRAMEADDITEM:
                         additionalItem = std::make_unique<additional_item_t>();
                         result = additionalItem->read(game, strm);
                         break;
 
-                    case FRAMEADDITEMINST:
+                    case chunk_t::FRAMEADDITEMINST:
                         additionalItemInstance = std::make_unique<additional_item_instance_t>();
                         result = additionalItemInstance->read(game, strm);
                         break;
 
-                    case FRAMELAYERS:
+                    case chunk_t::FRAMELAYERS:
                         layers = std::make_unique<layers_t>();
                         result = layers->read(game, strm);
                         break;
 
-                    case FRAMEVIRTSIZE:
+                    case chunk_t::FRAMEVIRTSIZE:
                         virtualSize = std::make_unique<virtual_size_t>();
                         result = virtualSize->read(game, strm);
                         break;
 
-                    case DEMOFILEPATH:
+                    case chunk_t::DEMOFILEPATH:
                         demoFilePath = std::make_unique<demo_file_path_t>();
                         result = demoFilePath->read(game, strm);
                         break;
 
-                    case RANDOMSEED:
+                    case chunk_t::RANDOMSEED:
                         randomSeed = std::make_unique<random_seed_t>();
                         result = randomSeed->read(game, strm);
                         break;
 
-                    case FRAMELAYEREFFECT:
+                    case chunk_t::FRAMELAYEREFFECT:
                         layerEffect = std::make_unique<layer_effect_t>();
                         result = layerEffect->read(game, strm);
                         break;
 
-                    case FRAMEBLURAY:
+                    case chunk_t::FRAMEBLURAY:
                         blueray = std::make_unique<blueray_t>();
                         result = blueray->read(game, strm);
                         break;
 
-                    case MOVETIMEBASE:
+                    case chunk_t::MOVETIMEBASE:
                         movementTimeBase = std::make_unique<movement_time_base_t>();
                         result = movementTimeBase->read(game, strm);
                         break;
 
-                    case MOSAICIMGTABLE:
+                    case chunk_t::MOSAICIMGTABLE:
                         mosaicImageTable = std::make_unique<mosaic_image_table_t>();
                         result = mosaicImageTable->read(game, strm);
                         break;
 
-                    case FRAMEEFFECTS:
+                    case chunk_t::FRAMEEFFECTS:
                         effects = std::make_unique<effects_t>();
                         result = effects->read(game, strm);
                         break;
 
-                    case FRAMEIPHONEOPTS:
+                    case chunk_t::FRAMEIPHONEOPTS:
                         iphoneOptions = std::make_unique<iphone_options_t>();
                         result = iphoneOptions->read(game, strm);
                         break;
 
-                    case FRAMECHUNK334C:
+                    case chunk_t::FRAMECHUNK334C:
                         chunk334C = std::make_unique<chunk_334C_t>();
                         result = chunk334C->read(game, strm);
                         break;
 
-                    case LAST:
+                    case chunk_t::LAST:
                         end = std::make_unique<last_t>();
                         result = end->read(game, strm);
                     default: goto finished;
@@ -1705,7 +1800,7 @@ namespace SourceExplorer
                 if (header) header->view(srcexp);
                 if (password) password->view(srcexp);
                 if (palette) palette->view(srcexp);
-                if (objectInstance) objectInstance->view(srcexp);
+                if (objectInstances) objectInstances->view(srcexp);
                 if (fadeInFrame) fadeInFrame->view(srcexp);
                 if (fadeOutFrame) fadeOutFrame->view(srcexp);
                 if (fadeIn) fadeIn->view(srcexp);
@@ -1738,13 +1833,13 @@ namespace SourceExplorer
             return basic_view(srcexp, "Handles");
         }
 
-        error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t bank_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Frame Bank");
             error_t result = entry.read(game, strm);
 
             items.clear();
-            while (result == error_t::OK && strm.peekInt<chunk_t>() == FRAME)
+            while (result == error_t::OK && (chunk_t)strm.peek_u16() == chunk_t::FRAME)
             {
                 items.emplace_back();
                 result = items.back().read(game, strm);
@@ -1808,14 +1903,14 @@ namespace SourceExplorer
             return basic_view(srcexp, "Image Bank End");
         }
 
-        error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t bank_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Image Bank");
             error_t result = entry.read(game, strm);
 
             strm.position = entry.data.position;
 
-            items.resize(strm.readInt<uint32_t>());
+            items.resize(strm.read_u32());
 
             for (auto &item : items)
             {
@@ -1825,7 +1920,7 @@ namespace SourceExplorer
 
             strm.position = entry.end;
 
-            if (strm.peekInt<chunk_t>() == chunk_t::ENDIMAGE)
+            if ((chunk_t)strm.peek_u16() == chunk_t::ENDIMAGE)
             {
                 end = std::make_unique<end_t>();
                 if (end) result = end->read(game, strm);
@@ -1871,14 +1966,14 @@ namespace SourceExplorer
             return basic_view(srcexp, "Font Bank End");
         }
 
-        error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t bank_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Font Bank");
             error_t result = entry.read(game, strm);
 
             strm.position = entry.data.position;
 
-            items.resize(strm.readInt<uint32_t>());
+            items.resize(strm.read_u32());
 
             for (auto &item : items)
             {
@@ -1888,7 +1983,7 @@ namespace SourceExplorer
 
             strm.position = entry.end;
 
-            if (strm.peekInt<chunk_t>() == chunk_t::ENDFONT)
+            if ((chunk_t)strm.peek_u16() == chunk_t::ENDFONT)
             {
                 end = std::make_unique<end_t>();
                 if (end) result = end->read(game, strm);
@@ -1924,7 +2019,7 @@ namespace SourceExplorer
 
     namespace sound
     {
-        error_t item_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t item_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Sound");
             error_t result = entry.read(game, strm, false, 0x18);
@@ -1941,14 +2036,14 @@ namespace SourceExplorer
             return basic_view(srcexp, "Sound Bank End");
         }
 
-        error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t bank_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Sound Bank");
             error_t result = entry.read(game, strm);
 
             strm.position = entry.data.position;
 
-            items.resize(strm.readInt<uint32_t>());
+            items.resize(strm.read_u32());
 
             for (auto &item : items)
             {
@@ -1958,7 +2053,7 @@ namespace SourceExplorer
 
             strm.position = entry.end;
 
-            if (strm.peekInt<chunk_t>() == chunk_t::ENDSOUND)
+            if ((chunk_t)strm.peek_u16() == chunk_t::ENDSOUND)
             {
                 end = std::make_unique<end_t>();
                 if (end) result = end->read(game, strm);
@@ -2004,14 +2099,14 @@ namespace SourceExplorer
             return basic_view(srcexp, "Music Bank End");
         }
 
-        error_t bank_t::read(game_t &game, lak::memstrm_t &strm)
+        error_t bank_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Music Bank");
             error_t result = entry.read(game, strm);
 
             strm.position = entry.data.position;
 
-            items.resize(strm.readInt<uint32_t>());
+            items.resize(strm.read_u32());
 
             for (auto &item : items)
             {
@@ -2021,7 +2116,7 @@ namespace SourceExplorer
 
             strm.position = entry.end;
 
-            if (strm.peekInt<chunk_t>() == chunk_t::ENDMUSIC)
+            if ((chunk_t)strm.peek_u16() == chunk_t::ENDMUSIC)
             {
                 end = std::make_unique<end_t>();
                 if (end) result = end->read(game, strm);
@@ -2060,282 +2155,282 @@ namespace SourceExplorer
         return basic_view(srcexp, "Last");
     }
 
-    error_t header_t::read(game_t &game, lak::memstrm_t &strm)
+    error_t header_t::read(game_t &game, lak::memory &strm)
     {
         DEBUG("Reading Header");
         error_t result = entry.read(game, strm);
 
         while (result == error_t::OK)
         {
-            chunk_t childID = strm.peekInt<chunk_t>();
+            chunk_t childID = (chunk_t)strm.peek_u16();
             switch (childID)
             {
-                case TITLE:
+                case chunk_t::TITLE:
                     DEBUG("Reading Title");
                     title = std::make_unique<string_chunk_t>();
                     result = title->read(game, strm);
                     break;
 
-                case AUTHOR:
+                case chunk_t::AUTHOR:
                     DEBUG("Reading Author");
                     author = std::make_unique<string_chunk_t>();
                     result = author->read(game, strm);
                     break;
 
-                case COPYRIGHT:
+                case chunk_t::COPYRIGHT:
                     DEBUG("Reading Copyright");
                     copyright = std::make_unique<string_chunk_t>();
                     result = copyright->read(game, strm);
                     break;
 
-                case PROJPATH:
+                case chunk_t::PROJPATH:
                     DEBUG("Reading Project Path");
                     projectPath = std::make_unique<string_chunk_t>();
                     result = projectPath->read(game, strm);
                     break;
 
-                case OUTPATH:
+                case chunk_t::OUTPATH:
                     DEBUG("Reading Project Output Path");
                     outputPath = std::make_unique<string_chunk_t>();
                     result = outputPath->read(game, strm);
                     break;
 
-                case ABOUT:
+                case chunk_t::ABOUT:
                     DEBUG("Reading About");
                     about = std::make_unique<string_chunk_t>();
                     result = about->read(game, strm);
                     break;
 
-                case VITAPREV:
+                case chunk_t::VITAPREV:
                     DEBUG("Reading Project Vitalise Preview");
                     vitalisePreview = std::make_unique<vitalise_preview_t>();
                     result = vitalisePreview->read(game, strm);
                     break;
 
-                case MENU:
+                case chunk_t::MENU:
                     DEBUG("Reading Project Menu");
                     menu = std::make_unique<menu_t>();
                     result = menu->read(game, strm);
                     break;
 
-                case EXTPATH:
+                case chunk_t::EXTPATH:
                     DEBUG("Reading Extension Path");
                     extensionPath = std::make_unique<extension_path_t>();
                     result = extensionPath->read(game, strm);
                     break;
 
-                case EXTENS:
+                case chunk_t::EXTENS:
                     DEBUG("Reading Extensions");
                     extensions = std::make_unique<extensions_t>();
                     result = extensions->read(game, strm);
                     break;
 
-                case EXTDATA:
+                case chunk_t::EXTDATA:
                     DEBUG("Reading Extension Data");
                     extensionData = std::make_unique<extension_data_t>();
                     result = extensionData->read(game, strm);
                     break;
 
-                case ADDEXTNS:
+                case chunk_t::ADDEXTNS:
                     DEBUG("Reading Additional Extensions");
                     additionalExtensions = std::make_unique<additional_extensions_t>();
                     result = additionalExtensions->read(game, strm);
                     break;
 
-                case APPDOC:
+                case chunk_t::APPDOC:
                     DEBUG("Reading Application Doc");
                     appDoc = std::make_unique<application_doc_t>();
                     result = appDoc->read(game, strm);
                     break;
 
-                case OTHEREXT:
+                case chunk_t::OTHEREXT:
                     DEBUG("Reading Other Extension");
                     otherExtension = std::make_unique<other_extenion_t>();
                     result = otherExtension->read(game, strm);
                     break;
 
-                case EXTNLIST:
+                case chunk_t::EXTNLIST:
                     DEBUG("Reading Extension List");
                     extensionList = std::make_unique<extension_list_t>();
                     result = extensionList->read(game, strm);
                     break;
 
-                case ICON:
+                case chunk_t::ICON:
                     DEBUG("Reading Icon");
                     icon = std::make_unique<icon_t>();
                     result = icon->read(game, strm);
                     break;
 
-                case DEMOVER:
+                case chunk_t::DEMOVER:
                     DEBUG("Reading Demo Version");
                     demoVersion = std::make_unique<demo_version_t>();
                     result = demoVersion->read(game, strm);
                     break;
 
-                case SECNUM:
+                case chunk_t::SECNUM:
                     DEBUG("Reading Security Number");
                     security = std::make_unique<security_number_t>();
                     result = security->read(game, strm);
                     break;
 
-                case BINFILES:
+                case chunk_t::BINFILES:
                     DEBUG("Reading Binary Files");
                     binaryFiles = std::make_unique<binary_files_t>();
                     result = binaryFiles->read(game, strm);
                     break;
 
-                case MENUIMAGES:
+                case chunk_t::MENUIMAGES:
                     DEBUG("Reading Menu Images");
                     menuImages = std::make_unique<menu_images_t>();
                     result = menuImages->read(game, strm);
                     break;
 
-                case MOVEMNTEXTNS:
+                case chunk_t::MOVEMNTEXTNS:
                     DEBUG("Reading Movement Extensions");
                     movementExtensions = std::make_unique<movement_extensions_t>();
                     result = movementExtensions->read(game, strm);
                     break;
 
-                case EXEONLY:
+                case chunk_t::EXEONLY:
                     DEBUG("Reading EXE Only");
                     exe = std::make_unique<exe_t>();
                     result = exe->read(game, strm);
                     break;
 
-                case PROTECTION:
+                case chunk_t::PROTECTION:
                     DEBUG("Reading Protection");
                     protection = std::make_unique<protection_t>();
                     result = protection->read(game, strm);
                     break;
 
-                case SHADERS:
+                case chunk_t::SHADERS:
                     DEBUG("Reading Shaders");
                     shaders = std::make_unique<shaders_t>();
                     result = shaders->read(game, strm);
                     break;
 
-                case EXTDHEADER:
+                case chunk_t::EXTDHEADER:
                     DEBUG("Reading Extended Header");
                     extendedHeader = std::make_unique<extended_header_t>();
                     result = extendedHeader->read(game, strm);
                     break;
 
-                case SPACER:
+                case chunk_t::SPACER:
                     DEBUG("Reading Spacer");
                     spacer = std::make_unique<spacer_t>();
                     result = spacer->read(game, strm);
                     break;
 
-                case CHUNK224F:
+                case chunk_t::CHUNK224F:
                     DEBUG("Reading Chunk 224F");
                     chunk224F = std::make_unique<chunk_224F_t>();
                     result = chunk224F->read(game, strm);
                     break;
 
-                case TITLE2:
+                case chunk_t::TITLE2:
                     DEBUG("Reading Title 2");
                     title2 = std::make_unique<title2_t>();
                     result = title2->read(game, strm);
                     break;
 
-                case GLOBALEVENTS:
+                case chunk_t::GLOBALEVENTS:
                     DEBUG("Reading Global Events");
                     globalEvents = std::make_unique<global_events_t>();
                     result = globalEvents->read(game, strm);
                     break;
 
-                case GLOBALSTRS:
+                case chunk_t::GLOBALSTRS:
                     DEBUG("Reading Global Strings");
                     globalStrings = std::make_unique<global_strings_t>();
                     result = globalStrings->read(game, strm);
                     break;
 
-                case GLOBALSTRNAMES:
+                case chunk_t::GLOBALSTRNAMES:
                     DEBUG("Reading Global String Names");
                     globalStringNames = std::make_unique<global_string_names_t>();
                     result = globalStringNames->read(game, strm);
                     break;
 
-                case GLOBALVALS:
+                case chunk_t::GLOBALVALS:
                     DEBUG("Reading Global Values");
                     globalValues = std::make_unique<global_values_t>();
                     result = globalValues->read(game, strm);
                     break;
 
-                case GLOBALVALNAMES:
+                case chunk_t::GLOBALVALNAMES:
                     DEBUG("Reading Global Value Names");
                     globalValueNames = std::make_unique<global_value_names_t>();
                     result = globalValueNames->read(game, strm);
                     break;
 
-                case FRAMEHANDLES:
+                case chunk_t::FRAMEHANDLES:
                     DEBUG("Reading Frame Handles");
                     frameHandles = std::make_unique<frame::handles_t>();
                     result = frameHandles->read(game, strm);
                     break;
 
-                case FRAMEBANK:
+                case chunk_t::FRAMEBANK:
                     DEBUG("Reading Fame Bank");
                     frameBank = std::make_unique<frame::bank_t>();
                     result = frameBank->read(game, strm);
                     break;
 
-                case FRAME:
+                case chunk_t::FRAME:
                     DEBUG("Reading Frame (Missing Frame Bank)");
                     if (frameBank) ERROR("Frame Bank Already Exists");
                     frameBank = std::make_unique<frame::bank_t>();
                     frameBank->items.clear();
-                    while (result == error_t::OK && strm.peekInt<chunk_t>() == FRAME) {
+                    while (result == error_t::OK && (chunk_t)strm.peek_u16() == chunk_t::FRAME) {
                             frameBank->items.emplace_back();
                             result = frameBank->items.back().read(game, strm);
                     }
                     break;
 
-                // case OBJECTBANK2:
+                // case chunk_t::OBJECTBANK2:
                 //     DEBUG("Reading Object Bank 2");
                 //     objectBank2 = std::make_unique<object_bank2_t>();
                 //     result = objectBank2->read(game, strm);
                 //     break;
 
-                case OBJECTBANK:
-                case OBJECTBANK2:
+                case chunk_t::OBJECTBANK:
+                case chunk_t::OBJECTBANK2:
                     DEBUG("Reading Object Bank");
                     objectBank = std::make_unique<object::bank_t>();
                     result = objectBank->read(game, strm);
                     break;
 
-                case IMAGEBANK:
+                case chunk_t::IMAGEBANK:
                     DEBUG("Reading Image Bank");
                     imageBank = std::make_unique<image::bank_t>();
                     result = imageBank->read(game, strm);
                     break;
 
-                case SOUNDBANK:
+                case chunk_t::SOUNDBANK:
                     DEBUG("Reading Sound Bank");
                     soundBank = std::make_unique<sound::bank_t>();
                     result = soundBank->read(game, strm);
                     break;
 
-                case MUSICBANK:
+                case chunk_t::MUSICBANK:
                     DEBUG("Reading Music Bank");
                     musicBank = std::make_unique<music::bank_t>();
                     result = musicBank->read(game, strm);
                     break;
 
-                case FONTBANK:
+                case chunk_t::FONTBANK:
                     DEBUG("Reading Font Bank");
                     fontBank = std::make_unique<font::bank_t>();
                     result = fontBank->read(game, strm);
                     break;
 
-                case LAST:
+                case chunk_t::LAST:
                     DEBUG("Reading Last");
                     last = std::make_unique<last_t>();
                     result = last->read(game, strm);
                     goto finished;
 
                 default:
-                    DEBUG("Invalid Chunk 0x" << (size_t)childID);
+                    DEBUG("Invalid Chunk: 0x" << (size_t)childID);
                     result = error_t::INVALID_CHUNK;
                     break;
             }

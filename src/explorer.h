@@ -30,7 +30,7 @@
 
 #include "imgui_impl_lak.h"
 #include "lak.h"
-#include "strconv.h"
+#include <strconv/strconv.hpp>
 #include "defines.h"
 #include "tinflate.hpp"
 #include "tinf.h"
@@ -42,29 +42,49 @@
 #include "image.h"
 #include "object.h"
 
+#ifndef DEBUG_LINE_FILE
+#undef DEBUG_LINE_FILE
+#endif
+#define DEBUG_LINE_FILE "\x1B[2m(" << __FILE__ << ":" << std::dec << __LINE__ << ")\x1B[0m"
+
+#ifndef WDEBUG_LINE_FILE
+#undef WDEBUG_LINE_FILE
+#endif
+#define WDEBUG_LINE_FILE L"\x1B[2m(" << __FILE__ << L":" << std::dec << __LINE__ << L")\x1B[0m"
+
 #ifdef DEBUG
 #undef DEBUG
 #endif
-#define DEBUG(x) if (SourceExplorer::debugConsole) std::cout << std::hex << x << "\n" << std::flush;
+#define DEBUG(x) if (SourceExplorer::debugConsole) { if (SourceExplorer::developerConsole) { std::cout << "DEBUG" << DEBUG_LINE_FILE << ": "; } std::cout << std::hex << x << "\n" << std::flush; }
 
 #ifdef WDEBUG
 #undef WDEBUG
 #endif
-#define WDEBUG(x) if (SourceExplorer::debugConsole) std::wcout << std::hex << x << L"\n" << std::flush;
+#define WDEBUG(x) if (SourceExplorer::debugConsole) { if (SourceExplorer::developerConsole) { std::wcout << L"DEBUG" << DEBUG_LINE_FILE << L": "; } std::wcout << std::hex << x << L"\n" << std::flush; }
 
 #ifdef ERROR
 #undef ERROR
 #endif
-#define ERROR(x) std::cerr << std::hex << x << "\n" << std::flush;
+#define ERROR(x) std::cerr << "\x1B[91m\x1B[1mERROR\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << "\x1B[91m: " << std::hex << x << "\x1B[0m\n" << std::flush;
 
 #ifdef WERROR
 #undef WERROR
 #endif
-#define WERROR(x) std::wcerr << std::hex << x << L"\n" << std::flush;
+#define WERROR(x) std::wcerr << L"\x1B[91m\x1B[1mERROR\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L"\x1B[91m: " << std::hex << x << L"\x1B[0m\n" << std::flush;
+
+// char8_t typdef for C++ < 20
+#if __cplusplus <= 201703L
+using char8_t = uint_least8_t;
+namespace std
+{
+    using u8string = basic_string<char8_t>;
+}
+#endif
 
 namespace SourceExplorer
 {
     extern bool debugConsole;
+    extern bool developerConsole;
     extern m128i_t _xmmword;
     extern std::vector<uint8_t> _magic_key;
     extern uint8_t _magic_char;
@@ -84,8 +104,8 @@ namespace SourceExplorer
     {
         size_t position = 0;
         size_t expectedSize;
-        lak::memstrm_t data;
-        lak::memstrm_t decode(const chunk_t ID, const encoding_t mode) const;
+        lak::memory data;
+        lak::memory decode(const chunk_t ID, const encoding_t mode) const;
     };
 
     struct basic_entry_t
@@ -103,21 +123,21 @@ namespace SourceExplorer
         data_point_t header;
         data_point_t data;
 
-        lak::memstrm_t decode() const;
-        lak::memstrm_t decodeHeader() const;
-        lak::memstrm_t raw() const;
-        lak::memstrm_t rawHeader() const;
+        lak::memory decode() const;
+        lak::memory decodeHeader() const;
+        lak::memory raw() const;
+        lak::memory rawHeader() const;
     };
 
     struct chunk_entry_t : public basic_entry_t
     {
-        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t read(game_t &game, lak::memory &strm);
         void view(source_explorer_t &srcexp) const;
     };
 
     struct item_entry_t : public basic_entry_t
     {
-        error_t read(game_t &game, lak::memstrm_t &strm, bool compressed, size_t headersize = 0);
+        error_t read(game_t &game, lak::memory &strm, bool compressed, size_t headersize = 0);
         void view(source_explorer_t &srcexp) const;
     };
 
@@ -125,7 +145,7 @@ namespace SourceExplorer
     {
         chunk_entry_t entry;
 
-        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t read(game_t &game, lak::memory &strm);
         error_t basic_view(source_explorer_t &srcexp, const char *name) const;
     };
 
@@ -133,7 +153,7 @@ namespace SourceExplorer
     {
         item_entry_t entry;
 
-        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t read(game_t &game, lak::memory &strm);
         error_t basic_view(source_explorer_t &srcexp, const char *name) const;
     };
 
@@ -141,7 +161,7 @@ namespace SourceExplorer
     {
         std::u16string value;
 
-        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t read(game_t &game, lak::memory &strm);
         error_t view(source_explorer_t &srcexp, const char *name, const bool preview = false) const;
 
         std::u16string u16string() const;
@@ -213,7 +233,7 @@ namespace SourceExplorer
     {
         lak::image4_t bitmap;
 
-        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t read(game_t &game, lak::memory &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -328,7 +348,7 @@ namespace SourceExplorer
                 common_t common;
             };
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -336,7 +356,7 @@ namespace SourceExplorer
         {
             std::vector<item_t> items;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
     }
@@ -358,8 +378,25 @@ namespace SourceExplorer
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct object_instance_t : public basic_chunk_t
+        struct object_instance_t
         {
+            uint16_t handle;
+            uint16_t info;
+            lak::vec2i32_t position;
+            uint16_t parentType;
+            uint16_t parentHandle;
+            uint16_t layer;
+            uint16_t unknown;
+
+            error_t read(game_t &game, lak::memory &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct object_instances_t : public basic_chunk_t
+        {
+            std::vector<object_instance_t> objects;
+
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -422,7 +459,7 @@ namespace SourceExplorer
         {
             int16_t value;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -467,7 +504,7 @@ namespace SourceExplorer
             std::unique_ptr<header_t> header;
             std::unique_ptr<password_t> password;
             std::unique_ptr<palette_t> palette;
-            std::unique_ptr<object_instance_t> objectInstance;
+            std::unique_ptr<object_instances_t> objectInstances;
             std::unique_ptr<fade_in_frame_t> fadeInFrame;
             std::unique_ptr<fade_out_frame_t> fadeOutFrame;
             std::unique_ptr<fade_in_t> fadeIn;
@@ -489,7 +526,7 @@ namespace SourceExplorer
             std::unique_ptr<chunk_334C_t> chunk334C;
             std::unique_ptr<last_t> end;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -502,7 +539,7 @@ namespace SourceExplorer
         {
             std::vector<item_t> items;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
     }
@@ -524,7 +561,7 @@ namespace SourceExplorer
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
     }
@@ -546,7 +583,7 @@ namespace SourceExplorer
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
     }
@@ -555,7 +592,7 @@ namespace SourceExplorer
     {
         struct item_t : public basic_item_t
         {
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -569,7 +606,7 @@ namespace SourceExplorer
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
     }
@@ -591,7 +628,7 @@ namespace SourceExplorer
             std::vector<item_t> items;
             std::unique_ptr<end_t> end;
 
-            error_t read(game_t &game, lak::memstrm_t &strm);
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
     }
@@ -645,7 +682,7 @@ namespace SourceExplorer
 
         std::unique_ptr<last_t> last;
 
-        error_t read(game_t &game, lak::memstrm_t &strm);
+        error_t read(game_t &game, lak::memory &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -654,7 +691,7 @@ namespace SourceExplorer
         std::string gamePath;
         std::string gameDir;
 
-        lak::memstrm_t file;
+        lak::memory file;
 
         std::vector<pack_file_t> packFiles;
         uint64_t dataPos;
@@ -713,10 +750,14 @@ namespace SourceExplorer
 
     struct resource_entry_t
     {
-        chunk_t ID = DEFAULT;
-        chunk_t parent = DEFAULT;
+        union
+        {
+            chunk_t ID = chunk_t::DEFAULT;
+            uint32_t handle;
+        };
+        chunk_t parent = chunk_t::DEFAULT;
 
-        encoding_t mode = DEFAULTMODE;
+        encoding_t mode = encoding_t::DEFAULT;
 
         data_point_t info;
         data_point_t header;
@@ -724,10 +765,10 @@ namespace SourceExplorer
 
         std::vector<resource_entry_t> chunks;
 
-        lak::memstrm_t streamHeader() const;
-        lak::memstrm_t stream() const;
-        lak::memstrm_t decodeHeader() const;
-        lak::memstrm_t decode() const;
+        lak::memory streamHeader() const;
+        lak::memory stream() const;
+        lak::memory decodeHeader() const;
+        lak::memory decode() const;
     };
 
     // struct object_entry_t
@@ -755,58 +796,58 @@ namespace SourceExplorer
     );
 
     error_t ParsePEHeader(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         game_t &gameState
     );
 
     uint64_t ParsePackData(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         game_t &gameState
     );
 
     // error_t ReadEntry(
-    //     lak::memstrm_t &strm,
+    //     lak::memory &strm,
     //     std::stack<chunk_t> &state,
     //     resource_entry_t &entry
     // );
 
     // error_t ReadEntryData(
-    //     lak::memstrm_t &strm,
+    //     lak::memory &strm,
     //     resource_entry_t &entry,
     //     get_data_flag_t readMode
     // );
 
     error_t ReadFixedData(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         data_point_t &data,
         const size_t size
     );
 
     error_t ReadDynamicData(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         data_point_t &data
     );
 
     error_t ReadToCompressedData(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         data_point_t &data
     );
 
     // <uncompressed size> <data size> <data>
     error_t ReadCompressedData(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         data_point_t &data
     );
 
     // <chunk size> <uncompressed size> <data>
     error_t ReadRevCompressedData(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         data_point_t &data
     );
 
     // <uncompressed size> <data>
     error_t ReadStreamCompressedData(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         data_point_t &data
     );
 
@@ -835,7 +876,7 @@ namespace SourceExplorer
     );
 
     std::vector<uint8_t> StreamDecompress(
-        lak::memstrm_t &strm,
+        lak::memory &strm,
         unsigned int outSize
     );
 

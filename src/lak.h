@@ -37,258 +37,19 @@ namespace fs = std::filesystem;
 
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
+#include <SDL_audio.h>
 extern "C" {
 #include <GL/gl3w.h>
 }
 
-#include <lak/math.h>
 #include <lak/vec.h>
+#include <memory/memory.hpp>
 
 #ifndef LAK_H
 #define LAK_H
 
 namespace lak
 {
-    struct memstrm_t
-    {
-        std::vector<uint8_t> memory = {};
-        size_t position = 0;
-        memstrm_t() {}
-        memstrm_t(const std::vector<uint8_t> &mem) : memory(mem) {}
-        memstrm_t(const memstrm_t &other) : memory(other.memory), position(other.position) {}
-        memstrm_t(memstrm_t &&other) : memory(std::move(other.memory)), position(other.position) {}
-        inline memstrm_t &operator=(const std::vector<uint8_t> &mem)
-        {
-            memory = mem;
-            position = 0;
-            return *this;
-        }
-        inline memstrm_t &operator=(const memstrm_t &other)
-        {
-            memory = other.memory;
-            position = other.position;
-            return *this;
-        }
-        inline memstrm_t &operator=(memstrm_t &&other)
-        {
-            memory = std::move(other.memory);
-            position = other.position;
-            return *this;
-        }
-        inline std::vector<uint8_t>::iterator begin()
-        {
-            return memory.begin();
-        }
-        inline std::vector<uint8_t>::const_iterator cbegin()
-        {
-            return memory.cbegin();
-        }
-        inline std::vector<uint8_t>::iterator end()
-        {
-            return memory.end();
-        }
-        inline std::vector<uint8_t>::const_iterator cend()
-        {
-            return memory.cend();
-        }
-        inline std::vector<uint8_t>::iterator cursor()
-        {
-            return memory.begin() + position;
-        }
-        inline size_t size() const
-        {
-            return memory.size();
-        }
-        inline size_t remaining() const
-        {
-            assert(position <= memory.size());
-            return memory.size() - position;
-        }
-        inline memstrm_t &clear()
-        {
-            position = 0;
-            memory.clear();
-            return *this;
-        }
-        inline memstrm_t &seek(const size_t to)
-        {
-            position = to;
-            return *this;
-        }
-        uint8_t *get()
-        {
-            assert(position < memory.size());
-            return &(memory[position]);
-        }
-        vec4u8_t readRGBA()
-        {
-            vec4u8_t col;
-            col.r = readInt<uint8_t>();
-            col.g = readInt<uint8_t>();
-            col.b = readInt<uint8_t>();
-            col.a = readInt<uint8_t>();
-            return col;
-        }
-        std::vector<uint8_t> readBytes(size_t count)
-        {
-            // assert(position < memory.size());
-            if (position >= memory.size())
-                return {};
-
-            if (memory.size() < position + count)
-                count = memory.size() - position;
-
-            std::vector<uint8_t> result;
-            result.assign(memory.begin() + position, memory.begin() + position + count);
-            position += count;
-            return result;
-        }
-        void writeBytes(const std::vector<uint8_t> &bytes)
-        {
-            if (memory.size() < position + bytes.size())
-                memory.resize(position + bytes.size());
-
-            for (const auto b : bytes)
-                memory[position++] = b;
-        }
-        // Returns the position to where it was before this call
-        std::vector<uint8_t> readBytesFrom(const size_t from, const size_t count)
-        {
-            size_t pos = position;
-            position = from;
-            auto result = readBytes(count);
-            position = pos;
-            return result;
-        }
-        // Returns the position to where it was before this call
-        std::vector<uint8_t> readBytesRange(const size_t from, const size_t to)
-        {
-            assert(to > from);
-            return readBytesFrom(from, to - from);
-        }
-        // Returns the position to where it was before this call
-        std::vector<uint8_t> readBytesToCursor(const size_t from)
-        {
-            assert(position >= from);
-            size_t count = position - from;
-            position = from;
-            return readBytes(count);
-        }
-        template<typename T>
-        memstrm_t &readObj(T &obj)
-        {
-            obj = *reinterpret_cast<T*>(&(readBytes(sizeof(T))[0]));
-            return *this;
-        }
-        template<typename T>
-        T peekInt()
-        {
-            if (memory.size() < position + sizeof(T))
-                return T{};
-
-            return *reinterpret_cast<const T*>(&(memory[position]));
-        }
-        template<typename T>
-        T readInt()
-        {
-            if (memory.size() < position + sizeof(T))
-                return T{};
-
-            T result = *reinterpret_cast<const T*>(&(memory[position]));
-            position += sizeof(T);
-            return result;
-        }
-        template<typename T>
-        void writeInt(const T value)
-        {
-            if (memory.size() < position + sizeof(T))
-                memory.resize(position + sizeof(T));
-
-            *reinterpret_cast<T*>(&(memory[position])) = value;
-            position += sizeof(T);
-        }
-        template<typename C>
-        std::basic_string<C> readString()
-        {
-            std::basic_string<C> str;
-            C c = readInt<C>();
-            while (c != 0)
-            {
-                str += c;
-                c = readInt<C>();
-            }
-            return str;
-        }
-        template<typename C>
-        std::basic_string<C> readString(size_t maxCount)
-        {
-            if (maxCount == 0) return std::basic_string<C>();
-
-            std::basic_string<C> str;
-            C c;
-            while (maxCount --> 0)
-            {
-                c = readInt<C>();
-                if (c == 0) break;
-                str += c;
-            }
-
-            return str;
-        }
-        template<typename C>
-        std::basic_string<C> peekString(size_t maxCount)
-        {
-            if (maxCount == 0) return std::basic_string<C>();
-
-            size_t start = position;
-            std::basic_string<C> str;
-            C c;
-            while (maxCount --> 0)
-            {
-                c = readInt<C>();
-                if (c == 0) break;
-                str += c;
-            }
-            position = start;
-
-            return str;
-        }
-        template<typename C>
-        std::basic_string<C> readStringExact(size_t count)
-        {
-            if (count == 0) return std::basic_string<C>();
-
-            size_t stop = position + (count * sizeof(C));
-            std::basic_string<C> str;
-            C c;
-            for (size_t i = 0; i < count; ++i)
-            {
-                c = readInt<C>();
-                if (c == 0) break;
-                str += c;
-            }
-
-            position = stop;
-            return str;
-        }
-        template<typename C>
-        void writeString(std::basic_string<C> str, const bool terminate = true)
-        {
-            if (memory.size() < position + (sizeof(C) * str.size()))
-                memory.resize(position + (sizeof(C) * str.size()));
-
-            for (const auto c : str)
-            {
-                if (c == 0)
-                    break;
-                writeInt<C>(c);
-            }
-
-            if (terminate)
-                writeInt<C>(0);
-        }
-    };
-
     std::vector<uint8_t> LoadFile(
         const fs::path &path
     );
@@ -386,7 +147,6 @@ namespace lak
         SDL_DisplayMode displayMode;
         SDL_Window *window = nullptr;
         SDL_GLContext glContext = nullptr;
-        void *srContext = nullptr;
         vec2u32_t size;
     };
 

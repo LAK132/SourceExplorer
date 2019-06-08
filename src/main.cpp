@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include "main.h"
 
 se::source_explorer_t SrcExp;
@@ -67,6 +68,8 @@ bool DumpStuff(const char *str_id, dump_function_t *func)
     {
         ImGui::Text("Dumping, please wait...");
         ImGui::Checkbox("Print to debug console?", &se::debugConsole);
+        if (se::debugConsole)
+            ImGui::Checkbox("Developer mode?", &se::developerConsole);
         ImGui::ProgressBar(completed);
         if (popupOpen)
             ImGui::EndPopup();
@@ -82,7 +85,7 @@ bool DumpStuff(const char *str_id, dump_function_t *func)
 /// loop()
 /// Called every loop
 ///
-void Update()
+void Update(float FrameTime)
 {
     bool mainOpen = true;
 
@@ -113,11 +116,14 @@ void Update()
             }
             if (ImGui::BeginMenu("Credits"))
             {
+                ImGui::Text("Frame rate %f", 1.0f/FrameTime);
                 credits();
                 ImGui::EndMenu();
             }
             ImGui::Checkbox("Enable Color Transparency?", &SrcExp.dumpColorTrans);
             ImGui::Checkbox("Print to debug console? (May cause SE to run slower)", &se::debugConsole);
+            if (se::debugConsole)
+                ImGui::Checkbox("Developer mode?", &se::developerConsole);
             ImGui::EndMenuBar();
         }
 
@@ -163,18 +169,40 @@ void Update()
         {
             if (SrcExp.loaded)
             {
-                static const se::basic_entry_t *last = nullptr;
-                bool update = last != SrcExp.view;
-
                 static int selected = 0;
                 ImGui::RadioButton("Memory", &selected, 0);
                 ImGui::SameLine();
                 ImGui::RadioButton("Image", &selected, 1);
                 ImGui::SameLine();
+                ImGui::RadioButton("Audio", &selected, 2);
                 static bool crypto = false;
                 ImGui::Checkbox("Crypto", &crypto);
                 ImGui::Separator();
 
+                struct audio_data_t
+                {
+                    std::u8string name;
+                    std::u16string u16name;
+                    se::sound_mode_t type = (se::sound_mode_t)0;
+                    uint32_t checksum = 0;
+                    uint32_t references = 0;
+                    uint32_t decompLen = 0;
+                    uint32_t reserved = 0;
+                    uint32_t nameLen = 0;
+                    uint16_t format = 0;
+                    uint16_t channelCount = 0;
+                    uint32_t sampleRate = 0;
+                    uint32_t byteRate = 0;
+                    uint16_t blockAlign = 0;
+                    uint16_t bitsPerSample = 0;
+                    uint16_t unknown = 0;
+                    uint32_t chunkSize = 0;
+                    std::vector<uint8_t> data;
+                };
+
+                static bool memUpdate = false;
+                static bool imageUpdate = false;
+                static bool audioUpdate = false;
                 if (crypto)
                 {
                     int magic_char = se::_magic_char;
@@ -182,69 +210,72 @@ void Update()
                     {
                         se::_magic_char = magic_char;
                         se::GetEncryptionKey(SrcExp.state);
-                        update = true;
+                        memUpdate = imageUpdate = audioUpdate = true;
                     }
                     if (ImGui::Button("Generate Crypto Key"))
                     {
                         se::GetEncryptionKey(SrcExp.state);
-                        update = true;
+                        memUpdate = imageUpdate = audioUpdate = true;
                     }
                     ImGui::Separator();
                 }
 
                 if (selected == 0)
                 {
+                    static const se::basic_entry_t *last = nullptr;
+                    memUpdate |= last != SrcExp.view;
                     static int dataMode = 0;
                     static bool raw = false;
 
-                    update |= ImGui::RadioButton("EXE", &dataMode, 0);
+                    memUpdate |= ImGui::RadioButton("EXE", &dataMode, 0);
                     ImGui::SameLine();
-                    update |= ImGui::RadioButton("Header", &dataMode, 1);
+                    memUpdate |= ImGui::RadioButton("Header", &dataMode, 1);
                     ImGui::SameLine();
-                    update |= ImGui::RadioButton("Data", &dataMode, 2);
+                    memUpdate |= ImGui::RadioButton("Data", &dataMode, 2);
                     ImGui::SameLine();
-                    update |= ImGui::Checkbox("Raw", &raw);
+                    memUpdate |= ImGui::Checkbox("Raw", &raw);
                     ImGui::SameLine();
-                    update |= ImGui::RadioButton("Magic Key", &dataMode, 3);
+                    memUpdate |= ImGui::RadioButton("Magic Key", &dataMode, 3);
                     ImGui::Separator();
 
                     if (dataMode == 0) // EXE
                     {
-                        SrcExp.editor.DrawContents(&(SrcExp.state.file.memory[0]), SrcExp.state.file.size());
-                        if (update && SrcExp.view != nullptr)
+                        SrcExp.editor.DrawContents(SrcExp.state.file.data(), SrcExp.state.file.size());
+                        if (memUpdate && SrcExp.view != nullptr)
                             SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position, SrcExp.view->end);
                     }
                     else if (dataMode == 1) // Header
                     {
-                        if (update && SrcExp.view != nullptr)
+                        if (memUpdate && SrcExp.view != nullptr)
                             SrcExp.buffer = raw
-                                ? SrcExp.view->header.data.memory
-                                : SrcExp.view->decodeHeader().memory;
+                                ? SrcExp.view->header.data._data
+                                : SrcExp.view->decodeHeader()._data;
 
                         SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
-                        if (update)
+                        if (memUpdate)
                             SrcExp.editor.GotoAddrAndHighlight(0, 0);
                     }
                     else if (dataMode == 2) // Data
                     {
-                        if (update && SrcExp.view != nullptr)
+                        if (memUpdate && SrcExp.view != nullptr)
                             SrcExp.buffer = raw
-                                ? SrcExp.view->data.data.memory
-                                : SrcExp.view->decode().memory;
+                                ? SrcExp.view->data.data._data
+                                : SrcExp.view->decode()._data;
 
                         SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
-                        if (update)
+                        if (memUpdate)
                             SrcExp.editor.GotoAddrAndHighlight(0, 0);
                     }
                     else if (dataMode == 3) // _magic_key
                     {
                         SrcExp.editor.DrawContents(&(se::_magic_key[0]), se::_magic_key.size());
-                        if (update)
+                        if (memUpdate)
                             SrcExp.editor.GotoAddrAndHighlight(0, 0);
                     }
                     else dataMode = 0;
 
                     last = SrcExp.view;
+                    memUpdate = false;
                 }
                 else if (selected == 1)
                 {
@@ -255,6 +286,181 @@ void Update()
                         ImGui::Separator();
                         se::ViewImage(SrcExp.image, scale);
                     }
+                    imageUpdate = false;
+                }
+                else if (selected == 2)
+                {
+                    static const se::basic_entry_t *last = nullptr;
+                    audioUpdate |= last != SrcExp.view;
+
+                    static audio_data_t audioData;
+                    if (audioUpdate && SrcExp.view != nullptr)
+                    {
+                        lak::memory audio = SrcExp.view->decode();
+                        audioData = audio_data_t{};
+                        if (SrcExp.state.oldGame)
+                        {
+                            audioData.checksum      = audio.read_u16();
+                            audioData.references    = audio.read_u32();
+                            audioData.decompLen     = audio.read_u32();
+                            audioData.type          = (se::sound_mode_t)audio.read_u32();
+                            audioData.reserved      = audio.read_u32();
+                            audioData.nameLen       = audio.read_u32();
+
+                            audioData.name          = audio.read_u8string_exact(audioData.nameLen);
+
+                            if (audioData.type == se::sound_mode_t::WAVE)
+                            {
+                                audioData.format        = audio.read_u16();
+                                audioData.channelCount  = audio.read_u16();
+                                audioData.sampleRate    = audio.read_u32();
+                                audioData.byteRate      = audio.read_u32();
+                                audioData.blockAlign    = audio.read_u16();
+                                audioData.bitsPerSample = audio.read_u16();
+                                audioData.unknown       = audio.read_u16();
+                                audioData.chunkSize     = audio.read_u32();
+                                audioData.data          = audio.read(audioData.chunkSize);
+                            }
+                        }
+                        else
+                        {
+                            lak::memory header_temp;
+                            lak::memory *header_ptr;
+                            if (SrcExp.view->header.data.size() > 0)
+                            {
+                                header_temp = SrcExp.view->decodeHeader();
+                                header_ptr = &header_temp;
+                            }
+                            else header_ptr = &audio;
+                            lak::memory &header = *header_ptr;
+
+                            audioData.checksum      = header.read_u32();
+                            audioData.references    = header.read_u32();
+                            audioData.decompLen     = header.read_u32();
+                            audioData.type          = (se::sound_mode_t)audio.read_u32();;
+                            audioData.reserved      = header.read_u32();
+                            audioData.nameLen       = header.read_u32();
+
+                            if (SrcExp.state.unicode)
+                            {
+                                audioData.name = lak::strconv<char8_t>(audio.read_u16string_exact(audioData.nameLen));
+                            }
+                            else
+                                audioData.name = audio.read_u8string_exact(audioData.nameLen);
+
+                            if (audio.peek_string(4) == std::string("OggS"))
+                                audioData.type = se::sound_mode_t::OGGS;
+
+                            if (audioData.type == se::sound_mode_t::WAVE)
+                            {
+                                audio.position += 4; // "RIFF"
+                                uint32_t size = audio.read_s32() + 4;
+                                audio.position += 8; // "WAVEfmt "
+                                // audio.position += 4; // 0x00000010
+                                // 16, 18 or 40
+                                uint32_t chunkSize      = audio.read_u32();
+                                DEBUG("Chunk Size 0x" << chunkSize);
+                                const size_t pos        = audio.position + chunkSize;
+                                audioData.format        = audio.read_u16(); // 2
+                                audioData.channelCount  = audio.read_u16(); // 4
+                                audioData.sampleRate    = audio.read_u32(); // 8
+                                audioData.byteRate      = audio.read_u32(); // 12
+                                audioData.blockAlign    = audio.read_u16(); // 14
+                                audioData.bitsPerSample = audio.read_u16(); // 16
+                                if (chunkSize >= 18)
+                                {
+                                    [[maybe_unused]] uint16_t extensionSize  = audio.read_u16(); // 18
+                                    DEBUG("Extension Size 0x" << extensionSize);
+                                }
+                                if (chunkSize >= 40)
+                                {
+                                    [[maybe_unused]] uint16_t validPerSample = audio.read_u16(); // 20
+                                    DEBUG("Valid Bits Per Sample 0x" << validPerSample);
+                                    [[maybe_unused]] uint16_t channelMask    = audio.read_u32(); // 24
+                                    DEBUG("Channel Mask 0x" << channelMask);
+                                    // SubFormat // 40
+                                }
+                                audio.position = pos;
+                                audio.position += 4; // "data"
+                                audioData.chunkSize     = audio.read_u32();
+                                audioData.data          = audio.read(size);
+                            }
+                        }
+                    }
+
+                    static size_t audioSize = 0;
+                    static bool playing = false;
+                    static SDL_AudioSpec audioSpec;
+                    static SDL_AudioDeviceID audioDevice = 0;
+                    [[maybe_unused]] static SDL_AudioSpec audioSpecGot;
+                    if (!playing && ImGui::Button("Play"))
+                    {
+                        SDL_AudioSpec spec;
+                        spec.freq = audioData.sampleRate;
+                        // spec.freq = audioData.byteRate;
+                        switch (audioData.format)
+                        {
+                            case 0x0001: spec.format = AUDIO_S16; break;
+                            case 0x0003: spec.format = AUDIO_F32; break;
+                            case 0x0006: spec.format = AUDIO_S8; /*8bit A-law*/ break;
+                            case 0x0007: spec.format = AUDIO_S8; /*abit mu-law*/ break;
+                            case 0xFFFE: /*subformat*/ break;
+                            default: break;
+                        }
+                        spec.channels = audioData.channelCount;
+                        spec.samples = 2048;
+                        spec.callback = nullptr;
+
+                        if (std::memcmp(&audioSpec, &spec, sizeof(SDL_AudioSpec)) != 0)
+                        {
+                            std::memcpy(&audioSpec, &spec, sizeof(SDL_AudioSpec));
+                            if (audioDevice != 0)
+                            {
+                                SDL_CloseAudioDevice(audioDevice);
+                                audioDevice = 0;
+                            }
+                        }
+
+                        if (audioDevice == 0)
+                            audioDevice = SDL_OpenAudioDevice(nullptr, false, &audioSpec, &audioSpecGot, 0);
+
+                        audioSize = audioData.data.size();
+                        SDL_QueueAudio(audioDevice, audioData.data.data(), audioSize);
+                        SDL_PauseAudioDevice(audioDevice, 0);
+                        playing = true;
+                    }
+                    if (playing && (ImGui::Button("Stop") || (SDL_GetQueuedAudioSize(audioDevice) == 0)))
+                    {
+                        SDL_PauseAudioDevice(audioDevice, 1);
+                        SDL_ClearQueuedAudio(audioDevice);
+                        audioSize = 0;
+                        playing = false;
+                    }
+                    if (audioSize > 0)
+                        ImGui::ProgressBar(1.0 - (SDL_GetQueuedAudioSize(audioDevice) / (double)audioSize));
+                    else
+                        ImGui::ProgressBar(0);
+
+                    ImGui::Text("Name: %s", audioData.name.c_str());
+                    ImGui::Text("Type: "); ImGui::SameLine();
+                    switch (audioData.type)
+                    {
+                        case se::sound_mode_t::WAVE: ImGui::Text("WAV"); break;
+                        case se::sound_mode_t::MIDI: ImGui::Text("MIDI"); break;
+                        case se::sound_mode_t::OGGS: ImGui::Text("OGG"); break;
+                        default: ImGui::Text("Unknown"); break;
+                    }
+                    ImGui::Text("Data Size: 0x%zX", (size_t)audioData.data.size());
+                    ImGui::Text("Format: 0x%zX", (size_t)audioData.format);
+                    ImGui::Text("Channel Count: %zu", (size_t)audioData.channelCount);
+                    ImGui::Text("Sample Rate: %zu", (size_t)audioData.sampleRate);
+                    ImGui::Text("Byte Rate: %zu", (size_t)audioData.byteRate);
+                    ImGui::Text("Block Align: 0x%zX", (size_t)audioData.blockAlign);
+                    ImGui::Text("Bits Per Sample: %zu", (size_t)audioData.bitsPerSample);
+                    ImGui::Text("Chunk Size: 0x%zX", (size_t)audioData.chunkSize);
+
+                    last = SrcExp.view;
+                    audioUpdate = false;
                 }
                 else selected = 0;
             }
@@ -311,7 +517,7 @@ void Update()
                 size_t index = 0;
                 for (const auto &item : srcexp.state.game.imageBank->items)
                 {
-                    lak::memstrm_t strm = item.entry.decode();
+                    lak::memory strm = item.entry.decode();
                     const se::image_t &image = se::CreateImage(strm,
                         srcexp.dumpColorTrans, srcexp.state.oldGame);
                     fs::path filename = srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
@@ -364,21 +570,21 @@ void Update()
                 unsigned char *png = stbi_write_png_to_mem(&(bitmap[0].r), (int)(bitmap.size().x * 4),
                     (int)bitmap.size().x, (int)bitmap.size().y, 4, &len);
 
-                lak::memstrm_t strm;
-                strm.memory.reserve(0x16);
-                strm.writeInt<uint16_t>(0); // reserved
-                strm.writeInt<uint16_t>(1); // .ICO
-                strm.writeInt<uint16_t>(1); // 1 image
-                strm.writeInt<uint8_t> ((uint8_t)bitmap.size().x);
-                strm.writeInt<uint8_t> ((uint8_t)bitmap.size().y);
-                strm.writeInt<uint8_t> (0); // no palette
-                strm.writeInt<uint8_t> (0); // reserved
-                strm.writeInt<uint16_t>(1); // color plane
-                strm.writeInt<uint16_t>(8 * 4); // bits per pixel
-                strm.writeInt<uint32_t>((uint32_t)len);
-                strm.writeInt<uint32_t>(strm.position + sizeof(uint32_t));
+                lak::memory strm;
+                strm.reserve(0x16);
+                strm.write_u16(0); // reserved
+                strm.write_u16(1); // .ICO
+                strm.write_u16(1); // 1 image
+                strm.write_u8 (bitmap.size().x);
+                strm.write_u8 (bitmap.size().y);
+                strm.write_u8 (0); // no palette
+                strm.write_u8 (0); // reserved
+                strm.write_u16(1); // color plane
+                strm.write_u16(8 * 4); // bits per pixel
+                strm.write_u32(len);
+                strm.write_u32(strm.position + sizeof(uint32_t));
 
-                file.write((const char *)&strm.memory[0], strm.position);
+                file.write((const char *)strm.data(), strm.position);
                 file.write((const char *)png, len);
 
                 STBIW_FREE(png);
@@ -418,78 +624,78 @@ void Update()
                 size_t index = 0;
                 for (const auto &item : srcexp.state.game.soundBank->items)
                 {
-                    lak::memstrm_t sound = item.entry.decode();
+                    lak::memory sound = item.entry.decode();
 
                     std::u16string name;
-                    sound_mode_t type;
+                    se::sound_mode_t type;
                     if (srcexp.state.oldGame)
                     {
-                        uint16_t checksum = sound.readInt<uint16_t>(); (void)checksum;
-                        uint32_t references = sound.readInt<uint32_t>(); (void)references;
-                        uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
-                        type = sound.readInt<sound_mode_t>(); // uint32_t
-                        uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
-                        uint32_t nameLen = sound.readInt<uint32_t>();
+                        uint16_t checksum   = sound.read_u16(); (void)checksum;
+                        uint32_t references = sound.read_u32(); (void)references;
+                        uint32_t decompLen  = sound.read_u32(); (void)decompLen;
+                        type                = (se::sound_mode_t)sound.read_u32();
+                        uint32_t reserved   = sound.read_u32(); (void)reserved;
+                        uint32_t nameLen    = sound.read_u32();
 
-                        name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+                        name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
 
-                        uint16_t format = sound.readInt<uint16_t>(); (void)format;
-                        uint16_t channelCount = sound.readInt<uint16_t>(); (void)channelCount;
-                        uint32_t sampleRate = sound.readInt<uint32_t>(); (void)sampleRate;
-                        uint32_t byteRate = sound.readInt<uint32_t>(); (void)byteRate;
-                        uint16_t blockAlign = sound.readInt<uint16_t>(); (void)blockAlign;
-                        uint16_t bitsPerSample = sound.readInt<uint16_t>(); (void)bitsPerSample;
-                        uint16_t unknown = sound.readInt<uint16_t>(); (void)unknown;
-                        uint32_t chunkSize = sound.readInt<uint32_t>();
-                        std::vector<uint8_t> data = sound.readBytes(chunkSize); (void) data;
+                        [[maybe_unused]] uint16_t format            = sound.read_u16();
+                        [[maybe_unused]] uint16_t channelCount      = sound.read_u16();
+                        [[maybe_unused]] uint32_t sampleRate        = sound.read_u32();
+                        [[maybe_unused]] uint32_t byteRate          = sound.read_u32();
+                        [[maybe_unused]] uint16_t blockAlign        = sound.read_u16();
+                        [[maybe_unused]] uint16_t bitsPerSample     = sound.read_u16();
+                        [[maybe_unused]] uint16_t unknown           = sound.read_u16();
+                        uint32_t chunkSize                          = sound.read_u32();
+                        [[maybe_unused]] std::vector<uint8_t> data  = sound.read(chunkSize);
 
-                        lak::memstrm_t output;
-                        output.writeString<char>("RIFF", false);
-                        output.writeInt<int32_t>(data.size() - 44);
-                        output.writeString<char>("WAVEfmt ", false);
-                        output.writeInt<uint32_t>(0x10);
-                        output.writeInt<uint16_t>(format);
-                        output.writeInt<uint16_t>(channelCount);
-                        output.writeInt<uint32_t>(sampleRate);
-                        output.writeInt<uint32_t>(byteRate);
-                        output.writeInt<uint16_t>(blockAlign);
-                        output.writeInt<uint16_t>(bitsPerSample);
-                        output.writeString<char>("data", false);
-                        output.writeInt<uint32_t>(chunkSize);
-                        output.writeBytes(data);
+                        lak::memory output;
+                        output.write_string("RIFF", false);
+                        output.write_s32(data.size() - 44);
+                        output.write_string("WAVEfmt ", false);
+                        output.write_u32(0x10);
+                        output.write_u16(format);
+                        output.write_u16(channelCount);
+                        output.write_u32(sampleRate);
+                        output.write_u32(byteRate);
+                        output.write_u16(blockAlign);
+                        output.write_u16(bitsPerSample);
+                        output.write_string("data", false);
+                        output.write_u32(chunkSize);
+                        output.write(data);
                         output.position = 0;
                         sound = std::move(output);
                     }
                     else
                     {
-                        lak::memstrm_t header = item.entry.decodeHeader();
-                        uint32_t checksum = header.readInt<uint32_t>(); (void)checksum;
-                        uint32_t references = header.readInt<uint32_t>(); (void)references;
-                        uint32_t decompLen = header.readInt<uint32_t>(); (void)decompLen;
-                        type = header.readInt<sound_mode_t>(); // uint32_t
-                        uint32_t reserved = header.readInt<uint32_t>(); (void)reserved;
-                        uint32_t nameLen = header.readInt<uint32_t>();
+                        lak::memory header                      = item.entry.decodeHeader();
+                        [[maybe_unused]] uint32_t checksum      = header.read_u32();
+                        [[maybe_unused]] uint32_t references    = header.read_u32();
+                        [[maybe_unused]] uint32_t decompLen     = header.read_u32();
+                        type                                    = (se::sound_mode_t)sound.read_u32();
+                        [[maybe_unused]] uint32_t reserved      = header.read_u32();
+                        uint32_t nameLen                        = header.read_u32();
 
                         if (srcexp.state.unicode)
                         {
-                            name = sound.readStringExact<char16_t>(nameLen);
+                            name = sound.read_u16string_exact(nameLen);
                         }
                         else
                         {
-                            name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+                            name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
                         }
 
-                        if (sound.peekString<char>(4) == "OggS")
+                        if (sound.peek_string(4) == std::string("OggS"))
                         {
-                            type = OGGS;
+                            type = se::sound_mode_t::OGGS;
                         }
                     }
 
                     switch(type)
                     {
-                        case WAVE: name += u".wav"; break;
-                        case MIDI: name += u".midi"; break;
-                        case OGGS: name += u".ogg"; break;
+                        case se::sound_mode_t::WAVE: name += u".wav"; break;
+                        case se::sound_mode_t::MIDI: name += u".midi"; break;
+                        case se::sound_mode_t::OGGS: name += u".ogg"; break;
                         default: name += u".mp3"; DEBUG("MP3" << (size_t)item.entry.ID); break;
                     }
 
@@ -537,44 +743,44 @@ void Update()
                 size_t index = 0;
                 for (const auto &item : srcexp.state.game.musicBank->items)
                 {
-                    lak::memstrm_t sound = item.entry.decode();
+                    lak::memory sound = item.entry.decode();
 
                     std::u16string name;
-                    sound_mode_t type;
+                    se::sound_mode_t type;
                     if (srcexp.state.oldGame)
                     {
-                        uint16_t checksum = sound.readInt<uint16_t>(); (void)checksum;
-                        uint32_t references = sound.readInt<uint32_t>(); (void)references;
-                        uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
-                        type = sound.readInt<sound_mode_t>(); // uint32_t
-                        uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
-                        uint32_t nameLen = sound.readInt<uint32_t>();
+                        [[maybe_unused]] uint16_t checksum      = sound.read_u16();
+                        [[maybe_unused]] uint32_t references    = sound.read_u32();
+                        [[maybe_unused]] uint32_t decompLen     = sound.read_u32();
+                        type                                    = (se::sound_mode_t)sound.read_u32();
+                        [[maybe_unused]] uint32_t reserved      = sound.read_u32();
+                        uint32_t nameLen                        = sound.read_u32();
 
-                        name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+                        name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
                     }
                     else
                     {
-                        uint32_t checksum = sound.readInt<uint32_t>(); (void)checksum;
-                        uint32_t references = sound.readInt<uint32_t>(); (void)references;
-                        uint32_t decompLen = sound.readInt<uint32_t>(); (void)decompLen;
-                        type = sound.readInt<sound_mode_t>(); // uint32_t
-                        uint32_t reserved = sound.readInt<uint32_t>(); (void)reserved;
-                        uint32_t nameLen = sound.readInt<uint32_t>();
+                        [[maybe_unused]] uint32_t checksum      = sound.read_u32();
+                        [[maybe_unused]] uint32_t references    = sound.read_u32();
+                        [[maybe_unused]] uint32_t decompLen     = sound.read_u32();
+                        type                                    = (se::sound_mode_t)sound.read_u32();
+                        [[maybe_unused]] uint32_t reserved      = sound.read_u32();
+                        uint32_t nameLen                        = sound.read_u32();
 
                         if (srcexp.state.unicode)
                         {
-                            name = sound.readStringExact<char16_t>(nameLen);
+                            name = sound.read_u16string_exact(nameLen);
                         }
                         else
                         {
-                            name = lak::strconv<char16_t>(sound.readStringExact<char>(nameLen));
+                            name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
                         }
                     }
 
                     switch(type)
                     {
-                        case WAVE: name += u".wav"; break;
-                        case MIDI: name += u".midi"; break;
+                        case se::sound_mode_t::WAVE: name += u".wav"; break;
+                        case se::sound_mode_t::MIDI: name += u".midi"; break;
                         default: name += u".mp3"; break;
                     }
 
@@ -618,28 +824,28 @@ void Update()
                     return;
                 }
 
-                lak::memstrm_t strm = srcexp.state.game.shaders->entry.decode();
+                lak::memory strm = srcexp.state.game.shaders->entry.decode();
 
-                uint32_t count = strm.readInt<uint32_t>();
+                uint32_t count = strm.read_u32();
                 std::vector<uint32_t> offsets;
                 offsets.reserve(count);
 
                 while (count --> 0)
-                    offsets.emplace_back(strm.readInt<uint32_t>());
+                    offsets.emplace_back(strm.read_u32());
 
                 for (auto offset : offsets)
                 {
                     strm.position = offset;
-                    uint32_t nameOffset = strm.readInt<uint32_t>();
-                    uint32_t dataOffset = strm.readInt<uint32_t>();
-                    uint32_t paramOffset = strm.readInt<uint32_t>(); (void)paramOffset;
-                    uint32_t backTex = strm.readInt<uint32_t>(); (void)backTex;
+                    uint32_t nameOffset                     = strm.read_u32();
+                    uint32_t dataOffset                     = strm.read_u32();
+                    [[maybe_unused]] uint32_t paramOffset   = strm.read_u32();
+                    [[maybe_unused]] uint32_t backTex       = strm.read_u32();
 
                     strm.position = offset + nameOffset;
-                    fs::path filename = srcexp.shaders.path / strm.readString<char>();
+                    fs::path filename = srcexp.shaders.path / strm.read_string();
 
                     strm.position = offset + dataOffset;
-                    std::string file = strm.readString<char>();
+                    std::string file = strm.read_string();
 
                     DEBUG(filename);
                     if (!lak::SaveFile(filename, std::vector<uint8_t>(file.begin(), file.end())))
@@ -658,23 +864,90 @@ void Update()
     }
 }
 
+// #include "tcc/libtcc.h"
+
 int main()
 {
+    #if 0
+    {
+        TCCState *state = tcc_new();
+        tcc_set_options(state, "-nostdlib -nostdinc");
+        tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
+
+        tcc_compile_string(state, R"?(
+int print(const char *__restrict__ __format, ...);
+int tccmain()
+{
+    print("%d blaze it!\n", 420);
+    *(char*)0 = 0;
+    return 0;
+}
+)?");
+
+        tcc_add_symbol(state, "print", (void*)&std::printf);
+        tcc_relocate(state, TCC_RELOCATE_AUTO);
+
+        typedef int (*tcc_main_t)(int, char**);
+        tcc_main_t tcc_main = (tcc_main_t)tcc_get_symbol(state, "tccmain");
+
+        // [[maybe_unused]] int result = tcc_main(0, 0);
+
+        if (tcc_main) try
+        {
+            std::thread thread(tcc_main, 0, nullptr);
+            thread.detach();
+            std::this_thread::sleep_for(std::chrono::seconds(4));
+            // if (thread.joinable())
+            //     thread.join();
+        }
+        catch (std::exception &e)
+        {
+            ERROR(e.what());
+        }
+
+        tcc_delete(state);
+    }
+    #endif
+
+    // const bool opengl = false;
+    const bool opengl = true;
     lak::window_t window;
-    lak::InitGL(window, "Source Explorer", {1280, 720}, true);
+    if (opengl)
+    {
+        lak::InitGL(window, "Source Explorer", {1280, 720}, true);
+    }
+    else
+    {
+        lak::InitSR(window, "Source Explorer", {1280, 720}, true);
+        SDL_GetWindowSurface(window.window);
+    }
 
-    uint16_t targetFrameFreq = 59; // FPS
-    float targetFrameTime = 1.0f / (float) targetFrameFreq; // SPF
+    if (SDL_Init(SDL_INIT_AUDIO))
+        ERROR("Failed to initialise SDL audio");
 
-    const uint64_t perfFreq = SDL_GetPerformanceFrequency();
-    uint64_t perfCount = SDL_GetPerformanceCounter();
-    float frameTime = targetFrameTime; // start non-zero
+    [[maybe_unused]] uint16_t targetFrameFreq = 59; // FPS
+    [[maybe_unused]] float targetFrameTime = 1.0f / (float) targetFrameFreq; // SPF
 
-    glViewport(0, 0, window.size.x, window.size.y);
-    glClearColor(0.0f, 0.3125f, 0.3125f, 1.0f);
-    glEnable(GL_DEPTH_TEST);
+    [[maybe_unused]] const uint64_t perfFreq = SDL_GetPerformanceFrequency();
+    [[maybe_unused]] uint64_t perfCount = SDL_GetPerformanceCounter();
+    [[maybe_unused]] float frameTime = targetFrameTime; // start non-zero
 
-    ImGui::ImplContext context = ImGui::ImplCreateContext(ImGui::GraphicsMode::OPENGL);
+    if (opengl)
+    {
+        glViewport(0, 0, window.size.x, window.size.y);
+        glClearColor(0.0f, 0.3125f, 0.3125f, 1.0f);
+        glEnable(GL_DEPTH_TEST);
+    }
+    else
+    {
+        // SDL_Rect rect;
+        // rect.x = 0; rect.y = 0;
+        // rect.w = window.size.x; rect.h = window.size.y;
+        // SDL_RenderSetViewport(window.srContext, &rect);
+    }
+
+    ImGui::ImplContext context = ImGui::ImplCreateContext(
+        opengl ? ImGui::GraphicsMode::OPENGL : ImGui::GraphicsMode::SOFTWARE);
     ImGui::ImplInit();
     ImGui::ImplInitContext(context, window);
 
@@ -705,7 +978,8 @@ int main()
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
                         window.size.x = event.window.data1;
                         window.size.y = event.window.data2;
-                        glViewport(0, 0, window.size.x, window.size.y);
+                        if (opengl)
+                            glViewport(0, 0, window.size.x, window.size.y);
                     } break;
                 } break;
 
@@ -729,12 +1003,20 @@ int main()
 
         // --- BEGIN UPDATE ---
 
-        Update();
+        Update(frameTime);
 
         // --- END UPDATE ---
 
-        glViewport(0, 0, window.size.x, window.size.y);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        if (opengl)
+        {
+            glViewport(0, 0, window.size.x, window.size.y);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        }
+        else
+        {
+            // SDL_SetRenderDrawColor(window.srContext, 0x00, 0x80, 0x80, 0xFF);
+            // SDL_RenderClear(window.srContext);
+        }
 
         // --- BEGIN DRAW ---
 
@@ -742,7 +1024,16 @@ int main()
 
         ImGui::ImplRender(context);
 
-        SDL_GL_SwapWindow(window.window);
+        if (opengl)
+        {
+            SDL_GL_SwapWindow(window.window);
+        }
+        else
+        {
+            // SDL_RenderPresent(window.srContext);
+            context->srContext->window = window.window;
+            assert(SDL_UpdateWindowSurface(window.window) == 0);
+        }
 
         // --- TIMING ---
 
@@ -750,8 +1041,8 @@ int main()
         if (frameTimeError < 0.0f)
             frameTimeError = 0.0f;
         else if (frameTimeError > 0.0f)
-            frameTimeError = lak::mod(frameTimeError, targetFrameTime);
-
+            frameTimeError = std::fmod(frameTimeError, targetFrameTime);
+            // frameTimeError = lak::mod(frameTimeError, targetFrameTime);
         const uint64_t prevPerfCount = perfCount;
         do {
             perfCount = SDL_GetPerformanceCounter();
@@ -762,7 +1053,10 @@ int main()
 
     ImGui::ImplShutdownContext(context);
 
-    lak::ShutdownGL(window);
+    if (opengl)
+        lak::ShutdownGL(window);
+    else
+        lak::ShutdownSR(window);
 
     return(0);
 }
@@ -773,4 +1067,10 @@ int main()
 
 #include "explorer.cpp"
 
+#include <examples/imgui_impl_softraster.cpp>
+
+extern "C" {
 #include "tinflate.c"
+}
+
+#include <memory/memory.cpp>

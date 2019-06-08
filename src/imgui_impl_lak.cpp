@@ -28,18 +28,18 @@ namespace ImGui
 {
     ImplContext ImplCreateContext(GraphicsMode mode)
     {
-        ImplContext result = (ImplContext)std::malloc(sizeof(_ImplContext));
+        ImplContext result = new _ImplContext();
         result->mode = mode;
         switch (mode)
         {
-            case SOFTWARE:
-                result->vdContext = std::malloc(sizeof(_ImplSRContext));
+            case GraphicsMode::SOFTWARE:
+                result->srContext = new _ImplSRContext();
                 break;
-            case OPENGL:
-                result->vdContext = std::malloc(sizeof(_ImplGLContext));
+            case GraphicsMode::OPENGL:
+                result->glContext = new _ImplGLContext();
                 break;
-            case VULKAN:
-                result->vdContext = std::malloc(sizeof(_ImplVkContext));
+            case GraphicsMode::VULKAN:
+                result->vkContext = new _ImplVkContext();
                 break;
             default:
                 result->vdContext = nullptr;
@@ -54,18 +54,62 @@ namespace ImGui
         if (context != nullptr)
         {
             if (context->vdContext != nullptr)
-                std::free(context->vdContext);
-            std::free(context);
+            {
+                switch (context->mode)
+                {
+                    case GraphicsMode::SOFTWARE: delete context->srContext; break;
+                    case GraphicsMode::OPENGL: delete context->glContext; break;
+                    case GraphicsMode::VULKAN: delete context->vkContext; break;
+                    default: assert("Invalid Context Mode" && false); break;
+                }
+            }
+            delete context;
         }
     }
 
-    inline void UpdateDisplaySize(const lak::vec2f_t window, const lak::vec2f_t display)
+    inline void ImplUpdateDisplaySize(ImplContext context, SDL_Window *window)
     {
         ImGuiIO &io = ImGui::GetIO();
-        io.DisplaySize.x = window.x;
-        io.DisplaySize.y = window.y;
-        io.DisplayFramebufferScale.x = (window.x > 0) ? (display.x / window.x) : 0;
-        io.DisplayFramebufferScale.y = (window.y > 0) ? (display.y / window.y) : 0;
+
+        int windW, windH;
+        SDL_GetWindowSize(window, &windW, &windH);
+        io.DisplaySize.x = windW;
+        io.DisplaySize.y = windH;
+
+        switch (context->mode)
+        {
+            case GraphicsMode::SOFTWARE: {
+                io.DisplayFramebufferScale.x = 1.0f;
+                io.DisplayFramebufferScale.y = 1.0f;
+                if ((size_t)windW != context->srContext->screenTexture.w ||
+                    (size_t)windH != context->srContext->screenTexture.h)
+                {
+                    if (context->srContext->screenSurface != nullptr)
+                        SDL_FreeSurface(context->srContext->screenSurface);
+                    context->srContext->screenTexture.init(windW, windH);
+                    context->srContext->screenSurface = SDL_CreateRGBSurfaceWithFormatFrom(
+                        context->srContext->screenTexture.pixels,
+                        context->srContext->screenTexture.w,
+                        context->srContext->screenTexture.h,
+                        context->srContext->screenTexture.size * 8,
+                        context->srContext->screenTexture.w * context->srContext->screenTexture.size,
+                        context->srContext->screenFormat
+                    );
+                }
+            } break;
+            case GraphicsMode::OPENGL: {
+                int dispW, dispH;
+                SDL_GL_GetDrawableSize(window, &dispW, &dispH);
+                io.DisplayFramebufferScale.x = (windW > 0) ? (dispW / (float)windW) : 1.0f;
+                io.DisplayFramebufferScale.y = (windH > 0) ? (dispH / (float)windH) : 1.0f;
+            } break;
+            case GraphicsMode::VULKAN: {
+
+            } break;
+            default:
+                assert("Invalid Context Mode" && false);
+                break;
+        }
     }
 
     char *ImplStaticClipboard = nullptr;
@@ -109,18 +153,32 @@ namespace ImGui
 
     void ImplInitSRContext(ImplSRContext context, const lak::window_t &window)
     {
+        context->window = window.window;
 
+        ImGuiIO &io = ImGui::GetIO();
+
+        uint8_t* pixels;
+        int width, height;
+        io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height);
+        context->atlasTexture.init(width, height, (alpha8_t*)pixels);
+        io.Fonts->TexID = &context->atlasTexture;
+
+        context->screenTexture.init(window.size.x, window.size.y);
+
+        context->screenSurface = SDL_CreateRGBSurfaceWithFormatFrom(
+            context->screenTexture.pixels,
+            context->screenTexture.w,
+            context->screenTexture.h,
+            context->screenTexture.size * 8,
+            context->screenTexture.w * context->screenTexture.size,
+            context->screenFormat
+        );
+
+        ImGui_ImplSoftraster_Init(&context->screenTexture);
     }
 
     void ImplInitGLContext(ImplGLContext context, const lak::window_t &window)
     {
-        {
-            int windW, windH, dispW, dispH;
-            SDL_GetWindowSize(window.window, &windW, &windH);
-            SDL_GL_GetDrawableSize(window.window, &dispW, &dispH);
-            UpdateDisplaySize({(float)windW, (float)windH}, {(float)dispW, (float)dispH});
-        }
-
         context->state.program                   = 0;
         context->state.texture                   = 0;
         context->state.activeTexture             = GL_TEXTURE0;
@@ -219,7 +277,6 @@ namespace ImGui
 
     void ImplInitVkContext(ImplVkContext context, const lak::window_t &window)
     {
-
     }
 
     void ImplInitContext(ImplContext context, const lak::window_t &window)
@@ -239,19 +296,21 @@ namespace ImGui
 
         switch (context->mode)
         {
-            case SOFTWARE:
+            case GraphicsMode::SOFTWARE:
                 ImplInitSRContext(context->srContext, window);
                 break;
-            case OPENGL:
+            case GraphicsMode::OPENGL:
                 ImplInitGLContext(context->glContext, window);
                 break;
-            case VULKAN:
+            case GraphicsMode::VULKAN:
                 ImplInitVkContext(context->vkContext, window);
                 break;
             default:
                 assert(false);
                 break;
         }
+
+        ImplUpdateDisplaySize(context, window.window);
 
         #ifdef _WIN32
         SDL_SysWMinfo wmInfo;
@@ -263,7 +322,15 @@ namespace ImGui
 
     void ImplShutdownSRContext(ImplSRContext context)
     {
+        context->window = nullptr;
 
+        ImGui_ImplSoftraster_Shutdown();
+
+        SDL_FreeSurface(context->screenSurface);
+        context->screenSurface = nullptr;
+
+        context->screenTexture.init(0, 0);
+        context->atlasTexture.init(0, 0);
     }
 
     void ImplShutdownGLContext(ImplGLContext context)
@@ -298,7 +365,6 @@ namespace ImGui
 
     void ImplShutdownVkContext(ImplVkContext context)
     {
-
     }
 
     void ImplShutdownContext(ImplContext context)
@@ -313,13 +379,13 @@ namespace ImGui
 
         switch (context->mode)
         {
-            case SOFTWARE:
+            case GraphicsMode::SOFTWARE:
                 ImplShutdownSRContext(context->srContext);
                 break;
-            case OPENGL:
+            case GraphicsMode::OPENGL:
                 ImplShutdownGLContext(context->glContext);
                 break;
-            case VULKAN:
+            case GraphicsMode::VULKAN:
                 ImplShutdownVkContext(context->vkContext);
                 break;
             default:
@@ -327,7 +393,14 @@ namespace ImGui
                 break;
         }
 
-        DestroyContext(context->imContext);
+        if (context->imContext != nullptr)
+        {
+            DestroyContext(context->imContext);
+            context->imContext = nullptr;
+        }
+
+        std::free(context);
+        context = nullptr;
     }
 
     void ImplSetCurrentContext(ImplContext context)
@@ -381,9 +454,7 @@ namespace ImGui
             {
                 case SDL_WINDOWEVENT_RESIZED:
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    int dispW, dispH;
-                    SDL_GL_GetDrawableSize(SDL_GetWindowFromID(event.window.windowID), &dispW, &dispH);
-                    UpdateDisplaySize({(float)event.window.data1, (float)event.window.data2}, {(float)dispW, (float)dispH});
+                    ImplUpdateDisplaySize(context, SDL_GetWindowFromID(event.window.windowID));
                 } return true;
             } return false;
 
@@ -471,7 +542,49 @@ namespace ImGui
 
     void ImplSRRender(ImplSRContext context, ImDrawData *drawData)
     {
+        // ERROR(context);
+        assert(context != nullptr);
+        // ERROR(context->window);
+        assert(context->window != nullptr);
 
+        ImGui_ImplSoftraster_RenderDrawData(drawData);
+        // ERROR(drawData);
+
+        [[maybe_unused]] SDL_Surface *window = SDL_GetWindowSurface(context->window);
+        // ERROR(window);
+
+        if (window != nullptr)
+        {
+            SDL_Rect clip;
+            SDL_GetClipRect(window, &clip);
+            // SDL_FillRect(window, &clip, SDL_MapRGBA(window->format, 0xFF, 0xFF, 0xFF, 0xFF));
+            SDL_FillRect(window, &clip, SDL_MapRGBA(window->format, 0x00, 0x00, 0x00, 0xFF));
+            // DEBUG("Pixels " << context->screenTexture.pixels <<
+            // "\nWidth " << context->screenTexture.w <<
+            // "\nHeight " << context->screenTexture.h <<
+            // "\nDepth " << context->screenTexture.size * 8 <<
+            // "\nPitch " << context->screenTexture.w * context->screenTexture.size);
+
+            // SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(
+            //     context->screenTexture.pixels,
+            //     context->screenTexture.w,
+            //     context->screenTexture.h,
+            //     context->screenTexture.size * 8,
+            //     context->screenTexture.w * context->screenTexture.align,
+            //     SDL_PIXELFORMAT_RGB888
+            // );
+            // SDL_LockSurface(context->screenSurface);
+            // assert(SDL_LockSurface(surf) == 0);
+            // assert(SDL_LockSurface(window) == 0);
+            if(SDL_BlitSurface(context->screenSurface, nullptr, window, nullptr))
+            // if(SDL_BlitSurface(surf, nullptr, window, nullptr))
+                ERROR(SDL_GetError());
+            // SDL_UnlockSurface(window);
+            // SDL_UnlockSurface(surf);
+            // SDL_UnlockSurface(context->screenSurface);
+
+            // SDL_FreeSurface(surf);
+        }
     }
 
     void ImplGLRender(ImplGLContext context, ImDrawData *drawData)
@@ -602,13 +715,13 @@ namespace ImGui
     {
         switch (context->mode)
         {
-            case SOFTWARE:
+            case GraphicsMode::SOFTWARE:
                 ImplSRRender(context->srContext, drawData);
                 break;
-            case OPENGL:
+            case GraphicsMode::OPENGL:
                 ImplGLRender(context->glContext, drawData);
                 break;
-            case VULKAN:
+            case GraphicsMode::VULKAN:
                 ImplVkRender(context->vkContext, drawData);
                 break;
             default:
@@ -1210,7 +1323,7 @@ namespace lak
         IM_ASSERT(!(flags & ImGuiInputTextFlags_Multiline)); // call InputTextMultiline()
         bool result;
         ImGui::PushID(str_id);
-        result = ImGui::InputTextEx("", buf, (int)buf_size, ImVec2(-1,0), flags, callback, user_data);
+        result = ImGui::InputTextEx("", "", buf, (int)buf_size, ImVec2(-1,0), flags, callback, user_data);
         // result = ImGui::InputTextEx((std::string("##")+str_id).c_str(), buf, (int)buf_size, ImVec2(-1,0), flags, callback, user_data);
         ImGui::PopID();
         return result;

@@ -25,7 +25,7 @@ namespace SourceExplorer
 {
     namespace object
     {
-        enum object_type_t : int16_t
+        enum class object_type_t : int16_t
         {
             PLAYER          = -7,
             KEYBOARD        = -6,
@@ -46,29 +46,29 @@ namespace SourceExplorer
             SUB_APPLICATION = 9
         };
 
-        enum shape_type_t : uint16_t
+        enum class shape_type_t : uint16_t
         {
-            LINE_SHAPE      = 1,
-            RECTANGLE_SHAPE = 2,
-            ELLIPSE_SHAPE   = 3
+            LINE        = 1,
+            RECTANGLE   = 2,
+            ELLIPSE     = 3
         };
 
-        enum fill_type_t : uint16_t
+        enum class fill_type_t : uint16_t
         {
-            NONE_FILL       = 0,
-            SOLID_FILL      = 1,
-            GRADIENT_FILL   = 2,
-            MOTIF_FILL      = 3
+            NONE        = 0,
+            SOLID       = 1,
+            GRADIENT    = 2,
+            MOTIF       = 3
         };
 
-        enum line_flags_t : uint16_t
+        enum class line_flags_t : uint16_t
         {
             NONE        = 0,
             INVERSE_X   = 1 << 0,
             INVERSE_Y   = 1 << 1
         };
 
-        enum gradient_flags_t : uint16_t
+        enum class gradient_flags_t : uint16_t
         {
             HORIZONTAL  = 0,
             VERTICAL    = 1,
@@ -85,7 +85,7 @@ namespace SourceExplorer
             lak::color4_t color1, color2;
             uint16_t image;
 
-            void read(lak::memstrm_t &strm);
+            void read(lak::memory &strm);
         };
 
         struct quick_backdrop_t
@@ -97,7 +97,7 @@ namespace SourceExplorer
             uint32_t height;
             shape_t shape;
 
-            void read(lak::memstrm_t &strm);
+            void read(lak::memory &strm);
         };
 
         struct backdrop_t
@@ -109,7 +109,7 @@ namespace SourceExplorer
             uint32_t height;
             uint16_t image;
 
-            void read(lak::memstrm_t &strm);
+            void read(lak::memory &strm);
         };
 
         struct common_t
@@ -135,7 +135,7 @@ namespace SourceExplorer
 
             bool newObj;
 
-            void read(lak::memstrm_t &strm, bool newobj);
+            void read(lak::memory &strm, bool newobj);
         };
     }
 
