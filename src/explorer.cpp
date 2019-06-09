@@ -21,10 +21,12 @@ namespace SourceExplorer
 {
     bool debugConsole = true;
     bool developerConsole = false;
+    bool forceCompat = false;
     m128i_t _xmmword;
     std::vector<uint8_t> _magic_key;
+    game_mode_t _mode = game_mode_t::_OLD;
     uint8_t _magic_char;
-    bool _284_mode = false;
+
 
     std::vector<uint8_t> &operator += (std::vector<uint8_t> &lhs, const std::vector<uint8_t> &rhs)
     {
@@ -37,6 +39,7 @@ namespace SourceExplorer
         DEBUG("Loading Game");
 
         srcexp.state = game_t{};
+        srcexp.state.compat = forceCompat;
 
         srcexp.state.file = lak::LoadFile(srcexp.exe.path);
 
@@ -59,12 +62,19 @@ namespace SourceExplorer
         _xmmword.m128i_u32[2] = 2;
         _xmmword.m128i_u32[3] = 3;
 
-        _284_mode = !srcexp.state.oldGame && srcexp.state.productBuild == 284;
-
-        if (_284_mode)
-            _magic_char = 'c';
+        if (srcexp.state.productBuild < 284 ||
+            srcexp.state.oldGame ||
+            srcexp.state.compat)
+            _mode = game_mode_t::_OLD;
+        else if (srcexp.state.productBuild >= 288)
+            _mode = game_mode_t::_288;
         else
-            _magic_char = '6';
+            _mode = game_mode_t::_284;
+
+        if (_mode == game_mode_t::_OLD)
+            _magic_char = 99; // '6';
+        else
+            _magic_char = 54; // 'c';
 
         err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
         if (err != error_t::OK)
@@ -118,7 +128,7 @@ namespace SourceExplorer
         _magic_key.clear();
         _magic_key.reserve(256);
 
-        if (_284_mode)
+        if (_mode == game_mode_t::_284)
         {
             if (gameState.game.projectPath)
                 _magic_key += KeyString(gameState.game.projectPath->value);
@@ -612,7 +622,32 @@ namespace SourceExplorer
         }
     }
 
-    std::vector<uint8_t> Decode(const std::vector<uint8_t> &encoded, chunk_t id, encoding_t mode)
+    std::string GetObjectTypeString(object_type_t type)
+    {
+        switch (type)
+        {
+            case object_type_t::PLAYER:          return "Player";
+            case object_type_t::KEYBOARD:        return "Keyboard";
+            case object_type_t::CREATE:          return "Create";
+            case object_type_t::TIMER:           return "Timer";
+            case object_type_t::GAME:            return "Game";
+            case object_type_t::SPEAKER:         return "Speaker";
+            case object_type_t::SYSTEM:          return "System";
+            case object_type_t::QUICK_BACKDROP:  return "Quick Backdrop";
+            case object_type_t::BACKDROP:        return "Backdrop";
+            case object_type_t::ACTIVE:          return "Active";
+            case object_type_t::TEXT:            return "Text";
+            case object_type_t::QUESTION:        return "Question";
+            case object_type_t::SCORE:           return "Score";
+            case object_type_t::LIVES:           return "Lives";
+            case object_type_t::COUNTER:         return "Counter";
+            case object_type_t::RTF:             return "RTF";
+            case object_type_t::SUB_APPLICATION: return "Sub Application";
+            default: return "Invalid";
+        }
+    }
+
+    std::pair<bool, std::vector<uint8_t>> Decode(const std::vector<uint8_t> &encoded, chunk_t id, encoding_t mode)
     {
         switch (mode)
         {
@@ -620,12 +655,12 @@ namespace SourceExplorer
             case encoding_t::MODE2:
                 return Decrypt(encoded, id, mode);
             case encoding_t::MODE1:
-                return Inflate(encoded);
+                return {true, Inflate(encoded)};
             default:
                 if (encoded.size() > 0 && encoded[0] == 0x78)
-                    return Inflate(encoded);
+                    return {true, Inflate(encoded)};
                 else
-                    return encoded;
+                    return {true, encoded};
         }
     }
 
@@ -653,39 +688,42 @@ namespace SourceExplorer
         return result;
     }
 
-    std::vector<uint8_t> Decrypt(const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode)
+    std::pair<bool, std::vector<uint8_t>> Decrypt(const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode)
     {
         if (mode == encoding_t::MODE3)
         {
-            if (encrypted.size() <= 4) return encrypted;
+            if (encrypted.size() <= 4) return {false, encrypted};
             // TODO: check endian
             // size_t dataLen = *reinterpret_cast<const uint32_t*>(&encrypted[0]);
             std::vector<uint8_t> mem(encrypted.begin() + 4, encrypted.end());
 
-            if (!_284_mode && ((uint16_t)ID & 0x1) != 0)
+            if ((_mode != game_mode_t::_284) && ((uint16_t)ID & 0x1) != 0)
                 mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
             if (DecodeChunk(mem, _magic_key, _xmmword))
             {
-                if (mem.size() <= 4) return mem;
+                if (mem.size() <= 4) return {false, mem};
                 // dataLen = *reinterpret_cast<uint32_t*>(&mem[0]);
-                return Inflate(std::vector<uint8_t>(mem.begin()+4, mem.end()));
+                return {true, Inflate(std::vector<uint8_t>(mem.begin()+4, mem.end()))};
             }
             DEBUG("MODE 3 Decryption Failed");
-            return mem;
+            return {false, mem};
         }
         else
         {
-            if (encrypted.size() < 1) return encrypted;
+            if (encrypted.size() < 1) return {false, encrypted};
 
             std::vector<uint8_t> mem = encrypted;
 
-            if (!_284_mode && (uint16_t)ID & 0x1)
+            if ((_mode != game_mode_t::_284) && (uint16_t)ID & 0x1)
                 mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
             if (!DecodeChunk(mem, _magic_key, _xmmword))
+            {
+                return {false, mem};
                 DEBUG("MODE 2 Decryption Failed");
-            return mem;
+            }
+            return {true, mem};
         }
     }
 
@@ -731,7 +769,10 @@ namespace SourceExplorer
 
     lak::memory data_point_t::decode(const chunk_t ID, const encoding_t mode) const
     {
-        return lak::memory(Decode(data._data, ID, mode));
+        auto [success, mem] = Decode(data._data, ID, mode);
+        if (success)
+            return lak::memory(mem);
+        return lak::memory();
     }
 
     error_t chunk_entry_t::read(game_t &game, lak::memory &strm)
@@ -769,24 +810,31 @@ namespace SourceExplorer
 
     void chunk_entry_t::view(source_explorer_t &srcexp) const
     {
-        if (old)
-            ImGui::Text("Old Entry");
-        else
-            ImGui::Text("New Entry");
-        ImGui::Text("Position: 0x%zX", position);
-        ImGui::Text("End Pos: 0x%zX", end);
-        ImGui::Text("Size: 0x%zX", end - position);
+        if (lak::TreeNode("Entry Information##%zX", position))
+        {
+            ImGui::Separator();
+            if (old)
+                ImGui::Text("Old Entry");
+            else
+                ImGui::Text("New Entry");
+            ImGui::Text("Position: 0x%zX", position);
+            ImGui::Text("End Pos: 0x%zX", end);
+            ImGui::Text("Size: 0x%zX", end - position);
 
-        ImGui::Text("ID: 0x%zX", (size_t)ID);
-        ImGui::Text("Mode: MODE%zu", (size_t)mode);
+            ImGui::Text("ID: 0x%zX", (size_t)ID);
+            ImGui::Text("Mode: MODE%zu", (size_t)mode);
 
-        ImGui::Text("Header Position: 0x%zX", header.position);
-        ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
-        ImGui::Text("Header Size: 0x%zX", header.data.size());
+            ImGui::Text("Header Position: 0x%zX", header.position);
+            ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
+            ImGui::Text("Header Size: 0x%zX", header.data.size());
 
-        ImGui::Text("Data Position: 0x%zX", data.position);
-        ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
-        ImGui::Text("Data Size: 0x%zX", data.data.size());
+            ImGui::Text("Data Position: 0x%zX", data.position);
+            ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
+            ImGui::Text("Data Size: 0x%zX", data.data.size());
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
 
         if (ImGui::Button("View Memory"))
             srcexp.view = this;
@@ -824,23 +872,29 @@ namespace SourceExplorer
 
     void item_entry_t::view(source_explorer_t &srcexp) const
     {
-        if (old)
-            ImGui::Text("Old Entry");
-        else
-            ImGui::Text("New Entry");
-        ImGui::Text("Position: 0x%zX", position);
-        ImGui::Text("End Pos: 0x%zX", end);
-        ImGui::Text("Size: 0x%zX", end - position);
+        if (lak::TreeNode("Entry Information##%zX", position))
+        {
+            if (old)
+                ImGui::Text("Old Entry");
+            else
+                ImGui::Text("New Entry");
+            ImGui::Text("Position: 0x%zX", position);
+            ImGui::Text("End Pos: 0x%zX", end);
+            ImGui::Text("Size: 0x%zX", end - position);
 
-        ImGui::Text("Handle: 0x%zX", (size_t)handle);
+            ImGui::Text("Handle: 0x%zX", (size_t)handle);
 
-        ImGui::Text("Header Position: 0x%zX", header.position);
-        ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
-        ImGui::Text("Header Size: 0x%zX", header.data.size());
+            ImGui::Text("Header Position: 0x%zX", header.position);
+            ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
+            ImGui::Text("Header Size: 0x%zX", header.data.size());
 
-        ImGui::Text("Data Position: 0x%zX", data.position);
-        ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
-        ImGui::Text("Data Size: 0x%zX", data.data.size());
+            ImGui::Text("Data Position: 0x%zX", data.position);
+            ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
+            ImGui::Text("Data Size: 0x%zX", data.data.size());
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
 
         if (ImGui::Button("View Memory"))
             srcexp.view = this;
@@ -879,7 +933,10 @@ namespace SourceExplorer
             {
                 case encoding_t::MODE3:
                 case encoding_t::MODE2:
-                    result = Decrypt(data.data._data, ID, mode);
+                    if (auto [success, mem] = Decrypt(data.data._data, ID, mode); success)
+                        result = mem;
+                    else
+                        result.clear();
                     break;
                 case encoding_t::MODE1:
                     result = Inflate(data.data._data);
@@ -908,7 +965,10 @@ namespace SourceExplorer
             {
                 case encoding_t::MODE3:
                 case encoding_t::MODE2:
-                    result = Decrypt(header.data._data, ID, mode);
+                    if (auto [success, mem] = Decrypt(data.data._data, ID, mode); success)
+                        result = mem;
+                    else
+                        result.clear();
                     break;
                 case encoding_t::MODE1:
                     result = Inflate(header.data._data);
@@ -1246,9 +1306,41 @@ namespace SourceExplorer
         return basic_view(srcexp, "Shaders");
     }
 
+    error_t extended_header_t::read(game_t &game, lak::memory &strm)
+    {
+        error_t result = entry.read(game, strm);
+
+        lak::memory estrm = entry.decode();
+        flags = estrm.read_u32();
+        buildType = estrm.read_u32();
+        buildFlags = estrm.read_u32();
+        screenRatioTolerance = estrm.read_u16();
+        screenAngle = estrm.read_u16();
+
+        game.compat |= buildType >= 0x10000000;
+
+        return result;
+    }
+
     error_t extended_header_t::view(source_explorer_t &srcexp) const
     {
-        return basic_view(srcexp, "Extended Header");
+        if (lak::TreeNode("0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+
+            ImGui::Text("Flags: 0x%zX", (size_t)flags);
+            ImGui::Text("Build Type: 0x%zX", (size_t)buildType);
+            ImGui::Text("Build Flags: 0x%zX", (size_t)buildFlags);
+            ImGui::Text("Screen Ratio Tolerance: 0x%zX", (size_t)screenRatioTolerance);
+            ImGui::Text("Screen Angle: 0x%zX", (size_t)screenAngle);
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+
+        return error_t::OK;
     }
 
     error_t spacer_t::view(source_explorer_t &srcexp) const
@@ -1268,14 +1360,416 @@ namespace SourceExplorer
 
     namespace object
     {
-        error_t properties_t::view(source_explorer_t &srcexp) const
-        {
-            return basic_view(srcexp, "Properties");
-        }
-
         error_t effect_t::view(source_explorer_t &srcexp) const
         {
             return basic_view(srcexp, "Effect");
+        }
+
+        error_t shape_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Shape");
+
+            borderSize = strm.read_u16();
+            borderColor.r = strm.read_u8();
+            borderColor.g = strm.read_u8();
+            borderColor.b = strm.read_u8();
+            borderColor.a = strm.read_u8();
+            shape = (shape_type_t)strm.read_u16();
+            fill = (fill_type_t)strm.read_u16();
+
+            line = line_flags_t::NONE;
+            gradient = gradient_flags_t::HORIZONTAL;
+            handle = 0xFFFF;
+
+            if (shape == shape_type_t::LINE)
+            {
+                line = (line_flags_t)strm.read_u16();
+            }
+            else if (fill == fill_type_t::SOLID)
+            {
+                color1.r = strm.read_u8();
+                color1.g = strm.read_u8();
+                color1.b = strm.read_u8();
+                color1.a = strm.read_u8();
+            }
+            else if (fill == fill_type_t::GRADIENT)
+            {
+                color1.r = strm.read_u8();
+                color1.g = strm.read_u8();
+                color1.b = strm.read_u8();
+                color1.a = strm.read_u8();
+                color2.r = strm.read_u8();
+                color2.g = strm.read_u8();
+                color2.b = strm.read_u8();
+                color2.a = strm.read_u8();
+                gradient = (gradient_flags_t)strm.read_u16();
+            }
+            else if (fill == fill_type_t::MOTIF)
+            {
+                handle = strm.read_u16();
+            }
+
+            return error_t::OK;
+        }
+
+        error_t shape_t::view(source_explorer_t &srcexp) const
+        {
+            return error_t::OK;
+        }
+
+        error_t quick_backdrop_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Quick Backdrop");
+            error_t result = entry.read(game, strm);
+
+            if (result == error_t::OK)
+            {
+                lak::memory qstrm = entry.decode();
+                size = qstrm.read_u32();
+                obstacle = qstrm.read_u16();
+                collision = qstrm.read_u16();
+                dimension.x = qstrm.read_u32();
+                dimension.y = qstrm.read_u32();
+                shape.read(game, qstrm);
+            }
+
+            return result;
+        }
+
+        error_t quick_backdrop_t::view(source_explorer_t &srcexp) const
+        {
+            if (lak::TreeNode("0x%zX Properties (Quick Backdrop)##%zX", (size_t)entry.ID, entry.position))
+            {
+                ImGui::Separator();
+
+                entry.view(srcexp);
+
+                if (shape.handle < 0xFFFF)
+                {
+                    auto *img = GetImage(srcexp.state, shape.handle);
+                    if (img) img->view(srcexp);
+                }
+
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
+
+            return error_t::OK;
+        }
+
+        error_t backdrop_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Backdrop");
+            error_t result = entry.read(game, strm);
+
+            if (result == error_t::OK)
+            {
+                lak::memory bstrm = entry.decode();
+                obstacle = bstrm.read_u16();
+                collision = bstrm.read_u16();
+                dimension.x = bstrm.read_u32();
+                dimension.y = bstrm.read_u32();
+                handle = bstrm.read_u16();
+            }
+
+            return result;
+        }
+
+        error_t backdrop_t::view(source_explorer_t &srcexp) const
+        {
+            if (lak::TreeNode("0x%zX Properties (Backdrop)##%zX", (size_t)entry.ID, entry.position))
+            {
+                ImGui::Separator();
+
+                entry.view(srcexp);
+
+                if (handle < 0xFFFF)
+                {
+                    auto *img = GetImage(srcexp.state, handle);
+                    if (img) img->view(srcexp);
+                }
+
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
+
+            return error_t::OK;
+        }
+
+        error_t animation_direction_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Animation Direction");
+
+            minSpeed = strm.read_u8();
+            maxSpeed = strm.read_u8();
+            repeat = strm.read_u16();
+            backTo = strm.read_u16();
+            handles.resize(strm.read_u16());
+            for (auto &handle : handles)
+                handle = strm.read_u16();
+
+            return error_t::OK;
+        }
+
+        error_t animation_direction_t::view(source_explorer_t &srcexp) const
+        {
+            ImGui::Text("Min Speed: %d", (int)minSpeed);
+            ImGui::Text("Max Speed: %d", (int)maxSpeed);
+            ImGui::Text("Repeat: 0x%zX", (size_t)repeat);
+            ImGui::Text("Back To: 0x%zX", (size_t)backTo);
+            ImGui::Text("Frames: 0x%zX", handles.size());
+
+            int index = 0;
+            for (const auto &handle : handles)
+            {
+                ImGui::PushID(index++);
+                auto *img = GetImage(srcexp.state, handle);
+                if (img) img->view(srcexp);
+                ImGui::PopID();
+            }
+
+            return error_t::OK;
+        }
+
+        error_t animation_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Animation");
+
+            const size_t begin = strm.position;
+
+            size_t index = 0;
+            for (auto &offset : offsets)
+            {
+                offset = strm.read_u16();
+                if (offset != 0)
+                {
+                    const size_t pos = strm.position;
+                    strm.position = begin + offset;
+                    directions[index].read(game, strm);
+                    strm.position = pos;
+                }
+                ++index;
+            }
+
+            return error_t::OK;
+        }
+
+        error_t animation_t::view(source_explorer_t &srcexp) const
+        {
+            size_t index = 0;
+            for (const auto &direction : directions)
+            {
+                if (direction.handles.size() > 0 && lak::TreeNode("Animation Direction 0x%zX", index))
+                {
+                    ImGui::Separator();
+                    direction.view(srcexp);
+                    ImGui::Separator();
+                    ImGui::TreePop();
+                }
+                ++index;
+            }
+
+            return error_t::OK;
+        }
+
+        error_t animation_header_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Animation Header");
+
+            const size_t begin = strm.position;
+
+            size = strm.read_u16();
+            offsets.resize(strm.read_u16());
+            animations.resize(offsets.size());
+
+            size_t index = 0;
+            for (auto &offset : offsets)
+            {
+                offset = strm.read_u16();
+                if (offset != 0)
+                {
+                    const size_t pos = strm.position;
+                    strm.position = begin + offset;
+                    animations[index].read(game, strm);
+                    strm.position = pos;
+                }
+                ++index;
+            }
+
+            return error_t::OK;
+        }
+
+        error_t animation_header_t::view(source_explorer_t &srcexp) const
+        {
+            if (ImGui::TreeNode("Animations"))
+            {
+                ImGui::Separator();
+                ImGui::Text("Size: 0x%zX", size);
+                ImGui::Text("Animations: %zu", animations.size());
+                size_t index = 0;
+                for (const auto &animation : animations)
+                {
+                    if (animation.offsets[index] > 0 && lak::TreeNode("Animation 0x%zX", index))
+                    {
+                        ImGui::Separator();
+                        animation.view(srcexp);
+                        ImGui::TreePop();
+                    }
+                    ++index;
+                }
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
+
+            return error_t::OK;
+        }
+
+        error_t common_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Common Object");
+            error_t result = entry.read(game, strm);
+
+            if (result == error_t::OK)
+            {
+                lak::memory cstrm = entry.decode();
+
+                // if (game.productBuild >= 288 && !game.oldGame)
+                //     mode = game_mode_t::_288;
+                // if (game.productBuild >= 284 && !game.oldGame && !game.compat)
+                //     mode = game_mode_t::_284;
+                // else
+                //     mode = game_mode_t::_OLD;
+                mode = _mode;
+
+                const size_t begin = cstrm.position;
+
+                size = cstrm.read_u32();
+
+                if (mode == game_mode_t::_288)
+                {
+                    animationsOffset = cstrm.read_u16();
+                    movementsOffset = cstrm.read_u16(); // are these in the right order?
+                    version = cstrm.read_u16();         // are these in the right order?
+                    counterOffset = cstrm.read_u16();   // are these in the right order?
+                    systemOffset = cstrm.read_u16();    // are these in the right order?
+                }
+                else if (mode == game_mode_t::_284)
+                {
+                    counterOffset = cstrm.read_u16();
+                    version = cstrm.read_u16();
+                    cstrm.position += 2;
+                    movementsOffset = cstrm.read_u16();
+                    extensionOffset = cstrm.read_u16();
+                    animationsOffset = cstrm.read_u16();
+                }
+                else
+                {
+                    movementsOffset = cstrm.read_u16();
+                    animationsOffset = cstrm.read_u16();
+                    version = cstrm.read_u16();
+                    counterOffset = cstrm.read_u16();
+                    systemOffset = cstrm.read_u16();
+                }
+
+                flags = cstrm.read_u32();
+
+                const size_t end = cstrm.position + 16;
+
+                // qualifiers.clear();
+                // qualifiers.reserve(8);
+                // for (size_t i = 0; i < 8; ++i)
+                // {
+                //     int16_t qualifier = cstrm.read_s16();
+                //     if (qualifier == -1)
+                //         break;
+                //     qualifiers.push_back(qualifier);
+                // }
+
+                cstrm.position = end;
+
+                if (mode != game_mode_t::_284)
+                    systemOffset = cstrm.read_u16();
+                else
+                    extensionOffset = cstrm.read_u16();
+
+                valuesOffset = cstrm.read_u16();
+                stringsOffset = cstrm.read_u16();
+                newFlags = cstrm.read_u32();
+                preferences = cstrm.read_u32();
+                identifier = cstrm.read_u32();
+                backColor.r = cstrm.read_u8();
+                backColor.g = cstrm.read_u8();
+                backColor.b = cstrm.read_u8();
+                backColor.a = cstrm.read_u8();
+                fadeInOffset = cstrm.read_u32();
+                fadeOutOffset = cstrm.read_u32();
+
+                if (animationsOffset > 0)
+                {
+                    cstrm.position = begin + animationsOffset;
+                    animations = std::make_unique<animation_header_t>();
+                    animations->read(game, cstrm);
+                }
+            }
+
+            return result;
+        }
+
+        error_t common_t::view(source_explorer_t &srcexp) const
+        {
+            if (lak::TreeNode("0x%zX Properties (Common)##%zX", (size_t)entry.ID, entry.position))
+            {
+                ImGui::Separator();
+
+                entry.view(srcexp);
+
+                if (mode == game_mode_t::_288)
+                {
+                    ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
+                    ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
+                    ImGui::Text("Version: 0x%zX", (size_t)version);
+                    ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
+                    ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
+                    ImGui::Text("Flags: 0x%zX", (size_t)flags);
+                    ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
+                }
+                else if (mode == game_mode_t::_284)
+                {
+                    ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
+                    ImGui::Text("Version: 0x%zX", (size_t)version);
+                    ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
+                    ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
+                    ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
+                    ImGui::Text("Flags: 0x%zX", (size_t)flags);
+                    ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
+                }
+                else
+                {
+                    ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
+                    ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
+                    ImGui::Text("Version: 0x%zX", (size_t)version);
+                    ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
+                    ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
+                    ImGui::Text("Flags: 0x%zX", (size_t)flags);
+                    ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
+                }
+                ImGui::Text("Values Offset: 0x%zX", (size_t)valuesOffset);
+                ImGui::Text("Strings Offset: 0x%zX", (size_t)stringsOffset);
+                ImGui::Text("New Flags: 0x%zX", (size_t)newFlags);
+                ImGui::Text("Preferences: 0x%zX", (size_t)preferences);
+                ImGui::Text("Identifier: 0x%zX", (size_t)identifier);
+                ImGui::Text("Fade In Offset: 0x%zX", (size_t)fadeInOffset);
+                ImGui::Text("Fade Out Offset: 0x%zX", (size_t)fadeOutOffset);
+
+                lak::vec3f_t col = ((lak::vec3f_t)backColor) / 256.0f;
+                ImGui::ColorEdit3("Background Color", &col.x);
+
+                if (animations) animations->view(srcexp);
+
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
+            return error_t::OK;
         }
 
         error_t item_t::read(game_t &game, lak::memory &strm)
@@ -1301,8 +1795,21 @@ namespace SourceExplorer
                         break;
 
                     case chunk_t::OBJPROP:
-                        properties = std::make_unique<properties_t>();
-                        result = properties->read(game, strm);
+                        switch (type)
+                        {
+                            case object_type_t::QUICK_BACKDROP:
+                                quickBackdrop = std::make_unique<quick_backdrop_t>();
+                                quickBackdrop->read(game, strm);
+                                break;
+                            case object_type_t::BACKDROP:
+                                backdrop = std::make_unique<backdrop_t>();
+                                backdrop->read(game, strm);
+                                break;
+                            default:
+                                common = std::make_unique<common_t>();
+                                common->read(game, strm);
+                                break;
+                        }
                         break;
 
                     case chunk_t::OBJEFCT:
@@ -1317,24 +1824,6 @@ namespace SourceExplorer
                 }
             }
             finished:
-
-            if (properties)
-            {
-                auto pstrm = properties->entry.decode();
-                switch (type)
-                {
-                    case object_type_t::QUICK_BACKDROP: {
-                        quickBackdrop.read(pstrm);
-                    } break;
-                    case object_type_t::BACKDROP: {
-                        backdrop.read(pstrm);
-                    } break;
-                    default: {
-                        common.read(pstrm, !game.oldGame && game.productBuild >= 284);
-                    } break;
-                }
-            }
-            else ERROR("Object Missing Properties");
 
             return result;
         }
@@ -1358,24 +1847,14 @@ namespace SourceExplorer
                 ImGui::Text("Ink Effect Parameter: 0x%zX", (size_t)inkEffectParam);
 
                 if (name) name->view(srcexp, "Name", true);
-                if (properties) properties->view(srcexp);
+
+                if (quickBackdrop) quickBackdrop->view(srcexp);
+                if (backdrop) backdrop->view(srcexp);
+                if (common) common->view(srcexp);
+
                 if (effect) effect->view(srcexp);
                 if (end) end->view(srcexp);
 
-                switch (type)
-                {
-                    case object_type_t::QUICK_BACKDROP: {
-                        auto *img = GetImage(srcexp.state, quickBackdrop.shape.image);
-                        if (img != nullptr) img->view(srcexp);
-                    } break;
-                    case object_type_t::BACKDROP: {
-                        auto *img = GetImage(srcexp.state, backdrop.image);
-                        if (img != nullptr) img->view(srcexp);
-                    } break;
-                    default: {
-
-                    } break;
-                }
 
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -1444,15 +1923,18 @@ namespace SourceExplorer
             DEBUG("Reading Frame Palette");
             error_t result = entry.read(game, strm);
 
-            auto pstrm = entry.decode();
-            unknown = pstrm.read_u32();
-            for (auto &color : colors)
+            if (result == error_t::OK)
             {
-                color.r = pstrm.read_u8();
-                color.g = pstrm.read_u8();
-                color.b = pstrm.read_u8();
-                /* color.a = */pstrm.read_u8();
-                color.a = 255u;
+                auto pstrm = entry.decode();
+                unknown = pstrm.read_u32();
+                for (auto &color : colors)
+                {
+                    color.r = pstrm.read_u8();
+                    color.g = pstrm.read_u8();
+                    color.b = pstrm.read_u8();
+                    /* color.a = */pstrm.read_u8();
+                    color.a = 255u;
+                }
             }
 
             return result;
@@ -1503,7 +1985,12 @@ namespace SourceExplorer
 
         error_t object_instance_t::view(source_explorer_t &srcexp) const
         {
-            if (lak::TreeNode("0x%zX", (size_t)handle))
+            auto *obj = GetObject(srcexp.state, handle);
+            std::u8string str;
+            if (obj && obj->name)
+                str += lak::strconv_u8(obj->name->value);
+
+            if (lak::TreeNode("0x%zX %s", (size_t)handle, str.c_str()))
             {
                 ImGui::Separator();
 
@@ -1515,11 +2002,7 @@ namespace SourceExplorer
                 ImGui::Text("Layer: 0x%zX", (size_t)layer);
                 ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
 
-                auto *obj = GetObject(srcexp.state, handle);
-                if (obj != nullptr)
-                {
-                    obj->view(srcexp);
-                }
+                if (obj) obj->view(srcexp);
 
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -1533,12 +2016,15 @@ namespace SourceExplorer
             DEBUG("Reading Object Instances");
             error_t result = entry.read(game, strm);
 
-            auto hstrm = entry.decode();
-            objects.clear();
-            objects.resize(hstrm.read_u32());
-            DEBUG("Objects: 0x" << objects.size());
-            for (auto &handle : objects)
-                handle.read(game, hstrm);
+            if (result == error_t::OK)
+            {
+                auto hstrm = entry.decode();
+                objects.clear();
+                objects.resize(hstrm.read_u32());
+                DEBUG("Objects: 0x" << objects.size());
+                for (auto &handle : objects)
+                    handle.read(game, hstrm);
+            }
 
             return result;
         }
@@ -2549,4 +3035,3 @@ namespace SourceExplorer
 
 #include "encryption.cpp"
 #include "image.cpp"
-#include "object.cpp"

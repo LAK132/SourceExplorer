@@ -40,7 +40,6 @@
 
 #include "encryption.h"
 #include "image.h"
-#include "object.h"
 
 #ifndef DEBUG_LINE_FILE
 #undef DEBUG_LINE_FILE
@@ -101,10 +100,14 @@ namespace SourceExplorer
 {
     extern bool debugConsole;
     extern bool developerConsole;
+    extern bool forceCompat;
     extern m128i_t _xmmword;
     extern std::vector<uint8_t> _magic_key;
     extern uint8_t _magic_char;
-    extern bool _284_mode;
+
+    enum class game_mode_t : uint8_t { _OLD, _284, _288 };
+    extern game_mode_t _mode;
+
     struct game_t;
     struct source_explorer_t;
 
@@ -310,6 +313,13 @@ namespace SourceExplorer
 
     struct extended_header_t : public basic_chunk_t
     {
+        uint32_t flags;
+        uint32_t buildType;
+        uint32_t buildFlags;
+        uint16_t screenRatioTolerance;
+        uint16_t screenAngle;
+
+        error_t read(game_t &game, lak::memory &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -335,20 +345,113 @@ namespace SourceExplorer
 
     namespace object
     {
-        struct properties_t : public basic_chunk_t
+        struct effect_t : public basic_chunk_t
         {
             error_t view(source_explorer_t &srcexp) const;
         };
 
-        struct effect_t : public basic_chunk_t
+        struct shape_t
         {
+            fill_type_t fill;
+            shape_type_t shape;
+            line_flags_t line;
+            gradient_flags_t gradient;
+            uint16_t borderSize;
+            lak::color4_t borderColor;
+            lak::color4_t color1, color2;
+            uint16_t handle;
+
+            error_t read(game_t &game, lak::memory &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct quick_backdrop_t : public basic_chunk_t
+        {
+            uint32_t size;
+            uint16_t obstacle;
+            uint16_t collision;
+            lak::vec2u32_t dimension;
+            shape_t shape;
+
+            error_t read(game_t &game, lak::memory &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct backdrop_t : public basic_chunk_t
+        {
+            uint32_t size;
+            uint16_t obstacle;
+            uint16_t collision;
+            lak::vec2u32_t dimension;
+            uint16_t handle;
+
+            error_t read(game_t &game, lak::memory &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct animation_direction_t
+        {
+            uint8_t minSpeed;
+            uint8_t maxSpeed;
+            uint16_t repeat;
+            uint16_t backTo;
+            std::vector<uint16_t> handles;
+
+            error_t read(game_t &game, lak::memory &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct animation_t
+        {
+            uint16_t offsets[32];
+            animation_direction_t directions[32];
+
+            error_t read(game_t &game, lak::memory &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct animation_header_t
+        {
+            uint16_t size;
+            std::vector<uint16_t> offsets;
+            std::vector<animation_t> animations;
+
+            error_t read(game_t &game, lak::memory &strm);
+            error_t view(source_explorer_t &srcexp) const;
+        };
+
+        struct common_t : public basic_chunk_t
+        {
+            uint32_t size;
+
+            uint16_t movementsOffset;
+            uint16_t animationsOffset;
+            uint16_t counterOffset;
+            uint16_t systemOffset;
+            uint32_t fadeInOffset;
+            uint32_t fadeOutOffset;
+            uint16_t valuesOffset;
+            uint16_t stringsOffset;
+            uint16_t extensionOffset;
+
+            std::unique_ptr<animation_header_t> animations;
+
+            uint16_t version;
+            uint32_t flags;
+            uint32_t newFlags;
+            uint32_t preferences;
+            uint32_t identifier;
+            lak::color4_t backColor;
+
+            game_mode_t mode;
+
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
         struct item_t : public basic_chunk_t // OBJHEAD
         {
             std::unique_ptr<string_chunk_t> name;
-            std::unique_ptr<properties_t> properties;
             std::unique_ptr<effect_t> effect;
             std::unique_ptr<last_t> end;
 
@@ -357,12 +460,9 @@ namespace SourceExplorer
             uint32_t inkEffect;
             uint32_t inkEffectParam;
 
-            union
-            {
-                quick_backdrop_t quickBackdrop;
-                backdrop_t backdrop;
-                common_t common;
-            };
+            std::unique_ptr<quick_backdrop_t> quickBackdrop;
+            std::unique_ptr<backdrop_t> backdrop;
+            std::unique_ptr<common_t> common;
 
             error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
@@ -727,6 +827,7 @@ namespace SourceExplorer
 
         bool unicode = false;
         bool oldGame = false;
+        bool compat = false;
         bool cnc = false;
         std::vector<uint8_t> protection;
 
@@ -881,7 +982,11 @@ namespace SourceExplorer
         const resource_entry_t &entry
     );
 
-    std::vector<uint8_t> Decode(
+    std::string GetObjectTypeString(
+        object_type_t type
+    );
+
+    std::pair<bool, std::vector<uint8_t>> Decode(
         const std::vector<uint8_t> &encoded,
         chunk_t ID,
         encoding_t mode
@@ -901,7 +1006,7 @@ namespace SourceExplorer
         unsigned int outSize
     );
 
-    std::vector<uint8_t> Decrypt(
+    std::pair<bool, std::vector<uint8_t>> Decrypt(
         const std::vector<uint8_t> &encrypted,
         chunk_t ID,
         encoding_t mode
