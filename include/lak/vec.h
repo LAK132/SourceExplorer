@@ -48,11 +48,11 @@ namespace lak
             return *this;
         }
         template<typename L>
-        operator vec2<L>() const { return vec2<L>{x, y}; }
+        operator vec2<L>() const { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
         template<typename L>
-        operator vec3<L>() const { return vec3<L>{x, y, 0}; }
+        operator vec3<L>() const { return vec3<L>{static_cast<L>(x), static_cast<L>(y), 0}; }
         template<typename L>
-        operator vec4<L>() const { return vec4<L>{x, y, 0, 0}; }
+        operator vec4<L>() const { return vec4<L>{static_cast<L>(x), static_cast<L>(y), 0, 0}; }
     };
 
     using vec2f_t = vec2<float>;
@@ -84,11 +84,11 @@ namespace lak
             return *this;
         }
         template<typename L>
-        operator vec2<L>() const { return vec2<L>{x, y}; }
+        operator vec2<L>() const { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
         template<typename L>
-        operator vec3<L>() const { return vec3<L>{x, y, z}; }
+        operator vec3<L>() const { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
         template<typename L>
-        operator vec4<L>() const { return vec3<L>{x, y, z, 0}; }
+        operator vec4<L>() const { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), 0}; }
     };
 
     using vec3f_t = vec3<float>;
@@ -122,11 +122,11 @@ namespace lak
             return *this;
         }
         template<typename L>
-        operator vec2<L>() const { return vec2<L>{x, y}; }
+        operator vec2<L>() const { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
         template<typename L>
-        operator vec3<L>() const { return vec3<L>{x, y, z}; }
+        operator vec3<L>() const { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
         template<typename L>
-        operator vec4<L>() const { return vec4<L>{x, y, z, w}; }
+        operator vec4<L>() const { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), static_cast<L>(w)}; }
     };
 
     using vec4f_t = vec4<float>;
@@ -174,12 +174,46 @@ lak::vec2<T> operator*(lak::vec2<T> lhs, const lak::vec2<T> &rhs)
 }
 
 template<typename T>
+lak::vec2<T> operator*(lak::vec2<T> lhs, T rhs)
+{
+    lhs.x *= rhs;
+    lhs.y *= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec2<T> operator*(T lhs, lak::vec2<T> rhs)
+{
+    rhs.x *= lhs;
+    rhs.y *= lhs;
+    return rhs;
+}
+
+template<typename T>
 lak::vec3<T> operator*(lak::vec3<T> lhs, const lak::vec3<T> &rhs)
 {
     lhs.x *= rhs.x;
     lhs.y *= rhs.y;
     lhs.z *= rhs.z;
     return lhs;
+}
+
+template<typename T>
+lak::vec3<T> operator*(lak::vec3<T> lhs, T rhs)
+{
+    lhs.x *= rhs;
+    lhs.y *= rhs;
+    lhs.z *= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec3<T> operator*(T lhs, lak::vec3<T> rhs)
+{
+    rhs.x *= lhs;
+    rhs.y *= lhs;
+    rhs.z *= lhs;
+    return rhs;
 }
 
 template<typename T>
@@ -193,10 +227,38 @@ lak::vec4<T> operator*(lak::vec4<T> lhs, const lak::vec4<T> &rhs)
 }
 
 template<typename T>
+lak::vec4<T> operator*(lak::vec4<T> lhs, T rhs)
+{
+    lhs.x *= rhs;
+    lhs.y *= rhs;
+    lhs.z *= rhs;
+    lhs.w *= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec4<T> operator*(T lhs, lak::vec4<T> rhs)
+{
+    rhs.x *= lhs;
+    rhs.y *= lhs;
+    rhs.z *= lhs;
+    rhs.w *= lhs;
+    return rhs;
+}
+
+template<typename T>
 lak::vec2<T> &operator*=(lak::vec2<T> &lhs, const lak::vec2<T> &rhs)
 {
     lhs.x *= rhs.x;
     lhs.y *= rhs.y;
+    return lhs;
+}
+
+template<typename T>
+lak::vec2<T> &operator*=(lak::vec2<T> &lhs, T rhs)
+{
+    lhs.x *= rhs;
+    lhs.y *= rhs;
     return lhs;
 }
 
@@ -210,12 +272,87 @@ lak::vec3<T> &operator*=(lak::vec3<T> &lhs, const lak::vec3<T> &rhs)
 }
 
 template<typename T>
+lak::vec3<T> &operator*=(lak::vec3<T> &lhs, T rhs)
+{
+    lhs.x *= rhs;
+    lhs.y *= rhs;
+    lhs.z *= rhs;
+    return lhs;
+}
+
+template<typename T>
 lak::vec4<T> &operator*=(lak::vec4<T> &lhs, const lak::vec4<T> &rhs)
 {
     lhs.x *= rhs.x;
     lhs.y *= rhs.y;
     lhs.z *= rhs.z;
     lhs.w *= rhs.w;
+    return lhs;
+}
+
+template<typename T>
+lak::vec4<T> &operator*=(lak::vec4<T> &lhs, T rhs)
+{
+    lhs.x *= rhs;
+    lhs.y *= rhs;
+    lhs.z *= rhs;
+    lhs.w *= rhs;
+    return lhs;
+}
+
+// division
+
+template<typename T>
+lak::vec2<T> operator/(lak::vec2<T> lhs, T rhs)
+{
+    lhs.x /= rhs;
+    lhs.y /= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec3<T> operator/(lak::vec3<T> lhs, T rhs)
+{
+    lhs.x /= rhs;
+    lhs.y /= rhs;
+    lhs.z /= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec4<T> operator/(lak::vec4<T> lhs, T rhs)
+{
+    lhs.x /= rhs;
+    lhs.y /= rhs;
+    lhs.z /= rhs;
+    lhs.w /= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec2<T> &operator/=(lak::vec2<T> &lhs, T rhs)
+{
+    lhs.x /= rhs;
+    lhs.y /= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec3<T> &operator/=(lak::vec3<T> &lhs, T rhs)
+{
+    lhs.x /= rhs;
+    lhs.y /= rhs;
+    lhs.z /= rhs;
+    return lhs;
+}
+
+template<typename T>
+lak::vec4<T> &operator/=(lak::vec4<T> &lhs, T rhs)
+{
+    lhs.x /= rhs;
+    lhs.y /= rhs;
+    lhs.z /= rhs;
+    lhs.w /= rhs;
     return lhs;
 }
 

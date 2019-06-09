@@ -106,17 +106,21 @@ void Update(float FrameTime)
         {
             if (ImGui::BeginMenu("File"))
             {
-                SrcExp.exe.attempt |= ImGui::MenuItem("Open...", nullptr);
-                SrcExp.images.attempt |= ImGui::MenuItem("Dump Images", nullptr);
-                SrcExp.music.attempt |= ImGui::MenuItem("Dump Music", nullptr);
-                SrcExp.sounds.attempt |= ImGui::MenuItem("Dump Sounds", nullptr);
-                SrcExp.shaders.attempt |= ImGui::MenuItem("Dump Shaders", nullptr);
-                SrcExp.appicon.attempt |= ImGui::MenuItem("Dump App Icon", nullptr);
+                SrcExp.exe.attempt          |= ImGui::MenuItem("Open...", nullptr);
+                SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Sorted Images [unfinished]...", nullptr);
+                SrcExp.images.attempt       |= ImGui::MenuItem("Dump Images...", nullptr);
+                // SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Images...", nullptr);
+                // if (se::developerConsole)
+                //     SrcExp.images.attempt   |= ImGui::MenuItem("Dump Images (Raw)...", nullptr);
+                SrcExp.music.attempt        |= ImGui::MenuItem("Dump Music...", nullptr);
+                SrcExp.sounds.attempt       |= ImGui::MenuItem("Dump Sounds...", nullptr);
+                SrcExp.shaders.attempt      |= ImGui::MenuItem("Dump Shaders...", nullptr);
+                SrcExp.appicon.attempt      |= ImGui::MenuItem("Dump App Icon...", nullptr);
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Credits"))
             {
-                ImGui::Text("Frame rate %f", 1.0f/FrameTime);
+                ImGui::Text("Frame rate %f", 1.0f / FrameTime);
                 credits();
                 ImGui::EndMenu();
             }
@@ -534,6 +538,102 @@ void Update(float FrameTime)
         {
             SrcExp.images.valid = false;
             SrcExp.images.attempt = false;
+        }
+    }
+
+    if (SrcExp.sortedImages.attempt)
+    {
+        if (!SrcExp.sortedImages.valid)
+        {
+            if (lak::OpenFolder(SrcExp.sortedImages.path, SrcExp.sortedImages.valid))
+            {
+                if (!SrcExp.sortedImages.valid)
+                {
+                    // User cancelled
+                    SrcExp.sortedImages.attempt = false;
+                }
+            }
+        }
+        else if (DumpStuff("Sorted Image Dump",
+            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
+            {
+                if (!srcexp.state.game.frameBank)
+                {
+                    ERROR("No Frame Bank");
+                    return;
+                }
+
+                if (!srcexp.state.game.objectBank)
+                {
+                    ERROR("No Object Bank");
+                    return;
+                }
+
+                if (!srcexp.state.game.imageBank)
+                {
+                    ERROR("No Image Bank");
+                    return;
+                }
+
+                const size_t frameCount = srcexp.state.game.frameBank->items.size();
+                size_t frameIndex = 0;
+                for (const auto &frame : srcexp.state.game.frameBank->items)
+                {
+                    if (frame.objectInstances)
+                    {
+                        std::u16string frameName = frame.name
+                            ? frame.name->value
+                            : std::u16string(u"Frame_0x") + lak::strconv_u16(std::to_string(frameIndex));
+
+                        fs::path path = srcexp.sortedImages.path / frameName;
+                        fs::create_directories(path);
+
+                        const size_t objectCount = frame.objectInstances->objects.size();
+                        size_t objectIndex = 0;
+                        for (const auto &object : frame.objectInstances->objects)
+                        {
+                            const se::object::item_t *obj = se::GetObject(srcexp.state, object.handle);
+                            if (obj != nullptr)
+                            {
+                                std::u16string objectName = obj->name
+                                    ? obj->name->value
+                                    : std::u16string(u"Unnamed_0x") + lak::strconv_u16(std::to_string(objectIndex));
+
+                                const se::image::item_t *image = nullptr;
+                                if (obj->type == se::object::object_type_t::QUICK_BACKDROP)
+                                {
+                                    image = GetImage(srcexp.state, obj->quickBackdrop.shape.image);
+                                }
+                                else if (obj->type == se::object::object_type_t::BACKDROP)
+                                {
+                                    image = GetImage(srcexp.state, obj->backdrop.image);
+                                }
+                                if (image != nullptr)
+                                {
+                                    lak::memory strm = image->entry.decode();
+                                    const se::image_t &image = frame.palette
+                                        ? se::CreateImage(strm, srcexp.dumpColorTrans, srcexp.state.oldGame, frame.palette->colors)
+                                        : se::CreateImage(strm, srcexp.dumpColorTrans, srcexp.state.oldGame);
+                                    fs::path filename = path / (objectName + u".png");
+                                    if (stbi_write_png(filename.u8string().c_str(),
+                                        (int)image.bitmap.size().x, (int)image.bitmap.size().y, 4,
+                                        &(image.bitmap[0].r), (int)(image.bitmap.size().x * 4)) != 1)
+                                    {
+                                        ERROR("Failed To Save File '" << filename << "'");
+                                    }
+                                }
+                            }
+                            completed = (float)((double)frameIndex / frameCount) + (float)(((double)objectIndex / objectCount) / (frameIndex * 100));
+                            ++objectIndex;
+                        }
+                    }
+                    ++frameIndex;
+                }
+            }
+        ))
+        {
+            SrcExp.sortedImages.valid = false;
+            SrcExp.sortedImages.attempt = false;
         }
     }
 
