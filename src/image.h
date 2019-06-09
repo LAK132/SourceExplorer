@@ -41,13 +41,13 @@ namespace SourceExplorer
     lak::color4_t ColorFrom15bit(uint16_t RGB);
     lak::color4_t ColorFrom16bit(uint16_t RGB);
 
-    lak::color4_t ColorFrom8bit(lak::memory &strm);
+    lak::color4_t ColorFrom8bit(lak::memory &strm, const lak::color4_t palette[256] = nullptr);
     lak::color4_t ColorFrom15bit(lak::memory &strm);
     lak::color4_t ColorFrom16bit(lak::memory &strm);
     lak::color4_t ColorFrom24bit(lak::memory &strm);
     lak::color4_t ColorFrom32bit(lak::memory &strm);
 
-    lak::color4_t ColorFromMode(lak::memory &strm, const graphics_mode_t mode);
+    lak::color4_t ColorFromMode(lak::memory &strm, const graphics_mode_t mode, const lak::color4_t palette[256] = nullptr);
 
     uint16_t BitmapPaddingSize(
         uint16_t width,
@@ -84,16 +84,17 @@ namespace SourceExplorer
     image_t CreateImage(
         lak::memory &strm,
         const bool colorTrans,
-        const bool old
+        const bool old,
+        const lak::color4_t palette[256] = nullptr
     );
 
-    // "fucked" version
-    image_t CreateImage(
-        lak::memory &strm,
-        const bool colorTrans,
-        const bool old,
-        const lak::vec2u16_t sizeOverride
-    );
+    // // "fucked" version
+    // image_t CreateImage(
+    //     lak::memory &strm,
+    //     const bool colorTrans,
+    //     const bool old,
+    //     const lak::vec2u16_t sizeOverride
+    // );
 
     lak::glTexture_t CreateTexture(
         const lak::image4_t &bitmap

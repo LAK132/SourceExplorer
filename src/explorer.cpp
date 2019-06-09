@@ -1439,9 +1439,50 @@ namespace SourceExplorer
             return basic_view(srcexp, "Password");
         }
 
+        error_t palette_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Frame Palette");
+            error_t result = entry.read(game, strm);
+
+            auto pstrm = entry.decode();
+            unknown = pstrm.read_u32();
+            for (auto &color : colors)
+            {
+                color.r = pstrm.read_u8();
+                color.g = pstrm.read_u8();
+                color.b = pstrm.read_u8();
+                /* color.a = */pstrm.read_u8();
+                color.a = 255u;
+            }
+
+            return result;
+        }
+
         error_t palette_t::view(source_explorer_t &srcexp) const
         {
-            return basic_view(srcexp, "Palette");
+            error_t result = error_t::OK;
+
+            if (lak::TreeNode("0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position))
+            {
+                ImGui::Separator();
+
+                entry.view(srcexp);
+
+                uint8_t index = 0;
+                for (auto color : colors)
+                {
+                    lak::vec3f_t col = ((lak::vec3f_t)color) / 256.0f;
+                    char str[3];
+                    sprintf(str, "%hhX", index++);
+                    ImGui::ColorEdit3(str, &col.x);
+                }
+
+                ImGui::Separator();
+
+                ImGui::TreePop();
+            }
+
+            return result;
         }
 
         error_t object_instance_t::read(game_t &game, lak::memory &strm)

@@ -45,12 +45,20 @@
 #ifndef DEBUG_LINE_FILE
 #undef DEBUG_LINE_FILE
 #endif
+#ifdef _WIN32
+#define DEBUG_LINE_FILE "(" << __FILE__ << ":" << std::dec << __LINE__ << ")"
+#else
 #define DEBUG_LINE_FILE "\x1B[2m(" << __FILE__ << ":" << std::dec << __LINE__ << ")\x1B[0m"
+#endif
 
 #ifndef WDEBUG_LINE_FILE
 #undef WDEBUG_LINE_FILE
 #endif
+#ifdef _WIN32
+#define WDEBUG_LINE_FILE L"(" << __FILE__ << L":" << std::dec << __LINE__ << L")"
+#else
 #define WDEBUG_LINE_FILE L"\x1B[2m(" << __FILE__ << L":" << std::dec << __LINE__ << L")\x1B[0m"
+#endif
 
 #ifdef DEBUG
 #undef DEBUG
@@ -65,12 +73,20 @@
 #ifdef ERROR
 #undef ERROR
 #endif
+#ifdef _WIN32
+#define ERROR(x) std::cerr << "ERROR" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
+#else
 #define ERROR(x) std::cerr << "\x1B[91m\x1B[1mERROR\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << "\x1B[91m: " << std::hex << x << "\x1B[0m\n" << std::flush;
+#endif
 
 #ifdef WERROR
 #undef WERROR
 #endif
+#ifdef _WIN32
+#define WERROR(x) std::wcerr << L"ERROR" << WDEBUG_LINE_FILE << L": " << std::hex << x << L"\n" << std::flush;
+#else
 #define WERROR(x) std::wcerr << L"\x1B[91m\x1B[1mERROR\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L"\x1B[91m: " << std::hex << x << L"\x1B[0m\n" << std::flush;
+#endif
 
 // char8_t typdef for C++ < 20
 #if __cplusplus <= 201703L
@@ -375,6 +391,10 @@ namespace SourceExplorer
 
         struct palette_t : public basic_chunk_t
         {
+            uint32_t unknown;
+            lak::color4_t colors[256];
+
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -735,6 +755,7 @@ namespace SourceExplorer
         bool dumpColorTrans = true;
         file_state_t exe;
         file_state_t images;
+        file_state_t sortedImages;
         file_state_t sounds;
         file_state_t music;
         file_state_t shaders;
