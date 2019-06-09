@@ -618,9 +618,8 @@ void Update(float FrameTime)
                 {
                     if (frame.objectInstances)
                     {
-                        std::u16string frameName = frame.name
-                            ? frame.name->value
-                            : std::u16string(u"Frame_0x") + lak::strconv_u16(std::to_string(frameIndex));
+                        std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
+                            + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
 
                         fs::path path = srcexp.sortedImages.path / frameName;
                         fs::create_directories(path);
@@ -632,9 +631,8 @@ void Update(float FrameTime)
                             const se::object::item_t *obj = se::GetObject(srcexp.state, object.handle);
                             if (obj != nullptr)
                             {
-                                std::u16string objectName = (obj->name
-                                    ? obj->name->value
-                                    : std::u16string(u"Unnamed")) + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
+                                std::u16string objectName = (obj->name ? obj->name->value : std::u16string(u"Unnamed"))
+                                    + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
 
                                 if (obj->quickBackdrop)
                                 {
@@ -646,6 +644,7 @@ void Update(float FrameTime)
                                 }
                                 else if (obj->common && obj->common->animations)
                                 {
+                                    fs::create_directories(path / objectName);
                                     size_t animIndex = 0;
                                     for (const auto &animation : obj->common->animations->animations)
                                     {
@@ -659,7 +658,6 @@ void Update(float FrameTime)
                                                 for (auto handle : animation.directions[i].handles)
                                                 {
                                                     std::u16string frameName = dirName + u"_Frame" + lak::strconv_u16(std::to_string(frameIndex));
-                                                    fs::create_directories(path / objectName);
                                                     SaveImage(srcexp, handle, path / objectName / (frameName + u".png"), &frame);
                                                     ++frameIndex;
                                                 }
