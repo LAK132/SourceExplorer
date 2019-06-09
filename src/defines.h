@@ -305,23 +305,51 @@ namespace SourceExplorer
     //
     enum class object_type_t : int8_t
     {
-        PLAYER      = -7,
-        KEYBOARD    = -6,
-        CREATE      = -5,
-        TIME        = -4,
-        GAME        = -3,
-        SPEAKER     = -2,
-        SYSTEM      = -1,
-        QUICKBACKDROP = 0,
-        BACKDROP    = 1,
-        ACTIVE      = 2,
-        TEXT        = 3,
-        QUESTION    = 4,
-        SCORE       = 5,
-        LIVES       = 6,
-        COUNTER     = 7,
-        RTF         = 8,
-        SUBAPP      = 9
+        PLAYER          = -7,
+        KEYBOARD        = -6,
+        CREATE          = -5,
+        TIMER           = -4,
+        GAME            = -3,
+        SPEAKER         = -2,
+        SYSTEM          = -1,
+        QUICK_BACKDROP  = 0,
+        BACKDROP        = 1,
+        ACTIVE          = 2,
+        TEXT            = 3,
+        QUESTION        = 4,
+        SCORE           = 5,
+        LIVES           = 6,
+        COUNTER         = 7,
+        RTF             = 8,
+        SUB_APPLICATION = 9
+    };
+
+    enum class shape_type_t : uint16_t
+    {
+        LINE        = 1,
+        RECTANGLE   = 2,
+        ELLIPSE     = 3
+    };
+
+    enum class fill_type_t : uint16_t
+    {
+        NONE        = 0,
+        SOLID       = 1,
+        GRADIENT    = 2,
+        MOTIF       = 3
+    };
+
+    enum class line_flags_t : uint16_t
+    {
+        NONE        = 0,
+        INVERSE_X   = 1 << 0,
+        INVERSE_Y   = 1 << 1
+    };
+
+    enum class gradient_flags_t : uint16_t
+    {
+        HORIZONTAL  = 0,
+        VERTICAL    = 1,
     };
 
     //

@@ -81,6 +81,41 @@ bool DumpStuff(const char *str_id, dump_function_t *func)
     return false;
 }
 
+void SaveImage(
+    se::source_explorer_t &srcexp,
+    uint16_t handle,
+    const fs::path &filename,
+    const se::frame::item_t *frame
+)
+{
+    auto *object = se::GetImage(srcexp.state, handle);
+    if (!object)
+    {
+        ERROR("Failed To Save Image: Bad Handle '0x" << (int)handle << "'");
+        return;
+    }
+
+    auto strm = object->entry.decode();
+    se::image_t image;
+    if (frame && frame->palette)
+        image = se::CreateImage(strm, srcexp.dumpColorTrans,
+            srcexp.state.oldGame, frame->palette->colors);
+    else
+        image = se::CreateImage(strm, srcexp.dumpColorTrans,
+            srcexp.state.oldGame);
+    if (stbi_write_png(
+        filename.u8string().c_str(),
+        (int)image.bitmap.size().x,
+        (int)image.bitmap.size().y,
+        4,
+        &(image.bitmap[0].r),
+        (int)(image.bitmap.size().x * 4)
+    ) != 1)
+    {
+        ERROR("Failed To Save Image '" << filename << "'");
+    }
+}
+
 ///
 /// loop()
 /// Called every loop
@@ -125,6 +160,7 @@ void Update(float FrameTime)
                 ImGui::EndMenu();
             }
             ImGui::Checkbox("Enable Color Transparency?", &SrcExp.dumpColorTrans);
+            ImGui::Checkbox("Force Compat Mode?", &se::forceCompat);
             ImGui::Checkbox("Print to debug console? (May cause SE to run slower)", &se::debugConsole);
             if (se::debugConsole)
                 ImGui::Checkbox("Developer mode?", &se::developerConsole);
@@ -156,7 +192,8 @@ void Update(float FrameTime)
                 ImGui::Separator();
 
                 ImGui::Text("New Game: %s", SrcExp.state.oldGame ? "No" : "Yes");
-                ImGui::Text("Unicode: %s", SrcExp.state.unicode ? "Yes" : "No");
+                ImGui::Text("Unicode Game: %s", SrcExp.state.unicode ? "Yes" : "No");
+                ImGui::Text("Compat Game: %s", SrcExp.state.compat ? "Yes" : "No");
                 ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.productBuild);
                 ImGui::Text("Product Version: %zu", (size_t)SrcExp.state.productVersion);
                 ImGui::Text("Runtime Version: %zu", (size_t)SrcExp.state.runtimeVersion);
@@ -595,35 +632,44 @@ void Update(float FrameTime)
                             const se::object::item_t *obj = se::GetObject(srcexp.state, object.handle);
                             if (obj != nullptr)
                             {
-                                std::u16string objectName = obj->name
+                                std::u16string objectName = (obj->name
                                     ? obj->name->value
-                                    : std::u16string(u"Unnamed_0x") + lak::strconv_u16(std::to_string(objectIndex));
+                                    : std::u16string(u"Unnamed")) + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
 
-                                const se::image::item_t *image = nullptr;
-                                if (obj->type == se::object::object_type_t::QUICK_BACKDROP)
+                                if (obj->quickBackdrop)
                                 {
-                                    image = GetImage(srcexp.state, obj->quickBackdrop.shape.image);
+                                    SaveImage(srcexp, obj->quickBackdrop->shape.handle, path / (objectName + u".png"), &frame);
                                 }
-                                else if (obj->type == se::object::object_type_t::BACKDROP)
+                                else if (obj->backdrop)
                                 {
-                                    image = GetImage(srcexp.state, obj->backdrop.image);
+                                    SaveImage(srcexp, obj->backdrop->handle, path / (objectName + u".png"), &frame);
                                 }
-                                if (image != nullptr)
+                                else if (obj->common && obj->common->animations)
                                 {
-                                    lak::memory strm = image->entry.decode();
-                                    const se::image_t &image = frame.palette
-                                        ? se::CreateImage(strm, srcexp.dumpColorTrans, srcexp.state.oldGame, frame.palette->colors)
-                                        : se::CreateImage(strm, srcexp.dumpColorTrans, srcexp.state.oldGame);
-                                    fs::path filename = path / (objectName + u".png");
-                                    if (stbi_write_png(filename.u8string().c_str(),
-                                        (int)image.bitmap.size().x, (int)image.bitmap.size().y, 4,
-                                        &(image.bitmap[0].r), (int)(image.bitmap.size().x * 4)) != 1)
+                                    size_t animIndex = 0;
+                                    for (const auto &animation : obj->common->animations->animations)
                                     {
-                                        ERROR("Failed To Save File '" << filename << "'");
+                                        std::u16string animName = u"Animation" + lak::strconv_u16(std::to_string(animIndex));
+                                        for (int i = 0; i < 32; ++i)
+                                        {
+                                            if (animation.offsets[i] > 0)
+                                            {
+                                                std::u16string dirName = animName + u"_Direction" + lak::strconv_u16(std::to_string(i));
+                                                size_t frameIndex = 0;
+                                                for (auto handle : animation.directions[i].handles)
+                                                {
+                                                    std::u16string frameName = dirName + u"_Frame" + lak::strconv_u16(std::to_string(frameIndex));
+                                                    fs::create_directories(path / objectName);
+                                                    SaveImage(srcexp, handle, path / objectName / (frameName + u".png"), &frame);
+                                                    ++frameIndex;
+                                                }
+                                            }
+                                        }
+                                        ++animIndex;
                                     }
                                 }
                             }
-                            completed = (float)((double)frameIndex / frameCount) + (float)(((double)objectIndex / objectCount) / (frameIndex * 100));
+                            completed = (float)((double)frameIndex / frameCount) + (float)(((double)objectIndex / (objectCount * frameCount)));
                             ++objectIndex;
                         }
                     }
