@@ -142,14 +142,12 @@ void Update(float FrameTime)
             if (ImGui::BeginMenu("File"))
             {
                 SrcExp.exe.attempt          |= ImGui::MenuItem("Open...", nullptr);
-                SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Sorted Images [unfinished]...", nullptr);
+                SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Sorted Images...", nullptr);
                 SrcExp.images.attempt       |= ImGui::MenuItem("Dump Images...", nullptr);
-                // SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Images...", nullptr);
-                // if (se::developerConsole)
-                //     SrcExp.images.attempt   |= ImGui::MenuItem("Dump Images (Raw)...", nullptr);
                 SrcExp.music.attempt        |= ImGui::MenuItem("Dump Music...", nullptr);
                 SrcExp.sounds.attempt       |= ImGui::MenuItem("Dump Sounds...", nullptr);
                 SrcExp.shaders.attempt      |= ImGui::MenuItem("Dump Shaders...", nullptr);
+                SrcExp.binaryFiles.attempt  |= ImGui::MenuItem("Dump Binary Files...", nullptr);
                 SrcExp.appicon.attempt      |= ImGui::MenuItem("Dump App Icon...", nullptr);
                 ImGui::EndMenu();
             }
@@ -1004,6 +1002,51 @@ void Update(float FrameTime)
         {
             SrcExp.shaders.valid = false;
             SrcExp.shaders.attempt = false;
+        }
+    }
+
+    if (SrcExp.binaryFiles.attempt)
+    {
+        if (!SrcExp.binaryFiles.valid)
+        {
+            if (lak::OpenFolder(SrcExp.binaryFiles.path, SrcExp.binaryFiles.valid))
+            {
+                if (!SrcExp.binaryFiles.valid)
+                {
+                    // User cancelled
+                    SrcExp.binaryFiles.attempt = false;
+                }
+            }
+        }
+        else if (DumpStuff("Dump Binary Files",
+            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
+            {
+                if (!srcexp.state.game.binaryFiles)
+                {
+                    ERROR("No Binary Files");
+                    return;
+                }
+
+                lak::memory strm = srcexp.state.game.binaryFiles->entry.decode();
+
+                const size_t count = srcexp.state.game.binaryFiles->items.size();
+                size_t index = 0;
+                for (const auto &file : srcexp.state.game.binaryFiles->items)
+                {
+                    fs::path filename = file.name;
+                    filename = srcexp.binaryFiles.path / filename.filename();
+                    DEBUG(filename);
+                    if (!lak::SaveFile(filename, file.data._data))
+                    {
+                        ERROR("Failed To Save File '" << filename << "'");
+                    }
+                    completed = (float)((double)index++ / (double)count);
+                }
+            }
+        ))
+        {
+            SrcExp.binaryFiles.valid = false;
+            SrcExp.binaryFiles.attempt = false;
         }
     }
 }

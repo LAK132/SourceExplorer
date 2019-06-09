@@ -872,6 +872,7 @@ namespace SourceExplorer
         file_state_t sounds;
         file_state_t music;
         file_state_t shaders;
+        file_state_t binaryFiles;
         file_state_t appicon;
 
         MemoryEditor editor;
