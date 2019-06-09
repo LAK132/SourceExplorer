@@ -66,7 +66,7 @@ namespace SourceExplorer
             srcexp.state.oldGame ||
             srcexp.state.compat)
             _mode = game_mode_t::_OLD;
-        else if (srcexp.state.productBuild >= 288)
+        else if (srcexp.state.productBuild > 284)
             _mode = game_mode_t::_288;
         else
             _mode = game_mode_t::_284;
@@ -1261,9 +1261,72 @@ namespace SourceExplorer
         return basic_view(srcexp, "Security Number");
     }
 
+    error_t binary_file_t::read(game_t &game, lak::memory &strm)
+    {
+        DEBUG("Reading Binary File");
+
+        if (game.unicode)
+            name = strm.read_u16string_exact(strm.read_u16());
+        else
+            name = lak::strconv_u16(strm.read_string_exact(strm.read_u16()));
+
+        data = strm.read(strm.read_u32());
+
+        return error_t::OK;
+    }
+
+    error_t binary_file_t::view(source_explorer_t &srcexp) const
+    {
+        std::u8string str = lak::strconv_u8(name);
+        if (lak::TreeNode("%s", str.c_str()))
+        {
+            ImGui::Separator();
+
+            ImGui::Text("Name: %s", str.c_str());
+            ImGui::Text("Data Size: 0x%zX", data.size());
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+        return error_t::OK;
+    }
+
+    error_t binary_files_t::read(game_t &game, lak::memory &strm)
+    {
+        DEBUG("Reading Binary Files");
+        error_t result = entry.read(game, strm);
+
+        if (result == error_t::OK)
+        {
+            lak::memory bstrm = entry.decode();
+            items.resize(bstrm.read_u32());
+            for (auto &item : items)
+                item.read(game, bstrm);
+        }
+
+        return result;
+    }
+
     error_t binary_files_t::view(source_explorer_t &srcexp) const
     {
-        return basic_view(srcexp, "Binary Files");
+        if (lak::TreeNode("0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+
+            int index = 0;
+            for (const auto &item : items)
+            {
+                ImGui::PushID(index++);
+                item.view(srcexp);
+                ImGui::PopID();
+            }
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+        return error_t::OK;
     }
 
     error_t menu_images_t::view(source_explorer_t &srcexp) const

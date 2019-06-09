@@ -266,8 +266,20 @@ namespace SourceExplorer
         error_t view(source_explorer_t &srcexp) const;
     };
 
+    struct binary_file_t
+    {
+        std::u16string name;
+        lak::memory data;
+
+        error_t read(game_t &game, lak::memory &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
     struct binary_files_t : public basic_chunk_t
     {
+        std::vector<binary_file_t> items;
+
+        error_t read(game_t &game, lak::memory &strm);
         error_t view(source_explorer_t &srcexp) const;
     };
 
