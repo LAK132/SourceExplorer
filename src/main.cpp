@@ -69,7 +69,10 @@ bool DumpStuff(const char *str_id, dump_function_t *func)
         ImGui::Text("Dumping, please wait...");
         ImGui::Checkbox("Print to debug console?", &se::debugConsole);
         if (se::debugConsole)
+        {
+            ImGui::Checkbox("Only errors?", &se::errorOnlyConsole);
             ImGui::Checkbox("Developer mode?", &se::developerConsole);
+        }
         ImGui::ProgressBar(completed);
         if (popupOpen)
             ImGui::EndPopup();
@@ -79,6 +82,20 @@ bool DumpStuff(const char *str_id, dump_function_t *func)
         return true;
     }
     return false;
+}
+
+void SaveImage(
+    const lak::image4_t &image,
+    const fs::path &filename
+)
+{
+    if (stbi_write_png(filename.u8string().c_str(),
+        (int)image.size().x, (int)image.size().y, 4,
+        &(image[0].r), (int)(image.size().x * 4)
+    ) != 1)
+    {
+        ERROR("Failed To Save Image '" << filename << "'");
+    }
 }
 
 void SaveImage(
@@ -95,25 +112,402 @@ void SaveImage(
         return;
     }
 
-    auto strm = object->entry.decode();
-    se::image_t image;
-    if (frame && frame->palette)
-        image = se::CreateImage(strm, srcexp.dumpColorTrans,
-            srcexp.state.oldGame, frame->palette->colors);
-    else
-        image = se::CreateImage(strm, srcexp.dumpColorTrans,
-            srcexp.state.oldGame);
-    if (stbi_write_png(
-        filename.u8string().c_str(),
-        (int)image.bitmap.size().x,
-        (int)image.bitmap.size().y,
-        4,
-        &(image.bitmap[0].r),
-        (int)(image.bitmap.size().x * 4)
-    ) != 1)
+    lak::image4_t image = object->image(srcexp.dumpColorTrans, (frame && frame->palette) ? frame->palette->colors : nullptr);
+    SaveImage(image, filename);
+}
+
+void DumpImages(se::source_explorer_t &srcexp, std::atomic<float> &completed)
+{
+    if (!srcexp.state.game.imageBank)
     {
-        ERROR("Failed To Save Image '" << filename << "'");
+        ERROR("No Image Bank");
+        return;
     }
+
+    const size_t count = srcexp.state.game.imageBank->items.size();
+    size_t index = 0;
+    for (const auto &item : srcexp.state.game.imageBank->items)
+    {
+        lak::image4_t image = item.image(srcexp.dumpColorTrans);
+        fs::path filename = srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
+        SaveImage(image, filename);
+        completed = (float)((double)(index++) / (double)count);
+    }
+}
+
+void DumpSortedImages(se::source_explorer_t &srcexp, std::atomic<float> &completed)
+{
+    if (!srcexp.state.game.imageBank)
+    {
+        ERROR("No Image Bank");
+        return;
+    }
+
+    if (!srcexp.state.game.frameBank)
+    {
+        ERROR("No Frame Bank");
+        return;
+    }
+
+    if (!srcexp.state.game.objectBank)
+    {
+        ERROR("No Object Bank");
+        return;
+    }
+
+    auto LinkImages = [](const fs::path &From, const fs::path &To)
+    {
+        std::error_code ec;
+        if (fs::exists(From, ec))
+        {
+            fs::create_directories(To.parent_path(), ec);
+            if (ec)
+            {
+                ERROR("File System Error: " << ec.message());
+                ERROR("Failed To Create Directory '" << To.parent_path() << "'");
+                return false;
+            }
+            else
+            {
+                fs::create_hard_link(From, To, ec);
+                if (ec)
+                {
+                    ERROR("File System Error: " << ec.message());
+                    ERROR("Please make sure your file system supports 'Hard Links'");
+                    return false;
+                }
+            }
+        }
+        else if (ec)
+        {
+            ERROR("File System Error: " << ec.message());
+            return false;
+        }
+        else
+        {
+            ERROR("File '" << From << "' Does Not Exist");
+            return false;
+        }
+        return true;
+    };
+
+    std::unordered_map<uint32_t, std::pair<fs::path, size_t>> references;
+    using frame_ref_t = std::pair<fs::path, const se::frame::item_t*>;
+    std::unordered_map<uint32_t, std::deque<frame_ref_t>> references8bit;
+
+    fs::path unsortedPath = srcexp.sortedImages.path / "[unsorted]";
+    fs::path unreferencedPath = srcexp.sortedImages.path / "[unreferenced]";
+    fs::path unreferencedPath8bit = srcexp.sortedImages.path / "[unreferenced 8bit]";
+    fs::create_directories(unsortedPath);
+    fs::create_directories(unreferencedPath);
+    fs::create_directories(unreferencedPath8bit);
+
+    // init all image handles
+    size_t imageIndex = 0;
+    const size_t imageCount = srcexp.state.game.imageBank->items.size();
+    for (const auto &image : srcexp.state.game.imageBank->items)
+    {
+        if (image.graphicsMode == se::graphics_mode_t::GRAPHICS2 ||
+            image.graphicsMode == se::graphics_mode_t::GRAPHICS3)
+        {
+            references8bit[image.entry.handle] = {};
+        }
+        else
+        {
+            // dump all non-8bit images into root/[unsorted]
+            fs::path p = unsortedPath / (std::to_string(image.entry.handle) + ".png");
+            references[image.entry.handle] = {p, 0};
+            lak::image4_t img = image.image(srcexp.dumpColorTrans);
+            SaveImage(img, p);
+        }
+        completed = (float)((double)imageIndex++ / imageCount);
+    }
+
+    // reference all non-8bit images from root/[unsorted]
+    // dump all 8bit images into frames they're referenced from
+
+    size_t frameIndex = 0;
+    const size_t frameCount = srcexp.state.game.frameBank->items.size();
+    for (const auto &frame : srcexp.state.game.frameBank->items)
+    {
+        std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
+            + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
+        fs::path frameUnsortedPath = srcexp.sortedImages.path / frameName / "[unsorted]";
+        if (frame.objectInstances)
+        {
+            for (const auto &object : frame.objectInstances->objects)
+            {
+                if (const auto *obj = se::GetObject(srcexp.state, object.handle); obj)
+                {
+                    for (auto [handle, count] : obj->image_handles())
+                    {
+                        fs::path imagePath = frameUnsortedPath / (std::to_string(handle) + ".png");
+                        std::error_code ec;
+                        if (fs::exists(imagePath, ec) || ec)
+                            continue;
+                        if (auto ref = references8bit.find(handle); ref != references8bit.end())
+                        {
+                            ref->second.push_back({frameUnsortedPath, &frame});
+                            auto *item = se::GetImage(srcexp.state, handle);
+                            if (!item)
+                            {
+                                ERROR("Failed To Save Image: Bad Handle '0x" << handle << "'");
+                                continue;
+                            }
+                            if (!frame.palette) DEBUG("No Palette Information");
+                            lak::image4_t image = item->image(srcexp.dumpColorTrans, frame.palette ? frame.palette->colors : nullptr);
+                            fs::create_directories(frameUnsortedPath);
+                            SaveImage(image, imagePath);
+                        }
+                        else if (auto ref = references.find(handle); ref != references.end())
+                        {
+                            // continue;
+                            ++(ref->second.second);
+                            if (!LinkImages(ref->second.first, imagePath))
+                                ERROR("Failed To Link Images");
+                        }
+                    }
+                }
+            }
+        }
+        completed = (float)((double)frameIndex++ / frameCount);
+    }
+
+    // reference all non-8bit non-referenced images from root/[unsorted] in root/[unreferenced]
+
+    for (auto &[handle, pathCount] : references)
+    {
+        if (auto &[path, count] = pathCount; count == 0)
+        {
+            if (!LinkImages(path, unreferencedPath / path.filename()))
+                ERROR("Failed To Link Images");
+        }
+    }
+
+    // dump all 8bit non-referenced images into root/[unreferenced 8bit]
+
+    for (auto &[handle, refs] : references8bit)
+    {
+        if (refs.empty())
+        {
+            auto *item = se::GetImage(srcexp.state, handle);
+            if (!item)
+            {
+                ERROR("Failed To Save Image: Bad Handle '0x" << handle << "'");
+                continue;
+            }
+            lak::image4_t image = item->image(srcexp.dumpColorTrans);
+            SaveImage(image, unreferencedPath8bit / (std::to_string(handle) + ".png"));
+        }
+    }
+
+    // sort all referenced images into objects
+
+    frameIndex = 0;
+    for (const auto &frame : srcexp.state.game.frameBank->items)
+    {
+        std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
+            + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
+        fs::path framePath = srcexp.sortedImages.path / frameName;
+        fs::path frameUnsortedPath = framePath / "[unsorted]";
+        if (frame.objectInstances)
+        {
+            for (const auto &object : frame.objectInstances->objects)
+            {
+                if (const auto *obj = se::GetObject(srcexp.state, object.handle); obj)
+                {
+                    std::u16string objectName = (obj->name ? obj->name->value : std::u16string(u"Unnamed"))
+                        + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
+
+                    if (obj->quickBackdrop)
+                    {
+                        if (!LinkImages(
+                            frameUnsortedPath / (std::to_string(obj->quickBackdrop->shape.handle) + ".png"),
+                            framePath / (objectName + u".png")))
+                            ERROR("Failed To Link Images");
+                    }
+                    else if (obj->backdrop)
+                    {
+                        if (!LinkImages(
+                            frameUnsortedPath / (std::to_string(obj->backdrop->handle) + ".png"),
+                            framePath / (objectName + u".png")))
+                            ERROR("Failed To Link Images");
+                    }
+                    else if (obj->common && obj->common->animations)
+                    {
+                        fs::path objectPath = framePath / objectName;
+                        fs::create_directories(objectPath);
+                        size_t animIndex = 0;
+                        for (const auto &animation : obj->common->animations->animations)
+                        {
+                            std::u16string animName = u"Animation" + lak::strconv_u16(std::to_string(animIndex));
+                            for (int i = 0; i < 32; ++i)
+                            {
+                                if (animation.offsets[i] > 0)
+                                {
+                                    std::u16string animDirName = animName + u"_Direction" + lak::strconv_u16(std::to_string(i));
+                                    size_t animFrameIndex = 0;
+                                    for (auto handle : animation.directions[i].handles)
+                                    {
+                                        std::u16string animFrameName = animDirName + u"_Frame" + lak::strconv_u16(std::to_string(animFrameIndex));
+                                        if (!LinkImages(
+                                            frameUnsortedPath / (std::to_string(handle) + ".png"),
+                                            objectPath / (animFrameName + u".png")))
+                                            ERROR("Failed To Link Images");
+                                        ++animFrameIndex;
+                                    }
+                                }
+                            }
+                            ++animIndex;
+                        }
+                    }
+                }
+            }
+        }
+        completed = (float)((double)frameIndex++ / frameCount);
+    }
+
+    return;
+
+    // frameIndex = 0;
+    // for (const auto &frame : srcexp.state.game.frameBank->items)
+    // {
+    //     std::unordered_map<uint32_t, size_t> frameReferences;
+
+    //     if (frame.objectInstances)
+    //         for (const auto &object : frame.objectInstances->objects)
+    //             if (const auto *obj = se::GetObject(srcexp.state, object.handle); obj)
+    //                 for (auto [handle, count] : obj->image_handles())
+    //                     frameReferences[handle] += count;
+
+    //     std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
+    //         + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
+    //     fs::path path = srcexp.sortedImages.path / frameName;
+
+    //     for (auto [handle, count] : frameReferences)
+    //         if (count > 0) references[handle].push_back({path, &frame});
+
+    //     fs::create_directories(path / "[unsorted]");
+    //     ++frameIndex;
+    // }
+
+    // fs::path unreferencedPath = srcexp.sortedImages.path / "[unreferenced]";
+    // fs::create_directories(unreferencedPath);
+
+    // const size_t count = references.size();
+    // size_t index = 0;
+    // for (auto &[handle, frames] : references)
+    // {
+
+    //     if (frames.size() > 0)
+    //     {
+    //         for (auto [path, frame] : frames)
+    //         {
+    //             lak::image4_t image = item->image(srcexp.dumpColorTrans, (frame && frame->palette) ? frame->palette->colors : nullptr);
+    //             SaveImage(image, path / "[all]" / (std::to_string(handle) + ".png"));
+    //         }
+    //     }
+    //     else
+    //     {
+    //         lak::image4_t image = item->image(srcexp.dumpColorTrans);
+    //         SaveImage(image, unreferencedPath / (std::to_string(handle) + ".png"));
+    //     }
+    //     completed = (float)((double)(index++) / (double)count);
+    // }
+
+    // const size_t frameCount = srcexp.state.game.frameBank->items.size();
+    // frameIndex = 0;
+    // for (const auto &frame : srcexp.state.game.frameBank->items)
+    // {
+    //     if (frame.objectInstances)
+    //     {
+    //         std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
+    //             + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
+
+    //         fs::path path = srcexp.sortedImages.path / frameName;
+    //         fs::path unsortedPath = path / "[all]";
+    //         fs::create_directories(path);
+
+    //         if (frame.palette)
+    //             SaveImage(frame.palette->image(), path / "[FramePalette].png");
+
+    //         const size_t objectCount = frame.objectInstances->objects.size();
+    //         size_t objectIndex = 0;
+    //         for (const auto &object : frame.objectInstances->objects)
+    //         {
+    //             const se::object::item_t *obj = se::GetObject(srcexp.state, object.handle);
+    //             if (obj != nullptr)
+    //             {
+    //                 std::u16string objectName = (obj->name ? obj->name->value : std::u16string(u"Unnamed"))
+    //                     + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
+
+    //                 std::error_code ec;
+    //                 if (obj->quickBackdrop)
+    //                 {
+    //                     fs::create_hard_link(
+    //                         unsortedPath / (std::to_string(obj->quickBackdrop->shape.handle) + ".png"),
+    //                         path / (objectName + u".png"),
+    //                         ec);
+    //                     if (ec)
+    //                     {
+    //                         ERROR("File System Error: " << ec.message());
+    //                         ERROR("Aborting Dump. Please Make Sure Your File System Supports 'Hard Links'");
+    //                         return;
+    //                     }
+    //                 }
+    //                 else if (obj->backdrop)
+    //                 {
+    //                     fs::create_hard_link(
+    //                         unsortedPath / (std::to_string(obj->backdrop->handle) + ".png"),
+    //                         path / (objectName + u".png"),
+    //                         ec);
+    //                     if (ec)
+    //                     {
+    //                         ERROR("File System Error: " << ec.message());
+    //                         ERROR("Aborting Dump. Please Make Sure Your File System Supports 'Hard Links'");
+    //                         return;
+    //                     }
+    //                 }
+    //                 else if (obj->common && obj->common->animations)
+    //                 {
+    //                     fs::create_directories(path / objectName);
+    //                     size_t animIndex = 0;
+    //                     for (const auto &animation : obj->common->animations->animations)
+    //                     {
+    //                         std::u16string animName = u"Animation" + lak::strconv_u16(std::to_string(animIndex));
+    //                         for (int i = 0; i < 32; ++i)
+    //                         {
+    //                             if (animation.offsets[i] > 0)
+    //                             {
+    //                                 std::u16string dirName = animName + u"_Direction" + lak::strconv_u16(std::to_string(i));
+    //                                 size_t animFrameIndex = 0;
+    //                                 for (auto handle : animation.directions[i].handles)
+    //                                 {
+    //                                     std::u16string frameName = dirName + u"_Frame" + lak::strconv_u16(std::to_string(animFrameIndex));
+    //                                     fs::create_hard_link(
+    //                                         unsortedPath / (std::to_string(handle) + ".png"),
+    //                                         path / objectName / (frameName + u".png"),
+    //                                         ec);
+    //                                     if (ec)
+    //                                     {
+    //                                         ERROR("File System Error: " << ec.message());
+    //                                         ERROR("Aborting Dump. Please make sure your file system supports 'Hard Links'");
+    //                                         return;
+    //                                     }
+    //                                     ++animFrameIndex;
+    //                                 }
+    //                             }
+    //                         }
+    //                         ++animIndex;
+    //                     }
+    //                 }
+    //             }
+    //             completed = (float)((double)frameIndex / frameCount) + (float)(((double)objectIndex / (objectCount * frameCount)));
+    //             ++objectIndex;
+    //         }
+    //     }
+    //     ++frameIndex;
+    // }
 }
 
 ///
@@ -157,11 +551,14 @@ void Update(float FrameTime)
                 credits();
                 ImGui::EndMenu();
             }
-            ImGui::Checkbox("Enable Color Transparency?", &SrcExp.dumpColorTrans);
-            ImGui::Checkbox("Force Compat Mode?", &se::forceCompat);
+            ImGui::Checkbox("Enable color transparency?", &SrcExp.dumpColorTrans);
+            ImGui::Checkbox("Force compat mode?", &se::forceCompat);
             ImGui::Checkbox("Print to debug console? (May cause SE to run slower)", &se::debugConsole);
             if (se::debugConsole)
+            {
+                ImGui::Checkbox("Only errors?", &se::errorOnlyConsole);
                 ImGui::Checkbox("Developer mode?", &se::developerConsole);
+            }
             ImGui::EndMenuBar();
         }
 
@@ -323,7 +720,7 @@ void Update(float FrameTime)
                     {
                         ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
                         ImGui::Separator();
-                        se::ViewImage(SrcExp.image, scale);
+                        se::ViewImage(SrcExp, scale);
                     }
                     imageUpdate = false;
                 }
@@ -543,33 +940,7 @@ void Update(float FrameTime)
                 }
             }
         }
-        else if (DumpStuff("Dump Image",
-            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
-            {
-                if (!srcexp.state.game.imageBank)
-                {
-                    ERROR("No Image Bank");
-                    return;
-                }
-
-                const size_t count = srcexp.state.game.imageBank->items.size();
-                size_t index = 0;
-                for (const auto &item : srcexp.state.game.imageBank->items)
-                {
-                    lak::memory strm = item.entry.decode();
-                    const se::image_t &image = se::CreateImage(strm,
-                        srcexp.dumpColorTrans, srcexp.state.oldGame);
-                    fs::path filename = srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
-                    if (stbi_write_png(filename.u8string().c_str(),
-                        (int)image.bitmap.size().x, (int)image.bitmap.size().y, 4,
-                        &(image.bitmap[0].r), (int)(image.bitmap.size().x * 4)) != 1)
-                    {
-                        ERROR("Failed To Save File '" << filename << "'");
-                    }
-                    completed = (float)((double)(index++) / (double)count);
-                }
-            }
-        ))
+        else if (DumpStuff("Dump Image", &DumpImages))
         {
             SrcExp.images.valid = false;
             SrcExp.images.attempt = false;
@@ -589,90 +960,7 @@ void Update(float FrameTime)
                 }
             }
         }
-        else if (DumpStuff("Sorted Image Dump",
-            [](se::source_explorer_t &srcexp, std::atomic<float> &completed)
-            {
-                if (!srcexp.state.game.frameBank)
-                {
-                    ERROR("No Frame Bank");
-                    return;
-                }
-
-                if (!srcexp.state.game.objectBank)
-                {
-                    ERROR("No Object Bank");
-                    return;
-                }
-
-                if (!srcexp.state.game.imageBank)
-                {
-                    ERROR("No Image Bank");
-                    return;
-                }
-
-                const size_t frameCount = srcexp.state.game.frameBank->items.size();
-                size_t frameIndex = 0;
-                for (const auto &frame : srcexp.state.game.frameBank->items)
-                {
-                    if (frame.objectInstances)
-                    {
-                        std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
-                            + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
-
-                        fs::path path = srcexp.sortedImages.path / frameName;
-                        fs::create_directories(path);
-
-                        const size_t objectCount = frame.objectInstances->objects.size();
-                        size_t objectIndex = 0;
-                        for (const auto &object : frame.objectInstances->objects)
-                        {
-                            const se::object::item_t *obj = se::GetObject(srcexp.state, object.handle);
-                            if (obj != nullptr)
-                            {
-                                std::u16string objectName = (obj->name ? obj->name->value : std::u16string(u"Unnamed"))
-                                    + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
-
-                                if (obj->quickBackdrop)
-                                {
-                                    SaveImage(srcexp, obj->quickBackdrop->shape.handle, path / (objectName + u".png"), &frame);
-                                }
-                                else if (obj->backdrop)
-                                {
-                                    SaveImage(srcexp, obj->backdrop->handle, path / (objectName + u".png"), &frame);
-                                }
-                                else if (obj->common && obj->common->animations)
-                                {
-                                    fs::create_directories(path / objectName);
-                                    size_t animIndex = 0;
-                                    for (const auto &animation : obj->common->animations->animations)
-                                    {
-                                        std::u16string animName = u"Animation" + lak::strconv_u16(std::to_string(animIndex));
-                                        for (int i = 0; i < 32; ++i)
-                                        {
-                                            if (animation.offsets[i] > 0)
-                                            {
-                                                std::u16string dirName = animName + u"_Direction" + lak::strconv_u16(std::to_string(i));
-                                                size_t frameIndex = 0;
-                                                for (auto handle : animation.directions[i].handles)
-                                                {
-                                                    std::u16string frameName = dirName + u"_Frame" + lak::strconv_u16(std::to_string(frameIndex));
-                                                    SaveImage(srcexp, handle, path / objectName / (frameName + u".png"), &frame);
-                                                    ++frameIndex;
-                                                }
-                                            }
-                                        }
-                                        ++animIndex;
-                                    }
-                                }
-                            }
-                            completed = (float)((double)frameIndex / frameCount) + (float)(((double)objectIndex / (objectCount * frameCount)));
-                            ++objectIndex;
-                        }
-                    }
-                    ++frameIndex;
-                }
-            }
-        ))
+        else if (DumpStuff("Sorted Image Dump", &DumpSortedImages))
         {
             SrcExp.sortedImages.valid = false;
             SrcExp.sortedImages.attempt = false;

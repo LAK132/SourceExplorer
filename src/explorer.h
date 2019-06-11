@@ -62,12 +62,12 @@
 #ifdef DEBUG
 #undef DEBUG
 #endif
-#define DEBUG(x) if (SourceExplorer::debugConsole) { if (SourceExplorer::developerConsole) { std::cout << "DEBUG" << DEBUG_LINE_FILE << ": "; } std::cout << std::hex << x << "\n" << std::flush; }
+#define DEBUG(x) if (SourceExplorer::debugConsole && !SourceExplorer::errorOnlyConsole) { if (SourceExplorer::developerConsole) { std::cout << "DEBUG" << DEBUG_LINE_FILE << ": "; } std::cout << std::hex << x << "\n" << std::flush; } (void)1
 
 #ifdef WDEBUG
 #undef WDEBUG
 #endif
-#define WDEBUG(x) if (SourceExplorer::debugConsole) { if (SourceExplorer::developerConsole) { std::wcout << L"DEBUG" << DEBUG_LINE_FILE << L": "; } std::wcout << std::hex << x << L"\n" << std::flush; }
+#define WDEBUG(x) if (SourceExplorer::debugConsole && !SourceExplorer::errorOnlyConsole) { if (SourceExplorer::developerConsole) { std::wcout << L"DEBUG" << DEBUG_LINE_FILE << L": "; } std::wcout << std::hex << x << L"\n" << std::flush; } (void)1
 
 #ifdef ERROR
 #undef ERROR
@@ -100,6 +100,7 @@ namespace SourceExplorer
 {
     extern bool debugConsole;
     extern bool developerConsole;
+    extern bool errorOnlyConsole;
     extern bool forceCompat;
     extern m128i_t _xmmword;
     extern std::vector<uint8_t> _magic_key;
@@ -178,7 +179,7 @@ namespace SourceExplorer
 
     struct string_chunk_t : public basic_chunk_t
     {
-        std::u16string value;
+        mutable std::u16string value;
 
         error_t read(game_t &game, lak::memory &strm);
         error_t view(source_explorer_t &srcexp, const char *name, const bool preview = false) const;
@@ -478,6 +479,8 @@ namespace SourceExplorer
 
             error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
+
+            std::unordered_map<uint32_t, size_t> image_handles() const;
         };
 
         struct bank_t : public basic_chunk_t
@@ -508,6 +511,8 @@ namespace SourceExplorer
 
             error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
+
+            lak::image4_t image() const;
         };
 
         struct object_instance_t
@@ -680,7 +685,23 @@ namespace SourceExplorer
     {
         struct item_t : public basic_item_t
         {
+            uint32_t checksum; // uint16_t for old
+            uint32_t reference;
+            uint32_t dataSize;
+            lak::vec2u16_t size;
+            graphics_mode_t graphicsMode; // uint8_t
+            image_flag_t flags; // uint8_t
+            uint16_t unknown; // not for old
+            lak::vec2u16_t hotspot;
+            lak::vec2u16_t action;
+            lak::color4_t transparent; // not for old
+            size_t dataPosition;
+
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
+
+            lak::memory image_data() const;
+            lak::image4_t image(const bool colorTrans, const lak::color4_t palette[256] = nullptr) const;
         };
 
         struct end_t : public basic_chunk_t
@@ -989,6 +1010,15 @@ namespace SourceExplorer
     std::u16string ReadString(
         const resource_entry_t &entry,
         const bool unicode
+    );
+
+    lak::glTexture_t CreateTexture(
+        const lak::image4_t &bitmap
+    );
+
+    void ViewImage(
+        source_explorer_t &srcexp,
+        const float scale = 1.0f
     );
 
     const char *GetTypeString(
