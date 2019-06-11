@@ -468,4 +468,40 @@ lak::vec4<T> &operator-=(lak::vec4<T> &lhs, const lak::vec4<T> &rhs)
     return lhs;
 }
 
+template<typename T>
+bool operator==(const lak::vec2<T> &lhs, const lak::vec2<T> &rhs)
+{
+    return (lhs.x == rhs.x) && (lhs.y == rhs.y);
+}
+
+template<typename T>
+bool operator==(const lak::vec3<T> &lhs, const lak::vec3<T> &rhs)
+{
+    return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z);
+}
+
+template<typename T>
+bool operator==(const lak::vec4<T> &lhs, const lak::vec4<T> &rhs)
+{
+    return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z) && (lhs.w == rhs.w);
+}
+
+template<typename T>
+bool operator!=(const lak::vec2<T> &lhs, const lak::vec2<T> &rhs)
+{
+    return !(lhs == rhs);
+}
+
+template<typename T>
+bool operator!=(const lak::vec3<T> &lhs, const lak::vec3<T> &rhs)
+{
+    return !(lhs == rhs);
+}
+
+template<typename T>
+bool operator!=(const lak::vec4<T> &lhs, const lak::vec4<T> &rhs)
+{
+    return !(lhs == rhs);
+}
+
 #endif // LAK_VEC_H

@@ -21,6 +21,7 @@ namespace SourceExplorer
 {
     bool debugConsole = true;
     bool developerConsole = false;
+    bool errorOnlyConsole = false;
     bool forceCompat = false;
     m128i_t _xmmword;
     std::vector<uint8_t> _magic_key;
@@ -505,6 +506,247 @@ namespace SourceExplorer
         return error_t::OK;
     }
 
+    lak::color4_t ColorFrom8bit(uint8_t RGB)
+    {
+        return { RGB, RGB, RGB, 255 };
+    }
+
+    lak::color4_t ColorFrom15bit(uint16_t RGB)
+    {
+        return {
+            (uint8_t)((RGB & 0x7C00) >> 7), // * (0xFF / 0x1F), // 0111 1100 0000 0000
+            (uint8_t)((RGB & 0x03E0) >> 2), // * (0xFF / 0x1F), // 0000 0011 1110 0000
+            (uint8_t)((RGB & 0x001F) << 3), // * (0xFF / 0x1F)  // 0000 0000 0001 1111
+            255
+        };
+    }
+
+    lak::color4_t ColorFrom16bit(uint16_t RGB)
+    {
+        return {
+            (uint8_t)((RGB & 0xF800) >> 8), // * (0xFF / 0x1F), // 1111 1000 0000 0000
+            (uint8_t)((RGB & 0x07E0) >> 3), // * (0xFF / 0x3F), // 0000 0111 1110 0000
+            (uint8_t)((RGB & 0x001F) << 3), // * (0xFF / 0x1F)  // 0000 0000 0001 1111
+            255
+        };
+    }
+
+    lak::color4_t ColorFrom8bit(lak::memory &strm, const lak::color4_t palette[256])
+    {
+        if (palette)
+            return palette[strm.read_u8()];
+        return ColorFrom8bit(strm.read_u8());
+    }
+
+    lak::color4_t ColorFrom15bit(lak::memory &strm)
+    {
+        uint16_t val = strm.read_u8();
+        val |= (uint16_t)strm.read_u8() << 8;
+        return ColorFrom15bit(val);
+    }
+
+    lak::color4_t ColorFrom16bit(lak::memory &strm)
+    {
+        uint16_t val = strm.read_u8();
+        val |= (uint16_t)strm.read_u8() << 8;
+        return ColorFrom16bit(val);
+    }
+
+    lak::color4_t ColorFrom24bitBGR(lak::memory &strm)
+    {
+        lak::color4_t rtn;
+        rtn.b = strm.read_u8();
+        rtn.g = strm.read_u8();
+        rtn.r = strm.read_u8();
+        rtn.a = 255;
+        return rtn;
+    }
+
+    lak::color4_t ColorFrom32bitBGRA(lak::memory &strm)
+    {
+        lak::color4_t rtn;
+        rtn.b = strm.read_u8();
+        rtn.g = strm.read_u8();
+        rtn.r = strm.read_u8();
+        rtn.a = strm.read_u8();
+        return rtn;
+    }
+
+    lak::color4_t ColorFrom24bitRGB(lak::memory &strm)
+    {
+        lak::color4_t rtn;
+        rtn.r = strm.read_u8();
+        rtn.g = strm.read_u8();
+        rtn.b = strm.read_u8();
+        rtn.a = 255;
+        return rtn;
+    }
+
+    lak::color4_t ColorFrom32bitRGBA(lak::memory &strm)
+    {
+        lak::color4_t rtn;
+        rtn.r = strm.read_u8();
+        rtn.g = strm.read_u8();
+        rtn.b = strm.read_u8();
+        rtn.a = strm.read_u8();
+        return rtn;
+    }
+
+    lak::color4_t ColorFromMode(lak::memory &strm, const graphics_mode_t mode, const lak::color4_t palette[256])
+    {
+        switch(mode)
+        {
+            case graphics_mode_t::GRAPHICS2:
+            case graphics_mode_t::GRAPHICS3:
+                return ColorFrom8bit(strm, palette);
+            case graphics_mode_t::GRAPHICS6:
+                return ColorFrom15bit(strm);
+            case graphics_mode_t::GRAPHICS7:
+                return ColorFrom16bit(strm);
+                // return ColorFrom15bit(strm);
+            case graphics_mode_t::GRAPHICS4:
+            default:
+                // return ColorFrom32bitBGRA(strm);
+                return ColorFrom24bitBGR(strm);
+        }
+    }
+
+    uint8_t ColorModeSize(const graphics_mode_t mode)
+    {
+        switch(mode)
+        {
+            case graphics_mode_t::GRAPHICS2:
+            case graphics_mode_t::GRAPHICS3:
+                return 1;
+            case graphics_mode_t::GRAPHICS6:
+                return 2;
+            case graphics_mode_t::GRAPHICS7:
+                return 2;
+            case graphics_mode_t::GRAPHICS4:
+            default:
+                // return 4;
+                return 3;
+        }
+    }
+
+    uint16_t BitmapPaddingSize(uint16_t width, uint8_t colSize, uint8_t bytes = 2)
+    {
+        uint16_t num = bytes - ((width * colSize) % bytes);
+        return (uint16_t)std::ceil((double)(num == bytes ? 0 : num) / (double)colSize);
+    }
+
+    size_t ReadRLE(lak::memory &strm, lak::image4_t &bitmap, graphics_mode_t mode, const lak::color4_t palette[256] = nullptr)
+    {
+        const size_t pointSize = ColorModeSize(mode);
+        const uint16_t pad = BitmapPaddingSize(bitmap.size().x, pointSize);
+        size_t pos = 0;
+        size_t i = 0;
+
+        size_t start = strm.position;
+
+        while(true)
+        {
+            uint8_t command = strm.read_u8();
+
+            if (command == 0)
+                break;
+
+            if (command > 128)
+            {
+                command -= 128;
+                for (uint8_t n = 0; n < command; ++n)
+                {
+                    if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
+                        bitmap[i++] = ColorFromMode(strm, mode, palette);
+                    else
+                        strm.position += pointSize;
+                }
+            }
+            else
+            {
+                lak::color4_t col = ColorFromMode(strm, mode, palette);
+                for (uint8_t n = 0; n < command; ++n)
+                {
+                    if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
+                        bitmap[i++] = col;
+                }
+            }
+        }
+
+        return strm.position - start;
+    }
+
+    size_t ReadRGB(lak::memory &strm, lak::image4_t &bitmap, graphics_mode_t mode, const lak::color4_t palette[256] = nullptr)
+    {
+        const size_t pointSize = ColorModeSize(mode);
+        const uint16_t pad = BitmapPaddingSize(bitmap.size().x, pointSize);
+        size_t i = 0;
+
+        size_t start = strm.position;
+
+        for (size_t y = 0; y < bitmap.size().y; ++y)
+        {
+            for (size_t x = 0; x < bitmap.size().x; ++x)
+            {
+                bitmap[i++] = ColorFromMode(strm, mode, palette);
+            }
+            strm.position += pad * pointSize;
+        }
+
+        return strm.position - start;
+    }
+
+    void ReadAlpha(lak::memory &strm, lak::image4_t &bitmap)
+    {
+        const uint16_t pad = BitmapPaddingSize(bitmap.size().x, 1, 4);
+        size_t i = 0;
+
+        for (size_t y = 0; y < bitmap.size().y; ++y)
+        {
+            for (size_t x = 0; x < bitmap.size().x; ++x)
+            {
+                bitmap[i++].a = strm.read_u8();
+            }
+            strm.position += pad;
+        }
+    }
+
+    void ReadTransparent(const lak::color4_t &transparent, lak::image4_t &bitmap)
+    {
+        for (size_t i = 0; i < bitmap.contig_size(); ++i)
+        {
+            if (lak::color3_t(bitmap[i]) == lak::color3_t(transparent))
+                bitmap[i].a = transparent.a;
+        }
+    }
+
+    lak::glTexture_t CreateTexture(const lak::image4_t &bitmap)
+    {
+        GLuint tex;
+        glGenTextures(1, &tex);
+
+        glBindTexture(GL_TEXTURE_2D, tex);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)bitmap.size().x, (GLsizei)bitmap.size().y,
+            0, GL_RGBA, GL_UNSIGNED_BYTE, &(bitmap[0].r));
+
+        return lak::glTexture_t(std::move(tex), bitmap.size());
+    }
+
+    void ViewImage(source_explorer_t &srcexp, const float scale)
+    {
+        // :TODO: Select palette
+        ImGui::Image((ImTextureID)(uintptr_t)srcexp.image.get(),
+            ImVec2(scale * (float)srcexp.image.size().x,
+                   scale * (float)srcexp.image.size().y));
+    }
+
     const char *GetTypeString(const resource_entry_t &entry)
     {
         switch (entry.parent)
@@ -720,8 +962,11 @@ namespace SourceExplorer
 
             if (!DecodeChunk(mem, _magic_key, _xmmword))
             {
-                return {false, mem};
-                DEBUG("MODE 2 Decryption Failed");
+                if (mode == encoding_t::MODE2)
+                {
+                    DEBUG("MODE 2 Decryption Failed");
+                    return {false, mem};
+                }
             }
             return {true, mem};
         }
@@ -912,7 +1157,7 @@ namespace SourceExplorer
                     result = data.data;
                     uint8_t magic = result.read_u8();
                     uint16_t len = result.read_u16();
-                    if (magic == 0x0F && len == (data.expectedSize & 0xFFFF))
+                    if (magic == 0x0F && (size_t)len == data.expectedSize)
                     {
                         result = result.read(result.remaining());
                     }
@@ -934,9 +1179,14 @@ namespace SourceExplorer
                 case encoding_t::MODE3:
                 case encoding_t::MODE2:
                     if (auto [success, mem] = Decrypt(data.data._data, ID, mode); success)
+                    {
                         result = mem;
+                    }
                     else
+                    {
+                        ERROR("Decryption Failed");
                         result.clear();
+                    }
                     break;
                 case encoding_t::MODE1:
                     result = Inflate(data.data._data);
@@ -1004,7 +1254,7 @@ namespace SourceExplorer
             {
                 case encoding_t::MODE0:
                 case encoding_t::MODE1: {
-                    result = lak::strconv<char16_t>(entry.decode().read_string());
+                    result = lak::strconv_u16(entry.decode().read_string());
                 } break;
                 default: {
                     ERROR("Invalid String Mode: 0x" << (int)entry.mode <<
@@ -1075,7 +1325,10 @@ namespace SourceExplorer
     {
         DEBUG("Reading String Chunk");
         error_t result = entry.read(game, strm);
-        value = ReadStringEntry(game, entry);
+        if (result == error_t::OK)
+            value = ReadStringEntry(game, entry);
+        else
+            ERROR("0x" << (size_t)result << ": Failed To Read String Chunk");
         return result;
     }
 
@@ -1926,6 +2179,24 @@ namespace SourceExplorer
             return result;
         }
 
+        std::unordered_map<uint32_t, size_t> item_t::image_handles() const
+        {
+            std::unordered_map<uint32_t, size_t> result;
+
+            if (quickBackdrop)
+                ++result[quickBackdrop->shape.handle];
+            if (backdrop)
+                ++result[backdrop->handle];
+            if (common && common->animations)
+                for (const auto &animation : common->animations->animations)
+                    for (int i = 0; i < 32; ++i)
+                        if (animation.offsets[i] > 0)
+                            for (auto handle : animation.directions[i].handles)
+                                ++result[handle];
+
+            return result;
+        }
+
         error_t bank_t::read(game_t &game, lak::memory &strm)
         {
             DEBUG("Reading Object Bank");
@@ -2026,6 +2297,17 @@ namespace SourceExplorer
 
                 ImGui::TreePop();
             }
+
+            return result;
+        }
+
+        lak::image4_t palette_t::image() const
+        {
+            lak::image4_t result;
+
+            result.resize({16, 16});
+            for (int i = 0; i < 256; ++i)
+                result[i] = colors[i];
 
             return result;
         }
@@ -2463,6 +2745,44 @@ namespace SourceExplorer
 
     namespace image
     {
+        error_t item_t::read(game_t &game, lak::memory &strm)
+        {
+            error_t result = entry.read(game, strm, true);
+
+            if (result == error_t::OK)
+            {
+                lak::memory istrm = entry.decode();
+                if (game.oldGame)
+                    checksum = istrm.read_u16();
+                else
+                    checksum = istrm.read_u32();
+                reference = istrm.read_u32();
+                dataSize = istrm.read_u32();
+                size.x = istrm.read_u16();
+                size.y = istrm.read_u16();
+                graphicsMode = (graphics_mode_t)istrm.read_u8();
+                flags = (image_flag_t)istrm.read_u8();
+                #if 0
+                if (graphicsMode <= graphics_mode_t::GRAPHICS3)
+                {
+                    paletteEntries = istrm.read_u8();
+                    for (size_t i = 0; i < palette.size(); ++i) // where is this size coming from???
+                        palette[i] = ColorFrom32bitRGBA(strm); // not sure if RGBA or BGRA
+                    count = strm.read_u32();
+                }
+                #endif
+                if (!game.oldGame) unknown = istrm.read_u16();
+                hotspot.x = istrm.read_u16();
+                hotspot.y = istrm.read_u16();
+                action.x = istrm.read_u16();
+                action.y = istrm.read_u16();
+                if (!game.oldGame) transparent = ColorFrom32bitRGBA(istrm);
+                dataPosition = istrm.position;
+            }
+
+            return result;
+        }
+
         error_t item_t::view(source_explorer_t &srcexp) const
         {
             error_t result = error_t::OK;
@@ -2473,16 +2793,72 @@ namespace SourceExplorer
 
                 entry.view(srcexp);
 
+                ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
+                ImGui::Text("Reference: 0x%zX", (size_t)reference);
+                ImGui::Text("Data Size: 0x%zX", (size_t)dataSize);
+                ImGui::Text("Image Size: %zu * %zu", (size_t)size.x, (size_t)size.y);
+                ImGui::Text("Graphics Mode: 0x%zX", (size_t)graphicsMode);
+                ImGui::Text("Image Flags: 0x%zX", (size_t)flags);
+                ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
+                ImGui::Text("Hotspot: (%zu, %zu)", (size_t)hotspot.x, (size_t)hotspot.y);
+                ImGui::Text("Action: (%zu, %zu)", (size_t)action.x, (size_t)action.y);
+                {
+                    lak::vec4f_t col = ((lak::vec4f_t)transparent) / 255.0f;
+                    ImGui::ColorEdit4("Transparent", &col.x);
+                }
+                ImGui::Text("Data Position: 0x%zX", dataPosition);
+
                 if (ImGui::Button("View Image"))
                 {
-                    auto strm = entry.decode();
-                    srcexp.image = std::move(CreateImage(
-                        strm, srcexp.dumpColorTrans, srcexp.state.oldGame
-                    ).initTexture().texture);
+                    srcexp.image = std::move(CreateTexture(image(srcexp.dumpColorTrans)));
                 }
 
                 ImGui::Separator();
                 ImGui::TreePop();
+            }
+
+            return result;
+        }
+
+        lak::memory item_t::image_data() const
+        {
+            lak::memory strm = entry.decode().seek(dataPosition);
+            if ((flags & image_flag_t::LZX) != image_flag_t::NONE)
+            {
+                [[maybe_unused]] const uint32_t decomplen = strm.read_u32();
+                return lak::memory(Inflate(strm.read(strm.read_u32())));
+            }
+            else
+            {
+                return strm;
+            }
+        }
+
+        lak::image4_t item_t::image(const bool colorTrans, const lak::color4_t palette[256]) const
+        {
+            lak::image4_t result;
+            result.resize(size);
+
+            lak::memory strm = image_data();
+
+            [[maybe_unused]] size_t bytesRead;
+            if ((flags & (image_flag_t::RLE | image_flag_t::RLEW | image_flag_t::RLET)) != image_flag_t::NONE)
+            {
+                bytesRead = ReadRLE(strm, result, graphicsMode, palette);
+            }
+            else
+            {
+                bytesRead = ReadRGB(strm, result, graphicsMode, palette);
+            }
+            DEBUG("Alpha Size: 0x" << (dataSize - bytesRead));
+
+            if ((flags & image_flag_t::ALPHA) != image_flag_t::NONE)
+            {
+                ReadAlpha(strm, result);
+            }
+            else if (colorTrans)
+            {
+                ReadTransparent(transparent, result);
             }
 
             return result;
