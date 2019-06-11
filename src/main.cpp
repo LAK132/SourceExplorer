@@ -366,148 +366,6 @@ void DumpSortedImages(se::source_explorer_t &srcexp, std::atomic<float> &complet
         }
         completed = (float)((double)frameIndex++ / frameCount);
     }
-
-    return;
-
-    // frameIndex = 0;
-    // for (const auto &frame : srcexp.state.game.frameBank->items)
-    // {
-    //     std::unordered_map<uint32_t, size_t> frameReferences;
-
-    //     if (frame.objectInstances)
-    //         for (const auto &object : frame.objectInstances->objects)
-    //             if (const auto *obj = se::GetObject(srcexp.state, object.handle); obj)
-    //                 for (auto [handle, count] : obj->image_handles())
-    //                     frameReferences[handle] += count;
-
-    //     std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
-    //         + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
-    //     fs::path path = srcexp.sortedImages.path / frameName;
-
-    //     for (auto [handle, count] : frameReferences)
-    //         if (count > 0) references[handle].push_back({path, &frame});
-
-    //     fs::create_directories(path / "[unsorted]");
-    //     ++frameIndex;
-    // }
-
-    // fs::path unreferencedPath = srcexp.sortedImages.path / "[unreferenced]";
-    // fs::create_directories(unreferencedPath);
-
-    // const size_t count = references.size();
-    // size_t index = 0;
-    // for (auto &[handle, frames] : references)
-    // {
-
-    //     if (frames.size() > 0)
-    //     {
-    //         for (auto [path, frame] : frames)
-    //         {
-    //             lak::image4_t image = item->image(srcexp.dumpColorTrans, (frame && frame->palette) ? frame->palette->colors : nullptr);
-    //             SaveImage(image, path / "[all]" / (std::to_string(handle) + ".png"));
-    //         }
-    //     }
-    //     else
-    //     {
-    //         lak::image4_t image = item->image(srcexp.dumpColorTrans);
-    //         SaveImage(image, unreferencedPath / (std::to_string(handle) + ".png"));
-    //     }
-    //     completed = (float)((double)(index++) / (double)count);
-    // }
-
-    // const size_t frameCount = srcexp.state.game.frameBank->items.size();
-    // frameIndex = 0;
-    // for (const auto &frame : srcexp.state.game.frameBank->items)
-    // {
-    //     if (frame.objectInstances)
-    //     {
-    //         std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
-    //             + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
-
-    //         fs::path path = srcexp.sortedImages.path / frameName;
-    //         fs::path unsortedPath = path / "[all]";
-    //         fs::create_directories(path);
-
-    //         if (frame.palette)
-    //             SaveImage(frame.palette->image(), path / "[FramePalette].png");
-
-    //         const size_t objectCount = frame.objectInstances->objects.size();
-    //         size_t objectIndex = 0;
-    //         for (const auto &object : frame.objectInstances->objects)
-    //         {
-    //             const se::object::item_t *obj = se::GetObject(srcexp.state, object.handle);
-    //             if (obj != nullptr)
-    //             {
-    //                 std::u16string objectName = (obj->name ? obj->name->value : std::u16string(u"Unnamed"))
-    //                     + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
-
-    //                 std::error_code ec;
-    //                 if (obj->quickBackdrop)
-    //                 {
-    //                     fs::create_hard_link(
-    //                         unsortedPath / (std::to_string(obj->quickBackdrop->shape.handle) + ".png"),
-    //                         path / (objectName + u".png"),
-    //                         ec);
-    //                     if (ec)
-    //                     {
-    //                         ERROR("File System Error: " << ec.message());
-    //                         ERROR("Aborting Dump. Please Make Sure Your File System Supports 'Hard Links'");
-    //                         return;
-    //                     }
-    //                 }
-    //                 else if (obj->backdrop)
-    //                 {
-    //                     fs::create_hard_link(
-    //                         unsortedPath / (std::to_string(obj->backdrop->handle) + ".png"),
-    //                         path / (objectName + u".png"),
-    //                         ec);
-    //                     if (ec)
-    //                     {
-    //                         ERROR("File System Error: " << ec.message());
-    //                         ERROR("Aborting Dump. Please Make Sure Your File System Supports 'Hard Links'");
-    //                         return;
-    //                     }
-    //                 }
-    //                 else if (obj->common && obj->common->animations)
-    //                 {
-    //                     fs::create_directories(path / objectName);
-    //                     size_t animIndex = 0;
-    //                     for (const auto &animation : obj->common->animations->animations)
-    //                     {
-    //                         std::u16string animName = u"Animation" + lak::strconv_u16(std::to_string(animIndex));
-    //                         for (int i = 0; i < 32; ++i)
-    //                         {
-    //                             if (animation.offsets[i] > 0)
-    //                             {
-    //                                 std::u16string dirName = animName + u"_Direction" + lak::strconv_u16(std::to_string(i));
-    //                                 size_t animFrameIndex = 0;
-    //                                 for (auto handle : animation.directions[i].handles)
-    //                                 {
-    //                                     std::u16string frameName = dirName + u"_Frame" + lak::strconv_u16(std::to_string(animFrameIndex));
-    //                                     fs::create_hard_link(
-    //                                         unsortedPath / (std::to_string(handle) + ".png"),
-    //                                         path / objectName / (frameName + u".png"),
-    //                                         ec);
-    //                                     if (ec)
-    //                                     {
-    //                                         ERROR("File System Error: " << ec.message());
-    //                                         ERROR("Aborting Dump. Please make sure your file system supports 'Hard Links'");
-    //                                         return;
-    //                                     }
-    //                                     ++animFrameIndex;
-    //                                 }
-    //                             }
-    //                         }
-    //                         ++animIndex;
-    //                     }
-    //                 }
-    //             }
-    //             completed = (float)((double)frameIndex / frameCount) + (float)(((double)objectIndex / (objectCount * frameCount)));
-    //             ++objectIndex;
-    //         }
-    //     }
-    //     ++frameIndex;
-    // }
 }
 
 ///
@@ -538,8 +396,8 @@ void Update(float FrameTime)
                 SrcExp.exe.attempt          |= ImGui::MenuItem("Open...", nullptr);
                 SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Sorted Images...", nullptr);
                 SrcExp.images.attempt       |= ImGui::MenuItem("Dump Images...", nullptr);
-                SrcExp.music.attempt        |= ImGui::MenuItem("Dump Music...", nullptr);
                 SrcExp.sounds.attempt       |= ImGui::MenuItem("Dump Sounds...", nullptr);
+                SrcExp.music.attempt        |= ImGui::MenuItem("Dump Music...", nullptr);
                 SrcExp.shaders.attempt      |= ImGui::MenuItem("Dump Shaders...", nullptr);
                 SrcExp.binaryFiles.attempt  |= ImGui::MenuItem("Dump Binary Files...", nullptr);
                 SrcExp.appicon.attempt      |= ImGui::MenuItem("Dump App Icon...", nullptr);
@@ -1102,17 +960,19 @@ void Update(float FrameTime)
                         [[maybe_unused]] uint32_t checksum      = header.read_u32();
                         [[maybe_unused]] uint32_t references    = header.read_u32();
                         [[maybe_unused]] uint32_t decompLen     = header.read_u32();
-                        type                                    = (se::sound_mode_t)sound.read_u32();
+                        type                                    = (se::sound_mode_t)header.read_u32();
                         [[maybe_unused]] uint32_t reserved      = header.read_u32();
                         uint32_t nameLen                        = header.read_u32();
 
                         if (srcexp.state.unicode)
                         {
                             name = sound.read_u16string_exact(nameLen);
+                            WDEBUG("u16string name: " << lak::strconv_wide(name));
                         }
                         else
                         {
-                            name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
+                            name = lak::strconv_u16(sound.read_string_exact(nameLen));
+                            WDEBUG("u8string name: " << lak::strconv_wide(name));
                         }
 
                         if (sound.peek_string(4) == std::string("OggS"))
@@ -1126,8 +986,10 @@ void Update(float FrameTime)
                         case se::sound_mode_t::WAVE: name += u".wav"; break;
                         case se::sound_mode_t::MIDI: name += u".midi"; break;
                         case se::sound_mode_t::OGGS: name += u".ogg"; break;
-                        default: name += u".mp3"; DEBUG("MP3" << (size_t)item.entry.ID); break;
+                        default: name += u".mp3"; break;
                     }
+
+                    DEBUG("MP3" << (size_t)item.entry.ID);
 
                     fs::path filename = srcexp.sounds.path / name;
                     std::vector<uint8_t> file(sound.cursor(), sound.end());
@@ -1186,7 +1048,7 @@ void Update(float FrameTime)
                         [[maybe_unused]] uint32_t reserved      = sound.read_u32();
                         uint32_t nameLen                        = sound.read_u32();
 
-                        name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
+                        name = lak::strconv_u16(sound.read_string_exact(nameLen));
                     }
                     else
                     {
@@ -1203,7 +1065,7 @@ void Update(float FrameTime)
                         }
                         else
                         {
-                            name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
+                            name = lak::strconv_u16(sound.read_string_exact(nameLen));
                         }
                     }
 
