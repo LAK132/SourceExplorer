@@ -42,7 +42,6 @@ bool OpenGame()
     static std::atomic<bool> finished = false;
     static bool popupOpen = false;
 
-    SrcExp.state.completed = 0.0f;
     if (lak::AwaitPopup("Open Game", popupOpen, thread, finished, &se::LoadGame, data))
     {
         ImGui::Text("Loading, please wait...");
@@ -52,6 +51,7 @@ bool OpenGame()
     }
     else
     {
+        SrcExp.state.completed = 0.0f;
         return true;
     }
     return false;
