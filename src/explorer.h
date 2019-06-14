@@ -841,6 +841,8 @@ namespace SourceExplorer
 
     struct game_t
     {
+        static std::atomic<float> completed;
+
         std::string gamePath;
         std::string gameDir;
 

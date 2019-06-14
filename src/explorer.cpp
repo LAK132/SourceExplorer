@@ -27,7 +27,7 @@ namespace SourceExplorer
     std::vector<uint8_t> _magic_key;
     game_mode_t _mode = game_mode_t::_OLD;
     uint8_t _magic_char;
-
+    std::atomic<float> game_t::completed = 0.0f;
 
     std::vector<uint8_t> &operator += (std::vector<uint8_t> &lhs, const std::vector<uint8_t> &rhs)
     {
@@ -2210,6 +2210,7 @@ namespace SourceExplorer
             {
                 if (result != error_t::OK) break;
                 result = item.read(game, strm);
+                game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
             strm.position = entry.end;
@@ -2715,6 +2716,7 @@ namespace SourceExplorer
             {
                 items.emplace_back();
                 result = items.back().read(game, strm);
+                game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
             return result;
@@ -2882,6 +2884,7 @@ namespace SourceExplorer
             {
                 if (result != error_t::OK) break;
                 result = item.read(game, strm);
+                game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
             strm.position = entry.end;
@@ -2945,6 +2948,7 @@ namespace SourceExplorer
             {
                 if (result != error_t::OK) break;
                 result = item.read(game, strm);
+                game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
             strm.position = entry.end;
@@ -3015,6 +3019,7 @@ namespace SourceExplorer
             {
                 if (result != error_t::OK) break;
                 result = item.read(game, strm);
+                game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
             strm.position = entry.end;
@@ -3078,6 +3083,7 @@ namespace SourceExplorer
             {
                 if (result != error_t::OK) break;
                 result = item.read(game, strm);
+                game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
             strm.position = entry.end;
@@ -3128,6 +3134,7 @@ namespace SourceExplorer
 
         while (result == error_t::OK)
         {
+            if (strm.size() > 0) game.completed = (float)((double)strm.position / (double)strm.size());
             chunk_t childID = (chunk_t)strm.peek_u16();
             switch (childID)
             {
