@@ -45,6 +45,12 @@ bool OpenGame()
     if (lak::AwaitPopup("Open Game", popupOpen, thread, finished, &se::LoadGame, data))
     {
         ImGui::Text("Loading, please wait...");
+        ImGui::Checkbox("Print to debug console?", &se::debugConsole);
+        if (se::debugConsole)
+        {
+            ImGui::Checkbox("Only errors?", &se::errorOnlyConsole);
+            ImGui::Checkbox("Developer mode?", &se::developerConsole);
+        }
         ImGui::ProgressBar(SrcExp.state.completed);
         if (popupOpen)
             ImGui::EndPopup();
