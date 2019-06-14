@@ -2523,6 +2523,7 @@ namespace SourceExplorer
 
             while (result == error_t::OK)
             {
+                game.completed = (float)((double)strm.position / (double)strm.size());
                 switch ((chunk_t)strm.peek_u16())
                 {
                     case chunk_t::FRAMENAME:
