@@ -27,6 +27,7 @@ SOFTWARE.
 #include <fstream>
 #include <vector>
 #include <queue>
+#include <unordered_set>
 #include <exception>
 #include <atomic>
 #include <thread>
@@ -37,6 +38,7 @@ namespace fs = std::filesystem;
 // UI
 #include "lak.h"
 #include <strconv/strconv.hpp>
+#include <strconv/tostring.hpp>
 #include "imgui_impl_lak.h"
 #include <imgui_memory_editor.h>
 #include <imgui_stdlib.h>

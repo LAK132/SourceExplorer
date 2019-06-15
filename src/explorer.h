@@ -462,6 +462,7 @@ namespace SourceExplorer
             error_t view(source_explorer_t &srcexp) const;
         };
 
+        // ObjectInfo + ObjectHeader
         struct item_t : public basic_chunk_t // OBJHEAD
         {
             std::unique_ptr<string_chunk_t> name;
@@ -480,9 +481,10 @@ namespace SourceExplorer
             error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
 
-            std::unordered_map<uint32_t, size_t> image_handles() const;
+            std::unordered_map<uint32_t, std::vector<std::u16string>> image_handles() const;
         };
 
+        // aka FrameItems
         struct bank_t : public basic_chunk_t
         {
             std::vector<item_t> items;
@@ -520,7 +522,7 @@ namespace SourceExplorer
             uint16_t handle;
             uint16_t info;
             lak::vec2i32_t position;
-            uint16_t parentType;
+            object_parent_type_t parentType;
             uint16_t parentHandle;
             uint16_t layer;
             uint16_t unknown;
@@ -669,6 +671,9 @@ namespace SourceExplorer
 
         struct handles_t : public basic_chunk_t
         {
+            std::vector<uint16_t> handles;
+
+            error_t read(game_t &game, lak::memory &strm);
             error_t view(source_explorer_t &srcexp) const;
         };
 
@@ -701,6 +706,7 @@ namespace SourceExplorer
             error_t view(source_explorer_t &srcexp) const;
 
             lak::memory image_data() const;
+            bool need_palette() const;
             lak::image4_t image(const bool colorTrans, const lak::color4_t palette[256] = nullptr) const;
         };
 
@@ -1027,8 +1033,12 @@ namespace SourceExplorer
         const resource_entry_t &entry
     );
 
-    std::string GetObjectTypeString(
+    const char *GetObjectTypeString(
         object_type_t type
+    );
+
+    const char *GetObjectParentTypeString(
+        object_parent_type_t type
     );
 
     std::pair<bool, std::vector<uint8_t>> Decode(

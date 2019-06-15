@@ -121,6 +121,7 @@ namespace SourceExplorer
         EXTPATH         = 0x2227,
         // Deprecated // Not in Anaconda
         EXTENS          = 0x2228,
+        // AKA FRAMEITEMS
         OBJECTBANK      = 0x2229,
         // Deprecated // Not in Anaconda
         GLOBALEVENTS    = 0x222A,
@@ -152,6 +153,7 @@ namespace SourceExplorer
         // Movement Extensions
         MOVEMNTEXTNS    = 0x223E,
         // UNKNOWN8        = 0x223F,
+        // AKA FRAMEITEMS2
         OBJECTBANK2     = 0x223F,
         EXEONLY         = 0x2240,
         // 0x2241
@@ -322,6 +324,14 @@ namespace SourceExplorer
         COUNTER         = 7,
         RTF             = 8,
         SUB_APPLICATION = 9
+    };
+
+    enum class object_parent_type_t : uint16_t
+    {
+        NONE        = 0,
+        FRAME       = 1,
+        FRAME_ITEM  = 2,
+        QUALIFIER   = 3
     };
 
     enum class shape_type_t : uint16_t
