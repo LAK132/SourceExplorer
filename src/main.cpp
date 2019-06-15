@@ -207,7 +207,13 @@ void DumpSortedImages(se::source_explorer_t &srcexp, std::atomic<float> &complet
 
     auto HandleName = [](const std::unique_ptr<se::string_chunk_t> &name, auto handle)
     {
-        return (name && !name->value.empty() ? name->value + u" [" : u"["s) + lak::to_u16string(handle) + u"]";
+        std::u32string str = lak::strconv_u32(name ? name->value : u"");
+        std::u16string result;
+        for (auto &c : str)
+            if (c == U' ' || c == U'(' || c == U')' || c == U'+' || c == U'-' || c == U'=' || c == U'_' ||
+                (c >= U'0' && c <= U'9') || (c >= U'a' && c <= U'z') || (c >= U'A' && c <= U'Z') || c > 127)
+                result += lak::strconv_u16(std::u32string() + c);
+        return (!result.empty() ? result + u" [" : u"["s) + lak::to_u16string(handle) + u"]";
     };
 
     fs::path rootPath = srcexp.sortedImages.path;
