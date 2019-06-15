@@ -205,9 +205,22 @@ namespace lak
 
             #define STATE(s) state.state = tinf::state_t::s; state_##s
             state_HEADER:
-                if(state.get_bits(3, state.blockType)) goto out_of_data;
-                state.final = state.blockType & 1;
-                state.blockType >>= 1;
+                if (state.anaconda)
+                {
+                    if (state.get_bits(4, state.blockType)) goto out_of_data;
+                    state.final = state.blockType >> 3;
+                    state.blockType &= 0x7;
+                    if      (state.blockType == 7) state.blockType = 0;
+                    else if (state.blockType == 5) state.blockType = 1;
+                    else if (state.blockType == 6) state.blockType = 2;
+                    else                           state.blockType = 3;
+                }
+                else
+                {
+                    if (state.get_bits(3, state.blockType)) goto out_of_data;
+                    state.final = state.blockType & 0x1;
+                    state.blockType >>= 1;
+                }
 
                 if (state.blockType == 3)
                 {
@@ -222,12 +235,15 @@ namespace lak
             STATE(UNCOMPRESSED_LEN):
                     if (state.get_bits(16, state.len)) goto out_of_data;
             STATE(UNCOMPRESSED_ILEN):
-                    if (state.get_bits(16, state.ilen)) goto out_of_data;
-
-                    if (state.ilen != (~state.len & 0xFFFF))
+                    if (!state.anaconda)
                     {
-                        state.crc = ~icrc & 0xFFFFFFFFUL;
-                        return tinf::error_t::CORRUPT_STREAM;
+                        if (state.get_bits(16, state.ilen)) goto out_of_data;
+
+                        if (state.ilen != (~state.len & 0xFFFF))
+                        {
+                            state.crc = ~icrc & 0xFFFFFFFFUL;
+                            return tinf::error_t::CORRUPT_STREAM;
+                        }
                     }
                     state.nread = 0;
             STATE(UNCOMPRESSED_DATA):
@@ -247,6 +263,9 @@ namespace lak
                     static const uint8_t codelenOrder[19] = {
                         16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
                     };
+                    static const uint8_t codelenOrderAnaconda[19] = {
+                        18, 17, 16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+                    };
 
             STATE(LITERAL_COUNT):
                     if (state.get_bits(5, state.literalCount)) goto out_of_data;
@@ -259,12 +278,24 @@ namespace lak
                     state.codelenCount += 4;
                     state.counter = 0;
             STATE(READ_CODE_LENGTHS):
-                    for (;state.counter < state.codelenCount; ++state.counter)
-                        if (state.get_bits(3, state.codelenLen[codelenOrder[state.counter]]))
-                            goto out_of_data;
+                    if (state.anaconda)
+                    {
+                        for (;state.counter < state.codelenCount; ++state.counter)
+                            if (state.get_bits(3, state.codelenLen[codelenOrderAnaconda[state.counter]]))
+                                goto out_of_data;
 
-                    for (; state.counter < 19; ++state.counter)
-                        state.codelenLen[codelenOrder[state.counter]] = 0;
+                        for (; state.counter < 19; ++state.counter)
+                            state.codelenLen[codelenOrderAnaconda[state.counter]] = 0;
+                    }
+                    else
+                    {
+                        for (;state.counter < state.codelenCount; ++state.counter)
+                            if (state.get_bits(3, state.codelenLen[codelenOrder[state.counter]]))
+                                goto out_of_data;
+
+                        for (; state.counter < 19; ++state.counter)
+                            state.codelenLen[codelenOrder[state.counter]] = 0;
+                    }
 
                     if (gen_huffman_table(19, state.codelenLen, false, state.codelenTable) != tinf::error_t::OK)
                     {
