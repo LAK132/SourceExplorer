@@ -250,6 +250,7 @@ namespace lak
             JUMP_STATE(READ_DISTANCE_EXTRA);
             #undef JUMP_STATE
 
+            #define STATE(s) state.state = tinf::state_t::s; state_##s
             state_HEADER:
                 if(getBits(3, state.blockType)) goto out_of_data;
                 state.final = state.blockType & 1;
@@ -264,11 +265,10 @@ namespace lak
                 if (state.blockType == 0)
                 {
                     state.numBits = 0;
-                    state.state = tinf::state_t::UNCOMPRESSED_LEN;
-            state_UNCOMPRESSED_LEN:
+
+            STATE(UNCOMPRESSED_LEN):
                     if (getBits(16, state.len)) goto out_of_data;
-                    state.state = tinf::state_t::UNCOMPRESSED_ILEN;
-            state_UNCOMPRESSED_ILEN:
+            STATE(UNCOMPRESSED_ILEN):
                     if (getBits(16, state.ilen)) goto out_of_data;
 
                     if (state.ilen != (~state.len & 0xFFFF))
@@ -277,8 +277,7 @@ namespace lak
                         return tinf::error_t::CORRUPT_STREAM;
                     }
                     state.nread = 0;
-                    state.state = tinf::state_t::UNCOMPRESSED_DATA;
-            state_UNCOMPRESSED_DATA:
+            STATE(UNCOMPRESSED_DATA):
                     while (state.nread < state.len)
                     {
                         if (state.begin >= state.end) goto out_of_data;
@@ -296,21 +295,17 @@ namespace lak
                         16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
                     };
 
-                    state.state = tinf::state_t::LITERAL_COUNT;
-            state_LITERAL_COUNT:
+            STATE(LITERAL_COUNT):
                     if (getBits(5, state.literalCount)) goto out_of_data;
                     state.literalCount += 257;
-                    state.state = tinf::state_t::DISTANCE_COUNT;
-            state_DISTANCE_COUNT:
+            STATE(DISTANCE_COUNT):
                     if (getBits(5, state.distanceCount)) goto out_of_data;
                     state.distanceCount += 1;
-                    state.state = tinf::state_t::CODELEN_COUNT;
-            state_CODELEN_COUNT:
+            STATE(CODELEN_COUNT):
                     if (getBits(4, state.codelenCount)) goto out_of_data;
                     state.codelenCount += 4;
                     state.counter = 0;
-                    state.state = tinf::state_t::READ_CODE_LENGTHS;
-            state_READ_CODE_LENGTHS:
+            STATE(READ_CODE_LENGTHS):
                     for (;state.counter < state.codelenCount; ++state.counter)
                         if (getBits(3, state.codelenLen[codelenOrder[state.counter]]))
                             goto out_of_data;
@@ -329,8 +324,7 @@ namespace lak
 
                         state.lastValue = 0;
                         state.counter = 0;
-                        state.state = tinf::state_t::READ_LENGTHS;
-            state_READ_LENGTHS:
+            STATE(READ_LENGTHS):
                         repeatCount = 0;
                         while (state.counter < state.literalCount + state.distanceCount)
                         {
@@ -345,24 +339,21 @@ namespace lak
                                 }
                                 else if (state.symbol == 16)
                                 {
-                                    state.state = tinf::state_t::READ_LENGTHS_16;
-            state_READ_LENGTHS_16:
+            STATE(READ_LENGTHS_16):
                                     if (getBits(2, repeatCount)) goto out_of_data;
                                     repeatCount += 3;
                                 }
                                 else if (state.symbol == 17)
                                 {
                                     state.lastValue = 0;
-                                    state.state = tinf::state_t::READ_LENGTHS_17;
-            state_READ_LENGTHS_17:
+            STATE(READ_LENGTHS_17):
                                     if (getBits(3, repeatCount)) goto out_of_data;
                                     repeatCount += 3;
                                 }
                                 else if (state.symbol)
                                 {
                                     state.lastValue = 0;
-                                    state.state = tinf::state_t::READ_LENGTHS_18;
-            state_READ_LENGTHS_18:
+            STATE(READ_LENGTHS_18):
                                     if (getBits(7, repeatCount)) goto out_of_data;
                                     repeatCount += 11;
                                 }
@@ -434,8 +425,7 @@ namespace lak
                 for (;;)
                 {
                     uint32_t distance;
-                    state.state = tinf::state_t::READ_SYMBOL;
-            state_READ_SYMBOL:
+            STATE(READ_SYMBOL):
                     if (getHuff(state.symbol, state.literalTable)) goto out_of_data;
 
                     if (state.symbol < 256)
@@ -453,8 +443,7 @@ namespace lak
                     }
                     else if (state.symbol <= 284)
                     {
-                        state.state = tinf::state_t::READ_LENGTH;
-            state_READ_LENGTH:
+            STATE(READ_LENGTH):
                         {
                             const uint32_t lengthBits = (state.symbol - 261) / 4;
                             if (getBits(lengthBits, state.repeatLength)) goto out_of_data;
@@ -471,8 +460,7 @@ namespace lak
                         return tinf::error_t::INVALID_SYMBOL;
                     }
 
-                    state.state = tinf::state_t::READ_DISTANCE;
-            state_READ_DISTANCE:
+            STATE(READ_DISTANCE):
                     if (getHuff(state.symbol, state.distanceTable)) goto out_of_data;
 
                     if (state.symbol <= 3)
@@ -481,8 +469,7 @@ namespace lak
                     }
                     else if (state.symbol <= 29)
                     {
-                        state.state = tinf::state_t::READ_DISTANCE_EXTRA;
-            state_READ_DISTANCE_EXTRA:
+            STATE(READ_DISTANCE_EXTRA):
                         {
                             const uint32_t distanceBits = (state.symbol - 2) / 2;
                             if (getBits(distanceBits, distance)) goto out_of_data;
@@ -511,6 +498,8 @@ namespace lak
             case tinf::state_t::PARTIAL_ZLIB_HEADER:
             default:
                 return tinf::error_t::INVALID_STATE;
+
+            #undef STATE
         }
 
         state.crc = ~icrc & 0xFFFFFFFFUL;
