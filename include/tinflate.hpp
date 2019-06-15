@@ -77,6 +77,7 @@ namespace lak
             uint32_t bitAccum   = 0;
             uint32_t numBits    = 0;
             bool final          = false;
+            bool anaconda       = false;
 
             uint8_t firstByte;
             uint8_t blockType;
