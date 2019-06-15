@@ -176,57 +176,10 @@ namespace lak
     {
         uint32_t icrc = ~state.crc;
 
-        auto getBits = [&state](const size_t n, auto &var) -> bool
-        {
-            while (state.numBits < n)
-            {
-                if (state.begin >= state.end)
-                    return true;
-                state.bitAccum |= ((uint32_t) *state.begin) << state.numBits;
-                state.numBits += 8;
-                ++state.begin;
-            }
-            var = state.bitAccum & ((1UL << n) - 1);
-            state.bitAccum >>= n;
-            state.numBits -= n;
-            return false;
-        };
-
-        auto getHuff = [&state](auto &var, short *table) -> bool
-        {
-            uint32_t bitsUsed = 0;
-            uint32_t index = 0;
-            for (;;)
-            {
-                if (state.numBits <= bitsUsed)
-                {
-                    if (state.begin >= state.end)
-                        return true;
-                    state.bitAccum |= ((uint32_t) *state.begin) << state.numBits;
-                    state.numBits += 8;
-                    ++state.begin;
-                }
-                index += (state.bitAccum >> bitsUsed) & 1;
-                ++bitsUsed;
-                if (table[index] >= 0)
-                    break;
-                index = ~(table[index]);
-            }
-            state.bitAccum >>= bitsUsed;
-            state.numBits -= bitsUsed;
-            var = table[index];
-            return false;
-        };
-
-        auto updateCRC = [&icrc](const uint8_t val)
-        {
-            icrc = tinf::crc32_table[(icrc & 0xFF) ^ val] ^ ((icrc >> 8) & 0xFFFFFFUL);
-        };
-
-        auto putByte = [&output, &updateCRC](const uint8_t val)
+        auto push = [&output, &icrc](const uint8_t val)
         {
             output.push_back(val);
-            updateCRC(val);
+            icrc = tinf::crc32_table[(icrc & 0xFF) ^ val] ^ ((icrc >> 8) & 0xFFFFFFUL);
         };
 
         switch (state.state)
@@ -252,7 +205,7 @@ namespace lak
 
             #define STATE(s) state.state = tinf::state_t::s; state_##s
             state_HEADER:
-                if(getBits(3, state.blockType)) goto out_of_data;
+                if(state.get_bits(3, state.blockType)) goto out_of_data;
                 state.final = state.blockType & 1;
                 state.blockType >>= 1;
 
@@ -267,9 +220,9 @@ namespace lak
                     state.numBits = 0;
 
             STATE(UNCOMPRESSED_LEN):
-                    if (getBits(16, state.len)) goto out_of_data;
+                    if (state.get_bits(16, state.len)) goto out_of_data;
             STATE(UNCOMPRESSED_ILEN):
-                    if (getBits(16, state.ilen)) goto out_of_data;
+                    if (state.get_bits(16, state.ilen)) goto out_of_data;
 
                     if (state.ilen != (~state.len & 0xFFFF))
                     {
@@ -281,7 +234,7 @@ namespace lak
                     while (state.nread < state.len)
                     {
                         if (state.begin >= state.end) goto out_of_data;
-                        putByte(*state.begin++);
+                        push(*state.begin++);
                         ++state.nread;
                     }
                     state.crc = ~icrc & 0xFFFFFFFFUL;
@@ -296,18 +249,18 @@ namespace lak
                     };
 
             STATE(LITERAL_COUNT):
-                    if (getBits(5, state.literalCount)) goto out_of_data;
+                    if (state.get_bits(5, state.literalCount)) goto out_of_data;
                     state.literalCount += 257;
             STATE(DISTANCE_COUNT):
-                    if (getBits(5, state.distanceCount)) goto out_of_data;
+                    if (state.get_bits(5, state.distanceCount)) goto out_of_data;
                     state.distanceCount += 1;
             STATE(CODELEN_COUNT):
-                    if (getBits(4, state.codelenCount)) goto out_of_data;
+                    if (state.get_bits(4, state.codelenCount)) goto out_of_data;
                     state.codelenCount += 4;
                     state.counter = 0;
             STATE(READ_CODE_LENGTHS):
                     for (;state.counter < state.codelenCount; ++state.counter)
-                        if (getBits(3, state.codelenLen[codelenOrder[state.counter]]))
+                        if (state.get_bits(3, state.codelenLen[codelenOrder[state.counter]]))
                             goto out_of_data;
 
                     for (; state.counter < 19; ++state.counter)
@@ -330,7 +283,7 @@ namespace lak
                         {
                             if (repeatCount == 0)
                             {
-                                if (getHuff(state.symbol, state.codelenTable)) goto out_of_data;
+                                if (state.get_huff(state.symbol, state.codelenTable)) goto out_of_data;
 
                                 if (state.symbol < 16)
                                 {
@@ -340,21 +293,21 @@ namespace lak
                                 else if (state.symbol == 16)
                                 {
             STATE(READ_LENGTHS_16):
-                                    if (getBits(2, repeatCount)) goto out_of_data;
+                                    if (state.get_bits(2, repeatCount)) goto out_of_data;
                                     repeatCount += 3;
                                 }
                                 else if (state.symbol == 17)
                                 {
                                     state.lastValue = 0;
             STATE(READ_LENGTHS_17):
-                                    if (getBits(3, repeatCount)) goto out_of_data;
+                                    if (state.get_bits(3, repeatCount)) goto out_of_data;
                                     repeatCount += 3;
                                 }
                                 else if (state.symbol)
                                 {
                                     state.lastValue = 0;
             STATE(READ_LENGTHS_18):
-                                    if (getBits(7, repeatCount)) goto out_of_data;
+                                    if (state.get_bits(7, repeatCount)) goto out_of_data;
                                     repeatCount += 11;
                                 }
                             }
@@ -426,11 +379,11 @@ namespace lak
                 {
                     uint32_t distance;
             STATE(READ_SYMBOL):
-                    if (getHuff(state.symbol, state.literalTable)) goto out_of_data;
+                    if (state.get_huff(state.symbol, state.literalTable)) goto out_of_data;
 
                     if (state.symbol < 256)
                     {
-                        putByte((const uint8_t)state.symbol);
+                        push((const uint8_t)state.symbol);
                         continue;
                     }
 
@@ -446,7 +399,7 @@ namespace lak
             STATE(READ_LENGTH):
                         {
                             const uint32_t lengthBits = (state.symbol - 261) / 4;
-                            if (getBits(lengthBits, state.repeatLength)) goto out_of_data;
+                            if (state.get_bits(lengthBits, state.repeatLength)) goto out_of_data;
                             state.repeatLength += 3 + ((4 + ((state.symbol - 265) & 3 )) << lengthBits);
                         }
                     }
@@ -461,7 +414,7 @@ namespace lak
                     }
 
             STATE(READ_DISTANCE):
-                    if (getHuff(state.symbol, state.distanceTable)) goto out_of_data;
+                    if (state.get_huff(state.symbol, state.distanceTable)) goto out_of_data;
 
                     if (state.symbol <= 3)
                     {
@@ -472,7 +425,7 @@ namespace lak
             STATE(READ_DISTANCE_EXTRA):
                         {
                             const uint32_t distanceBits = (state.symbol - 2) / 2;
-                            if (getBits(distanceBits, distance)) goto out_of_data;
+                            if (state.get_bits(distanceBits, distance)) goto out_of_data;
                             distance += 1 + ((2 + (state.symbol & 1)) << distanceBits);
                         }
                     }
@@ -489,7 +442,7 @@ namespace lak
                     }
 
                     while (state.repeatLength --> 0)
-                        putByte(output[output.size() - distance]);
+                        push(output[output.size() - distance]);
                     state.repeatLength = 0;
                 }
                 break;
@@ -511,8 +464,12 @@ namespace lak
         return tinf::error_t::OUT_OF_DATA;
     }
 
-    tinf::error_t gen_huffman_table(uint32_t symbols, const uint8_t *lengths,
-        bool allowNoSymbols, int16_t *table)
+    tinf::error_t gen_huffman_table(
+        uint32_t symbols,
+        const uint8_t *lengths,
+        bool allowNoSymbols,
+        int16_t *table
+    )
     {
         uint16_t lengthCount[16] = {0};
         uint16_t totalCount = 0;
