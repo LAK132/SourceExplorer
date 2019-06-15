@@ -20,7 +20,7 @@
 namespace SourceExplorer
 {
     bool debugConsole = true;
-    bool developerConsole = false;
+    bool developerConsole = true;
     bool errorOnlyConsole = false;
     bool forceCompat = false;
     m128i_t _xmmword;
@@ -28,6 +28,7 @@ namespace SourceExplorer
     game_mode_t _mode = game_mode_t::_OLD;
     uint8_t _magic_char;
     std::atomic<float> game_t::completed = 0.0f;
+    using std::string_literals::operator""s;
 
     std::vector<uint8_t> &operator += (std::vector<uint8_t> &lhs, const std::vector<uint8_t> &rhs)
     {
@@ -864,7 +865,7 @@ namespace SourceExplorer
         }
     }
 
-    std::string GetObjectTypeString(object_type_t type)
+    const char *GetObjectTypeString(object_type_t type)
     {
         switch (type)
         {
@@ -889,6 +890,18 @@ namespace SourceExplorer
         }
     }
 
+    const char *GetObjectParentTypeString(object_parent_type_t type)
+    {
+        switch (type)
+        {
+            case object_parent_type_t::NONE:        return "None";
+            case object_parent_type_t::FRAME:       return "Frame";
+            case object_parent_type_t::FRAME_ITEM:  return "Frame Item";
+            case object_parent_type_t::QUALIFIER:   return "Qualifier";
+            default: return "Invalid";
+        }
+    }
+
     std::pair<bool, std::vector<uint8_t>> Decode(const std::vector<uint8_t> &encoded, chunk_t id, encoding_t mode)
     {
         switch (mode)
@@ -909,25 +922,60 @@ namespace SourceExplorer
     std::vector<uint8_t> Inflate(const std::vector<uint8_t> &deflated)
     {
         std::deque<uint8_t> buffer;
-        lak::tinflate_error_t err = lak::tinflate(deflated, buffer, nullptr);
-        if (err == lak::tinflate_error_t::OK)
+        lak::tinf::error_t err = lak::tinflate(deflated, buffer);
+        if (err == lak::tinf::error_t::OK)
             return std::vector<uint8_t>(buffer.begin(), buffer.end());
         else
+        {
+            ERROR("Failed To Deflate (0x" << (int)err << ")");
             return deflated;
+        }
     }
 
     std::vector<uint8_t> Decompress(const std::vector<uint8_t> &compressed, unsigned int outSize)
     {
+        #if 0
         std::vector<uint8_t> result; result.resize(outSize);
         tinf_uncompress(&(result[0]), &outSize, &(compressed[0]), compressed.size());
         return result;
+        #else
+        std::deque<uint8_t> buffer;
+        lak::tinf::decompression_state_t state;
+        state.state = lak::tinf::state_t::HEADER;
+        state.anaconda = true;
+        lak::tinf::error_t err = lak::tinflate(compressed.begin(), compressed.end(), buffer, state);
+        if (err == lak::tinf::error_t::OK)
+            return std::vector<uint8_t>(buffer.begin(), buffer.end());
+        else
+        {
+            ERROR("Failed To Decompress (0x" << (int)err << ")");
+            return compressed;
+        }
+        #endif
     }
 
     std::vector<uint8_t> StreamDecompress(lak::memory &strm, unsigned int outSize)
     {
+        #if 0
         std::vector<uint8_t> result; result.resize(outSize);
         strm.position += tinf_uncompress(&(result[0]), &outSize, strm.get(), strm.remaining());
         return result;
+        #else
+        std::deque<uint8_t> buffer;
+        lak::tinf::decompression_state_t state;
+        state.state = lak::tinf::state_t::HEADER;
+        state.anaconda = true;
+        lak::tinf::error_t err = lak::tinflate(strm.cursor(), strm.end(), buffer, state);
+        if (state.begin > strm.cursor())
+            strm.position += state.begin - strm.cursor();
+        if (err == lak::tinf::error_t::OK)
+            return std::vector<uint8_t>(buffer.begin(), buffer.end());
+        else
+        {
+            ERROR("Failed To Decompress (0x" << (int)err << ")");
+            return std::vector<uint8_t>(outSize, 0);
+        }
+        #endif
     }
 
     std::pair<bool, std::vector<uint8_t>> Decrypt(const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode)
@@ -972,9 +1020,24 @@ namespace SourceExplorer
         }
     }
 
+    frame::item_t *GetFrame(game_t &game, uint16_t handle)
+    {
+        if (game.game.frameBank &&
+            game.game.frameHandles)
+        {
+            if (handle >= game.game.frameHandles->handles.size())
+                return nullptr;
+            handle = game.game.frameHandles->handles[handle];
+            if (handle >= game.game.frameBank->items.size())
+                return nullptr;
+            return &game.game.frameBank->items[handle];
+        }
+        return nullptr;
+    }
+
     object::item_t *GetObject(game_t &game, uint16_t handle)
     {
-        if (game.game.objectBank &&
+        if (game.game.objectBank && game.objectHandles.find(handle) != game.objectHandles.end() &&
             game.objectHandles[handle] < game.game.objectBank->items.size())
         {
             return &game.game.objectBank->items[game.objectHandles[handle]];
@@ -984,7 +1047,7 @@ namespace SourceExplorer
 
     image::item_t *GetImage(game_t &game, uint32_t handle)
     {
-        if (game.game.imageBank &&
+        if (game.game.imageBank && game.imageHandles.find(handle) != game.imageHandles.end() &&
             game.imageHandles[handle] < game.game.imageBank->items.size())
         {
             return &game.game.imageBank->items[game.imageHandles[handle]];
@@ -1093,7 +1156,6 @@ namespace SourceExplorer
         old = game.oldGame;
         mode = encoding_t::MODE0;
         handle = strm.read_u32();
-        if (!game.oldGame && game.productBuild >= 284) --handle;
 
         if (game.oldGame)
         {
@@ -1730,6 +1792,41 @@ namespace SourceExplorer
 
         error_t shape_t::view(source_explorer_t &srcexp) const
         {
+            if (lak::TreeNode("Shape"))
+            {
+                ImGui::Separator();
+
+                ImGui::Text("Border Size: 0x%zX", (size_t)borderSize);
+                lak::vec4f_t col = ((lak::vec4f_t)borderColor) / 255.0f;
+                ImGui::ColorEdit4("Border Color", &col.x);
+                ImGui::Text("Shape: 0x%zX", (size_t)shape);
+                ImGui::Text("Fill: 0x%zX", (size_t)fill);
+
+                if (shape == shape_type_t::LINE)
+                {
+                    ImGui::Text("Line: 0x%zX", (size_t)line);
+                }
+                else if (fill == fill_type_t::SOLID)
+                {
+                    col = ((lak::vec4f_t)color1) / 255.0f;
+                    ImGui::ColorEdit4("Fill Color", &col.x);
+                }
+                else if (fill == fill_type_t::GRADIENT)
+                {
+                    col = ((lak::vec4f_t)color1) / 255.0f;
+                    ImGui::ColorEdit4("Gradient Color 1", &col.x);
+                    col = ((lak::vec4f_t)color2) / 255.0f;
+                    ImGui::ColorEdit4("Gradient Color 2", &col.x);
+                    ImGui::Text("Gradient Flags: 0x%zX", (size_t)gradient);
+                }
+                else if (fill == fill_type_t::MOTIF)
+                {
+                    ImGui::Text("Handle: 0x%zX", (size_t)handle);
+                }
+
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
             return error_t::OK;
         }
 
@@ -1744,8 +1841,8 @@ namespace SourceExplorer
                 size = qstrm.read_u32();
                 obstacle = qstrm.read_u16();
                 collision = qstrm.read_u16();
-                dimension.x = qstrm.read_u32();
-                dimension.y = qstrm.read_u32();
+                dimension.x = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
+                dimension.y = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
                 shape.read(game, qstrm);
             }
 
@@ -1760,6 +1857,14 @@ namespace SourceExplorer
 
                 entry.view(srcexp);
 
+                ImGui::Text("Size: 0x%zX", (size_t)size);
+                ImGui::Text("Obstacle: 0x%zX", (size_t)obstacle);
+                ImGui::Text("Collision: 0x%zX", (size_t)collision);
+                ImGui::Text("Dimension: (%li, %li)", (long)dimension.x, (long)dimension.y);
+
+                shape.view(srcexp);
+
+                ImGui::Text("Handle: 0x%zX", (size_t)shape.handle);
                 if (shape.handle < 0xFFFF)
                 {
                     auto *img = GetImage(srcexp.state, shape.handle);
@@ -1781,10 +1886,12 @@ namespace SourceExplorer
             if (result == error_t::OK)
             {
                 lak::memory bstrm = entry.decode();
+                size = bstrm.read_u32();
                 obstacle = bstrm.read_u16();
                 collision = bstrm.read_u16();
-                dimension.x = bstrm.read_u32();
-                dimension.y = bstrm.read_u32();
+                dimension.x = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
+                dimension.y = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
+                // if (!game.oldGame) bstrm.skip(2);
                 handle = bstrm.read_u16();
             }
 
@@ -1799,6 +1906,11 @@ namespace SourceExplorer
 
                 entry.view(srcexp);
 
+                ImGui::Text("Size: 0x%zX", (size_t)size);
+                ImGui::Text("Obstacle: 0x%zX", (size_t)obstacle);
+                ImGui::Text("Collision: 0x%zX", (size_t)collision);
+                ImGui::Text("Dimension: (%li, %li)", (long)dimension.x, (long)dimension.y);
+                ImGui::Text("Handle: 0x%zX", (size_t)handle);
                 if (handle < 0xFFFF)
                 {
                     auto *img = GetImage(srcexp.state, handle);
@@ -1961,7 +2073,7 @@ namespace SourceExplorer
 
                 size = cstrm.read_u32();
 
-                if (mode == game_mode_t::_288)
+                if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
                 {
                     animationsOffset = cstrm.read_u16();
                     movementsOffset = cstrm.read_u16(); // are these in the right order?
@@ -1969,15 +2081,15 @@ namespace SourceExplorer
                     counterOffset = cstrm.read_u16();   // are these in the right order?
                     systemOffset = cstrm.read_u16();    // are these in the right order?
                 }
-                else if (mode == game_mode_t::_284)
-                {
-                    counterOffset = cstrm.read_u16();
-                    version = cstrm.read_u16();
-                    cstrm.position += 2;
-                    movementsOffset = cstrm.read_u16();
-                    extensionOffset = cstrm.read_u16();
-                    animationsOffset = cstrm.read_u16();
-                }
+                // else if (mode == game_mode_t::_284)
+                // {
+                //     counterOffset = cstrm.read_u16();
+                //     version = cstrm.read_u16();
+                //     cstrm.position += 2;
+                //     movementsOffset = cstrm.read_u16();
+                //     extensionOffset = cstrm.read_u16();
+                //     animationsOffset = cstrm.read_u16();
+                // }
                 else
                 {
                     movementsOffset = cstrm.read_u16();
@@ -2003,7 +2115,7 @@ namespace SourceExplorer
 
                 cstrm.position = end;
 
-                if (mode != game_mode_t::_284)
+                if (mode == game_mode_t::_284)
                     systemOffset = cstrm.read_u16();
                 else
                     extensionOffset = cstrm.read_u16();
@@ -2039,30 +2151,30 @@ namespace SourceExplorer
 
                 entry.view(srcexp);
 
-                if (mode == game_mode_t::_288)
+                if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
                 {
-                    ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
                     ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
+                    ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
                     ImGui::Text("Version: 0x%zX", (size_t)version);
                     ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
                     ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
                     ImGui::Text("Flags: 0x%zX", (size_t)flags);
                     ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
                 }
-                else if (mode == game_mode_t::_284)
-                {
-                    ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
-                    ImGui::Text("Version: 0x%zX", (size_t)version);
-                    ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
-                    ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
-                    ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
-                    ImGui::Text("Flags: 0x%zX", (size_t)flags);
-                    ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
-                }
+                // else if (mode == game_mode_t::_284)
+                // {
+                //     ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
+                //     ImGui::Text("Version: 0x%zX", (size_t)version);
+                //     ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
+                //     ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
+                //     ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
+                //     ImGui::Text("Flags: 0x%zX", (size_t)flags);
+                //     ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
+                // }
                 else
                 {
-                    ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
                     ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
+                    ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
                     ImGui::Text("Version: 0x%zX", (size_t)version);
                     ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
                     ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
@@ -2149,7 +2261,7 @@ namespace SourceExplorer
             error_t result = error_t::OK;
 
             if (lak::TreeNode("0x%zX %s '%s'##%zX", (size_t)entry.ID,
-                GetObjectTypeString(type).c_str(),
+                GetObjectTypeString(type),
                 (name ? lak::strconv<char>(name->value).c_str() : ""),
                 entry.position))
             {
@@ -2179,20 +2291,35 @@ namespace SourceExplorer
             return result;
         }
 
-        std::unordered_map<uint32_t, size_t> item_t::image_handles() const
+        std::unordered_map<uint32_t, std::vector<std::u16string>> item_t::image_handles() const
         {
-            std::unordered_map<uint32_t, size_t> result;
+            std::unordered_map<uint32_t, std::vector<std::u16string>> result;
 
             if (quickBackdrop)
-                ++result[quickBackdrop->shape.handle];
+                result[quickBackdrop->shape.handle].emplace_back(u"Backdrop");
             if (backdrop)
-                ++result[backdrop->handle];
+                result[backdrop->handle].emplace_back(u"Quick Backdrop");
             if (common && common->animations)
-                for (const auto &animation : common->animations->animations)
+            {
+                for (size_t animIndex = 0; animIndex < common->animations->animations.size(); ++animIndex)
+                {
+                    const auto animation = common->animations->animations[animIndex];
                     for (int i = 0; i < 32; ++i)
+                    {
                         if (animation.offsets[i] > 0)
-                            for (auto handle : animation.directions[i].handles)
-                                ++result[handle];
+                        {
+                            for (size_t frame = 0; frame < animation.directions[i].handles.size(); ++frame)
+                            {
+                                auto handle = animation.directions[i].handles[frame];
+                                result[handle].emplace_back(
+                                    u"Animation-"s + lak::to_u16string(animIndex) +
+                                    u" Direction-"s + lak::to_u16string(i) +
+                                    u" Frame-"s + lak::to_u16string(frame));
+                            }
+                        }
+                    }
+                }
+            }
 
             return result;
         }
@@ -2317,14 +2444,17 @@ namespace SourceExplorer
         {
             DEBUG("Reading Object Instance");
 
-            handle = strm.read_u16();
             info = strm.read_u16();
-            position.x = strm.read_s32();
-            position.y = strm.read_s32();
-            parentType = strm.read_u16();
-            parentHandle = strm.read_u16();
-            layer = strm.read_u16();
-            unknown = strm.read_u16();
+            handle = strm.read_u16();
+            position.x = game.oldGame ? strm.read_s16() : strm.read_s32();
+            position.y = game.oldGame ? strm.read_s16() : strm.read_s32();
+            parentType = (object_parent_type_t)strm.read_u16();
+            parentHandle = strm.read_u16(); // object info (?)
+            if (!game.oldGame)
+            {
+                layer = strm.read_u16();
+                unknown = strm.read_u16();
+            }
 
             return error_t::OK;
         }
@@ -2336,19 +2466,34 @@ namespace SourceExplorer
             if (obj && obj->name)
                 str += lak::strconv_u8(obj->name->value);
 
-            if (lak::TreeNode("0x%zX %s", (size_t)handle, str.c_str()))
+            if (lak::TreeNode("0x%zX %s##%zX", (size_t)handle, str.c_str(), (size_t)info))
             {
                 ImGui::Separator();
 
                 ImGui::Text("Handle: 0x%zX", (size_t)handle);
                 ImGui::Text("Info: 0x%zX", (size_t)info);
                 ImGui::Text("Position: (%li, %li)", (long)position.x, (long)position.y);
-                ImGui::Text("Parent Type: 0x%zX", (size_t)parentType);
+                ImGui::Text("Parent Type: %s (0x%zX)", GetObjectParentTypeString(parentType), (size_t)parentType);
                 ImGui::Text("Parent Handle: 0x%zX", (size_t)parentHandle);
                 ImGui::Text("Layer: 0x%zX", (size_t)layer);
                 ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
 
                 if (obj) obj->view(srcexp);
+
+                switch (parentType)
+                {
+                    case object_parent_type_t::FRAME_ITEM:
+                        if (auto *parentObj = GetObject(srcexp.state, parentHandle); parentObj)
+                            parentObj->view(srcexp);
+                        break;
+                    case object_parent_type_t::FRAME:
+                        if (auto *parentObj = GetFrame(srcexp.state, parentHandle); parentObj)
+                            parentObj->view(srcexp);
+                        break;
+                    case object_parent_type_t::NONE:
+                    case object_parent_type_t::QUALIFIER:
+                    default: break;
+                }
 
                 ImGui::Separator();
                 ImGui::TreePop();
@@ -2368,8 +2513,8 @@ namespace SourceExplorer
                 objects.clear();
                 objects.resize(hstrm.read_u32());
                 DEBUG("Objects: 0x" << objects.size());
-                for (auto &handle : objects)
-                    handle.read(game, hstrm);
+                for (auto &object : objects)
+                    object.read(game, hstrm);
             }
 
             return result;
@@ -2702,9 +2847,25 @@ namespace SourceExplorer
             return result;
         }
 
+        error_t handles_t::read(game_t &game, lak::memory &strm)
+        {
+            DEBUG("Reading Frame Handles");
+            error_t result = entry.read(game, strm);
+
+            if (result == error_t::OK)
+            {
+                auto hstrm = entry.decode();
+                handles.resize(hstrm.size() / 2);
+                for (auto &handle : handles)
+                    handle = hstrm.read_u16();
+            }
+
+            return result;
+        }
+
         error_t handles_t::view(source_explorer_t &srcexp) const
         {
-            return basic_view(srcexp, "Handles");
+            return basic_view(srcexp, "Frame Handles");
         }
 
         error_t bank_t::read(game_t &game, lak::memory &strm)
@@ -2751,6 +2912,8 @@ namespace SourceExplorer
         error_t item_t::read(game_t &game, lak::memory &strm)
         {
             error_t result = entry.read(game, strm, true);
+
+            if (!game.oldGame && game.productBuild >= 284) --entry.handle;
 
             if (result == error_t::OK)
             {
@@ -2837,6 +3000,11 @@ namespace SourceExplorer
             }
         }
 
+        bool item_t::need_palette() const
+        {
+            return graphicsMode == graphics_mode_t::GRAPHICS2 || graphicsMode == graphics_mode_t::GRAPHICS3;
+        }
+
         lak::image4_t item_t::image(const bool colorTrans, const lak::color4_t palette[256]) const
         {
             lak::image4_t result;
@@ -2853,7 +3021,6 @@ namespace SourceExplorer
             {
                 bytesRead = ReadRGB(strm, result, graphicsMode, palette);
             }
-            DEBUG("Alpha Size: 0x" << (dataSize - bytesRead));
 
             if ((flags & image_flag_t::ALPHA) != image_flag_t::NONE)
             {

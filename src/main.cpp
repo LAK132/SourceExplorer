@@ -92,7 +92,7 @@ bool DumpStuff(const char *str_id, dump_function_t *func)
     return false;
 }
 
-void SaveImage(
+bool SaveImage(
     const lak::image4_t &image,
     const fs::path &filename
 )
@@ -103,10 +103,12 @@ void SaveImage(
     ) != 1)
     {
         ERROR("Failed To Save Image '" << filename << "'");
+        return true;
     }
+    return false;
 }
 
-void SaveImage(
+bool SaveImage(
     se::source_explorer_t &srcexp,
     uint16_t handle,
     const fs::path &filename,
@@ -117,11 +119,11 @@ void SaveImage(
     if (!object)
     {
         ERROR("Failed To Save Image: Bad Handle '0x" << (int)handle << "'");
-        return;
+        return true;
     }
 
     lak::image4_t image = object->image(srcexp.dumpColorTrans, (frame && frame->palette) ? frame->palette->colors : nullptr);
-    SaveImage(image, filename);
+    return SaveImage(image, filename);
 }
 
 void DumpImages(se::source_explorer_t &srcexp, std::atomic<float> &completed)
@@ -165,208 +167,123 @@ void DumpSortedImages(se::source_explorer_t &srcexp, std::atomic<float> &complet
 
     auto LinkImages = [](const fs::path &From, const fs::path &To)
     {
+        bool result = false;
         std::error_code ec;
-        if (fs::exists(From, ec))
+        if (fs::exists(To, ec))
         {
-            fs::create_directories(To.parent_path(), ec);
-            if (ec)
+            ERROR("File " << To << " Already Exists");
+            result = true;
+        }
+        else if (!ec)
+        {
+            if (fs::exists(From, ec))
             {
-                ERROR("File System Error: " << ec.message());
-                ERROR("Failed To Create Directory '" << To.parent_path() << "'");
-                return false;
+                fs::create_directories(To.parent_path(), ec);
+                if (!ec)
+                    fs::create_hard_link(From, To, ec);
             }
-            else
+            else if (!ec)
             {
-                fs::create_hard_link(From, To, ec);
-                if (ec)
-                {
-                    ERROR("File System Error: " << ec.message());
-                    ERROR("Please make sure your file system supports 'Hard Links'");
-                    return false;
-                }
+                ERROR("File " << From << " Does Not Exist");
+                result = true;
             }
         }
-        else if (ec)
+
+        if (ec)
         {
             ERROR("File System Error: " << ec.message());
-            return false;
+            result = true;
         }
-        else
+
+        if (result)
         {
-            ERROR("File '" << From << "' Does Not Exist");
-            return false;
+            ERROR("Failed To Link Image " << From << " To " << To);
         }
-        return true;
+
+        return result;
     };
 
-    std::unordered_map<uint32_t, std::pair<fs::path, size_t>> references;
-    using frame_ref_t = std::pair<fs::path, const se::frame::item_t*>;
-    std::unordered_map<uint32_t, std::deque<frame_ref_t>> references8bit;
+    using std::string_literals::operator""s;
 
-    fs::path unsortedPath = srcexp.sortedImages.path / "[unsorted]";
-    fs::path unreferencedPath = srcexp.sortedImages.path / "[unreferenced]";
-    fs::path unreferencedPath8bit = srcexp.sortedImages.path / "[unreferenced 8bit]";
+    auto HandleName = [](const std::unique_ptr<se::string_chunk_t> &name, auto handle)
+    {
+        return (name && !name->value.empty() ? name->value + u" [" : u"["s) + lak::to_u16string(handle) + u"]";
+    };
+
+    fs::path rootPath = srcexp.sortedImages.path;
+    fs::path unsortedPath = rootPath / "[unsorted]";
     fs::create_directories(unsortedPath);
-    fs::create_directories(unreferencedPath);
-    fs::create_directories(unreferencedPath8bit);
+    std::error_code err;
 
-    // init all image handles
     size_t imageIndex = 0;
     const size_t imageCount = srcexp.state.game.imageBank->items.size();
     for (const auto &image : srcexp.state.game.imageBank->items)
     {
-        if (image.graphicsMode == se::graphics_mode_t::GRAPHICS2 ||
-            image.graphicsMode == se::graphics_mode_t::GRAPHICS3)
-        {
-            references8bit[image.entry.handle] = {};
-        }
-        else
-        {
-            // dump all non-8bit images into root/[unsorted]
-            fs::path p = unsortedPath / (std::to_string(image.entry.handle) + ".png");
-            references[image.entry.handle] = {p, 0};
-            lak::image4_t img = image.image(srcexp.dumpColorTrans);
-            SaveImage(img, p);
-        }
+        std::u16string imageName = lak::to_u16string(image.entry.handle) + u".png";
+        fs::path imagePath = unsortedPath / imageName;
+        SaveImage(image.image(srcexp.dumpColorTrans), imagePath);
         completed = (float)((double)imageIndex++ / imageCount);
     }
-
-    // reference all non-8bit images from root/[unsorted]
-    // dump all 8bit images into frames they're referenced from
 
     size_t frameIndex = 0;
     const size_t frameCount = srcexp.state.game.frameBank->items.size();
     for (const auto &frame : srcexp.state.game.frameBank->items)
     {
-        std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
-            + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
-        fs::path frameUnsortedPath = srcexp.sortedImages.path / frameName / "[unsorted]";
+        std::u16string frameName = HandleName(frame.name, frameIndex);
+        fs::path framePath = rootPath / frameName;
+        fs::create_directories(framePath / "[unsorted]", err);
+        if (err)
+        {
+            ERROR("File System Error: " << err.message());
+            continue;
+        }
+
         if (frame.objectInstances)
         {
+            std::unordered_set<uint32_t> usedImages;
+            std::unordered_set<uint16_t> usedObjects;
             for (const auto &object : frame.objectInstances->objects)
             {
+                if (usedObjects.find(object.handle) != usedObjects.end()) continue;
+                usedObjects.insert(object.handle);
                 if (const auto *obj = se::GetObject(srcexp.state, object.handle); obj)
                 {
-                    for (auto [handle, count] : obj->image_handles())
+                    std::u16string objectName = HandleName(obj->name, obj->handle) +
+                        u"[" + lak::strconv_u16(std::string(se::GetObjectTypeString(obj->type))) + u"]";
+                    fs::path objectPath = framePath / objectName;
+                    fs::create_directories(objectPath, err);
+                    if (err)
                     {
-                        fs::path imagePath = frameUnsortedPath / (std::to_string(handle) + ".png");
-                        std::error_code ec;
-                        if (fs::exists(imagePath, ec) || ec)
-                            continue;
-                        if (auto ref = references8bit.find(handle); ref != references8bit.end())
+                        ERROR("File System Error: " << err.message());
+                        continue;
+                    }
+
+                    for (auto [imghandle, imgnames] : obj->image_handles())
+                    {
+                        if (imghandle == 0xFFFF) continue;
+                        if (const auto *img = se::GetImage(srcexp.state, imghandle); img)
                         {
-                            ref->second.push_back({frameUnsortedPath, &frame});
-                            auto *item = se::GetImage(srcexp.state, handle);
-                            if (!item)
+                            if (usedImages.find(imghandle) == usedImages.end())
                             {
-                                ERROR("Failed To Save Image: Bad Handle '0x" << handle << "'");
-                                continue;
+                                usedImages.insert(imghandle);
+                                std::u16string imageName = lak::to_u16string(imghandle) + u".png";
+                                fs::path imagePath = framePath / "[unsorted]" / imageName;
+
+                                // check if 8bit image
+                                if (img->need_palette() && frame.palette)
+                                    SaveImage(img->image(srcexp.dumpColorTrans, frame.palette->colors), imagePath);
+                                else
+                                    if (LinkImages(unsortedPath / imageName, imagePath)) ERROR("Linking Failed");
                             }
-                            if (!frame.palette) DEBUG("No Palette Information");
-                            lak::image4_t image = item->image(srcexp.dumpColorTrans, frame.palette ? frame.palette->colors : nullptr);
-                            fs::create_directories(frameUnsortedPath);
-                            SaveImage(image, imagePath);
-                        }
-                        else if (auto ref = references.find(handle); ref != references.end())
-                        {
-                            // continue;
-                            ++(ref->second.second);
-                            if (!LinkImages(ref->second.first, imagePath))
-                                ERROR("Failed To Link Images");
-                        }
-                    }
-                }
-            }
-        }
-        completed = (float)((double)frameIndex++ / frameCount);
-    }
-
-    // reference all non-8bit non-referenced images from root/[unsorted] in root/[unreferenced]
-
-    for (auto &[handle, pathCount] : references)
-    {
-        if (auto &[path, count] = pathCount; count == 0)
-        {
-            if (!LinkImages(path, unreferencedPath / path.filename()))
-                ERROR("Failed To Link Images");
-        }
-    }
-
-    // dump all 8bit non-referenced images into root/[unreferenced 8bit]
-
-    for (auto &[handle, refs] : references8bit)
-    {
-        if (refs.empty())
-        {
-            auto *item = se::GetImage(srcexp.state, handle);
-            if (!item)
-            {
-                ERROR("Failed To Save Image: Bad Handle '0x" << handle << "'");
-                continue;
-            }
-            lak::image4_t image = item->image(srcexp.dumpColorTrans);
-            SaveImage(image, unreferencedPath8bit / (std::to_string(handle) + ".png"));
-        }
-    }
-
-    // sort all referenced images into objects
-
-    frameIndex = 0;
-    for (const auto &frame : srcexp.state.game.frameBank->items)
-    {
-        std::u16string frameName = (frame.name ? frame.name->value : std::u16string(u"Frame"))
-            + u" [" + lak::strconv_u16(std::to_string(frameIndex)) + u"]";
-        fs::path framePath = srcexp.sortedImages.path / frameName;
-        fs::path frameUnsortedPath = framePath / "[unsorted]";
-        if (frame.objectInstances)
-        {
-            for (const auto &object : frame.objectInstances->objects)
-            {
-                if (const auto *obj = se::GetObject(srcexp.state, object.handle); obj)
-                {
-                    std::u16string objectName = (obj->name ? obj->name->value : std::u16string(u"Unnamed"))
-                        + u" [" + lak::strconv_u16(std::to_string(obj->handle)) + u"]";
-
-                    if (obj->quickBackdrop)
-                    {
-                        if (!LinkImages(
-                            frameUnsortedPath / (std::to_string(obj->quickBackdrop->shape.handle) + ".png"),
-                            framePath / (objectName + u".png")))
-                            ERROR("Failed To Link Images");
-                    }
-                    else if (obj->backdrop)
-                    {
-                        if (!LinkImages(
-                            frameUnsortedPath / (std::to_string(obj->backdrop->handle) + ".png"),
-                            framePath / (objectName + u".png")))
-                            ERROR("Failed To Link Images");
-                    }
-                    else if (obj->common && obj->common->animations)
-                    {
-                        fs::path objectPath = framePath / objectName;
-                        fs::create_directories(objectPath);
-                        size_t animIndex = 0;
-                        for (const auto &animation : obj->common->animations->animations)
-                        {
-                            std::u16string animName = u"Animation" + lak::strconv_u16(std::to_string(animIndex));
-                            for (int i = 0; i < 32; ++i)
+                            for (const auto &imgname : imgnames)
                             {
-                                if (animation.offsets[i] > 0)
-                                {
-                                    std::u16string animDirName = animName + u"_Direction" + lak::strconv_u16(std::to_string(i));
-                                    size_t animFrameIndex = 0;
-                                    for (auto handle : animation.directions[i].handles)
-                                    {
-                                        std::u16string animFrameName = animDirName + u"_Frame" + lak::strconv_u16(std::to_string(animFrameIndex));
-                                        if (!LinkImages(
-                                            frameUnsortedPath / (std::to_string(handle) + ".png"),
-                                            objectPath / (animFrameName + u".png")))
-                                            ERROR("Failed To Link Images");
-                                        ++animFrameIndex;
-                                    }
-                                }
+                                std::u16string unsortedImageName = lak::to_u16string(imghandle) + u".png";
+                                fs::path unsortedImagePath = framePath / "[unsorted]" / unsortedImageName;
+                                std::u16string imageName = imgname + u".png";
+                                fs::path imagePath = objectPath / imageName;
+                                if (const auto *img = se::GetImage(srcexp.state, imghandle); img)
+                                    if (LinkImages(unsortedImagePath, imagePath)) ERROR("Linking Failed");
                             }
-                            ++animIndex;
                         }
                     }
                 }
