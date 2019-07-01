@@ -3,10 +3,7 @@
  *
  * Written by Andrew Church <achurch@achurch.org>
  *
- *
- * tinflate.hpp -- modern C++ rewrite of tinflate.c
- *
- * Written by Lucas "LAK132" Kleiss <kicodora.com>
+ * Re-written for C++ by Lucas "LAK132" Kleiss <https://github.com/LAK132>
  *
  * This source code is public domain.
  */
@@ -85,6 +82,8 @@ namespace lak
             uint32_t symbol;
             uint32_t lastValue;
             uint32_t repeatLength;
+            uint32_t repeatCount;
+            uint32_t distance;
 
             uint32_t len;
             uint32_t ilen;
