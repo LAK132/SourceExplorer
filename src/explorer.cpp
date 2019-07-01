@@ -922,8 +922,8 @@ namespace SourceExplorer
     std::vector<uint8_t> Inflate(const std::vector<uint8_t> &deflated)
     {
         std::deque<uint8_t> buffer;
-        lak::tinf::error_t err = lak::tinflate(deflated, buffer);
-        if (err == lak::tinf::error_t::OK)
+        tinf::error_t err = tinf::tinflate(deflated, buffer);
+        if (err == tinf::error_t::OK)
             return std::vector<uint8_t>(buffer.begin(), buffer.end());
         else
         {
@@ -940,11 +940,11 @@ namespace SourceExplorer
         return result;
         #else
         std::deque<uint8_t> buffer;
-        lak::tinf::decompression_state_t state;
-        state.state = lak::tinf::state_t::HEADER;
+        tinf::decompression_state_t state;
+        state.state = tinf::state_t::HEADER;
         state.anaconda = true;
-        lak::tinf::error_t err = lak::tinflate(compressed.begin(), compressed.end(), buffer, state);
-        if (err == lak::tinf::error_t::OK)
+        tinf::error_t err = tinf::tinflate(compressed.begin(), compressed.end(), buffer, state);
+        if (err == tinf::error_t::OK)
             return std::vector<uint8_t>(buffer.begin(), buffer.end());
         else
         {
@@ -962,13 +962,13 @@ namespace SourceExplorer
         return result;
         #else
         std::deque<uint8_t> buffer;
-        lak::tinf::decompression_state_t state;
-        state.state = lak::tinf::state_t::HEADER;
+        tinf::decompression_state_t state;
+        state.state = tinf::state_t::HEADER;
         state.anaconda = true;
-        lak::tinf::error_t err = lak::tinflate(strm.cursor(), strm.end(), buffer, state);
+        tinf::error_t err = tinf::tinflate(strm.cursor(), strm.end(), buffer, state);
         if (state.begin > strm.cursor())
             strm.position += state.begin - strm.cursor();
-        if (err == lak::tinf::error_t::OK)
+        if (err == tinf::error_t::OK)
             return std::vector<uint8_t>(buffer.begin(), buffer.end());
         else
         {
