@@ -18,7 +18,7 @@ CXXFLAGS = $(OPTIMISATION) -no-pie -std=c++17 -Wall -Werror -Wfatal-errors -pthr
 CCFLAGS  = $(OPTIMISATION) -no-pie -std=c99 -Wall -Werror -Wfatal-errors -Wno-unused-variable -Wno-unused-result -Wno-unused-function -pthread -ldl
 ARFLAGS  = rcs
 
-INCDIRS = include include/imgui include/imgui/misc/cpp
+INCDIRS = include include/glm include/imgui include/imgui/misc/cpp
 LIBDIRS = $(BINDIR)
 LIBS = SDL2 GL dl stdc++fs
 
