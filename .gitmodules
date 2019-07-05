@@ -7,3 +7,12 @@
 [submodule "include/imgui"]
 	path = include/imgui
 	url = https://github.com/LAK132/ImSoft.git
+[submodule "include/cql"]
+	path = include/cql
+	url = https://github.com/LAK132/cql
+[submodule "glm"]
+	path = include/glm
+	url = https://github.com/g-truc/glm
+[submodule "include/tinflate"]
+	path = include/tinflate
+	url = https://github.com/LAK132/tinflate

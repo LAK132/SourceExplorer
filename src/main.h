@@ -49,8 +49,7 @@ namespace fs = std::filesystem;
 #endif
 #include <stb_image_write.h>
 
-#include "tinflate.hpp"
-#include "tinf.h"
+#include <tinflate/tinflate.hpp>
 #include "explorer.h"
 #include "image.h"
 namespace se = SourceExplorer;

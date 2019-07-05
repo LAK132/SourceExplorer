@@ -22,11 +22,36 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <cstdint>
-#include <cstddef>
-
 #ifndef LAK_VEC_H
 #define LAK_VEC_H
+
+#ifdef __has_include
+#   if __has_include(<imgui.h>)
+#       include <imgui.h>
+#       define LAK_VEC_H_HAS_IMGUI
+#   elif __has_include("imgui.h")
+#       include "imgui.h"
+#       define LAK_VEC_H_HAS_IMGUI
+#   elif __has_include(<imgui/imgui.h>)
+#       include <imgui/imgui.h>
+#       define LAK_VEC_H_HAS_IMGUI
+#   elif __has_include("imgui/imgui.h")
+#       include "imgui/imgui.h"
+#       define LAK_VEC_H_HAS_IMGUI
+#   endif
+
+#   if __has_include(<glm/vec2.hpp>) && \
+       __has_include(<glm/vec3.hpp>) && \
+       __has_include(<glm/vec4.hpp>)
+#       include <glm/vec2.hpp>
+#       include <glm/vec3.hpp>
+#       include <glm/vec4.hpp>
+#       define LAK_VEC_H_HAS_GLM
+#   endif
+#endif
+
+#include <cstdint>
+#include <cstddef>
 
 namespace lak
 {
@@ -39,20 +64,87 @@ namespace lak
     {
         union { T x; T r; };
         union { T y; T g; };
-        inline T &operator[](const size_t index) { return (&x)[index]; }
-        inline const T &operator[](const size_t index) const { return (&x)[index]; }
-        template<typename R>
-        vec2<T> &operator=(const vec2<R> &rhs) {
-            x = (T)rhs.x;
-            y = (T)rhs.y;
-            return *this;
-        }
-        template<typename L>
-        operator vec2<L>() const { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
-        template<typename L>
-        operator vec3<L>() const { return vec3<L>{static_cast<L>(x), static_cast<L>(y), 0}; }
-        template<typename L>
-        operator vec4<L>() const { return vec4<L>{static_cast<L>(x), static_cast<L>(y), 0, 0}; }
+
+        vec2() = default;
+
+        vec2(const vec2 &other)
+        : x(other.x), y(other.y) {}
+
+        vec2(const T (&values)[2])
+        : x(values[0]), y(values[1]) {}
+
+        vec2(const T X, const T Y)
+        : x(X), y(Y) {}
+
+        vec2 &operator=(const vec2 &rhs)
+        { x = (T)rhs.x; y = (T)rhs.y; return *this; }
+
+        inline T &operator[](const size_t index)
+        { return (&x)[index]; }
+
+        inline const T &operator[](const size_t index) const
+        { return (&x)[index]; }
+
+        template<typename L> operator vec2<L>() const
+        { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
+
+        template<typename L> operator vec3<L>() const
+        { return vec3<L>{static_cast<L>(x), static_cast<L>(y), 0}; }
+
+        template<typename L> operator vec4<L>() const
+        { return vec4<L>{static_cast<L>(x), static_cast<L>(y), 0, 0}; }
+
+        #ifdef LAK_VEC_H_HAS_IMGUI
+        explicit operator ImVec2() const
+        { return ImVec2(static_cast<float>(x), static_cast<float>(y)); }
+
+        explicit operator ImVec4() const
+        { return ImVec4(static_cast<float>(x), static_cast<float>(y), 0.0f, 0.0f); }
+        #endif
+
+        #ifdef LAK_VEC_H_HAS_GLM
+        template<glm::precision GLMP> vec2(const glm::tvec2<T, GLMP> &vec2)
+        { x = vec2.x; y = vec2.y; }
+
+        template<glm::precision GLMP> vec2(const glm::tvec3<T, GLMP> &vec3)
+        { x = vec3.x; y = vec3.y; }
+
+        template<glm::precision GLMP> vec2(const glm::tvec4<T, GLMP> &vec4)
+        { x = vec4.x; y = vec4.y; }
+
+        template<glm::precision GLMP> operator glm::tvec2<T, GLMP>() const
+        { return {x, y}; }
+
+        template<glm::precision GLMP> operator glm::tvec3<T, GLMP>() const
+        { return {x, y, 0}; }
+
+        template<glm::precision GLMP> operator glm::tvec4<T, GLMP>() const
+        { return {x, y, 0, 0}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec2(const glm::tvec2<GLMT, GLMP> &vec2)
+        { x = static_cast<T>(vec2.x); y = static_cast<T>(vec2.y); }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec2(const glm::tvec3<GLMT, GLMP> &vec3)
+        { x = static_cast<T>(vec3.x); y = static_cast<T>(vec3.y); }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec2(const glm::tvec4<GLMT, GLMP> &vec4)
+        { x = static_cast<T>(vec4.x); y = static_cast<T>(vec4.y); }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec4<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y), GLMT(0), GLMT(0)}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec3<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y), GLMT(0)}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec2<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y)}; }
+        #endif
     };
 
     using vec2f_t = vec2<float>;
@@ -74,21 +166,87 @@ namespace lak
         union { T x; T r; };
         union { T y; T g; };
         union { T z; T b; };
-        inline T &operator[](const size_t index) { return (&x)[index]; }
-        inline const T &operator[](const size_t index) const { return (&x)[index]; }
-        template<typename R>
-        vec3<T> &operator=(const vec3<R> &rhs) {
-            x = (T)rhs.x;
-            y = (T)rhs.y;
-            z = (T)rhs.z;
-            return *this;
-        }
-        template<typename L>
-        operator vec2<L>() const { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
-        template<typename L>
-        operator vec3<L>() const { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
-        template<typename L>
-        operator vec4<L>() const { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), 0}; }
+
+        vec3() = default;
+
+        vec3(const vec3 &other)
+        : x(other.x), y(other.y), z(other.z) {}
+
+        vec3(const T (&values)[3])
+        : x(values[0]), y(values[1]), z(values[2]) {}
+
+        vec3(const T X, const T Y, const T Z)
+        : x(X), y(Y), z(Z) {}
+
+        vec3 &operator=(const vec3 &rhs)
+        { x = rhs.x; y = rhs.y; z = rhs.z; return *this; }
+
+        inline T &operator[](const size_t index)
+        { return (&x)[index]; }
+
+        inline const T &operator[](const size_t index) const
+        { return (&x)[index]; }
+
+        template<typename L> operator vec2<L>() const
+        { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
+
+        template<typename L> operator vec3<L>() const
+        { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
+
+        template<typename L> operator vec4<L>() const
+        { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), 0}; }
+
+        #ifdef LAK_VEC_H_HAS_IMGUI
+        operator ImVec2() const
+        { return ImVec2(static_cast<float>(x), static_cast<float>(y)); }
+
+        operator ImVec4() const
+        { return ImVec4(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), 0.0f); }
+        #endif
+
+        #ifdef LAK_VEC_H_HAS_GLM
+        template<glm::precision GLMP> vec3(const glm::tvec2<T, GLMP> &vec2)
+        { x = vec2.x; y = vec2.y; z = 0; }
+
+        template<glm::precision GLMP> vec3(const glm::tvec3<T, GLMP> &vec3)
+        { x = vec3.x; y = vec3.y; z = vec3.z; }
+
+        template<glm::precision GLMP> vec3(const glm::tvec4<T, GLMP> &vec4)
+        { x = vec4.x; y = vec4.y; z = vec4.z; }
+
+        template<glm::precision GLMP> operator glm::tvec2<T, GLMP>() const
+        { return {x, y}; }
+
+        template<glm::precision GLMP> operator glm::tvec3<T, GLMP>() const
+        { return {x, y, z}; }
+
+        template<glm::precision GLMP> operator glm::tvec4<T, GLMP>() const
+        { return {x, y, z, 0}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec3(const glm::tvec2<GLMT, GLMP> &vec2)
+        { x = static_cast<T>(vec2.x); y = static_cast<T>(vec2.y); z = 0; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec3(const glm::tvec3<GLMT, GLMP> &vec3)
+        { x = static_cast<T>(vec3.x); y = static_cast<T>(vec3.y); z = static_cast<T>(vec3.z); }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec3(const glm::tvec4<GLMT, GLMP> &vec4)
+        { x = static_cast<T>(vec4.x); y = static_cast<T>(vec4.y); z = static_cast<T>(vec4.z); }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec4<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y), static_cast<GLMT>(z), GLMT(0)}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec3<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y), static_cast<GLMT>(z)}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec2<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y)}; }
+        #endif
     };
 
     using vec3f_t = vec3<float>;
@@ -111,22 +269,87 @@ namespace lak
         union { T y; T g; };
         union { T z; T b; };
         union { T w; T a; };
-        inline T &operator[](const size_t index) { return (&x)[index]; }
-        inline const T &operator[](const size_t index) const { return (&x)[index]; }
-        template<typename R>
-        vec4<T> &operator=(const vec4<R> &rhs) {
-            x = (T)rhs.x;
-            y = (T)rhs.y;
-            z = (T)rhs.z;
-            w = (T)rhs.w;
-            return *this;
-        }
-        template<typename L>
-        operator vec2<L>() const { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
-        template<typename L>
-        operator vec3<L>() const { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
-        template<typename L>
-        operator vec4<L>() const { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), static_cast<L>(w)}; }
+
+        vec4() = default;
+
+        vec4(const vec4 &other)
+        : x(other.x), y(other.y), z(other.z), w(other.w) {}
+
+        vec4(const T (&values)[4])
+        : x(values[0]), y(values[1]), z(values[2]), w(values[3]) {}
+
+        vec4(const T X, const T Y, const T Z, const T W)
+        : x(X), y(Y), z(Z), w(W) {}
+
+        vec4 &operator=(const vec4 &rhs)
+        { x = rhs.x; y = rhs.y; z = rhs.z; w = rhs.w; return *this; }
+
+        inline T &operator[](const size_t index)
+        { return (&x)[index]; }
+
+        inline const T &operator[](const size_t index) const
+        { return (&x)[index]; }
+
+        template<typename L> operator vec2<L>() const
+        { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
+
+        template<typename L> operator vec3<L>() const
+        { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
+
+        template<typename L> operator vec4<L>() const
+        { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), static_cast<L>(w)}; }
+
+        #ifdef LAK_VEC_H_HAS_IMGUI
+        operator ImVec2() const
+        { return ImVec2(static_cast<float>(x), static_cast<float>(y)); }
+
+        operator ImVec4() const
+        { return ImVec4(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), static_cast<float>(w)); }
+        #endif
+
+        #ifdef LAK_VEC_H_HAS_GLM
+        template<glm::precision GLMP> vec4(const glm::tvec2<T, GLMP> &vec2)
+        { x = vec2.x; y = vec2.y; z = 0; w = 0; }
+
+        template<glm::precision GLMP> vec4(const glm::tvec3<T, GLMP> &vec3)
+        { x = vec3.x; y = vec3.y; z = vec3.z; w = 0; }
+
+        template<glm::precision GLMP> vec4(const glm::tvec4<T, GLMP> &vec4)
+        { x = vec4.x; y = vec4.y; z = vec4.z; w = vec4.w; }
+
+        template<glm::precision GLMP> operator glm::tvec2<T, GLMP>() const
+        { return {x, y}; }
+
+        template<glm::precision GLMP> operator glm::tvec3<T, GLMP>() const
+        { return {x, y, z}; }
+
+        template<glm::precision GLMP> operator glm::tvec4<T, GLMP>() const
+        { return {x, y, z, w}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec4(const glm::tvec2<GLMT, GLMP> &vec2)
+        { x = static_cast<T>(vec2.x); y = static_cast<T>(vec2.y); z = 0; w = 0;}
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec4(const glm::tvec3<GLMT, GLMP> &vec3)
+        { x = static_cast<T>(vec3.x); y = static_cast<T>(vec3.y); z = static_cast<T>(vec3.z); w = 0; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit vec4(const glm::tvec4<GLMT, GLMP> &vec4)
+        { x = static_cast<T>(vec4.x); y = static_cast<T>(vec4.y); z = static_cast<T>(vec4.z); w = static_cast<T>(vec4.w); }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec4<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y), static_cast<GLMT>(z), static_cast<GLMT>(w)}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec3<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y), static_cast<GLMT>(z)}; }
+
+        template<typename GLMT, glm::precision GLMP>
+        explicit operator glm::tvec2<GLMT, GLMP>() const
+        { return {static_cast<GLMT>(x), static_cast<GLMT>(y)}; }
+        #endif
     };
 
     using vec4f_t = vec4<float>;

@@ -32,8 +32,7 @@
 #include "lak.h"
 #include <strconv/strconv.hpp>
 #include "defines.h"
-#include "tinflate.hpp"
-#include "tinf.h"
+#include <tinflate/tinflate.hpp>
 
 #ifndef EXPLORER_H
 #define EXPLORER_H

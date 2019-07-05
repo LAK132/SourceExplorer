@@ -1225,8 +1225,6 @@ int tccmain()
     ImGuiStyle &style = ImGui::GetStyle();
     style.WindowRounding = 0;
 
-    tinf_init();
-
     for (bool running = true; running;)
     {
         /* --- BEGIN EVENTS --- */
@@ -1331,14 +1329,10 @@ int tccmain()
 
 #include "lak.cpp"
 #include "imgui_impl_lak.cpp"
-#include "tinflate.cpp"
+#include <tinflate/tinflate.cpp>
 
 #include "explorer.cpp"
 
 #include <examples/imgui_impl_softraster.cpp>
-
-extern "C" {
-#include "tinflate.c"
-}
 
 #include <memory/memory.cpp>
