@@ -25,9 +25,10 @@ SOFTWARE.
 #ifndef LAK_IMAGE_H
 #define LAK_IMAGE_H
 
-#include <vector>
-
 #include <lak/vec.h>
+
+#include <vector>
+#include <cstring>
 
 namespace lak
 {
@@ -71,6 +72,16 @@ namespace lak
         size_t contig_size() const
         {
             return _value.size();
+        }
+
+        value_type *data()
+        {
+            return _value.data();
+        }
+
+        const value_type *data() const
+        {
+            return _value.data();
         }
 
     private:
