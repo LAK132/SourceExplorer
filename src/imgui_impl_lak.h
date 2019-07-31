@@ -21,6 +21,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#ifndef IMGUI_IMPL_LAK_H
+#define IMGUI_IMPL_LAK_H
 
 #include <cstdlib>
 #include <cstring>
@@ -35,9 +37,8 @@ SOFTWARE.
 #include "SDL_syswm.h"
 #endif
 
-#ifndef IMGUI_IMPL_LAK_H
-#define IMGUI_IMPL_LAK_H
-
+#include <lak/opengl/shader.hpp>
+#include <lak/opengl/texture.hpp>
 #include <lak/image.h>
 
 #include "lak.h"
@@ -64,15 +65,16 @@ namespace ImGui
 
     typedef struct _ImplGLContext
     {
-        GLuint vertShader;
-        GLuint fragShader;
-        int attribTex;
-        int attribViewProj;
-        int attribPos;
-        int attribUV;
-        int attribCol;
-        unsigned int elements;
-        lak::glState_t state;
+        GLint attribTex;
+        GLint attribViewProj;
+        GLint attribPos;
+        GLint attribUV;
+        GLint attribCol;
+        GLuint elements;
+        GLuint arrayBuffer;
+        GLuint vertexArray;
+        lak::opengl::program shader;
+        lak::opengl::texture font;
     } *ImplGLContext;
 
     typedef struct _ImplVkContext

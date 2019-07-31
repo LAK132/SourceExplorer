@@ -721,23 +721,21 @@ namespace SourceExplorer
         }
     }
 
-    lak::glTexture_t CreateTexture(const lak::image4_t &bitmap)
+    lak::opengl::texture CreateTexture(const lak::image4_t &bitmap)
     {
-        GLuint tex;
-        glGenTextures(1, &tex);
+        auto [old_texture] = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
 
-        glBindTexture(GL_TEXTURE_2D, tex);
+        lak::opengl::texture result(GL_TEXTURE_2D);
+        result.bind()
+            .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
+            .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+            .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            .build(0, GL_RGBA, (lak::vec2<GLsizei>)bitmap.size(), 0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap.data());
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glBindTexture(GL_TEXTURE_2D, old_texture);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)bitmap.size().x, (GLsizei)bitmap.size().y,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, &(bitmap[0].r));
-
-        return lak::glTexture_t(std::move(tex), bitmap.size());
+        return std::move(result);
     }
 
     void ViewImage(source_explorer_t &srcexp, const float scale)

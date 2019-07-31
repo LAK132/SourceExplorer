@@ -23,6 +23,8 @@ SOFTWARE.
 */
 
 #include "imgui_impl_lak.h"
+#include "lak/opengl/state.hpp"
+#include "lak/defer/defer.hpp"
 
 namespace ImGui
 {
@@ -179,100 +181,59 @@ namespace ImGui
 
     void ImplInitGLContext(ImplGLContext context, const lak::window_t &window)
     {
-        context->state.program                   = 0;
-        context->state.texture                   = 0;
-        context->state.activeTexture             = GL_TEXTURE0;
-        context->state.sampler                   = 0;
-        context->state.vertexArray               = 0;
-        context->state.arrayBuffer               = 0;
-        context->state.polygonMode[0]            = GL_FRONT_AND_BACK;
-        context->state.polygonMode[1]            = GL_FILL;
-        context->state.clipOrigin                = {};
-        context->state.viewport                  = {};
-        context->state.scissorBox                = {};
+        using namespace lak::opengl::literals;
 
-        context->state.blendRGB.source           = GL_SRC_ALPHA;
-        context->state.blendRGB.destination      = GL_ONE_MINUS_SRC_ALPHA;
-        context->state.blendRGB.equation         = GL_FUNC_ADD;
+        context->shader.init()
+            .attach("#version 130\n"
+                "uniform mat4 viewProj;\n"
+                "in vec2 vPosition;\n"
+                "in vec2 vUV;\n"
+                "in vec4 vColor;\n"
+                "out vec2 fUV;\n"
+                "out vec4 fColor;\n"
+                "void main()\n"
+                "{\n"
+                "   fUV = vUV;\n"
+                "   fColor = vColor;\n"
+                "   gl_Position = viewProj * vec4(vPosition.xy, 0, 1);\n"
+                "}\n"_vertex_shader)
+            .attach("#version 130\n"
+                "uniform sampler2D fTexture;\n"
+                "in vec2 fUV;\n"
+                "in vec4 fColor;\n"
+                "out vec4 pColor;\n"
+                "void main()\n"
+                "{\n"
+                "   pColor = fColor * texture(fTexture, fUV.st);\n"
+                "}\n"_fragment_shader)
+            .link();
 
-        context->state.blendAlpha.source         = GL_SRC_ALPHA;
-        context->state.blendAlpha.destination    = GL_ONE_MINUS_SRC_ALPHA;
-        context->state.blendAlpha.equation       = GL_FUNC_ADD;
+        context->attribTex      = context->shader.uniform_location("fTexture");
+        context->attribViewProj = context->shader.uniform_location("viewProj");
+        context->attribPos      = context->shader.attrib_location("vPosition");
+        context->attribUV       = context->shader.attrib_location("vUV");
+        context->attribCol      = context->shader.attrib_location("vColor");
 
-        context->state.enableBlend               = GL_TRUE;
-        context->state.enableCullFace            = GL_FALSE;
-        context->state.enableDepthTest           = GL_FALSE;
-        context->state.enableScissorTest         = GL_TRUE;
-
-        lak::glState_t backupState; backupState.backup();
-
-        const GLchar *vertShader =
-            "#version 130\n"
-            "uniform mat4 viewProj;\n"
-            "in vec2 vPosition;\n"
-            "in vec2 vUV;\n"
-            "in vec4 vColor;\n"
-            "out vec2 fUV;\n"
-            "out vec4 fColor;\n"
-            "void main()\n"
-            "{\n"
-            "   fUV = vUV;\n"
-            "   fColor = vColor;\n"
-            "   gl_Position = viewProj * vec4(vPosition.xy, 0, 1);\n"
-            "}\n";
-
-        context->vertShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(context->vertShader, 1, &vertShader, nullptr);
-        glCompileShader(context->vertShader);
-        // TODO: Check Shader
-
-        const GLchar *fragShader =
-            "#version 130\n"
-            "uniform sampler2D fTexture;\n"
-            "in vec2 fUV;\n"
-            "in vec4 fColor;\n"
-            "out vec4 pColor;\n"
-            "void main()\n"
-            "{\n"
-            "   pColor = fColor * texture(fTexture, fUV.st);\n"
-            "}\n";
-
-        context->fragShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(context->fragShader, 1, &fragShader, nullptr);
-        glCompileShader(context->fragShader);
-        // TODO: Check Shader
-
-        context->state.program = glCreateProgram();
-        glAttachShader(context->state.program, context->vertShader);
-        glAttachShader(context->state.program, context->fragShader);
-        glLinkProgram(context->state.program);
-
-        context->attribTex       = glGetUniformLocation(context->state.program, "fTexture");
-        context->attribViewProj  = glGetUniformLocation(context->state.program, "viewProj");
-        context->attribPos       = glGetAttribLocation(context->state.program, "vPosition");
-        context->attribUV        = glGetAttribLocation(context->state.program, "vUV");
-        context->attribCol       = glGetAttribLocation(context->state.program, "vColor");
-
-        glGenBuffers(1, &context->state.arrayBuffer);
+        glGenBuffers(1, &context->arrayBuffer);
         glGenBuffers(1, &context->elements);
 
         ImGuiIO &io = ImGui::GetIO();
 
         // Create fonts texture
         uint8_t *pixels;
-        int width, height;
-        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+        lak::vec2i_t size;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &size.x, &size.y);
 
-        glGenTextures(1, &context->state.texture);
-        glBindTexture(GL_TEXTURE_2D, context->state.texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        auto [old_texture] = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
+        DEFER({ glBindTexture(GL_TEXTURE_2D, old_texture); })
 
-        io.Fonts->TexID = (ImTextureID)(intptr_t)context->state.texture;
+        context->font.init(GL_TEXTURE_2D).bind()
+            .apply(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            .apply(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            .store_mode(GL_UNPACK_ROW_LENGTH, 0)
+            .build(0, GL_RGBA, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
-        backupState.restore();
+        io.Fonts->TexID = (ImTextureID)(intptr_t)context->font.get();
     }
 
     void ImplInitVkContext(ImplVkContext context, const lak::window_t &window)
@@ -335,32 +296,16 @@ namespace ImGui
 
     void ImplShutdownGLContext(ImplGLContext context)
     {
-        if (context->state.arrayBuffer) glDeleteBuffers(1, &context->state.arrayBuffer);
-        context->state.arrayBuffer = 0;
+        if (context->arrayBuffer) glDeleteBuffers(1, &context->arrayBuffer);
+        context->arrayBuffer = 0;
 
         if (context->elements) glDeleteBuffers(1, &context->elements);
         context->elements = 0;
 
-        if (context->state.program && context->vertShader) glDetachShader(context->state.program, context->vertShader);
-        if (context->vertShader) glDeleteShader(context->vertShader);
-        context->vertShader = 0;
+        context->shader.clear();
 
-        if (context->state.program && context->fragShader) glDetachShader(context->state.program, context->fragShader);
-        if (context->fragShader) glDeleteShader(context->fragShader);
-        context->fragShader = 0;
-
-        if (context->state.program) glDeleteProgram(context->state.program);
-        context->state.program = 0;
-
-        // Destroy Fonts Texture
-
-        if (context->state.texture)
-        {
-            ImGuiIO &io = ImGui::GetIO();
-            glDeleteTextures(1, &context->state.texture);
-            io.Fonts->TexID = 0;
-            context->state.texture = 0;
-        }
+        context->font.clear();
+        ImGui::GetIO().Fonts->TexID = (ImTextureID)(intptr_t)0;
     }
 
     void ImplShutdownVkContext(ImplVkContext context)
@@ -412,7 +357,7 @@ namespace ImGui
     {
         ImGuiIO &io = ImGui::GetIO();
 
-        assert(io.Fonts->IsBuilt() && "Font atlas not build");
+        assert(io.Fonts->IsBuilt() && "Font atlas not built");
 
         assert(deltaTime > 0);
         io.DeltaTime = deltaTime;
@@ -593,40 +538,84 @@ namespace ImGui
         ImGuiIO &io = ImGui::GetIO();
 
         lak::vec4f_t viewport;
-        // int = float = float
-        context->state.viewport.x = (GLint)(viewport.x = drawData->DisplayPos.x);
-        context->state.viewport.y = (GLint)(viewport.y = drawData->DisplayPos.y);
-        context->state.viewport.w = (GLint)(viewport.z = drawData->DisplaySize.x * io.DisplayFramebufferScale.x);
-        context->state.viewport.h = (GLint)(viewport.w = drawData->DisplaySize.y * io.DisplayFramebufferScale.y);
-        if (context->state.viewport.w <= 0 || context->state.viewport.h <= 0)
-            return;
+        viewport.x = drawData->DisplayPos.x;
+        viewport.y = drawData->DisplayPos.y;
+        viewport.z = drawData->DisplaySize.x * io.DisplayFramebufferScale.x;
+        viewport.w = drawData->DisplaySize.y * io.DisplayFramebufferScale.y;
+        if (viewport.z <= 0 || viewport.w <= 0) return;
 
         drawData->ScaleClipRects(io.DisplayFramebufferScale);
 
-        lak::glState_t backupState; backupState.backup();
+        auto [old_program] = lak::opengl::GetUint<1>(GL_CURRENT_PROGRAM);
+        auto [old_texture] = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
+        auto [old_active_texture] = lak::opengl::GetUint<1>(GL_ACTIVE_TEXTURE);
+        auto [old_vertex_array] = lak::opengl::GetUint<1>(GL_VERTEX_ARRAY_BINDING);
+        auto [old_array_buffer] = lak::opengl::GetUint<1>(GL_ARRAY_BUFFER_BINDING);
+        auto old_blend_enabled = glIsEnabled(GL_BLEND);
+        auto old_cull_face_enabled = glIsEnabled(GL_CULL_FACE);
+        auto old_depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
+        auto old_scissor_test_enabled = glIsEnabled(GL_SCISSOR_TEST);
+        auto old_viewport = lak::opengl::GetInt<4>(GL_VIEWPORT);
+        auto old_scissor = lak::opengl::GetInt<4>(GL_SCISSOR_BOX);
+        auto [old_clip_origin] = lak::opengl::GetEnum<1>(GL_CLIP_ORIGIN);
 
-        glGenVertexArrays(1, &context->state.vertexArray);
+        glGenVertexArrays(1, &context->vertexArray);
 
-        context->state.restore(); // calls glBindVertexArray
+        DEFER
+        ({
+            glUseProgram(old_program);
+            glBindTexture(GL_TEXTURE_2D, old_texture);
+            glActiveTexture(old_active_texture);
+            glBindVertexArray(old_vertex_array);
+            glBindBuffer(GL_ARRAY_BUFFER, old_array_buffer);
+            if (old_blend_enabled) glEnable(GL_BLEND);
+            else glDisable(GL_BLEND);
+            if (old_cull_face_enabled) glEnable(GL_CULL_FACE);
+            else glDisable(GL_CULL_FACE);
+            if (old_depth_test_enabled) glEnable(GL_DEPTH_TEST);
+            else glDisable(GL_DEPTH_TEST);
+            if (old_scissor_test_enabled) glEnable(GL_SCISSOR_TEST);
+            else glDisable(GL_SCISSOR_TEST);
+            glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+            glScissor(old_scissor[0], old_scissor[1], old_scissor[2], old_scissor[3]);
+
+            glDeleteVertexArrays(1, &context->vertexArray);
+            context->vertexArray = 0;
+        })
+
+        glUseProgram(context->shader.get());
+        glBindTexture(GL_TEXTURE_2D, context->font.get());
+        glActiveTexture(GL_TEXTURE0);
+        glBindVertexArray(context->vertexArray);
+        glBindBuffer(GL_ARRAY_BUFFER, context->arrayBuffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, context->elements);
+        glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+                            GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_SCISSOR_TEST);
+        glViewport(viewport.x, viewport.y, viewport.z, viewport.w);
 
         {
             const float &W = drawData->DisplaySize.x;
             const float &H = drawData->DisplaySize.y;
             const float O1 = ((drawData->DisplayPos.x * 2) + W) / -W;
             const float O2 = ((drawData->DisplayPos.y * 2) + H) / H;
-            const float orthoProj[4][4] =
+            const float orthoProj[] =
             {
-                { 2.0f/W,   0.0f,       0.0f,   0.0f },
-                { 0.0f,     2.0f/-H,    0.0f,   0.0f },
-                { 0.0f,     0.0f,       -1.0f,  0.0f },
-                { O1,       O2,         0.0f,   1.0f }
+                2.0f / W,   0.0f,       0.0f,   0.0f,
+                0.0f,       2.0f / -H,  0.0f,   0.0f,
+                0.0f,       0.0f,       -1.0f,  0.0f,
+                O1,         O2,         0.0f,   1.0f
             };
-            glUniformMatrix4fv(context->attribViewProj, 1, GL_FALSE, &orthoProj[0][0]);
+            glUniformMatrix4fv(context->attribViewProj, 1, GL_FALSE, orthoProj);
         }
         glUniform1i(context->attribTex, 0);
-        #ifdef GL_SAMPLER_BINDING
-        glBindSampler(0, 0);
-        #endif
+        // #ifdef GL_SAMPLER_BINDING
+        // glBindSampler(0, 0);
+        // #endif
 
         glEnableVertexAttribArray(context->attribPos);
         glVertexAttribPointer(context->attribPos, 2, GL_FLOAT, GL_FALSE,
@@ -639,9 +628,6 @@ namespace ImGui
         glEnableVertexAttribArray(context->attribCol);
         glVertexAttribPointer(context->attribCol, 4, GL_UNSIGNED_BYTE, GL_TRUE,
             sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, col));
-
-        glBindBuffer(GL_ARRAY_BUFFER, context->state.arrayBuffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, context->elements);
 
         for (int n = 0; n < drawData->CmdListsCount; ++n)
         {
@@ -675,7 +661,7 @@ namespace ImGui
                         clip.w >= 0.0f)
                     {
                         #ifdef GL_CLIP_ORIGIN
-                        if (backupState.clipOrigin == GL_UPPER_LEFT)
+                        if (old_clip_origin == GL_UPPER_LEFT)
                             // Support for GL 4.5's glClipControl(GL_UPPER_LEFT)
                             glScissor(
                                 (GLint)clip.x, (GLint)clip.y,
@@ -699,11 +685,6 @@ namespace ImGui
                 idxBufferOffset += pcmd.ElemCount;
             }
         }
-
-        backupState.restore();
-
-        glDeleteVertexArrays(1, &context->state.vertexArray);
-        context->state.vertexArray = 0;
     }
 
     void ImplVkRender(ImplVkContext context, ImDrawData *drawData)

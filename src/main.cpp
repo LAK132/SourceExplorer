@@ -17,6 +17,8 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "main.h"
+#include <lak/opengl/texture.hpp>
+#include <lak/opengl/shader.hpp>
 
 se::source_explorer_t SrcExp;
 
@@ -358,7 +360,7 @@ void Update(float FrameTime)
         static float rightSize = contentSize.x / 2;
 
         lak::HoriSplitter(leftSize, rightSize, contentSize.x);
-        ImGui::BeginChild("Left", ImVec2(leftSize, -1), true, ImGuiWindowFlags_NoSavedSettings);
+        ImGui::BeginChild("Left", {leftSize, -1}, true, ImGuiWindowFlags_NoSavedSettings);
         {
             if (SrcExp.loaded)
             {
@@ -390,7 +392,7 @@ void Update(float FrameTime)
         }
         ImGui::EndChild();
         ImGui::SameLine();
-        ImGui::BeginChild("Right", ImVec2(rightSize, -1), true, ImGuiWindowFlags_NoSavedSettings);
+        ImGui::BeginChild("Right", {rightSize, -1}, true, ImGuiWindowFlags_NoSavedSettings);
         {
             if (SrcExp.loaded)
             {
@@ -505,7 +507,7 @@ void Update(float FrameTime)
                 else if (selected == 1)
                 {
                     static float scale = 1.0f;
-                    if (SrcExp.image.valid())
+                    if (SrcExp.image.get())
                     {
                         ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
                         ImGui::Separator();
@@ -1328,6 +1330,9 @@ int tccmain()
 }
 
 #include "lak.cpp"
+#include <lak/opengl/texture.cpp>
+#include <lak/opengl/shader.cpp>
+
 #include "imgui_impl_lak.cpp"
 #include <tinflate/tinflate.cpp>
 
