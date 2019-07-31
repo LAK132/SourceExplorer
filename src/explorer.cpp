@@ -3008,7 +3008,7 @@ namespace SourceExplorer
         lak::image4_t item_t::image(const bool colorTrans, const lak::color4_t palette[256]) const
         {
             lak::image4_t result;
-            result.resize(size);
+            result.resize((lak::vec2s_t)size);
 
             lak::memory strm = image_data();
 

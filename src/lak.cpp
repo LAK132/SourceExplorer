@@ -67,7 +67,7 @@ namespace lak
         SDL_SetMainReady();
         assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
 
-        wnd.size = screenSize;
+        wnd.size = (vec2u32_t)screenSize;
 
         SDL_GetCurrentDisplayMode(display, &wnd.displayMode);
 
@@ -101,7 +101,7 @@ namespace lak
         assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3) == 0);
         assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) == 0);
 
-        wnd.size = screenSize;
+        wnd.size = (vec2u32_t)screenSize;
 
         SDL_GetCurrentDisplayMode(display, &wnd.displayMode);
 
@@ -131,7 +131,7 @@ namespace lak
         SDL_SetMainReady();
         assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
 
-        wnd.size = screenSize;
+        wnd.size = (vec2u32_t)screenSize;
 
         SDL_GetCurrentDisplayMode(display, &wnd.displayMode);
 
