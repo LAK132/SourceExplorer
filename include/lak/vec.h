@@ -86,13 +86,13 @@ namespace lak
         inline const T &operator[](const size_t index) const
         { return (&x)[index]; }
 
-        template<typename L> operator vec2<L>() const
+        template<typename L> explicit operator vec2<L>() const
         { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
 
-        template<typename L> operator vec3<L>() const
+        template<typename L> explicit operator vec3<L>() const
         { return vec3<L>{static_cast<L>(x), static_cast<L>(y), 0}; }
 
-        template<typename L> operator vec4<L>() const
+        template<typename L> explicit operator vec4<L>() const
         { return vec4<L>{static_cast<L>(x), static_cast<L>(y), 0, 0}; }
 
         #ifdef LAK_VEC_H_HAS_IMGUI
@@ -189,13 +189,13 @@ namespace lak
         inline const T &operator[](const size_t index) const
         { return (&x)[index]; }
 
-        template<typename L> operator vec2<L>() const
+        template<typename L> explicit operator vec2<L>() const
         { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
 
-        template<typename L> operator vec3<L>() const
+        template<typename L> explicit operator vec3<L>() const
         { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
 
-        template<typename L> operator vec4<L>() const
+        template<typename L> explicit operator vec4<L>() const
         { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), 0}; }
 
         #ifdef LAK_VEC_H_HAS_IMGUI
@@ -293,13 +293,13 @@ namespace lak
         inline const T &operator[](const size_t index) const
         { return (&x)[index]; }
 
-        template<typename L> operator vec2<L>() const
+        template<typename L> explicit operator vec2<L>() const
         { return vec2<L>{static_cast<L>(x), static_cast<L>(y)}; }
 
-        template<typename L> operator vec3<L>() const
+        template<typename L> explicit operator vec3<L>() const
         { return vec3<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z)}; }
 
-        template<typename L> operator vec4<L>() const
+        template<typename L> explicit operator vec4<L>() const
         { return vec4<L>{static_cast<L>(x), static_cast<L>(y), static_cast<L>(z), static_cast<L>(w)}; }
 
         #ifdef LAK_VEC_H_HAS_IMGUI
