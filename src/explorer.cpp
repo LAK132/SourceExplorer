@@ -2913,6 +2913,8 @@ namespace SourceExplorer
 
             if (!game.oldGame && game.productBuild >= 284) --entry.handle;
 
+            DEBUG("Reading Image. Handle: " << entry.handle);
+
             if (result == error_t::OK)
             {
                 lak::memory istrm = entry.decode();
@@ -3045,6 +3047,8 @@ namespace SourceExplorer
             strm.position = entry.data.position;
 
             items.resize(strm.read_u32());
+
+            DEBUG("Image Bank Size: " << items.size());
 
             for (auto &item : items)
             {
