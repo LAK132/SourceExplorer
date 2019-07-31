@@ -65,7 +65,8 @@ namespace lak
         union { T x; T r; };
         union { T y; T g; };
 
-        vec2() = default;
+        vec2()
+        : x(0), y(0) {}
 
         vec2(const vec2 &other)
         : x(other.x), y(other.y) {}
@@ -167,7 +168,8 @@ namespace lak
         union { T y; T g; };
         union { T z; T b; };
 
-        vec3() = default;
+        vec3()
+        : x(0), y(0), z(0) {}
 
         vec3(const vec3 &other)
         : x(other.x), y(other.y), z(other.z) {}
@@ -270,7 +272,8 @@ namespace lak
         union { T z; T b; };
         union { T w; T a; };
 
-        vec4() = default;
+        vec4()
+        : x(0), y(0), z(0), w(0) {}
 
         vec4(const vec4 &other)
         : x(other.x), y(other.y), z(other.z), w(other.w) {}
