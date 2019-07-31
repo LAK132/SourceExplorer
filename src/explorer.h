@@ -30,6 +30,7 @@
 
 #include "imgui_impl_lak.h"
 #include "lak.h"
+#include <lak/opengl/texture.hpp>
 #include <strconv/strconv.hpp>
 #include "defines.h"
 #include <tinflate/tinflate.hpp>
@@ -38,7 +39,6 @@
 #define EXPLORER_H
 
 #include "encryption.h"
-#include "image.h"
 
 #ifndef DEBUG_LINE_FILE
 #undef DEBUG_LINE_FILE
@@ -907,7 +907,7 @@ namespace SourceExplorer
 
         // const resource_entry_t *view = nullptr;
         const basic_entry_t *view = nullptr;
-        lak::glTexture_t image;
+        lak::opengl::texture image;
         std::vector<uint8_t> buffer;
     };
 
@@ -1019,7 +1019,7 @@ namespace SourceExplorer
         const bool unicode
     );
 
-    lak::glTexture_t CreateTexture(
+    lak::opengl::texture CreateTexture(
         const lak::image4_t &bitmap
     );
 

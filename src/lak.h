@@ -95,53 +95,6 @@ namespace lak
         GLsizei w = 0, h = 0;
     };
 
-    // TODO: recheck default states
-    struct glState_t
-    {
-        GLint program = 0;
-        GLuint texture = 0;
-        GLenum activeTexture = 0;
-        GLuint sampler = 0;
-        GLuint vertexArray = 0;
-        GLuint arrayBuffer = 0;
-        GLint polygonMode[2] = {0, 0};
-        GLenum clipOrigin = 0;
-        glRect_t viewport;
-        glRect_t scissorBox;
-        struct blend_t
-        {
-            GLenum source = GL_ONE;
-            GLenum destination = GL_ZERO;
-            GLenum equation = GL_FUNC_ADD;
-        };
-        blend_t blendRGB;
-        blend_t blendAlpha;
-        GLboolean enableBlend = GL_FALSE;
-        GLboolean enableCullFace = GL_FALSE;
-        GLboolean enableDepthTest = GL_FALSE;
-        GLboolean enableScissorTest = GL_FALSE;
-
-        void backup();
-        void restore();
-    };
-
-    struct glTexture_t
-    {
-        glTexture_t();
-        glTexture_t(const vec2s_t size);
-        glTexture_t(glTexture_t &) = delete;
-        glTexture_t(glTexture_t &&other);
-        glTexture_t(GLuint &&other, const vec2s_t size);
-        ~glTexture_t();
-        void operator=(glTexture_t &&other);
-        bool valid() const;
-        GLuint get() const;
-        vec2s_t size() const;
-    private:
-        GLuint _tex;
-        vec2s_t _size = {0, 0};
-    };
-
     struct window_t
     {
         SDL_DisplayMode displayMode;
