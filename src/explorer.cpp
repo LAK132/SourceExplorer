@@ -440,28 +440,6 @@ namespace SourceExplorer
         return strm.position;
     }
 
-    std::u16string ReadString(const resource_entry_t &entry, const bool unicode)
-    {
-        if (entry.data.data.size() > 0)
-        {
-            auto decode = entry.decode();
-            lak::memory strm(decode);
-            if (unicode)
-                return strm.read_u16string();
-            else
-                return lak::strconv<char16_t>(strm.read_string());
-        }
-        else
-        {
-            auto decode = entry.decodeHeader();
-            lak::memory strm(decode);
-            if (unicode)
-                return strm.read_u16string();
-            else
-                return lak::strconv<char16_t>(strm.read_string());
-        }
-    }
-
     error_t ReadFixedData(lak::memory &strm, data_point_t &data, const size_t size)
     {
         data.position = strm.position;
@@ -583,7 +561,8 @@ namespace SourceExplorer
         return rtn;
     }
 
-    lak::color4_t ColorFrom32bitRGBA(lak::memory &strm)
+    template <typename STRM>
+    lak::color4_t ColorFrom32bitRGBA(STRM &strm)
     {
         lak::color4_t rtn;
         rtn.r = strm.read_u8();
@@ -746,16 +725,8 @@ namespace SourceExplorer
                    scale * (float)srcexp.image.size().y));
     }
 
-    const char *GetTypeString(const resource_entry_t &entry)
+    const char *GetTypeString(const basic_entry_t &entry)
     {
-        switch (entry.parent)
-        {
-            case chunk_t::IMAGEBANK: return "Image";
-            case chunk_t::SOUNDBANK: return "Sound";
-            case chunk_t::MUSICBANK: return "Music";
-            case chunk_t::FONTBANK: return "Font";
-            default: break;
-        }
         switch(entry.ID)
         {
             case chunk_t::ENTRY:            return "Entry (ERROR)";
@@ -917,48 +888,76 @@ namespace SourceExplorer
         }
     }
 
-    std::vector<uint8_t> Inflate(const std::vector<uint8_t> &deflated)
+    std::optional<std::vector<uint8_t>>
+    Inflate(const std::vector<uint8_t> &compressed, bool skip_header, bool anaconda, size_t max_size)
     {
         std::deque<uint8_t> buffer;
-        tinf::error_t err = tinf::tinflate(deflated, buffer);
-        if (err == tinf::error_t::OK)
-            return std::vector<uint8_t>(buffer.begin(), buffer.end());
+        tinf::decompression_state_t state;
+
+        state.begin = compressed.begin();
+        state.end = compressed.end();
+        state.anaconda = anaconda;
+
+        tinf::error_t error = tinf::error_t::OK;
+        if (skip_header)
+        {
+            state.state = tinf::state_t::HEADER;
+        }
         else
         {
-            ERROR("Failed To Deflate (0x" << (int)err << ")");
-            return deflated;
+            error = tinf::tinflate_header(state);
         }
+
+        while (error == tinf::error_t::OK && !state.final && buffer.size() < max_size)
+        {
+            error = tinf::tinflate_block(buffer, state);
+        }
+
+        if (error != tinf::error_t::OK)
+        {
+            ERROR("Failed To Decompress: " << tinf::error_name(error));
+            DEBUG("Buffer Size: " << buffer.size());
+            DEBUG("Max Size: " << max_size);
+            DEBUG("Final? "  << (state.final ? "True" : "False"));
+            return std::nullopt;
+        }
+
+        return std::vector<uint8_t>(buffer.begin(), buffer.end());
+    }
+
+    bool Inflate(std::vector<uint8_t> &out, const std::vector<uint8_t> &compressed, bool skip_header, bool anaconda, size_t max_size)
+    {
+        auto result = Inflate(compressed, skip_header, anaconda, max_size);
+        if (result) out = std::move(*result);
+        return (bool)result;
+    }
+
+    bool Inflate(lak::memory &out, const std::vector<uint8_t> &compressed, bool skip_header, bool anaconda, size_t max_size)
+    {
+        auto result = Inflate(compressed, skip_header, anaconda, max_size);
+        if (result) out = std::move(*result);
+        return (bool)result;
+    }
+
+    std::vector<uint8_t> Inflate(const std::vector<uint8_t> &compressed)
+    {
+        if (auto result = Inflate(compressed, false, false); result)
+            return *result;
+        ERROR("Failed To Inflate");
+        return compressed;
     }
 
     std::vector<uint8_t> Decompress(const std::vector<uint8_t> &compressed, unsigned int outSize)
     {
-        #if 0
-        std::vector<uint8_t> result; result.resize(outSize);
-        tinf_uncompress(&(result[0]), &outSize, &(compressed[0]), compressed.size());
-        return result;
-        #else
-        std::deque<uint8_t> buffer;
-        tinf::decompression_state_t state;
-        state.state = tinf::state_t::HEADER;
-        state.anaconda = true;
-        tinf::error_t err = tinf::tinflate(compressed.begin(), compressed.end(), buffer, state);
-        if (err == tinf::error_t::OK)
-            return std::vector<uint8_t>(buffer.begin(), buffer.end());
-        else
-        {
-            ERROR("Failed To Decompress (0x" << (int)err << ")");
-            return compressed;
-        }
-        #endif
+        if (auto result = Inflate(compressed, true, true); result)
+            return *result;
+        ERROR("Failed To Decompress");
+        return compressed;
     }
 
     std::vector<uint8_t> StreamDecompress(lak::memory &strm, unsigned int outSize)
     {
-        #if 0
-        std::vector<uint8_t> result; result.resize(outSize);
-        strm.position += tinf_uncompress(&(result[0]), &outSize, strm.get(), strm.remaining());
-        return result;
-        #else
+        // TODO: Use newer tinf API
         std::deque<uint8_t> buffer;
         tinf::decompression_state_t state;
         state.state = tinf::state_t::HEADER;
@@ -973,7 +972,6 @@ namespace SourceExplorer
             ERROR("Failed To Decompress (0x" << (int)err << ")");
             return std::vector<uint8_t>(outSize, 0);
         }
-        #endif
     }
 
     std::pair<bool, std::vector<uint8_t>> Decrypt(const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode)
@@ -992,6 +990,8 @@ namespace SourceExplorer
             {
                 if (mem.size() <= 4) return {false, mem};
                 // dataLen = *reinterpret_cast<uint32_t*>(&mem[0]);
+
+                // Try Inflate even if it doesn't need to be
                 return {true, Inflate(std::vector<uint8_t>(mem.begin()+4, mem.end()))};
             }
             DEBUG("MODE 3 Decryption Failed");
@@ -1051,26 +1051,6 @@ namespace SourceExplorer
             return &game.game.imageBank->items[game.imageHandles[handle]];
         }
         return nullptr;
-    }
-
-    lak::memory resource_entry_t::streamHeader() const
-    {
-        return header.data;
-    }
-
-    lak::memory resource_entry_t::stream() const
-    {
-        return data.data;
-    }
-
-    lak::memory resource_entry_t::decodeHeader() const
-    {
-        return header.decode(ID, mode);
-    }
-
-    lak::memory resource_entry_t::decode() const
-    {
-        return data.decode(ID, mode);
     }
 
     lak::memory data_point_t::decode(const chunk_t ID, const encoding_t mode) const
@@ -1205,7 +1185,7 @@ namespace SourceExplorer
             srcexp.view = this;
     }
 
-    lak::memory basic_entry_t::decode() const
+    lak::memory basic_entry_t::decode(size_t max_size) const
     {
         lak::memory result;
         if (old)
@@ -1219,16 +1199,20 @@ namespace SourceExplorer
                     uint16_t len = result.read_u16();
                     if (magic == 0x0F && (size_t)len == data.expectedSize)
                     {
-                        result = result.read(result.remaining());
+                        result = result.read(std::min(result.remaining(), max_size));
                     }
                     else
                     {
                         result.position -= 3;
-                        result = Decompress(result._data, data.expectedSize);
+                        if (!Inflate(result, result._data, true, true, std::min(data.expectedSize, max_size)))
+                        {
+                            ERROR("MODE1 Decompression Failed");
+                            result.clear();
+                        }
                     }
                 } break;
-                case encoding_t::MODE2: ERROR("No Old Decode For Mode 2"); break;
-                case encoding_t::MODE3: ERROR("No Old Decode For Mode 3"); break;
+                case encoding_t::MODE2: ERROR("No Old Decode For MODE2"); break;
+                case encoding_t::MODE3: ERROR("No Old Decode For MODE3"); break;
                 default: break;
             }
         }
@@ -1249,11 +1233,21 @@ namespace SourceExplorer
                     }
                     break;
                 case encoding_t::MODE1:
-                    result = Inflate(data.data._data);
+                    if (!Inflate(result, data.data._data, false, false, max_size))
+                    {
+                        ERROR("MODE1 Inflation Failed");
+                        result.clear();
+                    }
                     break;
                 default:
                     if (data.data.size() > 0 && data.data[0] == 0x78)
-                        result = Inflate(data.data._data);
+                    {
+                        if (!Inflate(result, data.data._data, false, false, max_size))
+                        {
+                            DEBUG("Guessed MODE1 Inflation Failed");
+                            result = data.data._data;
+                        }
+                    }
                     else
                         result = data.data._data;
                     break;
@@ -1262,7 +1256,7 @@ namespace SourceExplorer
         return result;
     }
 
-    lak::memory basic_entry_t::decodeHeader() const
+    lak::memory basic_entry_t::decodeHeader(size_t max_size) const
     {
         lak::memory result;
         if (old)
@@ -1281,11 +1275,21 @@ namespace SourceExplorer
                         result.clear();
                     break;
                 case encoding_t::MODE1:
-                    result = Inflate(header.data._data);
+                    if (!Inflate(result, header.data._data, false, false, max_size))
+                    {
+                        ERROR("MODE1 Inflation Failed");
+                        result.clear();
+                    }
                     break;
                 default:
                     if (header.data.size() > 0 && header.data[0] == 0x78)
-                        result = Inflate(header.data._data);
+                    {
+                        if (!Inflate(result, header.data._data, false, false, max_size))
+                        {
+                            DEBUG("Guessed MODE1 Inflation Failed");
+                            result = header.data._data;
+                        }
+                    }
                     else
                         result = header.data._data;
                     break;
@@ -1294,12 +1298,12 @@ namespace SourceExplorer
         return result;
     }
 
-    lak::memory basic_entry_t::raw() const
+    const lak::memory& basic_entry_t::raw() const
     {
         return data.data;
     }
 
-    lak::memory basic_entry_t::rawHeader() const
+    const lak::memory& basic_entry_t::rawHeader() const
     {
         return header.data;
     }
@@ -1318,7 +1322,7 @@ namespace SourceExplorer
                 } break;
                 default: {
                     ERROR("Invalid String Mode: 0x" << (int)entry.mode <<
-                        ", Chunk: 0x" << (int)entry.ID);
+                          ", Chunk: 0x" << (int)entry.ID);
                 } break;
             }
         }
@@ -2913,11 +2917,11 @@ namespace SourceExplorer
 
             if (!game.oldGame && game.productBuild >= 284) --entry.handle;
 
-            DEBUG("Reading Image. Handle: " << entry.handle);
+            DEBUG("Reading Image (Handle: " << entry.handle << ")");
 
             if (result == error_t::OK)
             {
-                lak::memory istrm = entry.decode();
+                lak::memory istrm = entry.decode(176 + (game.oldGame ? 16 : 80));
                 if (game.oldGame)
                     checksum = istrm.read_u16();
                 else

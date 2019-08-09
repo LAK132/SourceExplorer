@@ -54,6 +54,7 @@ namespace lak
             inline const vec2<GLsizei> &size() const { return _size; }
 
             texture &bind();
+            const texture &bind() const;
 
             texture &apply(GLenum pname, GLint value);
             texture &apply(GLenum pname, GLint *value);

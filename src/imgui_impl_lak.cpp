@@ -196,7 +196,7 @@ namespace ImGui
                 "   fUV = vUV;\n"
                 "   fColor = vColor;\n"
                 "   gl_Position = viewProj * vec4(vPosition.xy, 0, 1);\n"
-                "}\n"_vertex_shader)
+                "}"_vertex_shader)
             .attach("#version 130\n"
                 "uniform sampler2D fTexture;\n"
                 "in vec2 fUV;\n"
@@ -205,7 +205,7 @@ namespace ImGui
                 "void main()\n"
                 "{\n"
                 "   pColor = fColor * texture(fTexture, fUV.st);\n"
-                "}\n"_fragment_shader)
+                "}"_fragment_shader)
             .link();
 
         context->attribTex      = context->shader.uniform_location("fTexture");
@@ -564,8 +564,8 @@ namespace ImGui
         DEFER
         ({
             glUseProgram(old_program);
-            glBindTexture(GL_TEXTURE_2D, old_texture);
             glActiveTexture(old_active_texture);
+            glBindTexture(GL_TEXTURE_2D, old_texture);
             glBindVertexArray(old_vertex_array);
             glBindBuffer(GL_ARRAY_BUFFER, old_array_buffer);
             if (old_blend_enabled) glEnable(GL_BLEND);
