@@ -11,8 +11,10 @@ CC  = gcc-8
 AR  = ar
 RL  = ranlib
 
-# OPTIMISATION = -g3 -O0
+# Default to release mode
 OPTIMISATION = -g0 -O3
+debug: OPTIMISATION = -g3 -O0
+debug: explorer.out
 
 CXXFLAGS = $(OPTIMISATION) -no-pie -std=c++17 -Wall -Werror -Wfatal-errors -pthread `sdl2-config --cflags`
 CCFLAGS  = $(OPTIMISATION) -no-pie -std=c99 -Wall -Werror -Wfatal-errors -Wno-unused-variable -Wno-unused-result -Wno-unused-function -pthread -ldl
