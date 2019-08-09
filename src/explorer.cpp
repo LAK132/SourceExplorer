@@ -2039,7 +2039,8 @@ namespace SourceExplorer
                 size_t index = 0;
                 for (const auto &animation : animations)
                 {
-                    if (animation.offsets[index] > 0 && lak::TreeNode("Animation 0x%zX", index))
+                    // TODO: figure out what this was meant to be checking
+                    if (/*animation.offsets[index] > 0 &&*/ lak::TreeNode("Animation 0x%zX", index))
                     {
                         ImGui::Separator();
                         animation.view(srcexp);
