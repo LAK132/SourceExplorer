@@ -78,6 +78,12 @@ namespace lak
             return *this;
         }
 
+        const texture &texture::bind() const
+        {
+            glBindTexture(_target, _texture);
+            return *this;
+        }
+
         texture &texture::apply(GLenum pname, GLint value)
         {
             glTexParameteri(_target, pname, value);

@@ -108,6 +108,16 @@ namespace lak
             }
         }
 
+        program::program(const shader &vertex, const shader &fragment)
+        : _program(0)
+        {
+            if (!vertex || !fragment) return;
+            init();
+            attach(vertex);
+            attach(fragment);
+            link();
+        }
+
         program::program(program &&other)
         {
             std::swap(_program, other._program);
@@ -170,12 +180,12 @@ namespace lak
             return *this;
         }
 
-        GLint program::uniform_location(const GLchar *name)
+        GLint program::uniform_location(const GLchar *name) const
         {
             return glGetUniformLocation(_program, name);
         }
 
-        GLint program::attrib_location(const GLchar *name)
+        GLint program::attrib_location(const GLchar *name) const
         {
             return glGetAttribLocation(_program, name);
         }

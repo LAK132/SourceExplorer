@@ -142,10 +142,10 @@ namespace SourceExplorer
         data_point_t header;
         data_point_t data;
 
-        lak::memory decode() const;
-        lak::memory decodeHeader() const;
-        lak::memory raw() const;
-        lak::memory rawHeader() const;
+        lak::memory decode(size_t max_size = SIZE_MAX) const;
+        lak::memory decodeHeader(size_t max_size = SIZE_MAX) const;
+        const lak::memory& raw() const;
+        const lak::memory& rawHeader() const;
     };
 
     struct chunk_entry_t : public basic_entry_t
@@ -893,6 +893,7 @@ namespace SourceExplorer
         game_t state;
 
         bool loaded = false;
+        bool babyMode = true;
         bool dumpColorTrans = true;
         file_state_t exe;
         file_state_t images;
@@ -905,50 +906,10 @@ namespace SourceExplorer
 
         MemoryEditor editor;
 
-        // const resource_entry_t *view = nullptr;
         const basic_entry_t *view = nullptr;
         lak::opengl::texture image;
         std::vector<uint8_t> buffer;
     };
-
-    struct resource_entry_t
-    {
-        union
-        {
-            chunk_t ID = chunk_t::DEFAULT;
-            uint32_t handle;
-        };
-        chunk_t parent = chunk_t::DEFAULT;
-
-        encoding_t mode = encoding_t::DEFAULT;
-
-        data_point_t info;
-        data_point_t header;
-        data_point_t data;
-
-        std::vector<resource_entry_t> chunks;
-
-        lak::memory streamHeader() const;
-        lak::memory stream() const;
-        lak::memory decodeHeader() const;
-        lak::memory decode() const;
-    };
-
-    // struct object_entry_t
-    // {
-    //     const resource_entry_t &entry;
-    //     const resource_entry_t *propEntry = nullptr;
-    //     const resource_entry_t *nameEntry = nullptr;
-    //     uint16_t handle;
-    //     int16_t type;
-    //     std::u16string name;
-    // };
-
-    // struct image_entry_t
-    // {
-    //     const resource_entry_t &entry;
-    //     uint16_t handle;
-    // };
 
     error_t LoadGame(
         source_explorer_t &srcexp
@@ -967,18 +928,6 @@ namespace SourceExplorer
         lak::memory &strm,
         game_t &gameState
     );
-
-    // error_t ReadEntry(
-    //     lak::memory &strm,
-    //     std::stack<chunk_t> &state,
-    //     resource_entry_t &entry
-    // );
-
-    // error_t ReadEntryData(
-    //     lak::memory &strm,
-    //     resource_entry_t &entry,
-    //     get_data_flag_t readMode
-    // );
 
     error_t ReadFixedData(
         lak::memory &strm,
@@ -1014,11 +963,6 @@ namespace SourceExplorer
         data_point_t &data
     );
 
-    std::u16string ReadString(
-        const resource_entry_t &entry,
-        const bool unicode
-    );
-
     lak::opengl::texture CreateTexture(
         const lak::image4_t &bitmap
     );
@@ -1029,7 +973,7 @@ namespace SourceExplorer
     );
 
     const char *GetTypeString(
-        const resource_entry_t &entry
+        const basic_entry_t &entry
     );
 
     const char *GetObjectTypeString(
@@ -1046,13 +990,31 @@ namespace SourceExplorer
         encoding_t mode
     );
 
-    std::vector<uint8_t> Inflate(
-        const std::vector<uint8_t> &deflated
+    std::optional<std::vector<uint8_t>> Inflate(
+        const std::vector<uint8_t> &compressed,
+        bool skip_header,
+        bool anaconda,
+        size_t max_size = SIZE_MAX
     );
 
-    std::vector<uint8_t> Decompress(
+    bool Inflate(
+        std::vector<uint8_t> &out,
         const std::vector<uint8_t> &compressed,
-        unsigned int outSize
+        bool skip_header,
+        bool anaconda,
+        size_t max_size = SIZE_MAX
+    );
+
+    bool Inflate(
+        lak::memory &out,
+        const std::vector<uint8_t> &compressed,
+        bool skip_header,
+        bool anaconda,
+        size_t max_size = SIZE_MAX
+    );
+
+    std::vector<uint8_t> Inflate(
+        const std::vector<uint8_t> &compressed
     );
 
     std::vector<uint8_t> StreamDecompress(

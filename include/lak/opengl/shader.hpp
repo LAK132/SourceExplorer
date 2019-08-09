@@ -47,6 +47,7 @@ namespace lak
 
             shader &clear();
 
+            inline operator bool() const { return _shader != 0; }
             inline GLuint get() const { return _shader; }
             inline GLenum type() const { return _type; }
         };
@@ -67,6 +68,7 @@ namespace lak
             GLuint _program = 0; // 0 is reserved
         public:
             program() = default;
+            program(const shader &vertex, const shader &fragment);
             program(program &&other);
             ~program();
             program &operator=(program &&other);
@@ -76,11 +78,12 @@ namespace lak
             program &link();
             program &clear();
 
+            inline operator bool() const { return _program != 0; }
             inline GLuint get() const { return _program; }
             std::optional<std::string> link_error() const;
 
-            GLint uniform_location(const GLchar *name);
-            GLint attrib_location(const GLchar *name);
+            GLint uniform_location(const GLchar *name) const;
+            GLint attrib_location(const GLchar *name) const;
         };
     }
 }
