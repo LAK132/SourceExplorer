@@ -326,22 +326,15 @@ void Update(float FrameTime)
         {
             if (ImGui::BeginMenu("File"))
             {
-                ImGui::Checkbox("Baby Mode", &SrcExp.babyMode);
-                if (SrcExp.babyMode)
-                {
-                    SrcExp.exe.attempt          |= ImGui::MenuItem("Open And Dump...", nullptr);
-                }
-                else
-                {
-                    SrcExp.exe.attempt          |= ImGui::MenuItem("Open...", nullptr);
-                    SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Sorted Images...", nullptr);
-                    SrcExp.images.attempt       |= ImGui::MenuItem("Dump Images...", nullptr);
-                    SrcExp.sounds.attempt       |= ImGui::MenuItem("Dump Sounds...", nullptr);
-                    SrcExp.music.attempt        |= ImGui::MenuItem("Dump Music...", nullptr);
-                    SrcExp.shaders.attempt      |= ImGui::MenuItem("Dump Shaders...", nullptr);
-                    SrcExp.binaryFiles.attempt  |= ImGui::MenuItem("Dump Binary Files...", nullptr);
-                    SrcExp.appicon.attempt      |= ImGui::MenuItem("Dump App Icon...", nullptr);
-                }
+                ImGui::Checkbox("Easy Mode", &SrcExp.babyMode);
+                SrcExp.exe.attempt          |= ImGui::MenuItem(SrcExp.babyMode ? "Open And Dump..." : "Open...", nullptr);
+                SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Sorted Images...", nullptr, false, !SrcExp.babyMode);
+                SrcExp.images.attempt       |= ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.babyMode);
+                SrcExp.sounds.attempt       |= ImGui::MenuItem("Dump Sounds...", nullptr, false, !SrcExp.babyMode);
+                SrcExp.music.attempt        |= ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp.babyMode);
+                SrcExp.shaders.attempt      |= ImGui::MenuItem("Dump Shaders...", nullptr, false, !SrcExp.babyMode);
+                SrcExp.binaryFiles.attempt  |= ImGui::MenuItem("Dump Binary Files...", nullptr, false, !SrcExp.babyMode);
+                SrcExp.appicon.attempt      |= ImGui::MenuItem("Dump App Icon...", nullptr, false, !SrcExp.babyMode);
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("About"))
