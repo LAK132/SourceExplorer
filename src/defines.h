@@ -49,6 +49,39 @@ namespace SourceExplorer
         OUT_OF_DATA             = 0xB
     };
 
+    static const char *error_name(error_t err)
+    {
+        switch (err)
+        {
+            case error_t::OK:
+                return "Ok";
+            case error_t::INVALID_EXE_SIGNATURE:
+                return "Invalid EXE Signature";
+            case error_t::INVALID_PE_SIGNATURE:
+                return "Invalid PE Signature";
+            case error_t::INVALID_GAME_HEADER:
+                return "Invalid Game Header";
+            case error_t::INVALID_STATE:
+                return "Invalid State";
+            case error_t::INVALID_MODE:
+                return "Invalid Mode";
+            case error_t::INVALID_CHUNK:
+                return "Invalid Chunk";
+            case error_t::NO_MODE0:
+                return "No MODE0";
+            case error_t::NO_MODE1:
+                return "No MODE1";
+            case error_t::NO_MODE2:
+                return "No MODE2";
+            case error_t::NO_MODE3:
+                return "No MODE3";
+            case error_t::OUT_OF_DATA:
+                return "Out Of Data";
+            default:
+                return "Invalid Error Code";
+        }
+    }
+
     //
     // Game Headers
     //
@@ -168,6 +201,13 @@ namespace SourceExplorer
         CHUNK224F       = 0x224F,
         // "StringChunk" ?
         TITLE2          = 0x2251,
+        UNK16BYTES      = 0x2253,
+        UNKSTRINGS      = 0x2254,
+        UNKEMPTY        = 0x2255,
+        UNKCOMPRESSED   = 0x2256,
+        UNK4BYTES       = 0x2257,
+        UNKFONTS        = 0x2258,
+        UNKCOMPRESSED2  = 0x2259,
         // Frame Chunks (0x33XX)
         FRAME           = 0x3333,
         FRAMEHEADER     = 0x3334,

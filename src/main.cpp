@@ -344,15 +344,16 @@ void Update(float FrameTime)
                 }
                 ImGui::EndMenu();
             }
-            if (ImGui::BeginMenu("Credits"))
+            if (ImGui::BeginMenu("About"))
             {
+                ImGui::Text("Source Explorer v0.2.4");
                 ImGui::Text("Frame rate %f", 1.0f / FrameTime);
                 credits();
                 ImGui::EndMenu();
             }
-            ImGui::Checkbox("Enable color transparency?", &SrcExp.dumpColorTrans);
+            ImGui::Checkbox("Color transparency?", &SrcExp.dumpColorTrans);
             ImGui::Checkbox("Force compat mode?", &se::forceCompat);
-            ImGui::Checkbox("Print to debug console? (May cause SE to run slower)", &se::debugConsole);
+            ImGui::Checkbox("Debug console? (May be SE slow)", &se::debugConsole);
             if (se::debugConsole)
             {
                 ImGui::Checkbox("Only errors?", &se::errorOnlyConsole);
