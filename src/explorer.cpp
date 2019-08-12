@@ -50,8 +50,9 @@ namespace SourceExplorer
         error_t err = ParsePEHeader(srcexp.state.file, srcexp.state);
         if (err != error_t::OK)
         {
-            ERROR("Error 0x" << (uint32_t)err << " While Parsing PE Header" <<
-                ", At: 0x" << srcexp.state.file.position);
+            ERROR("Error '" << se::error_name(err) <<
+                  "' While Parsing PE Header, At: 0x" <<
+                  srcexp.state.file.position);
             return err;
         }
 
@@ -81,8 +82,9 @@ namespace SourceExplorer
         err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
         if (err != error_t::OK)
         {
-            ERROR("Error Reading Entry: Error Code 0x" << (uint32_t)err <<
-                ", At: 0x" << srcexp.state.file.position);
+            ERROR("Error '" << se::error_name(err) <<
+                  "' While Parsing PE Header, At: 0x" <<
+                  srcexp.state.file.position);
         }
         else
         {
@@ -175,7 +177,7 @@ namespace SourceExplorer
         if (exeSig != WIN_EXE_SIG)
         {
             ERROR("Invalid EXE Signature, Expected: 0x" << WIN_EXE_SIG <<
-                ", At: 0x" << (strm.position - 2));
+                  ", At: 0x" << (strm.position - 2));
             return error_t::INVALID_EXE_SIGNATURE;
         }
 
@@ -280,7 +282,8 @@ namespace SourceExplorer
 
             if (pos > strm.size())
             {
-                ERROR("Invalid Game Header: pos (0x" << pos << ") > strm.size (0x" << strm.size() << ")");
+                ERROR("Invalid Game Header: pos (0x" << pos <<
+                      ") > strm.size (0x" << strm.size() << ")");
                 return error_t::INVALID_GAME_HEADER;
             }
         }
@@ -297,8 +300,8 @@ namespace SourceExplorer
         else if (header != HEADER_GAME)
         {
             ERROR("Invalid Game Header: 0x" << header <<
-                ", Expected: 0x" << HEADER_GAME <<
-                ", At: 0x" << (strm.position - 4));
+                  ", Expected: 0x" << HEADER_GAME <<
+                  ", At: 0x" << (strm.position - 4));
             return error_t::INVALID_GAME_HEADER;
         }
 
@@ -401,15 +404,14 @@ namespace SourceExplorer
             DEBUG("Pack 0x" << i+1 << " of 0x" << count << ", filename length: 0x" << read << ", pos: 0x" << strm.position);
 
             if (unicode)
-                gameState.packFiles[i].filename = strm.read_u16string(read);
+                gameState.packFiles[i].filename = strm.read_u16string_exact(read);
             else
-                gameState.packFiles[i].filename = lak::strconv<char16_t>(strm.read_string(read));
+                gameState.packFiles[i].filename = lak::strconv<char16_t>(strm.read_string_exact(read));
 
             // strm.position = strstart + (unicode ? read * 2 : read);
 
             // DEBUG("String Start: 0x" << strstart);
-            WDEBUG(L"Packfile '" << lak::strconv<wchar_t>(gameState.packFiles[i].filename) << L"'");
-            DEBUG("Packfile '" << lak::strconv<char>(gameState.packFiles[i].filename) << "'");
+            WDEBUG(L"Packfile '" << lak::strconv_wide(gameState.packFiles[i].filename) << L"'");
 
             if (hasBingo)
                 gameState.packFiles[i].bingo = strm.read_u32();
@@ -969,7 +971,7 @@ namespace SourceExplorer
             return std::vector<uint8_t>(buffer.begin(), buffer.end());
         else
         {
-            ERROR("Failed To Decompress (0x" << (int)err << ")");
+            ERROR("Failed To Decompress (" << tinf::error_name(err) << ")");
             return std::vector<uint8_t>(outSize, 0);
         }
     }
@@ -1392,7 +1394,8 @@ namespace SourceExplorer
         if (result == error_t::OK)
             value = ReadStringEntry(game, entry);
         else
-            ERROR("0x" << (size_t)result << ": Failed To Read String Chunk");
+            ERROR("Failed To Read String Chunk (" <<
+                  se::error_name(result) << ")");
         return result;
     }
 
@@ -1435,6 +1438,78 @@ namespace SourceExplorer
     std::string string_chunk_t::string() const
     {
         return lak::strconv<char>(value);
+    }
+
+    error_t strings_chunk_t::read(game_t &game, lak::memory &strm)
+    {
+        DEBUG("Reading Strings Chunk");
+        error_t result = entry.read(game, strm);
+        if (result == error_t::OK)
+        {
+            auto sstrm = entry.decode();
+
+            while (sstrm.remaining())
+            {
+                auto str = sstrm.read_u16string(sstrm.remaining());
+                DEBUG("    Read String (Len 0x" << str.length() << ")");
+                if (!str.length()) break;
+                values.emplace_back(str);
+            }
+        }
+        else
+        {
+            ERROR("Failed To Read Strings Chunk (" <<
+                  se::error_name(result) << ")");
+        }
+        return result;
+    }
+
+    error_t strings_chunk_t::view(source_explorer_t &srcexp) const
+    {
+        error_t result = error_t::OK;
+
+        if (lak::TreeNode("0x%zX Unknown Strings##%zX", (size_t)entry.ID, entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+            for (const auto &s : values)
+                ImGui::Text((const char *)lak::strconv_u8(s).c_str());
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+
+        return result;
+    }
+
+    error_t compressed_chunk_t::view(source_explorer_t &srcexp) const
+    {
+        error_t result = error_t::OK;
+
+        if (lak::TreeNode("0x%zX Unknown Compressed##%zX", (size_t)entry.ID, entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+
+            if (ImGui::Button("View Compressed"))
+            {
+                auto strm = entry.decode();
+                strm.skip(8);
+                std::deque<uint8_t> buffer;
+                tinf::error_t err = tinf::tinflate(strm.read(strm.remaining()), buffer);
+                if (err == tinf::error_t::OK)
+                    srcexp.buffer = std::vector(buffer.begin(), buffer.end());
+                else
+                    ERROR("Failed To Decompress Chunk (" << tinf::error_name(err) << ")");
+            }
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+
+        return result;
     }
 
     error_t vitalise_preview_t::view(source_explorer_t &srcexp) const
@@ -3481,6 +3556,19 @@ namespace SourceExplorer
                     result = title2->read(game, strm);
                     break;
 
+                case chunk_t::UNKSTRINGS:
+                    DEBUG("Reading Unknown Strings Chunk");
+                    unknownStrings.emplace_back();
+                    result = unknownStrings.back().read(game, strm);
+                    break;
+
+                case chunk_t::UNKCOMPRESSED:
+                case chunk_t::UNKCOMPRESSED2:
+                    DEBUG("Reading Unknown Compressed Chunk");
+                    unknownCompressed.emplace_back();
+                    result = unknownCompressed.back().read(game, strm);
+                    break;
+
                 case chunk_t::GLOBALEVENTS:
                     DEBUG("Reading Global Events");
                     globalEvents = std::make_unique<global_events_t>();
@@ -3579,7 +3667,8 @@ namespace SourceExplorer
 
                 default:
                     DEBUG("Invalid Chunk: 0x" << (size_t)childID);
-                    result = error_t::INVALID_CHUNK;
+                    unknownChunks.emplace_back();
+                    result = unknownChunks.back().read(game, strm);
                     break;
             }
         }
@@ -3642,6 +3731,13 @@ namespace SourceExplorer
             if (soundBank) soundBank->view(srcexp);
             if (musicBank) musicBank->view(srcexp);
             if (fontBank) fontBank->view(srcexp);
+
+            for (auto &unk : unknownStrings) unk.view(srcexp);
+
+            for (auto &unk : unknownCompressed) unk.view(srcexp);
+
+            for (auto &unk : unknownChunks)
+                unk.basic_view(srcexp, (std::string("Unknown ") + std::to_string(unk.entry.position)).c_str());
 
             if (last) last->view(srcexp);
 

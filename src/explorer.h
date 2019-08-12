@@ -188,6 +188,19 @@ namespace SourceExplorer
         std::string string() const;
     };
 
+    struct strings_chunk_t : public basic_chunk_t
+    {
+        mutable std::vector<std::u16string> values;
+
+        error_t read(game_t &game, lak::memory &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct compressed_chunk_t : public basic_chunk_t
+    {
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
     struct vitalise_preview_t : public basic_chunk_t
     {
         error_t view(source_explorer_t &srcexp) const;
@@ -837,6 +850,10 @@ namespace SourceExplorer
         std::unique_ptr<sound::bank_t> soundBank;
         std::unique_ptr<music::bank_t> musicBank;
         std::unique_ptr<font::bank_t> fontBank;
+
+        std::vector<basic_chunk_t> unknownChunks;
+        std::vector<strings_chunk_t> unknownStrings;
+        std::vector<compressed_chunk_t> unknownCompressed;
 
         std::unique_ptr<last_t> last;
 
