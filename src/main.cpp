@@ -207,15 +207,17 @@ void DumpSortedImages(se::source_explorer_t &srcexp, std::atomic<float> &complet
 
     using std::string_literals::operator""s;
 
-    auto HandleName = [](const std::unique_ptr<se::string_chunk_t> &name, auto handle)
+    auto HandleName = [](const std::unique_ptr<se::string_chunk_t> &name, auto handle, std::u16string extra = u"")
     {
-        std::u32string str = lak::strconv_u32(name ? name->value : u"");
+        std::u32string str;
+        if (extra.size() > 0) str += lak::strconv_u32(extra + u" ");
+        if (name) str += lak::strconv_u32(name->value);
         std::u16string result;
         for (auto &c : str)
-            if (c == U' ' || c == U'(' || c == U')' || c == U'+' || c == U'-' || c == U'=' || c == U'_' ||
-                (c >= U'0' && c <= U'9') || (c >= U'a' && c <= U'z') || (c >= U'A' && c <= U'Z') || c > 127)
+            if (c == U' ' || c == U'(' || c == U')' || c == U'[' || c == U']' || c == U'+' || c == U'-' || c == U'=' ||
+                c == U'_' || (c >= U'0' && c <= U'9') || (c >= U'a' && c <= U'z') || (c >= U'A' && c <= U'Z') || c > 127)
                 result += lak::strconv_u16(std::u32string() + c);
-        return (!result.empty() ? result + u" [" : u"["s) + lak::to_u16string(handle) + u"]";
+        return u"["s + lak::to_u16string(handle) + (result.empty() ? u"]" : u"] ") + result;
     };
 
     fs::path rootPath = srcexp.sortedImages.path;
@@ -256,8 +258,7 @@ void DumpSortedImages(se::source_explorer_t &srcexp, std::atomic<float> &complet
                 usedObjects.insert(object.handle);
                 if (const auto *obj = se::GetObject(srcexp.state, object.handle); obj)
                 {
-                    std::u16string objectName = HandleName(obj->name, obj->handle) +
-                        u"[" + lak::strconv_u16(std::string(se::GetObjectTypeString(obj->type))) + u"]";
+                    std::u16string objectName = HandleName(obj->name, obj->handle, u"[" + lak::strconv_u16(std::string(se::GetObjectTypeString(obj->type))) + u"]");
                     fs::path objectPath = framePath / objectName;
                     fs::create_directories(objectPath, err);
                     if (err)
