@@ -12,10 +12,10 @@ AR  = ar
 RL  = ranlib
 
 release: OPTIMISATION := -g0 -O3
-release: explorer.out
+release: explorer.elf
 
 debug: OPTIMISATION := -g3 -O0
-debug: explorer.out
+debug: explorer.elf
 
 CXXFLAGS = $(OPTIMISATION) -no-pie -std=c++17 -Wall -Werror -Wfatal-errors -pthread `sdl2-config --cflags`
 CCFLAGS  = $(OPTIMISATION) -no-pie -std=c99 -Wall -Werror -Wfatal-errors -Wno-unused-variable -Wno-unused-result -Wno-unused-function -pthread -ldl
@@ -25,12 +25,12 @@ INCDIRS = include include/glm include/imgui include/imgui/misc/cpp
 LIBDIRS = $(BINDIR)
 LIBS = SDL2 GL dl stdc++fs
 
-# explorer.out: $(TINYCC) | $(BINDIR) $(OBJDIR)
-# 	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.out src/main.cpp $(TINYCC) $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
-explorer.out: | $(BINDIR) $(OBJDIR)
-	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.out src/main.cpp $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
+# explorer.elf: $(TINYCC) | $(BINDIR) $(OBJDIR)
+# 	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/main.cpp $(TINYCC) $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
+explorer.elf: | $(BINDIR) $(OBJDIR)
+	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/main.cpp $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
 
-.PHONY: explorer.out
+.PHONY: explorer.elf
 
 libtcc $(TINYCC): include/tcc/libtcc.c include/tcc/tcctools.c | $(OBJDIR)
 	$(CC) $(CCFLAGS) -o $(OBJDIR)/libtcc.o -c include/tcc/libtcc.c && \
@@ -41,8 +41,8 @@ libtcc $(TINYCC): include/tcc/libtcc.c include/tcc/tcctools.c | $(OBJDIR)
 $(TCC_SRCDIR)/libtcc.c $(TCC_SRCDIR)/tcctools.c: | $(TCC_SRCDIR)
 	git submodule init && git submodule update
 
-tinflate.out: | $(BINDIR) $(OBJDIR)
-	$(CXX) $(CXXFLAGS) -o $(BINDIR)/tinflate.out tinflate/test.cpp tinflate/tinflate.c -Iinclude
+tinflate.elf: | $(BINDIR) $(OBJDIR)
+	$(CXX) $(CXXFLAGS) -o $(BINDIR)/tinflate.elf tinflate/test.cpp tinflate/tinflate.c -Iinclude
 
 clean:
 	rm -f $(BINDIR)/*
