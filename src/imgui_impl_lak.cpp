@@ -225,7 +225,7 @@ namespace ImGui
         io.Fonts->GetTexDataAsRGBA32(&pixels, &size.x, &size.y);
 
         auto [old_texture] = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
-        DEFER({ glBindTexture(GL_TEXTURE_2D, old_texture); })
+        DEFER(glBindTexture(GL_TEXTURE_2D, old_texture));
 
         context->font.init(GL_TEXTURE_2D).bind()
             .apply(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
@@ -551,6 +551,7 @@ namespace ImGui
         auto [old_active_texture] = lak::opengl::GetUint<1>(GL_ACTIVE_TEXTURE);
         auto [old_vertex_array] = lak::opengl::GetUint<1>(GL_VERTEX_ARRAY_BINDING);
         auto [old_array_buffer] = lak::opengl::GetUint<1>(GL_ARRAY_BUFFER_BINDING);
+        auto [old_index_buffer] = lak::opengl::GetUint<1>(GL_ELEMENT_ARRAY_BUFFER_BINDING);
         auto old_blend_enabled = glIsEnabled(GL_BLEND);
         auto old_cull_face_enabled = glIsEnabled(GL_CULL_FACE);
         auto old_depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
@@ -568,6 +569,7 @@ namespace ImGui
             glBindTexture(GL_TEXTURE_2D, old_texture);
             glBindVertexArray(old_vertex_array);
             glBindBuffer(GL_ARRAY_BUFFER, old_array_buffer);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, old_index_buffer);
             if (old_blend_enabled) glEnable(GL_BLEND);
             else glDisable(GL_BLEND);
             if (old_cull_face_enabled) glEnable(GL_CULL_FACE);
@@ -581,7 +583,7 @@ namespace ImGui
 
             glDeleteVertexArrays(1, &context->vertexArray);
             context->vertexArray = 0;
-        })
+        });
 
         glUseProgram(context->shader.get());
         glBindTexture(GL_TEXTURE_2D, context->font.get());
