@@ -43,12 +43,6 @@ namespace fs = std::filesystem;
 #include <imgui_memory_editor.h>
 #include <imgui_stdlib.h>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#ifdef _WIN32
-#define STBI_MSC_SECURE_CRT
-#endif
-#include <stb_image_write.h>
-
 #include <tinflate/tinflate.hpp>
 #include "explorer.h"
 #include "image.h"
