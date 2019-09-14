@@ -355,24 +355,23 @@ void se::DumpAppIcon(source_explorer_t &srcexp,
 
   stbi_write_func *func = [](void *context, void *png, int len)
   {
-    auto [file, bitmap] =
+    auto [out, image] =
       *static_cast<std::tuple<std::ofstream*, lak::image4_t*>*>(context);
     lak::memory strm;
     strm.reserve(0x16);
     strm.write_u16(0); // reserved
     strm.write_u16(1); // .ICO
     strm.write_u16(1); // 1 image
-    strm.write_u8 (bitmap->size().x);
-    strm.write_u8 (bitmap->size().y);
+    strm.write_u8 (image->size().x);
+    strm.write_u8 (image->size().y);
     strm.write_u8 (0); // no palette
     strm.write_u8 (0); // reserved
     strm.write_u16(1); // color plane
     strm.write_u16(8 * 4); // bits per pixel
     strm.write_u32(len);
     strm.write_u32(strm.position + sizeof(uint32_t));
-
-    file->write((const char *)strm.data(), strm.position);
-    file->write((const char *)png, len);
+    out->write((const char *)strm.data(), strm.position);
+    out->write((const char *)png, len);
   };
 
   auto context = std::tuple<std::ofstream*, lak::image4_t*>(&file, &bitmap);
