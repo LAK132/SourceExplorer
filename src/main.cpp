@@ -1157,6 +1157,29 @@ void Explorer()
     }
 }
 
+void MainScreen()
+{
+    ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
+    contentSize.x = ImGui::GetWindowContentRegionWidth();
+
+    static float leftSize = contentSize.x / 2;
+    static float rightSize = contentSize.x / 2;
+
+    lak::HoriSplitter(leftSize, rightSize, contentSize.x);
+
+    ImGui::BeginChild("Left", {leftSize, -1}, true,
+                      ImGuiWindowFlags_NoSavedSettings);
+        Navigator();
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    ImGui::BeginChild("Right", {rightSize, -1}, true,
+                      ImGuiWindowFlags_NoSavedSettings);
+        Explorer();
+    ImGui::EndChild();
+}
+
 ///
 /// loop()
 /// Called every loop
@@ -1183,26 +1206,7 @@ void Update(float FrameTime)
             ImGui::EndMenuBar();
         }
 
-        if (!SrcExp.babyMode)
-        {
-            ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
-            contentSize.x = ImGui::GetWindowContentRegionWidth();
-
-            static float leftSize = contentSize.x / 2;
-            static float rightSize = contentSize.x / 2;
-
-            lak::HoriSplitter(leftSize, rightSize, contentSize.x);
-
-            ImGui::BeginChild("Left", {leftSize, -1}, true, ImGuiWindowFlags_NoSavedSettings);
-                Navigator();
-            ImGui::EndChild();
-
-            ImGui::SameLine();
-
-            ImGui::BeginChild("Right", {rightSize, -1}, true, ImGuiWindowFlags_NoSavedSettings);
-                Explorer();
-            ImGui::EndChild();
-        }
+        if (!SrcExp.babyMode) MainScreen();
 
         if      (SrcExp.exe.attempt)            AttemptExe();
         else if (SrcExp.images.attempt)         AttemptImages();
