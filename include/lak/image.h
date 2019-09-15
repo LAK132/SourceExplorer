@@ -38,6 +38,21 @@ namespace lak
         using size_type = vec2s_t;
         using value_type = T;
 
+        image() = default;
+        image(size_type size) { resize(size); }
+
+        image(const image &) = default;
+        image &operator=(const image &) = default;
+
+        image(image &&img)
+        :   _size(img._size), _value(std::move(img._value))
+        {}
+        image &operator=(image &&img)
+        {
+            _size = img._size;
+            _value = std::move(img._value);
+        }
+
         value_type &operator[](const size_type index)
         {
             return _value[index.x + (_size.x * index.y)];
@@ -82,6 +97,11 @@ namespace lak
         const value_type *data() const
         {
             return _value.data();
+        }
+
+        void fill(const value_type &value)
+        {
+            for (auto &v : _value) v = value;
         }
 
     private:
