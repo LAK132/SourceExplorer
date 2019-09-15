@@ -27,6 +27,16 @@ se::source_explorer_t SrcExp;
 #define MAXDIRLEN 512
 #endif
 
+bool bytePairsMode = false;
+
+void ViewImage(const lak::opengl::texture &texture,
+               const float scale)
+{
+    ImGui::Image((ImTextureID)(uintptr_t)texture.get(),
+                 ImVec2(scale * (float)texture.size().x,
+                        scale * (float)texture.size().y));
+}
+
 void MenuBar(float FrameTime)
 {
     if (ImGui::BeginMenu("File"))
@@ -47,6 +57,7 @@ void MenuBar(float FrameTime)
         ImGui::Text("Source Explorer v0.2.4");
         ImGui::Text("Frame rate %f", 1.0f / FrameTime);
         credits();
+        ImGui::Checkbox("Byte Pairs", &bytePairsMode);
         ImGui::EndMenu();
     }
     ImGui::Checkbox("Color transparency?", &SrcExp.dumpColorTrans);
@@ -108,11 +119,99 @@ bool Crypto()
     return updated;
 }
 
+void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
+{
+    static lak::image<GLfloat> image(lak::vec2s_t(256, 256));
+    static lak::opengl::texture texture(GL_TEXTURE_2D);
+    static float scale = 1.0f;
+    static uint64_t from = 0;
+    static uint64_t to = SIZE_MAX;
+    static const uint8_t *old_data = Data;
+
+    if (Data == nullptr && old_data == nullptr) return;
+
+    if (Data != nullptr && Data != old_data)
+    {
+        old_data = Data;
+        Update = true;
+    }
+
+    if (Update)
+    {
+        if (SrcExp.view != nullptr && Data == SrcExp.state.file.data())
+        {
+            from = SrcExp.view->position;
+            to = SrcExp.view->end;
+        }
+        else
+        {
+            from = 0;
+            to = SIZE_MAX;
+        }
+    }
+
+    Update |= !texture.get();
+
+    {
+        static bool count_mode = true;
+        ImGui::Checkbox("Fixed Size", &count_mode);
+        uint64_t count = to - from;
+
+        if (ImGui::DragScalar("From", ImGuiDataType_U64, &from, 1.0f))
+        {
+            if (count_mode)     to = from + count;
+            else if (from > to) to = from;
+            Update = true;
+        }
+        if (ImGui::DragScalar("To", ImGuiDataType_U64, &to, 1.0f))
+        {
+            if (from > to) from = to;
+            Update = true;
+        }
+    }
+
+    ImGui::Separator();
+
+    if (from > to) from = to;
+    if (from > Size) from = Size;
+    if (to > Size) to = Size;
+
+    if (Update)
+    {
+        image.fill(0.0f);
+
+        const auto begin = old_data;
+        const auto end = begin + to;
+        auto it = begin + from;
+
+        const GLfloat step = 1.0f / ((to - from) / image.contig_size());
+        for (uint8_t prev = (it != end ? *it : 0);
+             it != end; prev = *(it++))
+            image[{prev, *it}] += step;
+
+        texture.bind()
+            .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
+            .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+            .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            .build(0, GL_RED, (lak::vec2<GLsizei>)image.size(), 0, GL_RED,
+                   GL_FLOAT, image.data());
+    }
+
+    if (texture.get())
+    {
+        ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
+        ImGui::Separator();
+        ViewImage(texture, scale);
+    }
+}
+
 void MemoryExplorer(bool &Update)
 {
     static const se::basic_entry_t *last = nullptr;
     static int dataMode = 0;
-    static bool raw = false;
+    static bool raw = true;
+    static bool bytePairs = false;
     Update |= last != SrcExp.view;
 
     Update |= ImGui::RadioButton("EXE", &dataMode, 0);
@@ -121,16 +220,35 @@ void MemoryExplorer(bool &Update)
     ImGui::SameLine();
     Update |= ImGui::RadioButton("Data", &dataMode, 2);
     ImGui::SameLine();
-    Update |= ImGui::Checkbox("Raw", &raw);
-    ImGui::SameLine();
     Update |= ImGui::RadioButton("Magic Key", &dataMode, 3);
     ImGui::Separator();
+    if (dataMode != 3)
+    {
+        if (dataMode != 0)
+        {
+            Update |= ImGui::Checkbox("Raw", &raw);
+            ImGui::SameLine();
+        }
+        Update |= ImGui::Checkbox("Byte Pairs", &bytePairs);
+        ImGui::Separator();
+    }
 
     if (dataMode == 0) // EXE
     {
-        SrcExp.editor.DrawContents(SrcExp.state.file.data(), SrcExp.state.file.size());
-        if (Update && SrcExp.view != nullptr)
-            SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position, SrcExp.view->end);
+        if (bytePairs)
+        {
+            BytePairsMemoryExplorer(SrcExp.state.file.data(),
+                                    SrcExp.state.file.size(),
+                                    Update);
+        }
+        else
+        {
+            SrcExp.editor.DrawContents(SrcExp.state.file.data(),
+                                       SrcExp.state.file.size());
+            if (Update && SrcExp.view != nullptr)
+                SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position,
+                                                   SrcExp.view->end);
+        }
     }
     else if (dataMode == 1) // Header
     {
@@ -139,9 +257,19 @@ void MemoryExplorer(bool &Update)
                 ? SrcExp.view->header.data._data
                 : SrcExp.view->decodeHeader()._data;
 
-        SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
-        if (Update)
-            SrcExp.editor.GotoAddrAndHighlight(0, 0);
+        if (bytePairs)
+        {
+            BytePairsMemoryExplorer(SrcExp.buffer.data(),
+                                    SrcExp.buffer.size(),
+                                    Update);
+        }
+        else
+        {
+            SrcExp.editor.DrawContents(SrcExp.buffer.data(),
+                                       SrcExp.buffer.size());
+            if (Update)
+                SrcExp.editor.GotoAddrAndHighlight(0, 0);
+        }
     }
     else if (dataMode == 2) // Data
     {
@@ -150,13 +278,24 @@ void MemoryExplorer(bool &Update)
                 ? SrcExp.view->data.data._data
                 : SrcExp.view->decode()._data;
 
-        SrcExp.editor.DrawContents(&(SrcExp.buffer[0]), SrcExp.buffer.size());
-        if (Update)
-            SrcExp.editor.GotoAddrAndHighlight(0, 0);
+        if (bytePairs)
+        {
+            BytePairsMemoryExplorer(SrcExp.buffer.data(),
+                                    SrcExp.buffer.size(),
+                                    Update);
+        }
+        else
+        {
+            SrcExp.editor.DrawContents(SrcExp.buffer.data(),
+                                       SrcExp.buffer.size());
+            if (Update)
+                SrcExp.editor.GotoAddrAndHighlight(0, 0);
+        }
     }
     else if (dataMode == 3) // _magic_key
     {
-        SrcExp.editor.DrawContents(&(se::_magic_key[0]), se::_magic_key.size());
+        SrcExp.editor.DrawContents(&(se::_magic_key[0]),
+                                   se::_magic_key.size());
         if (Update)
             SrcExp.editor.GotoAddrAndHighlight(0, 0);
     }
@@ -384,12 +523,13 @@ void Explorer()
 {
     if (SrcExp.loaded)
     {
+        enum mode { MEMORY, IMAGE, AUDIO };
         static int selected = 0;
-        ImGui::RadioButton("Memory", &selected, 0);
+        ImGui::RadioButton("Memory", &selected, MEMORY);
         ImGui::SameLine();
-        ImGui::RadioButton("Image", &selected, 1);
+        ImGui::RadioButton("Image", &selected, IMAGE);
         ImGui::SameLine();
-        ImGui::RadioButton("Audio", &selected, 2);
+        ImGui::RadioButton("Audio", &selected, AUDIO);
 
         static bool crypto = false;
         ImGui::Checkbox("Crypto", &crypto);
@@ -406,35 +546,95 @@ void Explorer()
 
         switch (selected)
         {
-            case 0: MemoryExplorer(memUpdate); break;
-            case 1: ImageExplorer(imageUpdate); break;
-            case 2: AudioExplorer(audioUpdate); break;
+            case MEMORY: MemoryExplorer(memUpdate); break;
+            case IMAGE: ImageExplorer(imageUpdate); break;
+            case AUDIO: AudioExplorer(audioUpdate); break;
             default: selected = 0; break;
         }
     }
 }
 
-void MainScreen()
+void SourceExplorerMain(float FrameTime)
 {
-    ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
-    contentSize.x = ImGui::GetWindowContentRegionWidth();
+    if (ImGui::BeginMenuBar())
+    {
+        MenuBar(FrameTime);
+        ImGui::EndMenuBar();
+    }
 
-    static float leftSize = contentSize.x / 2;
-    static float rightSize = contentSize.x / 2;
+    if (!SrcExp.babyMode)
+    {
+        ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
+        contentSize.x = ImGui::GetWindowContentRegionWidth();
 
-    lak::HoriSplitter(leftSize, rightSize, contentSize.x);
+        static float leftSize = contentSize.x / 2;
+        static float rightSize = contentSize.x / 2;
 
-    ImGui::BeginChild("Left", {leftSize, -1}, true,
-                      ImGuiWindowFlags_NoSavedSettings);
-        Navigator();
-    ImGui::EndChild();
+        lak::HoriSplitter(leftSize, rightSize, contentSize.x);
 
-    ImGui::SameLine();
+        ImGui::BeginChild("Left", {leftSize, -1}, true,
+                          ImGuiWindowFlags_NoSavedSettings);
+            Navigator();
+        ImGui::EndChild();
 
-    ImGui::BeginChild("Right", {rightSize, -1}, true,
-                      ImGuiWindowFlags_NoSavedSettings);
-        Explorer();
-    ImGui::EndChild();
+        ImGui::SameLine();
+
+        ImGui::BeginChild("Right", {rightSize, -1}, true,
+                          ImGuiWindowFlags_NoSavedSettings);
+            Explorer();
+        ImGui::EndChild();
+    }
+
+    if      (SrcExp.exe.attempt)          se::AttemptExe(SrcExp);
+    else if (SrcExp.images.attempt)       se::AttemptImages(SrcExp);
+    else if (SrcExp.sortedImages.attempt) se::AttemptSortedImages(SrcExp);
+    else if (SrcExp.appicon.attempt)      se::AttemptAppIcon(SrcExp);
+    else if (SrcExp.sounds.attempt)       se::AttemptSounds(SrcExp);
+    else if (SrcExp.music.attempt)        se::AttemptMusic(SrcExp);
+    else if (SrcExp.shaders.attempt)      se::AttemptShaders(SrcExp);
+    else if (SrcExp.binaryFiles.attempt)  se::AttemptBinaryFiles(SrcExp);
+}
+
+void SourceBytePairsMain(float FrameTime)
+{
+    if (ImGui::BeginMenuBar())
+    {
+        ImGui::Checkbox("Byte Pairs", &bytePairsMode);
+        ImGui::EndMenuBar();
+    }
+
+    auto load = [](se::file_state_t &FileState)
+    {
+        if (lak::OpenFile(FileState.path, FileState.valid))
+        {
+            SrcExp.state = se::game_t{};
+            SrcExp.state.file = lak::LoadFile(FileState.path);
+            return true;
+        }
+        return false;
+    };
+
+    auto manip = []
+    {
+        DEBUG("File size: 0x" << SrcExp.state.file.size());
+        SrcExp.loaded = true;
+        return true;
+    };
+
+    if (!SrcExp.loaded || SrcExp.exe.attempt)
+        se::Attempt(SrcExp.exe, load, manip);
+
+    if (SrcExp.loaded) BytePairsMemoryExplorer(SrcExp.state.file.data(),
+                                            SrcExp.state.file.size(),
+                                            false);
+}
+
+void MainScreen(float FrameTime)
+{
+    if (bytePairsMode)
+        SourceBytePairsMain(FrameTime);
+    else
+        SourceExplorerMain(FrameTime);
 }
 
 ///
@@ -457,23 +657,7 @@ void Update(float FrameTime)
         ImGuiWindowFlags_NoSavedSettings |ImGuiWindowFlags_NoTitleBar |ImGuiWindowFlags_NoMove))
     {
         style.WindowPadding = oldWindowPadding;
-        if (ImGui::BeginMenuBar())
-        {
-            MenuBar(FrameTime);
-            ImGui::EndMenuBar();
-        }
-
-        if (!SrcExp.babyMode) MainScreen();
-
-        if      (SrcExp.exe.attempt)          se::AttemptExe(SrcExp);
-        else if (SrcExp.images.attempt)       se::AttemptImages(SrcExp);
-        else if (SrcExp.sortedImages.attempt) se::AttemptSortedImages(SrcExp);
-        else if (SrcExp.appicon.attempt)      se::AttemptAppIcon(SrcExp);
-        else if (SrcExp.sounds.attempt)       se::AttemptSounds(SrcExp);
-        else if (SrcExp.music.attempt)        se::AttemptMusic(SrcExp);
-        else if (SrcExp.shaders.attempt)      se::AttemptShaders(SrcExp);
-        else if (SrcExp.binaryFiles.attempt)  se::AttemptBinaryFiles(SrcExp);
-
+        MainScreen(FrameTime);
         ImGui::End();
     }
 }

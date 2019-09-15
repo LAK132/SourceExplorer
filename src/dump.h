@@ -70,6 +70,22 @@ namespace SourceExplorer
   void DumpBinaryFiles (source_explorer_t &srcexp,
                         std::atomic<float> &completed);
 
+  template <typename LOAD, typename MANIP>
+  void Attempt(file_state_t &FileState, LOAD Load, MANIP Manip)
+  {
+    if (!FileState.valid)
+    {
+      if (Load(FileState))
+        if (!FileState.valid)
+          FileState.attempt = false;
+    }
+    else if (Manip())
+    {
+      FileState.valid = false;
+      FileState.attempt = false;
+    }
+  }
+
   void AttemptExe(source_explorer_t &srcexp);
   void AttemptImages(source_explorer_t &srcexp);
   void AttemptSortedImages(source_explorer_t &srcexp);

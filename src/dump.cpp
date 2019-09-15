@@ -624,200 +624,190 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
   }
 }
 
-void se::AttemptExe(source_explorer_t &srcexp)
+template <typename FUNCTOR>
+void AttemptFile(se::file_state_t &FileState, FUNCTOR Functor)
 {
-    srcexp.loaded = false;
-    if (!srcexp.exe.valid)
-    {
-        if (lak::OpenFile(srcexp.exe.path, srcexp.exe.valid))
-        {
-            if (!srcexp.exe.valid)
-            {
-                // User cancelled
-                srcexp.exe.attempt = false;
-            }
-        }
-    }
-    else if (OpenGame(srcexp))
-    {
-        srcexp.loaded = true;
-        srcexp.exe.valid = false;
-        srcexp.exe.attempt = false;
-
-        if (srcexp.babyMode)
-        {
-            // Autotragically dump everything
-
-            fs::path dumpDir =
-              srcexp.exe.path.parent_path() / srcexp.exe.path.stem();
-
-            std::error_code er;
-            if (srcexp.state.game.imageBank)
-            {
-                srcexp.sortedImages.path = dumpDir / "images";
-                if (fs::create_directories(srcexp.sortedImages.path, er); er)
-                {
-                    ERROR("Failed To Dump Images");
-                    ERROR("File System Error: " << er.message());
-                }
-                else
-                {
-                    srcexp.sortedImages.attempt = true;
-                    srcexp.sortedImages.valid = true;
-                }
-            }
-
-            if (srcexp.state.game.icon)
-            {
-                srcexp.appicon.path = dumpDir / "icon";
-                if (fs::create_directories(srcexp.appicon.path, er); er)
-                {
-                    ERROR("Failed To Dump Icon");
-                    ERROR("File System Error: " << er.message());
-                }
-                else
-                {
-                    srcexp.appicon.attempt = true;
-                    srcexp.appicon.valid = true;
-                }
-            }
-
-            if (srcexp.state.game.soundBank)
-            {
-                srcexp.sounds.path = dumpDir / "sounds";
-                if (fs::create_directories(srcexp.sounds.path, er); er)
-                {
-                    ERROR("Failed To Dump Audio");
-                    ERROR("File System Error: " << er.message());
-                }
-                else
-                {
-                    srcexp.sounds.attempt = true;
-                    srcexp.sounds.valid = true;
-                }
-            }
-
-            if (srcexp.state.game.musicBank)
-            {
-                srcexp.music.path = dumpDir / "music";
-                if (fs::create_directories(srcexp.sounds.path, er); er)
-                {
-                    ERROR("Failed To Dump Audio");
-                    ERROR("File System Error: " << er.message());
-                }
-                else
-                {
-                    srcexp.music.attempt = true;
-                    srcexp.music.valid = true;
-                }
-            }
-
-            if (srcexp.state.game.shaders)
-            {
-                srcexp.shaders.path = dumpDir / "shaders";
-                if (fs::create_directories(srcexp.shaders.path, er); er)
-                {
-                    ERROR("Failed To Dump Shaders");
-                    ERROR("File System Error: " << er.message());
-                }
-                else
-                {
-                    srcexp.shaders.attempt = true;
-                    srcexp.shaders.valid = true;
-                }
-            }
-
-            if (srcexp.state.game.binaryFiles)
-            {
-                srcexp.binaryFiles.path = dumpDir / "binary_files";
-                if (fs::create_directories(srcexp.binaryFiles.path, er); er)
-                {
-                    ERROR("Failed To Dump Binary Files");
-                    ERROR("File System Error: " << er.message());
-                }
-                else
-                {
-                    srcexp.binaryFiles.attempt = true;
-                    srcexp.binaryFiles.valid = true;
-                }
-            }
-        }
-    }
+  auto load = [](se::file_state_t &FileState)
+  {
+    return lak::OpenFile(FileState.path, FileState.valid);
+  };
+  se::Attempt(FileState, load, Functor);
 }
 
 template <typename FUNCTOR>
-void Attempt(se::file_state_t &FileState, FUNCTOR Functor)
+void AttemptFolder(se::file_state_t &FileState, FUNCTOR Functor)
 {
-    if (!FileState.valid)
+  auto load = [](se::file_state_t &FileState)
+  {
+    return lak::OpenFolder(FileState.path, FileState.valid);
+  };
+  se::Attempt(FileState, load, Functor);
+}
+
+void se::AttemptExe(source_explorer_t &srcexp)
+{
+  srcexp.loaded = false;
+  AttemptFile(srcexp.exe, [&srcexp]
+  {
+    if (OpenGame(srcexp))
     {
-        if (lak::OpenFolder(FileState.path, FileState.valid))
+      srcexp.loaded = true;
+      if (srcexp.babyMode)
+      {
+        // Autotragically dump everything
+
+        fs::path dumpDir =
+          srcexp.exe.path.parent_path() / srcexp.exe.path.stem();
+
+        std::error_code er;
+        if (srcexp.state.game.imageBank)
         {
-            if (!FileState.valid)
-            {
-                // User cancelled
-                FileState.attempt = false;
-            }
+          srcexp.sortedImages.path = dumpDir / "images";
+          if (fs::create_directories(srcexp.sortedImages.path, er); er)
+          {
+            ERROR("Failed To Dump Images");
+            ERROR("File System Error: " << er.message());
+          }
+          else
+          {
+            srcexp.sortedImages.attempt = true;
+            srcexp.sortedImages.valid = true;
+          }
         }
+
+        if (srcexp.state.game.icon)
+        {
+          srcexp.appicon.path = dumpDir / "icon";
+          if (fs::create_directories(srcexp.appicon.path, er); er)
+          {
+            ERROR("Failed To Dump Icon");
+            ERROR("File System Error: " << er.message());
+          }
+          else
+          {
+            srcexp.appicon.attempt = true;
+            srcexp.appicon.valid = true;
+          }
+        }
+
+        if (srcexp.state.game.soundBank)
+        {
+          srcexp.sounds.path = dumpDir / "sounds";
+          if (fs::create_directories(srcexp.sounds.path, er); er)
+          {
+            ERROR("Failed To Dump Audio");
+            ERROR("File System Error: " << er.message());
+          }
+          else
+          {
+            srcexp.sounds.attempt = true;
+            srcexp.sounds.valid = true;
+          }
+        }
+
+        if (srcexp.state.game.musicBank)
+        {
+          srcexp.music.path = dumpDir / "music";
+          if (fs::create_directories(srcexp.sounds.path, er); er)
+          {
+            ERROR("Failed To Dump Audio");
+            ERROR("File System Error: " << er.message());
+          }
+          else
+          {
+            srcexp.music.attempt = true;
+            srcexp.music.valid = true;
+          }
+        }
+
+        if (srcexp.state.game.shaders)
+        {
+          srcexp.shaders.path = dumpDir / "shaders";
+          if (fs::create_directories(srcexp.shaders.path, er); er)
+          {
+            ERROR("Failed To Dump Shaders");
+            ERROR("File System Error: " << er.message());
+          }
+          else
+          {
+            srcexp.shaders.attempt = true;
+            srcexp.shaders.valid = true;
+          }
+        }
+
+        if (srcexp.state.game.binaryFiles)
+        {
+          srcexp.binaryFiles.path = dumpDir / "binary_files";
+          if (fs::create_directories(srcexp.binaryFiles.path, er); er)
+          {
+            ERROR("Failed To Dump Binary Files");
+            ERROR("File System Error: " << er.message());
+          }
+          else
+          {
+            srcexp.binaryFiles.attempt = true;
+            srcexp.binaryFiles.valid = true;
+          }
+        }
+      }
+      return true;
     }
-    else if (Functor())
-    {
-        FileState.valid = false;
-        FileState.attempt = false;
-    }
+    else return false;
+  });
 }
 
 void se::AttemptImages(source_explorer_t &srcexp)
 {
-    Attempt(srcexp.images, [&srcexp]
-    {
-        return DumpStuff(srcexp, "Dump Images", &DumpImages);
-    });
+  AttemptFolder(srcexp.images, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Dump Images", &DumpImages);
+  });
 }
 
 void se::AttemptSortedImages(source_explorer_t &srcexp)
 {
-    Attempt(srcexp.sortedImages, [&srcexp]
-    {
-        return DumpStuff(srcexp, "Dump Sorted Images", &DumpSortedImages);
-    });
+  AttemptFolder(srcexp.sortedImages, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Dump Sorted Images", &DumpSortedImages);
+  });
 }
 
 void se::AttemptAppIcon(source_explorer_t &srcexp)
 {
-    Attempt(srcexp.appicon, [&srcexp]
-    {
-        return DumpStuff(srcexp, "Dump App Icon", &DumpAppIcon);
-    });
+  AttemptFolder(srcexp.appicon, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Dump App Icon", &DumpAppIcon);
+  });
 }
 
 void se::AttemptSounds(source_explorer_t &srcexp)
 {
-    Attempt(srcexp.sounds, [&srcexp]
-    {
-        return DumpStuff(srcexp, "Dump Sounds", &DumpSounds);
-    });
+  AttemptFolder(srcexp.sounds, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Dump Sounds", &DumpSounds);
+  });
 }
 
 void se::AttemptMusic(source_explorer_t &srcexp)
 {
-    Attempt(srcexp.music, [&srcexp]
-    {
-        return DumpStuff(srcexp, "Dump Music", &DumpMusic);
-    });
+  AttemptFolder(srcexp.music, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Dump Music", &DumpMusic);
+  });
 }
 
 void se::AttemptShaders(source_explorer_t &srcexp)
 {
-    Attempt(srcexp.shaders, [&srcexp]
-    {
-        return DumpStuff(srcexp, "Dump Shaders", &DumpShaders);
-    });
+  AttemptFolder(srcexp.shaders, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Dump Shaders", &DumpShaders);
+  });
 }
 
 void se::AttemptBinaryFiles(source_explorer_t &srcexp)
 {
-    Attempt(srcexp.binaryFiles, [&srcexp]
-    {
-        return DumpStuff(srcexp, "Dump Binary Files", &DumpBinaryFiles);
-    });
+  AttemptFolder(srcexp.binaryFiles, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Dump Binary Files", &DumpBinaryFiles);
+  });
 }
