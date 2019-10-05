@@ -68,13 +68,31 @@
 #endif
 #define WDEBUG(x) if (SourceExplorer::debugConsole && !SourceExplorer::errorOnlyConsole) { if (SourceExplorer::developerConsole) { std::wcout << L"DEBUG" << DEBUG_LINE_FILE << L": "; } std::wcout << std::hex << x << L"\n" << std::flush; } (void)1
 
+#ifdef WARNING
+#undef WARNING
+#endif
+#ifdef _WIN32
+#define WARNING(x) std::cerr << "WARNING" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
+#else
+#define WARNING(x) std::cerr << "\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
+#endif
+
+#ifdef WWARNING
+#undef WWARNING
+#endif
+#ifdef _WIN32
+#define WWARNING(x) std::wcerr << "WARNING" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
+#else
+#define WWARNING(x) std::wcerr << "\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
+#endif
+
 #ifdef ERROR
 #undef ERROR
 #endif
 #ifdef _WIN32
 #define ERROR(x) std::cerr << "ERROR" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
 #else
-#define ERROR(x) std::cerr << "\x1B[91m\x1B[1mERROR\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << "\x1B[91m: " << std::hex << x << "\x1B[0m\n" << std::flush;
+#define ERROR(x) std::cerr << "\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << "\x1B[91m: " << std::hex << x << "\x1B[0m\n" << std::flush;
 #endif
 
 #ifdef WERROR
@@ -83,7 +101,7 @@
 #ifdef _WIN32
 #define WERROR(x) std::wcerr << L"ERROR" << WDEBUG_LINE_FILE << L": " << std::hex << x << L"\n" << std::flush;
 #else
-#define WERROR(x) std::wcerr << L"\x1B[91m\x1B[1mERROR\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L"\x1B[91m: " << std::hex << x << L"\x1B[0m\n" << std::flush;
+#define WERROR(x) std::wcerr << L"\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L"\x1B[91m: " << std::hex << x << L"\x1B[0m\n" << std::flush;
 #endif
 
 // char8_t typdef for C++ < 20
