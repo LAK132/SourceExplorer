@@ -1,0 +1,686 @@
+\documentclass{article}
+
+\title{The data structure of Clickteam/Multimedia Fusion games}
+\author{LAK132}
+
+\begin{document}
+
+\maketitle
+
+This document the the result of many years of hard work by many talented
+people, with the goal of exploring the preserving the many fantastic games
+built using CTF and MMF.
+
+Special thanks to RED\_EYE (Source Explorer co-developer),
+Mathias Kaerlev (Anaconda),
+/u/sgzfx (Freddy Explorer),
+and to everyone who reported games that broke Source Explorer.
+
+The goal of this document is to outline how CTF and MMF games store their
+data, and the methods that Source Explorer uses to read them.
+
+\tableofcontents
+
+% -----------
+% Terminology
+% -----------
+
+\section{Terminology}
+
+\subsection{Chunk}
+
+Chunks are a discrete block of binary data that hold the data for the game.
+Chunks are typically a tightly packed data structures.
+Chunks may contain other chunks as their data.
+
+\subsubsection{Identification}
+
+Each chunk has an identification, this typically refers to the type of the
+chunk, but may also be the key of the chunk.
+
+\subsubsection{Mode}
+
+Each chunk has a mode, this refers to the compression and encryption methods of
+the chunks binary data.
+
+\subsection{Bank}
+
+Bank chunks contain item chunks.
+Banks appear to be some kind of unordered map or unordered set.
+
+\subsubsection{Item}
+
+Item chunks are chunks whose identifications do not represent the
+type of the chunk, but the key of that chunk in its bank.
+
+\subsection{Frame}
+
+Fusion games are make of a collection of frames.
+Frames can be thought of as a scene, a collection of objects and events that
+controls the flow of the game.
+
+\subsection{Object}
+
+Sometimes refered to as a `frame item'.
+
+\subsubsection{Instance}
+
+% ----
+% Data
+% ----
+
+\section{Data}
+
+\subsection{Header codes}
+Within the PE header of the game are a few important codes that determine how
+the game data should be interpreted.
+
+\subsubsection{Pack}
+\verb|HEADER_PACK = 0x1247874977777777|
+
+\subsubsection{PAME}
+\label{subsubsec:PAME}
+\verb|HEADER_GAME = 0x454D4150 = "PAME"|
+\\
+If this header code is found, the game is using ASCII strings
+(sec~\ref{subsec:string-chunk}).
+This is always found in Multimedia Fusion games and sometimes in Clickteam
+Fusion games.
+
+\subsubsection{PAMU}
+\label{subsubsec:PAMU}
+\verb|HEADER_UNIC = 0x554D4150 = "PAMU"|
+\\
+If this header code is found, the game is using Unicode strings
+(sec~\ref{subsec:string-chunk}).
+This header is only found in Clickteam Fusion games.
+
+\subsubsection{Product code}
+
+\paragraph{CNC}
+\verb|CNCV1VER = 0x0207|
+
+\paragraph{MMF 1.0}
+\verb|MMF1 = 0x0300|
+
+\paragraph{MMF 1.5}
+\verb|MMF15 = 0x0301|
+
+\paragraph{MMF 2.0}
+\verb|MMF2 = 0x0302|
+
+\subsection{Identifications}
+See sections \ref{sec:mmf-chunks} and \ref{sec:ctf-chunks} for a list of known
+identifications
+
+\subsection{Chunks}
+\label{subsec:chunks}
+
+All known chunks take the following form in memory:
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{2}{|c|}{Id} &
+  \multicolumn{2}{|c|}{Mode} &
+  \multicolumn{4}{|c|}{Chunk size}
+  \\ \hline
+  \multicolumn{8}{|c}{Data... [Chunk size]}
+  \\ \hline
+\end{tabular}
+
+\subsubsection{MODE0}
+Uncompressed and unencrypted.
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{2}{|c|}{Id} &
+  0x00 & 0x00 &
+  \multicolumn{4}{|c|}{Chunk size}
+  \\ \hline
+  \multicolumn{8}{|c}{Data... [Chunk size]}
+  \\ \hline
+\end{tabular}
+
+\subsubsection[MODE1 (MMF)]{MODE1 (Multimedia Fusion)}
+Compressed but unencrypted.
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{2}{|c|}{Id} &
+  0x01 & 0x00 &
+  \multicolumn{4}{|c|}{Chunk size}
+  \\ \hline
+  \multicolumn{4}{|c|}{Decompressed size} &
+  \multicolumn{4}{|c}{Data... [Chunk size - 4]}
+  \\ \hline
+\end{tabular}
+
+\subsubsection[MODE1 (CTF)]{MODE1 (Clickteam Fusion)}
+Compressed but unencrypted.
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{2}{|c|}{Id} &
+  0x01 & 0x00 &
+  \multicolumn{4}{|c|}{Chunk size}
+  \\ \hline
+  \multicolumn{4}{|c|}{Decompressed size} &
+  \multicolumn{4}{|c|}{Compressed size}
+  \\ \hline
+  \multicolumn{8}{|c}{Data... [Compressed size]}
+  \\ \hline
+\end{tabular}
+
+\subsubsection{MODE2}
+Uncompressed but encrypted.
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{2}{|c|}{Id} &
+  0x02 & 0x00 &
+  \multicolumn{4}{|c|}{Chunk size}
+  \\ \hline
+  \multicolumn{8}{|c}{Data... [Chunk size]}
+  \\ \hline
+\end{tabular}
+
+\subsubsection{MODE3}
+Compressed and encrypted.
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{2}{|c|}{Id} &
+  0x03 & 0x00 &
+  \multicolumn{4}{|c|}{Chunk size}
+  \\ \hline
+  \multicolumn{8}{|c}{Data... [Chunk size]}
+  \\ \hline
+\end{tabular}
+
+\subsection{Items}
+\label{subsec:items}
+
+One of the exceptions to the chunk structure rule is item chunks (elements of
+a bank chunk).
+Generally speaking, items have a 32-bit identification (key) and no mode.
+The mode of an item chunk is derived from the chunk bank that it is
+from, rather than the item chunk itself.
+
+\subsubsection[MMF items]{Multimedia Fusion items}
+
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{4}{|c|}{Id} &
+  \multicolumn{4}{|c|}{Decompressed size}
+  \\ \hline
+  \multicolumn{8}{|c}{Data... [???]}
+  \\ \hline
+\end{tabular}
+\\
+Note: It is currently assumed that the `Data' portion of the chunk must
+actually be decompressed in order to figure out how large it is.
+It is possible that the offset chunk in the bank
+(sec~\ref{subsec:offset-chunks}) could actually store the offsets of all the
+items, which could be used to derive the length of the `Data' portion.
+
+\subsubsection[Uncompressed CTF items]{Uncompressed Clickteam Fusion items}
+
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{4}{|c|}{Id} &
+  \multicolumn{4}{|c}{Optional header...}
+  \\ \hline \hline
+  \multicolumn{4}{|c|}{Size} &
+  \multicolumn{4}{|c}{Data... [Size]}
+  \\ \hline
+\end{tabular}
+
+\subsubsection[Compressed CTF items]{Compressed Clickteam Fusion items}
+
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{4}{|c|}{Id} &
+  \multicolumn{4}{|c}{Optional header...}
+  \\ \hline \hline
+  \multicolumn{4}{|c|}{Decompressed Size} &
+  \multicolumn{4}{|c|}{Compressed size}
+  \\ \hline
+  \multicolumn{8}{|c}{Data... [Compressed size]}
+  \\ \hline
+\end{tabular}
+
+
+\subsection{Banks}
+\label{subsec:banks}
+
+Unlike regular chunks, the child chunks of a bank chunk are item chunks.
+
+% ------------------
+% Common chunk types
+% ------------------
+
+\section[Common chunks]{Common chunk types}
+\label{sec:common-chunks}
+
+Many of the chunk types share a data structure, the following are the known
+common structures.
+
+\subsection[String chunk]{String chunk}
+\label{subsec:string-chunk}
+
+The `Data' of this chunk is either a single null terminated ASCII string or
+a single null terminated UTF-16/USC-2 string.
+See section~\ref{subsubsec:PAME} and section~\ref{subsubsec:PAMU} for more
+information.
+
+% -----------------------------
+% Multimedia Fusion chunk types
+% -----------------------------
+
+\section[MMF chunks]{Multimedia Fusion chunk types}
+\label{sec:mmf-chunks}
+
+The following section describes the identification each known Multimedia
+Fusion type, along with the type's uncompressed data structure.
+This structure is the `Data' portion of the chunk as described in
+section~\ref{subsec:chunks}.
+
+\subsection{Game header}
+\verb|OLD_HEADER = 0x2223|
+
+\subsection{Frame items}
+\verb|OLD_FRAMEITEMS = 0x2229|
+
+\subsection{Frame items 2}
+\verb|OLD_FRAMEITEMS2 = 0x223F|
+
+\subsection{Frame}
+\verb|OLD_FRAME = 0x3333|
+
+\subsection{Frame header}
+\verb|OLD_OBJHEADER = 0x3334|
+
+\subsection{Object instance}
+\verb|OLD_OBJINST = 0x3338|
+
+\subsection{Frame events}
+\verb|OLD_FRAMEEVENTS = 0x333D|
+
+\subsection{Object properties}
+\verb|OLD_OBJPROP = 0x4446|
+
+% ----------------------------
+% Clickteam Fusion chunk types
+% ----------------------------
+
+\section[CTF chunks]{Clickteam Fusion chunk types}
+\label{sec:ctf-chunks}
+
+The following section describes the identification each known Clickteam Fusion
+type, along with the type's uncompressed and unencrypted data structure.
+This structure is the `Data' portion of the chunk as described in
+section~\ref{subsec:chunks}.
+
+\subsection{Vitalise - 0x11XX}
+
+\subsubsection{Vitalise preview}
+\verb|VITAPREV = 0x1122|
+
+\subsection{App - 0x22XX}
+
+\subsubsection{Game header}
+\verb|HEADER = 0x2223|
+
+\subsubsection{Title}
+\verb|TITLE = 0x2224|
+\\
+A string chunk (sec~\ref{subsec:string-chunk}) containing the title of the
+game.
+
+\subsubsection{Author}
+\verb|AUTHOR = 0x2225|
+\\
+A string chunk (sec~\ref{subsec:string-chunk}) containing the author of the
+game.
+
+\subsubsection{Menu}
+\verb|MENU = 0x2226|
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{4}{|c|}{Unknown} &
+  \multicolumn{4}{|c|}{Unknown}
+  \\ \hline
+  \multicolumn{4}{|c|}{Unknown} &
+  \multicolumn{4}{|c|}{End of string offset}
+  \\ \hline
+  \multicolumn{4}{|c|}{Unknown} &
+  \multicolumn{4}{|c|}{Unknown}
+  \\ \hline
+  \multicolumn{2}{|c|}{Length1} &
+  \multicolumn{6}{|c}{String1 [Length1 - 2]}
+  \\ \hline \hline
+  \multicolumn{2}{|c|}{LengthN} &
+  \multicolumn{6}{|c}{StringN [LengthN - 2]}
+  \\ \hline
+  \multicolumn{8}{|c}{Unknown...}
+  \\ \hline
+\end{tabular}
+
+\subsubsection{Extra path}
+\verb|EXTPATH = 0x2227|
+
+\subsubsection{Extentions}
+\verb|EXTENS = 0x2228|
+\\
+`Deprecated'
+
+\subsubsection{Object bank/frame items}
+\verb|OBJECTBANK = 0x2229|
+\\
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{4}{|c|}{Item count} &
+  \multicolumn{4}{|c}{Item chunks... [Item count]}
+  \\ \hline
+\end{tabular}
+
+
+\subsubsection{Global events}
+\verb|GLOBALEVENTS = 0x222A|
+\\
+`Deprecated'
+
+\subsubsection{Frame handles}
+\verb|FRAMEHANDLES = 0x222B|
+
+\subsubsection{Extra data}
+\verb|EXTDATA = 0x222C|
+
+\subsubsection{Additional extentions}
+\verb|ADDEXTNS = 0x222D|
+\\
+`Deprecated'
+
+\subsubsection{Project path}
+\verb|PROJPATH = 0x222E|
+\\
+A string chunk (sec~\ref{subsec:string-chunk}) containing the project path of
+the game.
+The project path is the path to the MFA or CCA project file that the game was
+built from.
+
+\subsubsection{Output path}
+\verb|OUTPATH = 0x222F|
+\\
+A string chunk (sec~\ref{subsec:string-chunk}) containing the output path of
+the game.
+The output path is the path the author originally exported the game's
+executable to.
+
+\subsubsection{App doc}
+\verb|APPDOC = 0x2230|
+
+\subsubsection{Other extention(s)}
+\verb|OTHEREXT = 0x2231|
+
+\subsubsection{Global values}
+\verb|GLOBALVALS = 0x2232|
+
+\subsubsection{Global strings}
+\verb|GLOBALSTRS = 0x2233|
+
+\subsubsection{Extentions list}
+\verb|EXTNLIST = 0x2234|
+
+\subsubsection{Icon}
+\verb|ICON = 0x2235|
+
+\subsubsection{Demo version}
+\verb|DEMOVER = 0x2236|
+
+\subsubsection{Security number}
+\verb|SECNUM = 0x2237|
+
+\subsubsection{Binary files}
+\verb|BINFILES = 0x2238|
+
+\subsubsection{Menu images}
+\verb|MENUIMAGES = 0x2239|
+
+\subsubsection{About}
+\verb|ABOUT = 0x223A|
+
+\subsubsection{Copyright}
+\verb|COPYRIGHT = 0x223B|
+
+\subsubsection{Global value names}
+\verb|GLOBALVALNAMES = 0x223C|
+
+\subsubsection{Global string names}
+\verb|GLOBALSTRNAMES = 0x223D|
+
+\subsubsection{Movement extensions}
+\verb|MOVEMNTEXTNS = 0x223E|
+
+\subsubsection{Object bank/frame items 2}
+\verb|OBJECTBANK2 = 0x223F|
+
+\subsubsection{EXE only}
+\verb|EXEONLY = 0x2240|
+
+\subsubsection{Protection}
+\verb|PROTECTION = 0x2242|
+
+\subsubsection{Shaders}
+\verb|SHADERS = 0x2243|
+
+\subsubsection{Extended header}
+\verb|EXTDHEADER = 0x2245|
+
+\subsubsection{Spacer}
+\verb|SPACER = 0x2246|
+
+\subsubsection{Frame bank}
+\verb|FRAMEBANK = 0x224D|
+\\
+Note: the frame item chunks inside the frame bank are not actually in the banks
+data, they follow directly after the bank chunk.
+
+\subsubsection{Chunk 224F}
+\verb|CHUNK224F = 0x224F|
+
+\subsubsection{Title 2}
+\verb|TITLE2 = 0x2251|
+\\
+`"StringChunk" ?'
+
+\subsubsection{Chunk 2253}
+\verb|CHUNK2253 = 0x2253|
+\\
+`16 bytes'
+
+\subsubsection{Chunk 2254}
+\verb|CHUNK2254 = 0x2254|
+\\
+`Strings'
+
+\subsubsection{Chunk 2255}
+\verb|CHUNK2255 = 0x2255|
+\\
+`Empty'
+
+\subsubsection{Chunk 2256}
+\verb|CHUNK2256 = 0x2256|
+\\
+`Compressed'
+
+\subsubsection{Chunk 2257}
+\verb|CHUNK2257 = 0x2257|
+\\
+`4 bytes'
+
+\subsubsection{Chunk 2258}
+\verb|CHUNK2258 = 0x2258|
+\\
+`Fonts'
+
+\subsubsection{Chunk 2259}
+\verb|CHUNK2259 = 0x2259|
+\\
+`Compressed'
+
+\subsection{Frame chunks - 0x33XX}
+
+\subsubsection{Frame}
+\verb|FRAME = 0x3333|
+
+\subsubsection{Frame header}
+\verb|FRAMEHEADER = 0x3334|
+
+\subsubsection{Frame name}
+\verb|FRAMENAME = 0x3335|
+
+\subsubsection{Frame password}
+\verb|FRAMEPASSWORD = 0x3336|
+
+\subsubsection{Frame palette}
+\verb|FRAMEAPALETTE = 0x3337|
+
+\subsubsection{Object instances}
+\verb|OBJINST = 0x3338|
+
+\subsubsection{Frame fade in - frame}
+\verb|FRAMEFADEIF = 0x3339|
+
+\subsubsection{Frame fade out - frame}
+\verb|FRAMEFADEOF = 0x333A|
+
+\subsubsection{Frame fade in}
+\verb|FRAMEFADEI = 0x333B|
+
+\subsubsection{Frame fade out}
+\verb|FRAMEFADEO = 0x333C|
+
+\subsubsection{Frame events}
+\verb|FRAMEEVENTS = 0x333D|
+
+\subsubsection{Frame play header}
+\verb|FRAMEPLYHEAD = 0x333E|
+
+\subsubsection{Frame additional item}
+\verb|FRAMEADDITEM = 0x333F|
+
+\subsubsection{Frame additional item instance}
+\verb|FRAMEADDITEMINST = 0x3340|
+
+\subsubsection{Frame layers}
+\verb|FRAMELAYERS = 0x3341|
+
+\subsubsection{Frame virtical size}
+\verb|FRAMEVIRTSIZE = 0x3342|
+
+\subsubsection{Frame demo file path}
+\verb|DEMOFILEPATH = 0x3343|
+
+\subsubsection{Frame random seed}
+\verb|RANDOMSEED = 0x3344|
+
+\subsubsection{Frame layer effect}
+\verb|FRAMELAYEREFFECT = 0x3345|
+
+\subsubsection{Frame BluRay options}
+\verb|FRAMBLURAY = 0x3346|
+
+\subsubsection{Frame movement timer base}
+\verb|MOVETIMEBASE = 0x3347|
+
+\subsubsection{Frame mosaic image table}
+\verb|MOSAICIMGTABLE = 0x3348|
+
+\subsubsection{Frame effects}
+\verb|FRAMEEFFECTS = 0x3349|
+
+\subsubsection{Frame iPhone options}
+\verb|FRAMEIPHONEOPTS = 0x334A|
+
+\subsubsection{Frame chunk 334C}
+\verb|FRAMECHUNK334C = 0x334C|
+
+\subsection{Object chunks - 0x44XX}
+
+\subsubsection{Object header}
+\verb|OBJHEAD = 0x4444|
+
+\subsubsection{Object name}
+\verb|OBJNAME = 0x4445|
+
+\subsubsection{Object properties}
+\verb|OBJPROP = 0x4446|
+
+\subsubsection{Object chunk 4447}
+\verb|OBJCHUNK4447 = 0x4447|
+
+\subsubsection{Object effect}
+\verb|OBJEFCT = 0x4448|
+
+\subsection{Offect chunks - 0x55XX}
+\label{subsec:offset-chunks}
+
+\subsubsection{Image bank end}
+\verb|ENDIMAGE = 0x5555|
+
+\subsubsection{Font bank end}
+\verb|ENDFONT = 0x5556|
+
+\subsubsection{Sound bank end}
+\verb|ENDSOUND = 0x5557|
+
+\subsubsection{Music bank end}
+\verb|ENDMUSIC = 0x5558|
+
+\subsection{Bank chunks - 0x66XX}
+
+\subsubsection{Image bank}
+\verb|IMAGEBANK = 0x6666|
+
+\subsubsection{Font bank}
+\verb|FONTBANK = 0x6667|
+
+\subsubsection{Sound bank}
+\verb|SOUNDBANK = 0x6668|
+
+\subsubsection{Music bank}
+\verb|MUSICBANK = 0x6669|
+
+\subsection{Bank items}
+
+As described in section~\ref{subsec:items}, item chunks' identification is more
+of a bank key than a type ID, hence the lack of identifications in this
+section.
+
+\subsubsection{Image item}
+
+\subsubsection{Font item}
+
+\subsubsection{Sound item}
+
+\subsubsection{Music item}
+
+\subsection{Last}
+\verb|LAST = 0x7F7F|
+\\
+Marks the end of a data structure.
+
+\end{document}
