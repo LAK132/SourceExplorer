@@ -116,9 +116,9 @@ namespace SourceExplorer
         // Object Instances
         OLD_OBJINST             = 0x3338,
         // Frame Events
-        CHUNK_OLD_FRAMEEVENTS   = 0x333D,
+        OLD_FRAMEEVENTS   = 0x333D,
         // Object Properties
-        CHUNK_OLD_OBJPROP       = 0x4446
+        OLD_OBJPROP       = 0x4446
     };
 
     //
@@ -201,13 +201,20 @@ namespace SourceExplorer
         CHUNK224F       = 0x224F,
         // "StringChunk" ?
         TITLE2          = 0x2251,
-        UNK16BYTES      = 0x2253,
-        UNKSTRINGS      = 0x2254,
-        UNKEMPTY        = 0x2255,
-        UNKCOMPRESSED   = 0x2256,
-        UNK4BYTES       = 0x2257,
-        UNKFONTS        = 0x2258,
-        UNKCOMPRESSED2  = 0x2259,
+        // 16 bytes
+        CHUNK2253       = 0x2253,
+        // Strings
+        CHUNK2254       = 0x2254,
+        // "Empty"
+        CHUNK2255       = 0x2255,
+        // Compressed
+        CHUNK2256       = 0x2256,
+        // 4 bytes
+        CHUNK2257       = 0x2257,
+        // Fonts
+        CHUNK2258       = 0x2258,
+        // Compressed
+        CHUNK2259       = 0x2259,
         // Frame Chunks (0x33XX)
         FRAME           = 0x3333,
         FRAMEHEADER     = 0x3334,
@@ -259,7 +266,7 @@ namespace SourceExplorer
         // Object Properties
         OBJPROP         = 0x4446,
         // Object Unknown // Not in Anaconda
-        OBJUNKN         = 0x4447,
+        OBJCHUNK4447    = 0x4447,
         // Object Effect
         OBJEFCT         = 0x4448,
         // Offset Chunks (0x55XX)
