@@ -698,7 +698,7 @@ namespace SourceExplorer
             case chunk_t::EXTENS:           return "Extensions (deprecated)";
             case chunk_t::OBJECTBANK:       return "Object Bank";
 
-            case chunk_t::GLOBALEVENTS:     return "Global Events";
+            case chunk_t::GLOBALEVENTS:     return "Global Events (deprecated)";
             case chunk_t::FRAMEHANDLES:     return "Frame Handles";
             case chunk_t::EXTDATA:          return "Extra Data";
             case chunk_t::ADDEXTNS:         return "Additional Extensions (deprecated)";
@@ -710,7 +710,7 @@ namespace SourceExplorer
             case chunk_t::GLOBALSTRS:       return "Global Strings";
             case chunk_t::EXTNLIST:         return "Extensions List";
             case chunk_t::ICON:             return "Icon";
-            case chunk_t::DEMOVER:          return "DEMOVER";
+            case chunk_t::DEMOVER:          return "Demo Version";
             case chunk_t::SECNUM:           return "Security Number";
             case chunk_t::BINFILES:         return "Binary Files";
             case chunk_t::MENUIMAGES:       return "Menu Images";
@@ -730,6 +730,14 @@ namespace SourceExplorer
             case chunk_t::CHUNK224F:        return "CHUNK 224F";
             case chunk_t::TITLE2:           return "Title2";
 
+            case chunk_t::CHUNK2253:        return "CHUNK 2253 (16 bytes?)";
+            case chunk_t::CHUNK2254:        return "CHUNK 2254 (Strings?)";
+            case chunk_t::CHUNK2255:        return "CHUNK 2255 (Empty?)";
+            case chunk_t::CHUNK2256:        return "CHUNK 2256 (Compressed?)";
+            case chunk_t::CHUNK2257:        return "CHUNK 2257 (4 bytes?)";
+            case chunk_t::CHUNK2258:        return "CHUNK 2258 (Fonts?)";
+            case chunk_t::CHUNK2259:        return "CHUNK 2259 (Compressed?)";
+
             case chunk_t::FRAME:            return "Frame";
             case chunk_t::FRAMEHEADER:      return "Frame Header";
             case chunk_t::FRAMENAME:        return "Frame Name";
@@ -746,21 +754,22 @@ namespace SourceExplorer
             case chunk_t::FRAMEADDITEMINST: return "Frame Additional Item Instance";
             case chunk_t::FRAMELAYERS:      return "Frame Layers";
             case chunk_t::FRAMEVIRTSIZE:    return "Frame Virtical Size";
-            case chunk_t::DEMOFILEPATH:     return "Demo File Path";
-            case chunk_t::RANDOMSEED:       return "Random Seed";
+            case chunk_t::DEMOFILEPATH:     return "Frame Demo File Path";
+            case chunk_t::RANDOMSEED:       return "Frame Random Seed";
             case chunk_t::FRAMELAYEREFFECT: return "Frame Layer Effect";
             case chunk_t::FRAMEBLURAY:      return "Frame BluRay Options";
             case chunk_t::MOVETIMEBASE:     return "Frame Movement Timer Base";
-            case chunk_t::MOSAICIMGTABLE:   return "Mosaic Image Table";
+            case chunk_t::MOSAICIMGTABLE:   return "Frame Mosaic Image Table";
             case chunk_t::FRAMEEFFECTS:     return "Frame Effects";
             case chunk_t::FRAMEIPHONEOPTS:  return "Frame iPhone Options";
+            case chunk_t::FRAMECHUNK334C:   return "Frame CHUNK 334C";
 
             case chunk_t::PAERROR:          return "PA (ERROR)";
 
             case chunk_t::OBJHEAD:          return "Object Header";
             case chunk_t::OBJNAME:          return "Object Name";
             case chunk_t::OBJPROP:          return "Object Properties";
-            case chunk_t::OBJUNKN:          return "Object (Unknown)";
+            case chunk_t::OBJCHUNK4447:     return "Object CHUNK 4447";
             case chunk_t::OBJEFCT:          return "Object Effect";
 
             case chunk_t::ENDIMAGE:         return "Image Handles";
@@ -3543,14 +3552,14 @@ namespace SourceExplorer
                     result = title2->read(game, strm);
                     break;
 
-                case chunk_t::UNKSTRINGS:
+                case chunk_t::CHUNK2254:
                     DEBUG("Reading Unknown Strings Chunk");
                     unknownStrings.emplace_back();
                     result = unknownStrings.back().read(game, strm);
                     break;
 
-                case chunk_t::UNKCOMPRESSED:
-                case chunk_t::UNKCOMPRESSED2:
+                case chunk_t::CHUNK2256:
+                case chunk_t::CHUNK2259:
                     DEBUG("Reading Unknown Compressed Chunk");
                     unknownCompressed.emplace_back();
                     result = unknownCompressed.back().read(game, strm);
