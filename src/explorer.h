@@ -964,40 +964,6 @@ namespace SourceExplorer
         game_t &gameState
     );
 
-    error_t ReadFixedData(
-        lak::memory &strm,
-        data_point_t &data,
-        const size_t size
-    );
-
-    error_t ReadDynamicData(
-        lak::memory &strm,
-        data_point_t &data
-    );
-
-    error_t ReadToCompressedData(
-        lak::memory &strm,
-        data_point_t &data
-    );
-
-    // <uncompressed size> <data size> <data>
-    error_t ReadCompressedData(
-        lak::memory &strm,
-        data_point_t &data
-    );
-
-    // <chunk size> <uncompressed size> <data>
-    error_t ReadRevCompressedData(
-        lak::memory &strm,
-        data_point_t &data
-    );
-
-    // <uncompressed size> <data>
-    error_t ReadStreamCompressedData(
-        lak::memory &strm,
-        data_point_t &data
-    );
-
     lak::opengl::texture CreateTexture(
         const lak::image4_t &bitmap
     );

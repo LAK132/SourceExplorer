@@ -442,51 +442,6 @@ namespace SourceExplorer
         return strm.position;
     }
 
-    error_t ReadFixedData(lak::memory &strm, data_point_t &data, const size_t size)
-    {
-        data.position = strm.position;
-        data.expectedSize = 0;
-        data.data = strm.read(size);
-        return error_t::OK;
-    }
-
-    error_t ReadDynamicData(lak::memory &strm, data_point_t &data)
-    {
-        return ReadFixedData(strm, data, strm.read_u32());
-    }
-
-    error_t ReadCompressedData(lak::memory &strm, data_point_t &data)
-    {
-        data.position = strm.position;
-        data.expectedSize = strm.read_u32();
-        data.data = strm.read(strm.read_u32());
-        return error_t::OK;
-    }
-
-    error_t ReadRevCompressedData(lak::memory &strm, data_point_t &data)
-    {
-        data.position = strm.position;
-        uint32_t compressed = strm.read_u32();
-        data.expectedSize = strm.read_u32();
-        if (compressed >= 4)
-        {
-            data.data = strm.read(compressed - 4);
-            return error_t::OK;
-        }
-        data.data = lak::memory{};
-        return error_t::OK;
-    }
-
-    error_t ReadStreamCompressedData(lak::memory &strm, data_point_t &data)
-    {
-        data.position = strm.position;
-        data.expectedSize = strm.read_u32();
-        size_t start = strm.position;
-        StreamDecompress(strm, data.expectedSize);
-        data.data = strm.read_range(start);
-        return error_t::OK;
-    }
-
     lak::color4_t ColorFrom8bit(uint8_t RGB)
     {
         return { RGB, RGB, RGB, 255 };
@@ -1075,21 +1030,32 @@ namespace SourceExplorer
         if ((mode == encoding_t::MODE2 || mode == encoding_t::MODE3) && _magic_key.size() < 256)
             GetEncryptionKey(game);
 
+        const auto chunkSize = strm.read_u32();
+
         if (mode == encoding_t::MODE1)
         {
+            data.expectedSize = strm.read_u32();
+
             if (game.oldGame)
             {
-                ReadRevCompressedData(strm, data);
+                data.position = strm.position;
+                if (chunkSize > 4)
+                    data.data = strm.read(chunkSize - 4);
+                else
+                    data.data.clear();
             }
             else
             {
-                ReadFixedData(strm, header, 0x4);
-                ReadCompressedData(strm, data);
+                const auto dataSize = strm.read_u32();
+                data.position = strm.position;
+                data.data = strm.read(dataSize);
             }
         }
         else
         {
-            ReadDynamicData(strm, data);
+            data.expectedSize = 0;
+            data.position = strm.position;
+            data.data = strm.read(chunkSize);
         }
         end = strm.position;
 
@@ -1137,21 +1103,42 @@ namespace SourceExplorer
         mode = encoding_t::MODE0;
         handle = strm.read_u32();
 
+        if (!game.oldGame && headersize > 0)
+        {
+            header.position = strm.position;
+            header.expectedSize = 0;
+            header.data = strm.read(headersize);
+        }
+
+        data.expectedSize = game.oldGame || compressed ? strm.read_u32() : 0;
+
+        size_t dataSize;
         if (game.oldGame)
         {
-            ReadStreamCompressedData(strm, data);
-            mode = encoding_t::MODE1; // hack because one of MMF1.5 or tinf_uncompress is a bitch
+            const size_t start = strm.position;
+            // Figure out exactly how long the compressed data is
+            // :TODO: It should be possible to figure this out without
+            // actually decompressing it... surely...
+            if (const auto raw = StreamDecompress(strm, data.expectedSize);
+                raw.size() != data.expectedSize)
+            {
+                WARNING("Actual decompressed size (0x" << raw.size() << ") "
+                        "was not equal to the expected size (0x" << data.expectedSize << ").");
+            }
+            dataSize = strm.position - start;
+            strm.position = start;
         }
         else
         {
-            if (headersize > 0)
-                ReadFixedData(strm, header, headersize);
-
-            if (compressed)
-                ReadCompressedData(strm, data);
-            else
-                ReadDynamicData(strm, data);
+            dataSize = strm.read_u32();
         }
+
+        data.position = strm.position;
+        data.data = strm.read(dataSize);
+
+        // hack because one of MMF1.5 or tinf_uncompress is a bitch
+        if (game.oldGame) mode = encoding_t::MODE1;
+
         end = strm.position;
 
         return error_t::OK;
