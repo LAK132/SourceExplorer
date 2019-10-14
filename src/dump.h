@@ -69,6 +69,8 @@ namespace SourceExplorer
                         std::atomic<float> &completed);
   void DumpBinaryFiles (source_explorer_t &srcexp,
                         std::atomic<float> &completed);
+  void SaveErrorLog    (source_explorer_t &srcexp,
+                        std::atomic<float> &completed);
 
   template <typename LOAD, typename MANIP>
   void Attempt(file_state_t &FileState, LOAD Load, MANIP Manip)
@@ -94,6 +96,7 @@ namespace SourceExplorer
   void AttemptMusic(source_explorer_t &srcexp);
   void AttemptShaders(source_explorer_t &srcexp);
   void AttemptBinaryFiles(source_explorer_t &srcexp);
+  void AttemptErrorLog(source_explorer_t &srcexp);
 }
 
 #endif
