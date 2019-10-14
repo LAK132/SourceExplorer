@@ -19,7 +19,7 @@
 
 namespace SourceExplorer
 {
-    bool debugConsole = true;
+    bool debugConsole = false;
     bool developerConsole = true;
     bool errorOnlyConsole = false;
     bool forceCompat = false;
@@ -804,13 +804,6 @@ namespace SourceExplorer
     {
         switch (type)
         {
-            case object_type_t::PLAYER:          return "Player";
-            case object_type_t::KEYBOARD:        return "Keyboard";
-            case object_type_t::CREATE:          return "Create";
-            case object_type_t::TIMER:           return "Timer";
-            case object_type_t::GAME:            return "Game";
-            case object_type_t::SPEAKER:         return "Speaker";
-            case object_type_t::SYSTEM:          return "System";
             case object_type_t::QUICK_BACKDROP:  return "Quick Backdrop";
             case object_type_t::BACKDROP:        return "Backdrop";
             case object_type_t::ACTIVE:          return "Active";
@@ -821,7 +814,14 @@ namespace SourceExplorer
             case object_type_t::COUNTER:         return "Counter";
             case object_type_t::RTF:             return "RTF";
             case object_type_t::SUB_APPLICATION: return "Sub Application";
-            default: return "Invalid";
+            case object_type_t::PLAYER:          return "Player";
+            case object_type_t::KEYBOARD:        return "Keyboard";
+            case object_type_t::CREATE:          return "Create";
+            case object_type_t::TIMER:           return "Timer";
+            case object_type_t::GAME:            return "Game";
+            case object_type_t::SPEAKER:         return "Speaker";
+            case object_type_t::SYSTEM:          return "System";
+            default: return "Unknown/Invalid";
         }
     }
 
@@ -2414,6 +2414,17 @@ namespace SourceExplorer
                 game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
+            if (strm.position < entry.end)
+            {
+                WARNING("There is still 0x" << entry.end - strm.position <<
+                        " bytes left in the object bank");
+            }
+            else if (strm.position > entry.end)
+            {
+                ERROR("Object bank overshot entry by 0x" <<
+                      strm.position - entry.end << " bytes");
+            }
+
             strm.position = entry.end;
 
             return result;
@@ -2955,6 +2966,19 @@ namespace SourceExplorer
                 game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
+            if (strm.position < entry.end)
+            {
+                WARNING("There is still 0x" << entry.end - strm.position <<
+                        " bytes left in the frame bank");
+            }
+            else if (strm.position > entry.end)
+            {
+                DEBUG("Frame bank overshot entry by 0x" <<
+                      strm.position - entry.end << " bytes");
+            }
+
+            // strm.position = entry.end;
+
             return result;
         }
 
@@ -3133,6 +3157,17 @@ namespace SourceExplorer
                 game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
+            if (strm.position < entry.end)
+            {
+                WARNING("There is still 0x" << entry.end - strm.position <<
+                        " bytes left in the image bank");
+            }
+            else if (strm.position > entry.end)
+            {
+                ERROR("Image bank overshot entry by 0x" <<
+                      strm.position - entry.end << " bytes");
+            }
+
             strm.position = entry.end;
 
             if ((chunk_t)strm.peek_u16() == chunk_t::ENDIMAGE)
@@ -3195,6 +3230,17 @@ namespace SourceExplorer
                 if (result != error_t::OK) break;
                 result = item.read(game, strm);
                 game.completed = (float)((double)strm.position / (double)strm.size());
+            }
+
+            if (strm.position < entry.end)
+            {
+                WARNING("There is still 0x" << entry.end - strm.position <<
+                        " bytes left in the font bank");
+            }
+            else if (strm.position > entry.end)
+            {
+                ERROR("Font bank overshot entry by 0x" <<
+                      strm.position - entry.end << " bytes");
             }
 
             strm.position = entry.end;
@@ -3268,6 +3314,17 @@ namespace SourceExplorer
                 game.completed = (float)((double)strm.position / (double)strm.size());
             }
 
+            if (strm.position < entry.end)
+            {
+                WARNING("There is still 0x" << entry.end - strm.position <<
+                        " bytes left in the sound bank");
+            }
+            else if (strm.position > entry.end)
+            {
+                ERROR("Sound bank overshot entry by 0x" <<
+                      strm.position - entry.end << " bytes");
+            }
+
             strm.position = entry.end;
 
             if ((chunk_t)strm.peek_u16() == chunk_t::ENDSOUND)
@@ -3330,6 +3387,17 @@ namespace SourceExplorer
                 if (result != error_t::OK) break;
                 result = item.read(game, strm);
                 game.completed = (float)((double)strm.position / (double)strm.size());
+            }
+
+            if (strm.position < entry.end)
+            {
+                WARNING("There is still 0x" << entry.end - strm.position <<
+                        " bytes left in the music bank");
+            }
+            else if (strm.position > entry.end)
+            {
+                ERROR("Music bank overshot entry by 0x" <<
+                      strm.position - entry.end << " bytes");
             }
 
             strm.position = entry.end;

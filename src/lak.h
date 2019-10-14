@@ -59,6 +59,11 @@ namespace lak
         const std::vector<uint8_t> &data
     );
 
+    bool SaveFile(
+        const fs::path &path,
+        const std::string &str
+    );
+
     template<typename R, typename ...T, typename ...D>
     bool Await(
         std::thread *&thread,

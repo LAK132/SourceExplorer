@@ -18,6 +18,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "main.h"
 #include "dump.h"
+#include "imgui_utils.hpp"
 #include <lak/opengl/texture.hpp>
 #include <lak/opengl/shader.hpp>
 
@@ -41,7 +42,7 @@ void MenuBar(float FrameTime)
 {
     if (ImGui::BeginMenu("File"))
     {
-        ImGui::Checkbox("Easy Mode", &SrcExp.babyMode);
+        ImGui::Checkbox("Auto-dump Mode", &SrcExp.babyMode);
         SrcExp.exe.attempt          |= ImGui::MenuItem(SrcExp.babyMode ? "Open And Dump..." : "Open...", nullptr);
         SrcExp.sortedImages.attempt |= ImGui::MenuItem("Dump Sorted Images...", nullptr, false, !SrcExp.babyMode);
         SrcExp.images.attempt       |= ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.babyMode);
@@ -50,6 +51,8 @@ void MenuBar(float FrameTime)
         SrcExp.shaders.attempt      |= ImGui::MenuItem("Dump Shaders...", nullptr, false, !SrcExp.babyMode);
         SrcExp.binaryFiles.attempt  |= ImGui::MenuItem("Dump Binary Files...", nullptr, false, !SrcExp.babyMode);
         SrcExp.appicon.attempt      |= ImGui::MenuItem("Dump App Icon...", nullptr, false, !SrcExp.babyMode);
+        ImGui::Separator();
+        SrcExp.errorLog.attempt     |= ImGui::MenuItem("Save Error Log...");
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("About"))
@@ -62,7 +65,7 @@ void MenuBar(float FrameTime)
     }
     ImGui::Checkbox("Color transparency?", &SrcExp.dumpColorTrans);
     ImGui::Checkbox("Force compat mode?", &se::forceCompat);
-    ImGui::Checkbox("Debug console? (May be SE slow)", &se::debugConsole);
+    ImGui::Checkbox("Debug console? (May make SE slow)", &se::debugConsole);
     if (se::debugConsole)
     {
         ImGui::Checkbox("Only errors?", &se::errorOnlyConsole);
@@ -562,7 +565,7 @@ void SourceExplorerMain(float FrameTime)
         ImGui::EndMenuBar();
     }
 
-    if (!SrcExp.babyMode)
+    if (!SrcExp.babyMode && SrcExp.loaded)
     {
         ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
         contentSize.x = ImGui::GetWindowContentRegionWidth();
@@ -584,6 +587,11 @@ void SourceExplorerMain(float FrameTime)
             Explorer();
         ImGui::EndChild();
     }
+    else
+    {
+        ImGui::Text("To open a game: File -> Open");
+        ImGui::Text("To save an error log: File -> Save Error Log");
+    }
 
     if      (SrcExp.exe.attempt)          se::AttemptExe(SrcExp);
     else if (SrcExp.images.attempt)       se::AttemptImages(SrcExp);
@@ -593,6 +601,7 @@ void SourceExplorerMain(float FrameTime)
     else if (SrcExp.music.attempt)        se::AttemptMusic(SrcExp);
     else if (SrcExp.shaders.attempt)      se::AttemptShaders(SrcExp);
     else if (SrcExp.binaryFiles.attempt)  se::AttemptBinaryFiles(SrcExp);
+    else if (SrcExp.errorLog.attempt)     se::AttemptErrorLog(SrcExp);
 }
 
 void SourceBytePairsMain(float FrameTime)
@@ -605,13 +614,16 @@ void SourceBytePairsMain(float FrameTime)
 
     auto load = [](se::file_state_t &FileState)
     {
-        if (lak::OpenFile(FileState.path, FileState.valid))
+        lak::debugger.clear();
+        std::error_code ec;
+        auto code = lak::open_file_modal(FileState.path, false, ec);
+        if (code == lak::file_open_error::VALID)
         {
             SrcExp.state = se::game_t{};
             SrcExp.state.file = lak::LoadFile(FileState.path);
             return true;
         }
-        return false;
+        return code != lak::file_open_error::INCOMPLETE;
     };
 
     auto manip = []
@@ -664,6 +676,12 @@ void Update(float FrameTime)
 
 int main()
 {
+    SrcExp.exe.path = SrcExp.images.path = SrcExp.sortedImages.path =
+        SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
+        SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
+
+    SrcExp.errorLog.path = fs::current_path()/"error.log";
+
     // const bool opengl = false;
     const bool opengl = true;
     lak::window_t window;
@@ -819,10 +837,12 @@ int main()
 #include <lak/opengl/shader.cpp>
 
 #include "imgui_impl_lak.cpp"
+#include "imgui_utils.cpp"
 #include <tinflate/tinflate.cpp>
 
 #include "explorer.cpp"
 #include "dump.cpp"
+#include "debug.cpp"
 
 #include <examples/imgui_impl_softraster.cpp>
 

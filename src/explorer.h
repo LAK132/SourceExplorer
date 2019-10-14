@@ -29,6 +29,7 @@
 #include <iterator>
 
 #include "imgui_impl_lak.h"
+#include "imgui_utils.hpp"
 #include "lak.h"
 #include <lak/opengl/texture.hpp>
 #include <strconv/strconv.hpp>
@@ -39,70 +40,7 @@
 #define EXPLORER_H
 
 #include "encryption.h"
-
-#ifndef DEBUG_LINE_FILE
-#undef DEBUG_LINE_FILE
-#endif
-#ifdef _WIN32
-#define DEBUG_LINE_FILE "(" << __FILE__ << ":" << std::dec << __LINE__ << ")"
-#else
-#define DEBUG_LINE_FILE "\x1B[2m(" << __FILE__ << ":" << std::dec << __LINE__ << ")\x1B[0m"
-#endif
-
-#ifndef WDEBUG_LINE_FILE
-#undef WDEBUG_LINE_FILE
-#endif
-#ifdef _WIN32
-#define WDEBUG_LINE_FILE L"(" << __FILE__ << L":" << std::dec << __LINE__ << L")"
-#else
-#define WDEBUG_LINE_FILE L"\x1B[2m(" << __FILE__ << L":" << std::dec << __LINE__ << L")\x1B[0m"
-#endif
-
-#ifdef DEBUG
-#undef DEBUG
-#endif
-#define DEBUG(x) if (SourceExplorer::debugConsole && !SourceExplorer::errorOnlyConsole) { if (SourceExplorer::developerConsole) { std::cout << "DEBUG" << DEBUG_LINE_FILE << ": "; } std::cout << std::hex << x << "\n" << std::flush; } (void)1
-
-#ifdef WDEBUG
-#undef WDEBUG
-#endif
-#define WDEBUG(x) if (SourceExplorer::debugConsole && !SourceExplorer::errorOnlyConsole) { if (SourceExplorer::developerConsole) { std::wcout << L"DEBUG" << DEBUG_LINE_FILE << L": "; } std::wcout << std::hex << x << L"\n" << std::flush; } (void)1
-
-#ifdef WARNING
-#undef WARNING
-#endif
-#ifdef _WIN32
-#define WARNING(x) std::cerr << "WARNING" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
-#else
-#define WARNING(x) std::cerr << "\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
-#endif
-
-#ifdef WWARNING
-#undef WWARNING
-#endif
-#ifdef _WIN32
-#define WWARNING(x) std::wcerr << "WARNING" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
-#else
-#define WWARNING(x) std::wcerr << "\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
-#endif
-
-#ifdef ERROR
-#undef ERROR
-#endif
-#ifdef _WIN32
-#define ERROR(x) std::cerr << "ERROR" << DEBUG_LINE_FILE << ": " << std::hex << x << "\n" << std::flush;
-#else
-#define ERROR(x) std::cerr << "\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << "\x1B[91m: " << std::hex << x << "\x1B[0m\n" << std::flush;
-#endif
-
-#ifdef WERROR
-#undef WERROR
-#endif
-#ifdef _WIN32
-#define WERROR(x) std::wcerr << L"ERROR" << WDEBUG_LINE_FILE << L": " << std::hex << x << L"\n" << std::flush;
-#else
-#define WERROR(x) std::wcerr << L"\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L"\x1B[91m: " << std::hex << x << L"\x1B[0m\n" << std::flush;
-#endif
+#include "debug.h"
 
 // char8_t typdef for C++ < 20
 #if __cplusplus <= 201703L
@@ -938,6 +876,7 @@ namespace SourceExplorer
         file_state_t shaders;
         file_state_t binaryFiles;
         file_state_t appicon;
+        file_state_t errorLog;
 
         MemoryEditor editor;
 

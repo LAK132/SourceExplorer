@@ -78,12 +78,8 @@ bool se::OpenGame(source_explorer_t &srcexp)
     static std::atomic<bool> finished = false;
     static bool popupOpen = false;
 
-    if (lak::AwaitPopup("Open Game",
-                        popupOpen,
-                        thread,
-                        finished,
-                        &LoadGame,
-                        data))
+    if (lak::await_popup("Open Game", popupOpen, thread, finished,
+                         &LoadGame, data))
     {
         ImGui::Text("Loading, please wait...");
         ImGui::Checkbox("Print to debug console?", &se::debugConsole);
@@ -115,7 +111,7 @@ bool se::DumpStuff(source_explorer_t &srcexp,
   static std::atomic<bool> finished = false;
   static bool popupOpen = false;
 
-  if (lak::AwaitPopup(str_id, popupOpen, thread, finished, func, data))
+  if (lak::await_popup(str_id, popupOpen, thread, finished, func, data))
   {
     ImGui::Text("Dumping, please wait...");
     ImGui::Checkbox("Print to debug console?", &debugConsole);
@@ -624,12 +620,32 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
   }
 }
 
-template <typename FUNCTOR>
-void AttemptFile(se::file_state_t &FileState, FUNCTOR Functor)
+void se::SaveErrorLog(source_explorer_t &srcexp,
+                      std::atomic<float> &completed)
 {
-  auto load = [](se::file_state_t &FileState)
+  if (!lak::SaveFile(srcexp.errorLog.path, lak::debugger.str()))
   {
-    return lak::OpenFile(FileState.path, FileState.valid);
+    ERROR("Failed To Save File '" << srcexp.errorLog.path << "'");
+  }
+}
+
+template <typename FUNCTOR>
+void AttemptFile(se::file_state_t &FileState, FUNCTOR Functor, bool save = false)
+{
+  auto load = [save](se::file_state_t &FileState)
+  {
+    std::error_code ec;
+    if (auto code = lak::open_file_modal(FileState.path, save, ec);
+        code == lak::file_open_error::INCOMPLETE)
+    {
+      // Not finished.
+      return false;
+    }
+    else
+    {
+      FileState.valid = code == lak::file_open_error::VALID;
+      return true;
+    }
   };
   se::Attempt(FileState, load, Functor);
 }
@@ -639,13 +655,25 @@ void AttemptFolder(se::file_state_t &FileState, FUNCTOR Functor)
 {
   auto load = [](se::file_state_t &FileState)
   {
-    return lak::OpenFolder(FileState.path, FileState.valid);
+    std::error_code ec;
+    if (auto code = lak::open_folder_modal(FileState.path, ec);
+        code == lak::file_open_error::INCOMPLETE)
+    {
+      // Not finished.
+      return false;
+    }
+    else
+    {
+      FileState.valid = code == lak::file_open_error::VALID;
+      return true;
+    }
   };
   se::Attempt(FileState, load, Functor);
 }
 
 void se::AttemptExe(source_explorer_t &srcexp)
 {
+  lak::debugger.clear();
   srcexp.loaded = false;
   AttemptFile(srcexp.exe, [&srcexp]
   {
@@ -810,4 +838,12 @@ void se::AttemptBinaryFiles(source_explorer_t &srcexp)
   {
     return DumpStuff(srcexp, "Dump Binary Files", &DumpBinaryFiles);
   });
+}
+
+void se::AttemptErrorLog(source_explorer_t &srcexp)
+{
+  AttemptFile(srcexp.errorLog, [&srcexp]
+  {
+    return DumpStuff(srcexp, "Save Error Log", &SaveErrorLog);
+  }, true);
 }

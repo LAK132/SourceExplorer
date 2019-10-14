@@ -352,25 +352,25 @@ namespace SourceExplorer
     //
     // Object Property Flags
     //
-    enum class object_type_t : int8_t
+    enum class object_type_t : uint8_t // int8_t
     {
-        PLAYER          = -7,
-        KEYBOARD        = -6,
-        CREATE          = -5,
-        TIMER           = -4,
-        GAME            = -3,
-        SPEAKER         = -2,
-        SYSTEM          = -1,
-        QUICK_BACKDROP  = 0,
-        BACKDROP        = 1,
-        ACTIVE          = 2,
-        TEXT            = 3,
-        QUESTION        = 4,
-        SCORE           = 5,
-        LIVES           = 6,
-        COUNTER         = 7,
-        RTF             = 8,
-        SUB_APPLICATION = 9
+        QUICK_BACKDROP  = 0x00,
+        BACKDROP        = 0x01,
+        ACTIVE          = 0x02,
+        TEXT            = 0x03,
+        QUESTION        = 0x04,
+        SCORE           = 0x05,
+        LIVES           = 0x06,
+        COUNTER         = 0x07,
+        RTF             = 0x08,
+        SUB_APPLICATION = 0x09,
+        PLAYER          = 0xF9, // = -7,
+        KEYBOARD        = 0xFA, // = -6,
+        CREATE          = 0xFB, // = -5,
+        TIMER           = 0xFC, // = -4,
+        GAME            = 0xFD, // = -3,
+        SPEAKER         = 0xFE, // = -2,
+        SYSTEM          = 0xFF, // = -1,
     };
 
     enum class object_parent_type_t : uint16_t
