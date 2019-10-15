@@ -10,8 +10,9 @@ set BINARY=srcexp.exe
 
 set CXX=cl /nologo /std:c++17 /D_CRT_SECURE_NO_WARNINGS /MD /EHsc
 
-if "%mode%"=="release" goto release
 if "%mode%"=="debug" goto debug
+if "%mode%"=="release" goto release
+if "%mode%"=="nolog" goto nolog
 goto :eof
 
 :debug
@@ -20,5 +21,10 @@ set LINKFLAGS=/SUBSYSTEM:CONSOLE /DEBUG
 goto :eof
 
 :release
-set COMPCOM=/DNDEBUG /bigobj /O2
-set LINKCOM=/SUBSYSTEM:CONSOLE
+set COMPFLAGS=/DNDEBUG /bigobj /O2
+set LINKFLAGS=/SUBSYSTEM:CONSOLE
+goto :eof
+
+:nolog
+set COMPFLAGS=/DNOLOG /DNDEBUG /bigobj /O2
+set LINKFLAGS=/SUBSYSTEM:CONSOLE

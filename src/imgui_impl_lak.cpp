@@ -62,7 +62,7 @@ namespace ImGui
                     case GraphicsMode::SOFTWARE: delete context->srContext; break;
                     case GraphicsMode::OPENGL: delete context->glContext; break;
                     case GraphicsMode::VULKAN: delete context->vkContext; break;
-                    default: assert("Invalid Context Mode" && false); break;
+                    default: ASSERTF(false, "Invalid Context Mode"); break;
                 }
             }
             delete context;
@@ -109,7 +109,7 @@ namespace ImGui
 
             } break;
             default:
-                assert("Invalid Context Mode" && false);
+                ASSERTF(false, "Invalid Context Mode");
                 break;
         }
     }
@@ -267,7 +267,7 @@ namespace ImGui
                 ImplInitVkContext(context->vkContext, window);
                 break;
             default:
-                assert(false);
+                ASSERTF(false, "Invalid Context Mode");
                 break;
         }
 
@@ -334,7 +334,7 @@ namespace ImGui
                 ImplShutdownVkContext(context->vkContext);
                 break;
             default:
-                assert(false);
+                ASSERTF(false, "Invalid Context Mode");
                 break;
         }
 
@@ -357,9 +357,9 @@ namespace ImGui
     {
         ImGuiIO &io = ImGui::GetIO();
 
-        assert(io.Fonts->IsBuilt() && "Font atlas not built");
+        ASSERTF(io.Fonts->IsBuilt(), "Font atlas not built");
 
-        assert(deltaTime > 0);
+        ASSERT(deltaTime > 0);
         io.DeltaTime = deltaTime;
 
         // UpdateMousePosAndButtons()
@@ -465,7 +465,7 @@ namespace ImGui
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
                 const int key = event.key.keysym.scancode;
-                assert(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
+                ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
                 io.KeysDown[key] = (event.type == SDL_KEYDOWN);
 
                 const SDL_Keymod mod = SDL_GetModState();
@@ -488,9 +488,9 @@ namespace ImGui
     void ImplSRRender(ImplSRContext context, ImDrawData *drawData)
     {
         // ERROR(context);
-        assert(context != nullptr);
+        ASSERT(context != nullptr);
         // ERROR(context->window);
-        assert(context->window != nullptr);
+        ASSERT(context->window != nullptr);
 
         ImGui_ImplSoftraster_RenderDrawData(drawData);
         // ERROR(drawData);
@@ -519,8 +519,8 @@ namespace ImGui
             //     SDL_PIXELFORMAT_RGB888
             // );
             // SDL_LockSurface(context->screenSurface);
-            // assert(SDL_LockSurface(surf) == 0);
-            // assert(SDL_LockSurface(window) == 0);
+            // ASSERT(SDL_LockSurface(surf) == 0);
+            // ASSERT(SDL_LockSurface(window) == 0);
             if(SDL_BlitSurface(context->screenSurface, nullptr, window, nullptr))
             // if(SDL_BlitSurface(surf, nullptr, window, nullptr))
                 ERROR(SDL_GetError());
@@ -534,7 +534,7 @@ namespace ImGui
 
     void ImplGLRender(ImplGLContext context, ImDrawData *drawData)
     {
-        assert(drawData != nullptr);
+        ASSERT(drawData != nullptr);
         ImGuiIO &io = ImGui::GetIO();
 
         lak::vec4f_t viewport;
@@ -708,7 +708,7 @@ namespace ImGui
                 ImplVkRender(context->vkContext, drawData);
                 break;
             default:
-                assert(false);
+                ASSERTF(false, "Invalid Context Mode");
                 break;
         }
 

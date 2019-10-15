@@ -803,7 +803,7 @@ int main()
         {
             // SDL_RenderPresent(window.srContext);
             context->srContext->window = window.window;
-            assert(SDL_UpdateWindowSurface(window.window) == 0);
+            ASSERT(SDL_UpdateWindowSurface(window.window) == 0);
         }
 
         // --- TIMING ---

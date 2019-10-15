@@ -4,7 +4,7 @@ SetLocal EnableDelayedExpansion
 set mode=%1
 set target=%2
 
-if not "%mode%"=="debug" if not "%mode%"=="release" if not "%mode%"=="clean" goto useage
+if not "%mode%"=="debug" if not "%mode%"=="release" if not "%mode%"=="nolog" if not "%mode%"=="clean" goto useage
 if not "%target%"=="x86" if not "%target%"=="x64" if not "%mode%"=="clean" goto useage
 
 call makelist.bat
@@ -42,20 +42,6 @@ set LIBDIR=!LIBDIR!\%target%
 if not exist %OBJDIR% mkdir %OBJDIR%
 if not exist %BINDIR% mkdir %BINDIR%
 
-if "%mode%"=="debug" goto run
-if "%mode%"=="release" goto run
-
-:useage
-echo compile: "make [debug/release] [x86/x64]"
-echo clean: "make clean"
-goto :eof
-
-:clean
-for /f %%F in ('dir /b %OBJDIR%') do (
-    if "%%~xF"==".obj" del %OBJDIR%\%%F
-)
-goto :eof
-
 :run
 set _LIBS_=
 for %%L in (%LIBS%) do (set _LIBS_=!_LIBS_! %LIBDIR%\%%L)
@@ -66,5 +52,16 @@ for %%I in (%INCDIRS%) do (set _INC_=!_INC_! /I%%I)
 call %CXX% %COMPFLAGS% /Fo:%OBJDIR%\ /Fe:%BINDIR%\%BINARY% %SOURCE% !_LIBS_! !_INC_! /link %LINKFLAGS%
 
 for /f %%F in ('dir /b %LIBDIR%') do (if "%%~xF"==".dll" echo f | xcopy /y %LIBDIR%\%%F %BINDIR%\%%F)
+goto :eof
+
+:clean
+for /f %%F in ('dir /b %OBJDIR%') do (
+    if "%%~xF"==".obj" del %OBJDIR%\%%F
+)
+goto :eof
+
+:useage
+echo compile: "make [debug/release/nolog] [x86/x64]"
+echo clean: "make clean"
 
 EndLocal
