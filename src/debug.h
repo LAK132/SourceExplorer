@@ -28,6 +28,7 @@ SOFTWARE.
 #include <strconv/strconv.hpp>
 
 #include <iostream>
+#include <sstream>
 
 #define TO_STRING(x) [&]{ std::stringstream s; s << x; return s.str(); }()
 #define WTO_STRING(x) [&]{ std::wstringstream s; s << x; return lak::strconv_ascii(s.str()); }()
@@ -38,9 +39,9 @@ namespace lak
   {
     std::stringstream stream;
 
-    void stdout(const std::string &line_info, const std::string &str);
+    void std_out(const std::string &line_info, const std::string &str);
 
-    void stderr(const std::string &line_info, const std::string &str);
+    void std_err(const std::string &line_info, const std::string &str);
 
     void clear();
 
@@ -71,47 +72,47 @@ namespace lak
 #ifdef DEBUG
 #undef DEBUG
 #endif
-#define DEBUG(x) lak::debugger.stdout(TO_STRING("DEBUG" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
+#define DEBUG(x) lak::debugger.std_out(TO_STRING("DEBUG" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 
 #ifdef WDEBUG
 #undef WDEBUG
 #endif
-#define WDEBUG(x) lak::debugger.stdout(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+#define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 
 #ifdef WARNING
 #undef WARNING
 #endif
 #ifdef _WIN32
-#define WARNING(x) lak::debugger.stderr(TO_STRING("WARNING" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
+#define WARNING(x) lak::debugger.std_err(TO_STRING("WARNING" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #else
-#define WARNING(x) lak::debugger.stderr(TO_STRING("\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
+#define WARNING(x) lak::debugger.std_err(TO_STRING("\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #endif
 
 #ifdef WWARNING
 #undef WWARNING
 #endif
 #ifdef _WIN32
-#define WWARNING(x) lak::debugger.stderr(WTO_STRING(L"WARNING" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+#define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"WARNING" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #else
-#define WWARNING(x) lak::debugger.stderr(WTO_STRING(L"\x1B[33m\x1B[1m" L"WARNING" L"\x1B[0m\x1B[33m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+#define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"\x1B[33m\x1B[1m" L"WARNING" L"\x1B[0m\x1B[33m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
 
 #ifdef ERROR
 #undef ERROR
 #endif
 #ifdef _WIN32
-#define ERROR(x) lak::debugger.stderr(TO_STRING("ERROR" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
+#define ERROR(x) lak::debugger.std_err(TO_STRING("ERROR" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #else
-#define ERROR(x) lak::debugger.stderr(TO_STRING("\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
+#define ERROR(x) lak::debugger.std_err(TO_STRING("\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #endif
 
 #ifdef WERROR
 #undef WERROR
 #endif
 #ifdef _WIN32
-#define WERROR(x) lak::debugger.stderr(WTO_STRING(L"ERROR" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+#define WERROR(x) lak::debugger.std_err(WTO_STRING(L"ERROR" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #else
-#define WERROR(x) lak::debugger.stderr(WTO_STRING(L"\x1B[91m\x1B[1m" L"ERROR" L"\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+#define WERROR(x) lak::debugger.std_err(WTO_STRING(L"\x1B[91m\x1B[1m" L"ERROR" L"\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
 
 #endif

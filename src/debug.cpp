@@ -4,7 +4,7 @@
 
 namespace lak
 {
-  void debugger_t::stdout(const std::string &line_info, const std::string &str)
+  void debugger_t::std_out(const std::string &line_info, const std::string &str)
   {
     stream << line_info << str;
     if (::SourceExplorer::debugConsole && !::SourceExplorer::errorOnlyConsole)
@@ -17,7 +17,7 @@ namespace lak
     }
   }
 
-  void debugger_t::stderr(const std::string &line_info, const std::string &str)
+  void debugger_t::std_err(const std::string &line_info, const std::string &str)
   {
     stream << line_info << str;
     std::cerr << line_info << str << std::flush;
