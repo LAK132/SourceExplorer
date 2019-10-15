@@ -27,6 +27,7 @@ SOFTWARE.
 
 #include <strconv/strconv.hpp>
 
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 
@@ -51,18 +52,20 @@ namespace lak
   extern debugger_t debugger;
 }
 
-#ifndef DEBUG_LINE_FILE
+#ifdef DEBUG_LINE_FILE
 #undef DEBUG_LINE_FILE
 #endif
+
 #ifdef _WIN32
 #define DEBUG_LINE_FILE "(" << __FILE__ << ":" << std::dec << __LINE__ << ")"
 #else
 #define DEBUG_LINE_FILE "\x1B[2m(" << __FILE__ << ":" << std::dec << __LINE__ << ")\x1B[0m"
 #endif
 
-#ifndef WDEBUG_LINE_FILE
+#ifdef WDEBUG_LINE_FILE
 #undef WDEBUG_LINE_FILE
 #endif
+
 #ifdef _WIN32
 #define WDEBUG_LINE_FILE L"(" << __FILE__ << L":" << std::dec << __LINE__ << L")"
 #else
@@ -72,47 +75,102 @@ namespace lak
 #ifdef DEBUG
 #undef DEBUG
 #endif
+
+#ifdef NOLOG
+#define DEBUG(x)
+#else
 #define DEBUG(x) lak::debugger.std_out(TO_STRING("DEBUG" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
+#endif
 
 #ifdef WDEBUG
 #undef WDEBUG
 #endif
+
+#ifdef NOLOG
+#define WDEBUG(x)
+#else
 #define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+#endif
 
 #ifdef WARNING
 #undef WARNING
 #endif
+
+#ifdef NOLOG
+#define WARNING(x)
+#else
 #ifdef _WIN32
 #define WARNING(x) lak::debugger.std_err(TO_STRING("WARNING" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #else
 #define WARNING(x) lak::debugger.std_err(TO_STRING("\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #endif
+#endif
 
 #ifdef WWARNING
 #undef WWARNING
 #endif
+
+#ifdef NOLOG
+#define WWARNING(x)
+#else
 #ifdef _WIN32
 #define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"WARNING" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #else
 #define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"\x1B[33m\x1B[1m" L"WARNING" L"\x1B[0m\x1B[33m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
+#endif
 
 #ifdef ERROR
 #undef ERROR
 #endif
+
+#ifdef NOLOG
+#define ERROR(x)
+#else
 #ifdef _WIN32
 #define ERROR(x) lak::debugger.std_err(TO_STRING("ERROR" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #else
 #define ERROR(x) lak::debugger.std_err(TO_STRING("\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
 #endif
+#endif
 
 #ifdef WERROR
 #undef WERROR
 #endif
+
+#ifdef NOLOG
+#define WERROR(x)
+#else
 #ifdef _WIN32
 #define WERROR(x) lak::debugger.std_err(WTO_STRING(L"ERROR" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #else
 #define WERROR(x) lak::debugger.std_err(WTO_STRING(L"\x1B[91m\x1B[1m" L"ERROR" L"\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
+#endif
+
+#ifdef FATAL
+#undef FATAL
+#endif
+
+#ifdef _WIN32
+#define FATAL(x) { lak::debugger.std_err(TO_STRING("FATAL" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); std::abort(); }
+#else
+#define FATAL(x) { lak::debugger.std_err(TO_STRING("\x1B[91m\x1B[1m" "FATAL" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); std::abort(); }
+#endif
+
+#define STRINGIFY_EX(x) #x
+#define STRINGIFY(x) STRINGIFY_EX(x)
+
+#ifdef ASSERT
+#undef ASSERT
+#endif
+
+#define ASSERT(x) { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed") } }
+
+#ifdef ASSERTF
+#undef ASSERTF
+#endif
+
+#define ASSERTF(x, str) { if (!(x)) { FATAL("Assertion failed: " str) } }
 
 #endif

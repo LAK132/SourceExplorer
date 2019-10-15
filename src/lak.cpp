@@ -80,7 +80,7 @@ namespace lak
               bool doubleBuffered, int display)
   {
     SDL_SetMainReady();
-    assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+    ASSERT(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
 
     wnd.size = (vec2u32_t)screenSize;
 
@@ -104,18 +104,18 @@ namespace lak
               uint8_t stencilSize, int display)
   {
     SDL_SetMainReady();
-    assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+    ASSERT(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
 
-    assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, doubleBuffered) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   depthSize) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_RED_SIZE,     colorSize) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,   colorSize) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,    colorSize) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, stencilSize) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3) == 0);
-    assert(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, doubleBuffered) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   depthSize) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_RED_SIZE,     colorSize) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,   colorSize) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,    colorSize) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, stencilSize) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3) == 0);
+    ASSERT(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) == 0);
 
     wnd.size = (vec2u32_t)screenSize;
 
@@ -126,17 +126,17 @@ namespace lak
 
     wnd.glContext = SDL_GL_CreateContext(wnd.window);
 
-    assert(gl3wInit() == GL3W_OK); // context must be created before calling this
+    ASSERT(gl3wInit() == GL3W_OK); // context must be created before calling this
 
     SDL_GL_MakeCurrent(wnd.window, wnd.glContext);
 
     if (SDL_GL_SetSwapInterval(-1) == -1)
-      assert(SDL_GL_SetSwapInterval(1) == 0);
+      ASSERT(SDL_GL_SetSwapInterval(1) == 0);
   }
 
   void ShutdownGL(window_t &wnd)
   {
-    assert(wnd.glContext != nullptr);
+    ASSERT(wnd.glContext != nullptr);
     SDL_GL_DeleteContext(wnd.glContext);
     SDL_DestroyWindow(wnd.window);
     SDL_Quit();
@@ -146,7 +146,7 @@ namespace lak
               bool doubleBuffered, int display)
   {
     SDL_SetMainReady();
-    assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+    ASSERT(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
 
     wnd.size = (vec2u32_t)screenSize;
 

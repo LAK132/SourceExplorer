@@ -62,7 +62,7 @@ bool DecodeChunk(std::vector<uint8_t> &chunk, const std::vector<uint8_t> &magic_
     const m128i_t &xmmword, const char magic_char)
 {
     decode_buffer_t decodeBuffer;
-    assert(magic_key.size() >= 256);
+    if(magic_key.size() < 256) ERROR("Magic Key Too Small: 0x" << magic_key.size());
     if (GenerateTable(decodeBuffer, magic_key, xmmword, magic_char))
     {
         DecodeWithTable(chunk, decodeBuffer);
