@@ -6,7 +6,7 @@ set LIBDIR=lib
 set LIBS=SDL2main.lib SDL2.lib
 
 set SOURCE=src\main.cpp
-set BINARY=explorer.exe
+set BINARY=srcexp.exe
 
 set CXX=cl /nologo /std:c++17 /D_CRT_SECURE_NO_WARNINGS /MD /EHsc
 
