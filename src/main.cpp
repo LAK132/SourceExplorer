@@ -589,8 +589,10 @@ void SourceExplorerMain(float FrameTime)
     }
     else
     {
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10.0, 10.0));
         ImGui::Text("To open a game: File -> Open");
-        ImGui::Text("To save an error log: File -> Save Error Log");
+        ImGui::Text("!!If Source Explorer cannot open/throws errors while opening a file, please save the error log!!: File -> Save Error Log");
+        ImGui::PopStyleVar();
     }
 
     if      (SrcExp.exe.attempt)          se::AttemptExe(SrcExp);
