@@ -209,12 +209,127 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
     }
 }
 
+void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
+{
+    static lak::vec2u64_t imageSize = {256, 256};
+    static lak::vec2u64_t blockSkip = {0, 0};
+    static lak::image4_t image{lak::vec2s_t(imageSize)};
+    static lak::opengl::texture texture(GL_TEXTURE_2D);
+    static float scale = 1.0f;
+    static uint64_t from = 0;
+    static uint64_t to = SIZE_MAX;
+    static int colourSize = 3;
+    static const uint8_t *old_data = Data;
+
+    if (Data == nullptr && old_data == nullptr) return;
+
+    if (Data != nullptr && Data != old_data)
+    {
+        old_data = Data;
+        Update = true;
+    }
+
+    if (Update)
+    {
+        if (SrcExp.view != nullptr && Data == SrcExp.state.file.data())
+        {
+            from = SrcExp.view->position;
+            to = SrcExp.view->end;
+        }
+        else
+        {
+            from = 0;
+            to = SIZE_MAX;
+        }
+    }
+
+    Update |= !texture.get();
+
+    {
+        static bool count_mode = true;
+        ImGui::Checkbox("Fixed Size", &count_mode);
+        uint64_t count = to - from;
+
+        if (ImGui::DragScalar("From", ImGuiDataType_U64, &from, 1.0f))
+        {
+            if (count_mode)     to = from + count;
+            else if (from > to) to = from;
+            Update = true;
+        }
+        if (ImGui::DragScalar("To", ImGuiDataType_U64, &to, 1.0f))
+        {
+            if (from > to) from = to;
+            Update = true;
+        }
+        const static uint64_t sizeMin = 0;
+        const static uint64_t sizeMax = 10000;
+        if (ImGui::DragScalarN("Image Size", ImGuiDataType_U64, &imageSize, 2,
+                               1.0f, &sizeMin, &sizeMax))
+        {
+            image.resize(imageSize);
+            Update = true;
+        }
+        if (ImGui::DragScalarN("Stride/Skip", ImGuiDataType_U64, &blockSkip, 2,
+                               0.1f, &sizeMin, &sizeMax))
+        {
+            Update = true;
+        }
+        if (ImGui::SliderInt("Colour Size", &colourSize, 1, 4))
+        {
+            Update = true;
+        }
+    }
+
+    ImGui::Separator();
+
+    if (from > to) from = to;
+    if (from > Size) from = Size;
+    if (to > Size) to = Size;
+
+    if (Update)
+    {
+        image.fill({0, 0, 0, 255});
+
+        const auto begin = old_data;
+        const auto end = begin + to;
+        auto it = begin + from;
+
+        auto img = (uint8_t*)image.data();
+        const auto imgEnd = img + (image.contig_size() * sizeof(image[0]));
+
+        for (uint64_t i = 0; img < imgEnd && it < end; )
+        {
+            *img = *it;
+            ++it;
+            ++i;
+            if (blockSkip.x > 0 && (i % blockSkip.x) == 0)
+                it += blockSkip.y;
+            img += (5 - colourSize);
+        }
+
+        texture.bind()
+            .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
+            .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+            .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            .build(0, GL_RGBA, (lak::vec2<GLsizei>)image.size(), 0, GL_RGBA,
+                   GL_UNSIGNED_BYTE, image.data());
+    }
+
+    if (texture.get())
+    {
+        ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
+        ImGui::Separator();
+        ViewImage(texture, scale);
+    }
+}
+
 void MemoryExplorer(bool &Update)
 {
     static const se::basic_entry_t *last = nullptr;
     static int dataMode = 0;
+    static int contentMode = 0;
     static bool raw = true;
-    static bool bytePairs = false;
     Update |= last != SrcExp.view;
 
     Update |= ImGui::RadioButton("EXE", &dataMode, 0);
@@ -232,20 +347,31 @@ void MemoryExplorer(bool &Update)
             Update |= ImGui::Checkbox("Raw", &raw);
             ImGui::SameLine();
         }
-        Update |= ImGui::Checkbox("Byte Pairs", &bytePairs);
+        Update |= ImGui::RadioButton("Binary", &contentMode, 0);
+        ImGui::SameLine();
+        Update |= ImGui::RadioButton("Byte Pairs", &contentMode, 1);
+        ImGui::SameLine();
+        Update |= ImGui::RadioButton("Data Image", &contentMode, 2);
         ImGui::Separator();
     }
 
     if (dataMode == 0) // EXE
     {
-        if (bytePairs)
+        if (contentMode == 1)
         {
             BytePairsMemoryExplorer(SrcExp.state.file.data(),
                                     SrcExp.state.file.size(),
                                     Update);
         }
+        else if (contentMode == 2)
+        {
+            RawImageMemoryExplorer(SrcExp.state.file.data(),
+                                   SrcExp.state.file.size(),
+                                   Update);
+        }
         else
         {
+            if (contentMode != 0) contentMode = 0;
             SrcExp.editor.DrawContents(SrcExp.state.file.data(),
                                        SrcExp.state.file.size());
             if (Update && SrcExp.view != nullptr)
@@ -260,14 +386,21 @@ void MemoryExplorer(bool &Update)
                 ? SrcExp.view->header.data._data
                 : SrcExp.view->decodeHeader()._data;
 
-        if (bytePairs)
+        if (contentMode == 1)
         {
             BytePairsMemoryExplorer(SrcExp.buffer.data(),
                                     SrcExp.buffer.size(),
                                     Update);
         }
+        else if (contentMode == 2)
+        {
+            RawImageMemoryExplorer(SrcExp.buffer.data(),
+                                   SrcExp.buffer.size(),
+                                   Update);
+        }
         else
         {
+            if (contentMode != 0) contentMode = 0;
             SrcExp.editor.DrawContents(SrcExp.buffer.data(),
                                        SrcExp.buffer.size());
             if (Update)
@@ -281,14 +414,21 @@ void MemoryExplorer(bool &Update)
                 ? SrcExp.view->data.data._data
                 : SrcExp.view->decode()._data;
 
-        if (bytePairs)
+        if (contentMode == 1)
         {
             BytePairsMemoryExplorer(SrcExp.buffer.data(),
                                     SrcExp.buffer.size(),
                                     Update);
         }
+        else if (contentMode == 2)
+        {
+            RawImageMemoryExplorer(SrcExp.buffer.data(),
+                                   SrcExp.buffer.size(),
+                                   Update);
+        }
         else
         {
+            if (contentMode != 0) contentMode = 0;
             SrcExp.editor.DrawContents(SrcExp.buffer.data(),
                                        SrcExp.buffer.size());
             if (Update)
@@ -639,8 +779,8 @@ void SourceBytePairsMain(float FrameTime)
         se::Attempt(SrcExp.exe, load, manip);
 
     if (SrcExp.loaded) BytePairsMemoryExplorer(SrcExp.state.file.data(),
-                                            SrcExp.state.file.size(),
-                                            false);
+                                               SrcExp.state.file.size(),
+                                               false);
 }
 
 void MainScreen(float FrameTime)
