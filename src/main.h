@@ -48,7 +48,7 @@ namespace fs = std::filesystem;
 #include "image.h"
 namespace se = SourceExplorer;
 
-#define APP_NAME "OpenGL Demo Application"
+#define APP_NAME "Source Explorer"
 
 #ifndef MAIN_H
 #define MAIN_H
@@ -96,11 +96,7 @@ SOFTWARE.)");
     if (ImGui::TreeNode("tinflate"))
     {
         ImGui::Text("http://achurch.org/tinflate.c");
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("tinf"))
-    {
-        ImGui::Text("https://github.com/jibsen/tinf");
+        ImGui::Text("Fork: https://github.com/LAK132/tinflate");
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("stb_image_write"))
