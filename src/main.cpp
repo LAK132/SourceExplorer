@@ -816,13 +816,21 @@ void Update(float FrameTime)
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
     SrcExp.exe.path = SrcExp.images.path = SrcExp.sortedImages.path =
         SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
         SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
 
     SrcExp.errorLog.path = fs::current_path()/"error.log";
+
+    if (argc > 1)
+    {
+        SrcExp.babyMode = false;
+        SrcExp.exe.path = argv[1];
+        SrcExp.exe.valid = true;
+        SrcExp.exe.attempt = true;
+    }
 
     // const bool opengl = false;
     const bool opengl = true;
