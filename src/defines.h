@@ -212,9 +212,9 @@ namespace SourceExplorer
         // 4 bytes
         CHUNK2257       = 0x2257,
         // Fonts
-        CHUNK2258       = 0x2258,
-        // Compressed
-        CHUNK2259       = 0x2259,
+        FONTBANK2       = 0x2258,
+        // True Type Font ??
+        FONTCHUNK       = 0x2259,
         // Frame Chunks (0x33XX)
         FRAME           = 0x3333,
         FRAMEHEADER     = 0x3334,

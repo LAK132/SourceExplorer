@@ -735,8 +735,8 @@ namespace SourceExplorer
             case chunk_t::CHUNK2255:        return "CHUNK 2255 (Empty?)";
             case chunk_t::CHUNK2256:        return "CHUNK 2256 (Compressed?)";
             case chunk_t::CHUNK2257:        return "CHUNK 2257 (4 bytes?)";
-            case chunk_t::CHUNK2258:        return "CHUNK 2258 (Fonts?)";
-            case chunk_t::CHUNK2259:        return "CHUNK 2259 (Compressed?)";
+            case chunk_t::FONTBANK2:        return "Font Bank 2";
+            case chunk_t::FONTCHUNK:        return "Font Chunk";
 
             case chunk_t::FRAME:            return "Frame";
             case chunk_t::FRAMEHEADER:      return "Frame Header";
@@ -881,7 +881,7 @@ namespace SourceExplorer
 
         if (error != tinf::error_t::OK)
         {
-            ERROR("Failed To Decompress: " << tinf::error_name(error));
+            ERROR("Failed To Inflate: " << tinf::error_name(error));
             DEBUG("Buffer Size: " << buffer.size());
             DEBUG("Max Size: " << max_size);
             DEBUG("Final? "  << (state.final ? "True" : "False"));
@@ -895,6 +895,7 @@ namespace SourceExplorer
     {
         auto result = Inflate(compressed, skip_header, anaconda, max_size);
         if (result) out = std::move(*result);
+        else ERROR("... Failed To Inflate");
         return (bool)result;
     }
 
@@ -902,6 +903,7 @@ namespace SourceExplorer
     {
         auto result = Inflate(compressed, skip_header, anaconda, max_size);
         if (result) out = std::move(*result);
+        else ERROR("... Failed To Inflate");
         return (bool)result;
     }
 
@@ -1114,7 +1116,9 @@ namespace SourceExplorer
         if (newItem)
         {
             WARNING("New Item");
-            strm.position += 12;
+            headersize = 12;
+            mode = encoding_t::MODE0;
+            compressed = false;
         }
 
         if (!game.oldGame && headersize > 0)
@@ -1124,9 +1128,7 @@ namespace SourceExplorer
             header.data = strm.read(headersize);
         }
 
-        data.expectedSize = !newItem && (game.oldGame || compressed)
-            ? strm.read_u32()
-            : 0;
+        data.expectedSize = game.oldGame || compressed ? strm.read_u32() : 0;
 
         size_t dataSize;
         if (game.oldGame)
@@ -1210,7 +1212,7 @@ namespace SourceExplorer
                         result.position -= 3;
                         if (!Inflate(result, result._data, true, true, std::min(data.expectedSize, max_size)))
                         {
-                            ERROR("MODE1 Decompression Failed");
+                            ERROR("... MODE1 Failed To Inflate");
                             result.clear();
                         }
                     }
@@ -1232,14 +1234,14 @@ namespace SourceExplorer
                     }
                     else
                     {
-                        ERROR("Decryption Failed");
+                        ERROR("... Decryption Failed");
                         result.clear();
                     }
                     break;
                 case encoding_t::MODE1:
                     if (!Inflate(result, data.data._data, false, false, max_size))
                     {
-                        ERROR("MODE1 Inflation Failed");
+                        ERROR("... MODE1 Failed To Inflate");
                         result.clear();
                     }
                     break;
@@ -1248,7 +1250,7 @@ namespace SourceExplorer
                     {
                         if (!Inflate(result, data.data._data, false, false, max_size))
                         {
-                            DEBUG("Guessed MODE1 Inflation Failed");
+                            WARNING("... Guessed MODE1 Failed To Inflate");
                             result = data.data._data;
                         }
                     }
@@ -3644,7 +3646,7 @@ namespace SourceExplorer
                     break;
 
                 case chunk_t::CHUNK2256:
-                case chunk_t::CHUNK2259:
+                case chunk_t::FONTCHUNK:
                     DEBUG("Reading Unknown Compressed Chunk");
                     unknownCompressed.emplace_back();
                     result = unknownCompressed.back().read(game, strm);
