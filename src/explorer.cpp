@@ -1075,7 +1075,6 @@ namespace SourceExplorer
     {
         if (lak::TreeNode("Entry Information##%zX", position))
         {
-            ImGui::Separator();
             if (old)
                 ImGui::Text("Old Entry");
             else
@@ -1095,7 +1094,6 @@ namespace SourceExplorer
             ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
             ImGui::Text("Data Size: 0x%zX", data.data.size());
 
-            ImGui::Separator();
             ImGui::TreePop();
         }
 
@@ -1112,6 +1110,13 @@ namespace SourceExplorer
         mode = encoding_t::MODE0;
         handle = strm.read_u32();
 
+        const bool newItem = strm.peek_s32() == -1;
+        if (newItem)
+        {
+            WARNING("New Item");
+            strm.position += 12;
+        }
+
         if (!game.oldGame && headersize > 0)
         {
             header.position = strm.position;
@@ -1119,7 +1124,9 @@ namespace SourceExplorer
             header.data = strm.read(headersize);
         }
 
-        data.expectedSize = game.oldGame || compressed ? strm.read_u32() : 0;
+        data.expectedSize = !newItem && (game.oldGame || compressed)
+            ? strm.read_u32()
+            : 0;
 
         size_t dataSize;
         if (game.oldGame)
@@ -1139,7 +1146,7 @@ namespace SourceExplorer
         }
         else
         {
-            dataSize = strm.read_u32();
+            dataSize = strm.read_u32() + (newItem ? 20 : 0);
         }
 
         data.position = strm.position;
@@ -1175,7 +1182,6 @@ namespace SourceExplorer
             ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
             ImGui::Text("Data Size: 0x%zX", data.data.size());
 
-            ImGui::Separator();
             ImGui::TreePop();
         }
 
@@ -1627,6 +1633,10 @@ namespace SourceExplorer
             ImGui::Separator();
 
             entry.view(srcexp);
+
+            ImGui::Text("Image Size: %zu * %zu",
+                        (size_t)bitmap.size().x,
+                        (size_t)bitmap.size().y);
 
             if (ImGui::Button("View Image"))
             {
@@ -3045,6 +3055,7 @@ namespace SourceExplorer
                 if (!game.oldGame) transparent = ColorFrom32bitRGBA(istrm);
                 dataPosition = istrm.position;
             }
+            else ERROR("Error Reading Image (Handle: " << entry.handle << ")");
 
             return result;
         }
@@ -3062,12 +3073,18 @@ namespace SourceExplorer
                 ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
                 ImGui::Text("Reference: 0x%zX", (size_t)reference);
                 ImGui::Text("Data Size: 0x%zX", (size_t)dataSize);
-                ImGui::Text("Image Size: %zu * %zu", (size_t)size.x, (size_t)size.y);
+                ImGui::Text("Image Size: %zu * %zu",
+                            (size_t)size.x,
+                            (size_t)size.y);
                 ImGui::Text("Graphics Mode: 0x%zX", (size_t)graphicsMode);
                 ImGui::Text("Image Flags: 0x%zX", (size_t)flags);
                 ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
-                ImGui::Text("Hotspot: (%zu, %zu)", (size_t)hotspot.x, (size_t)hotspot.y);
-                ImGui::Text("Action: (%zu, %zu)", (size_t)action.x, (size_t)action.y);
+                ImGui::Text("Hotspot: (%zu, %zu)",
+                            (size_t)hotspot.x,
+                            (size_t)hotspot.y);
+                ImGui::Text("Action: (%zu, %zu)",
+                            (size_t)action.x,
+                            (size_t)action.y);
                 {
                     lak::vec4f_t col = ((lak::vec4f_t)transparent) / 255.0f;
                     ImGui::ColorEdit4("Transparent", &col.x);
