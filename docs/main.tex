@@ -258,6 +258,28 @@ items, which could be used to derive the length of the `Data' portion.
   \\ \hline
 \end{tabular}
 
+\subsubsection[Unknown CTF items]{Unknown Clickteam Fusion items}
+
+\begin{tabular}{c|c|c|c|c|c|c|c}
+  0x0 & 0x1 & 0x2 & 0x3 & 0x4 & 0x5 & 0x6 & 0x7
+  \\ \hline
+  \multicolumn{4}{|c|}{Id} &
+  \multicolumn{1}{|c|}{0xFF} &
+  \multicolumn{1}{|c|}{0xFF} &
+  \multicolumn{1}{|c|}{0xFF} &
+  \multicolumn{1}{|c|}{0xFF}
+  \\ \hline
+  \multicolumn{4}{|c|}{Unknown} &
+  \multicolumn{1}{|c|}{0x01} &
+  \multicolumn{1}{|c|}{0x00} &
+  \multicolumn{1}{|c|}{0x00} &
+  \multicolumn{1}{|c|}{0x00}
+  \\ \hline \hline
+  \multicolumn{4}{|c|}{Size} &
+  \multicolumn{4}{|c}{Data... [Size + 20]}
+  \\ \hline
+\end{tabular}
+
 
 \subsection{Banks}
 \label{subsec:banks}
@@ -531,15 +553,15 @@ data, they follow directly after the bank chunk.
 \\
 `4 bytes'
 
-\subsubsection{Chunk 2258}
-\verb|CHUNK2258 = 0x2258|
+\subsubsection{Font Bank 2}
+\verb|FONTBANK2 = 0x2258|
 \\
 `Fonts'
 
-\subsubsection{Chunk 2259}
-\verb|CHUNK2259 = 0x2259|
+\subsubsection{Font}
+\verb|FONTCHUNK = 0x2259|
 \\
-`Compressed'
+`Font'
 
 \subsection{Frame chunks - 0x33XX}
 
