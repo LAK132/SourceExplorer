@@ -23,6 +23,8 @@
 #include <lak/opengl/shader.hpp>
 
 se::source_explorer_t SrcExp;
+const bool opengl = true;
+int openglMajor, openglMinor;
 
 #ifndef MAXDIRLEN
 #define MAXDIRLEN 512
@@ -57,7 +59,8 @@ void MenuBar(float FrameTime)
     }
     if (ImGui::BeginMenu("About"))
     {
-        ImGui::Text("Source Explorer v0.2.4");
+        ImGui::Text(APP_NAME " " APP_VERSION);
+        if (opengl) ImGui::Text("OpenGL %d.%d", openglMajor, openglMinor);
         ImGui::Text("Frame rate %f", 1.0f / FrameTime);
         credits();
         ImGui::Checkbox("Byte Pairs", &bytePairsMode);
@@ -832,16 +835,16 @@ int main(int argc, char **argv)
         SrcExp.exe.attempt = true;
     }
 
-    // const bool opengl = false;
-    const bool opengl = true;
     lak::window_t window;
     if (opengl)
     {
-        lak::InitGL(window, "Source Explorer", {1280, 720}, true);
+        lak::InitGL(window, APP_NAME, {1280, 720}, true);
+        glGetIntegerv(GL_MAJOR_VERSION, &openglMajor);
+        glGetIntegerv(GL_MINOR_VERSION, &openglMinor);
     }
     else
     {
-        lak::InitSR(window, "Source Explorer", {1280, 720}, true);
+        lak::InitSR(window, APP_NAME, {1280, 720}, true);
         SDL_GetWindowSurface(window.window);
     }
 
