@@ -148,14 +148,20 @@ namespace lak
 #endif
 #endif
 
+#ifdef ENTER_CONTINUE
+#undef ENTER_CONTINUE
+#endif
+
+#define ENTER_CONTINUE { std::cout << "Press enter to continue..."; getchar(); }
+
 #ifdef FATAL
 #undef FATAL
 #endif
 
 #ifdef _WIN32
-#define FATAL(x) { lak::debugger.std_err(TO_STRING("FATAL" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); std::abort(); }
+#define FATAL(x) { lak::debugger.std_err(TO_STRING("FATAL" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); ENTER_CONTINUE; std::abort(); }
 #else
-#define FATAL(x) { lak::debugger.std_err(TO_STRING("\x1B[91m\x1B[1m" "FATAL" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); std::abort(); }
+#define FATAL(x) { lak::debugger.std_err(TO_STRING("\x1B[91m\x1B[1m" "FATAL" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); ENTER_CONTINUE; std::abort(); }
 #endif
 
 #define STRINGIFY_EX(x) #x
