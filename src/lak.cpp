@@ -80,7 +80,10 @@ namespace lak
               bool doubleBuffered, int display)
   {
     SDL_SetMainReady();
-    ASSERT(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+    ASSERTF(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0,
+            "Failed to initialise SDL. Make sure you system has SDL2 "
+            "installed or the SDL dll is in the same directory as Source "
+            "Explorer");
 
     wnd.size = (vec2u32_t)screenSize;
 
@@ -104,7 +107,10 @@ namespace lak
               uint8_t stencilSize, int display)
   {
     SDL_SetMainReady();
-    ASSERT(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+    ASSERTF(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0,
+            "Failed to initialise SDL. Make sure you system has SDL2 "
+            "installed or the SDL dll is in the same directory as Source "
+            "Explorer");
 
     ASSERT(SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG) == 0);
     ASSERT(SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE) == 0);
@@ -126,7 +132,11 @@ namespace lak
 
     wnd.glContext = SDL_GL_CreateContext(wnd.window);
 
-    ASSERT(gl3wInit() == GL3W_OK); // context must be created before calling this
+    // context must be created before calling this
+    ASSERTF(gl3wInit() == GL3W_OK,
+            "Failed to initialise OpenGL. It is possible that your computer "
+            "does not support OpenGL 3.2 which Source Explorer requires to "
+            "run.");
 
     SDL_GL_MakeCurrent(wnd.window, wnd.glContext);
 
@@ -146,7 +156,10 @@ namespace lak
               bool doubleBuffered, int display)
   {
     SDL_SetMainReady();
-    ASSERT(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+    ASSERTF(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0,
+            "Failed to initialise SDL. Make sure you system has SDL2 "
+            "installed or the SDL dll is in the same directory as Source "
+            "Explorer");
 
     wnd.size = (vec2u32_t)screenSize;
 
