@@ -177,6 +177,6 @@ namespace lak
 #undef ASSERTF
 #endif
 
-#define ASSERTF(x, str) { if (!(x)) { FATAL("Assertion failed: " str) } }
+#define ASSERTF(x, str) { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed: " str) } }
 
 #endif

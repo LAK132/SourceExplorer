@@ -136,7 +136,8 @@ namespace lak
     ASSERTF(gl3wInit() == GL3W_OK,
             "Failed to initialise OpenGL. It is possible that your computer "
             "does not support OpenGL 3.2 which Source Explorer requires to "
-            "run.");
+            "run.\n!!THIS IS NOT A BUG!! (unless you are certain that your "
+            "computer does support OpenGL 3.2)");
 
     SDL_GL_MakeCurrent(wnd.window, wnd.glContext);
 
