@@ -214,8 +214,8 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
 
 void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
 {
-    static lak::vec2u64_t imageSize = {256, 256};
-    static lak::vec2u64_t blockSkip = {0, 0};
+    static lak::vec2u32_t imageSize = {256, 256};
+    static lak::vec2u32_t blockSkip = {0, 0};
     static lak::image4_t image{lak::vec2s_t(imageSize)};
     static lak::opengl::texture texture(GL_TEXTURE_2D);
     static float scale = 1.0f;
@@ -269,7 +269,7 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
         if (ImGui::DragScalarN("Image Size", ImGuiDataType_U64, &imageSize, 2,
                                1.0f, &sizeMin, &sizeMax))
         {
-            image.resize(imageSize);
+            image.resize(lak::vec2s_t(imageSize));
             Update = true;
         }
         if (ImGui::DragScalarN("Stride/Skip", ImGuiDataType_U64, &blockSkip, 2,
