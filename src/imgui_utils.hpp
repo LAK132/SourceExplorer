@@ -78,13 +78,14 @@ namespace lak
 
 
   template<typename R, typename ...T, typename ...D>
-  bool await_popup(const char *str_id, bool &open, std::thread *&staticThread,
+  bool await_popup(const char *str_id, bool &open,
+                   std::unique_ptr<std::thread> &staticThread,
                    std::atomic<bool> &staticFinished, R(*callback)(T...),
                    const std::tuple<D...> &callbackData)
   {
     if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
     {
-      if (lak::Await(staticThread, &staticFinished, callback, callbackData))
+      if (lak::await(staticThread, staticFinished, callback, callbackData))
       {
         ImGui::CloseCurrentPopup();
         ImGui::EndPopup();

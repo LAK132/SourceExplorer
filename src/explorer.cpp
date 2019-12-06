@@ -43,7 +43,7 @@ namespace SourceExplorer
         srcexp.state = game_t{};
         srcexp.state.compat = forceCompat;
 
-        srcexp.state.file = lak::LoadFile(srcexp.exe.path);
+        srcexp.state.file = lak::read_file(srcexp.exe.path);
 
         DEBUG("File Size: 0x" << srcexp.state.file.size());
 
@@ -305,23 +305,23 @@ namespace SourceExplorer
             return error_t::INVALID_GAME_HEADER;
         }
 
-        do {
-            gameState.runtimeVersion = (product_code_t)strm.read_u16();
-            DEBUG("Runtime Version: 0x" << (int)gameState.runtimeVersion);
-            if (gameState.runtimeVersion == product_code_t::CNCV1VER)
-            {
-                DEBUG("CNCV1VER");
-                // cnc = true;
-                // readCNC(strm);
-                break;
-            }
+        gameState.runtimeVersion = (product_code_t)strm.read_u16();
+        DEBUG("Runtime Version: 0x" << (int)gameState.runtimeVersion);
+        if (gameState.runtimeVersion == product_code_t::CNCV1VER)
+        {
+            DEBUG("CNCV1VER");
+            // cnc = true;
+            // readCNC(strm);
+        }
+        else
+        {
             gameState.runtimeSubVersion = strm.read_u16();
             DEBUG("Runtime Sub-Version: 0x" << gameState.runtimeSubVersion);
             gameState.productVersion = strm.read_u32();
             DEBUG("Product Version: 0x" << gameState.productVersion);
             gameState.productBuild = strm.read_u32();
             DEBUG("Product Build: 0x" << gameState.productBuild);
-        } while(0);
+        }
 
         return error_t::OK;
     }
@@ -368,21 +368,16 @@ namespace SourceExplorer
 
         for (int32_t i = 0; i < count; ++i)
         {
-            if ((strm.size() - strm.position) < 2)
-                break;
-
+            if ((strm.size() - strm.position) < 2) break;
             uint32_t val = strm.read_u16();
-            if ((strm.size() - strm.position) < val)
-                break;
 
+            if ((strm.size() - strm.position) < val) break;
             strm.position += val;
-            if ((strm.size() - strm.position) < 4)
-                break;
 
+            if ((strm.size() - strm.position) < 4) break;
             val = strm.read_u32();
-            if ((strm.size() - strm.position) < val)
-                break;
 
+            if ((strm.size() - strm.position) < val) break;
             strm.position += val;
         }
 
@@ -657,29 +652,81 @@ namespace SourceExplorer
         }
     }
 
-    lak::opengl::texture CreateTexture(const lak::image4_t &bitmap)
+    texture_t CreateTexture(const lak::image4_t &bitmap,
+                            const lak::graphics_mode mode)
     {
-        auto [old_texture] = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
+        if (mode == lak::graphics_mode::OPENGL)
+        {
+            auto old_texture = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
 
-        lak::opengl::texture result(GL_TEXTURE_2D);
-        result.bind()
-            .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
-            .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-            .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-            .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-            .build(0, GL_RGBA, (lak::vec2<GLsizei>)bitmap.size(), 0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap.data());
+            lak::opengl::texture result(GL_TEXTURE_2D);
+            result.bind()
+                .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
+                .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+                .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+                .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+                .build(0, GL_RGBA, (lak::vec2<GLsizei>)bitmap.size(),
+                       0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap.data());
 
-        glBindTexture(GL_TEXTURE_2D, old_texture);
+            glBindTexture(GL_TEXTURE_2D, old_texture);
 
-        return std::move(result);
+            return result;
+        }
+        else if (mode == lak::graphics_mode::SOFTWARE)
+        {
+            texture_color32_t result;
+            result.copy(bitmap.size().x, bitmap.size().y,
+                        (color32_t*)bitmap.data());
+            return result;
+        }
+        else
+        {
+            FATAL("Unknown graphics mode: 0x" << (uintmax_t)mode);
+            return std::monostate{};
+        }
     }
 
     void ViewImage(source_explorer_t &srcexp, const float scale)
     {
         // :TODO: Select palette
-        ImGui::Image((ImTextureID)(uintptr_t)srcexp.image.get(),
-            ImVec2(scale * (float)srcexp.image.size().x,
-                   scale * (float)srcexp.image.size().y));
+        if (std::holds_alternative<lak::opengl::texture>(srcexp.image))
+        {
+            const auto &img = std::get<lak::opengl::texture>(srcexp.image);
+            if (!img.get() ||
+                srcexp.graphicsMode != lak::graphics_mode::OPENGL)
+            {
+                ImGui::Text("No image selected.");
+            }
+            else
+            {
+                ImGui::Image((ImTextureID)(uintptr_t)img.get(),
+                             ImVec2(scale * (float)img.size().x,
+                                    scale * (float)img.size().y));
+            }
+        }
+        else if (std::holds_alternative<texture_color32_t>(srcexp.image))
+        {
+            const auto &img = std::get<texture_color32_t>(srcexp.image);
+            if (!img.pixels ||
+                srcexp.graphicsMode != lak::graphics_mode::SOFTWARE)
+            {
+                ImGui::Text("No image selected.");
+            }
+            else
+            {
+                ImGui::Image((ImTextureID)(uintptr_t)&img,
+                             ImVec2(scale * (float)img.w,
+                                    scale * (float)img.h));
+            }
+        }
+        else if (std::holds_alternative<std::monostate>(srcexp.image))
+        {
+            ImGui::Text("No image selected.");
+        }
+        else
+        {
+            ERROR("Invalid texture type");
+        }
     }
 
     const char *GetTypeString(const basic_entry_t &entry)
@@ -1642,7 +1689,7 @@ namespace SourceExplorer
 
             if (ImGui::Button("View Image"))
             {
-                srcexp.image = CreateTexture(bitmap);
+                srcexp.image = CreateTexture(bitmap, SrcExp.graphicsMode);
             }
 
             ImGui::TreePop();
@@ -3095,7 +3142,7 @@ namespace SourceExplorer
 
                 if (ImGui::Button("View Image"))
                 {
-                    srcexp.image = std::move(CreateTexture(image(srcexp.dumpColorTrans)));
+                    srcexp.image = std::move(CreateTexture(image(srcexp.dumpColorTrans), srcexp.graphicsMode));
                 }
 
                 ImGui::Separator();

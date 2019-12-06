@@ -25,6 +25,7 @@
 #include <atomic>
 #include <stack>
 #include <vector>
+#include <variant>
 #include <unordered_map>
 #include <iterator>
 
@@ -35,6 +36,7 @@
 #include <strconv/strconv.hpp>
 #include "defines.h"
 #include <tinflate/tinflate.hpp>
+#include <memory/memory.hpp>
 
 #ifndef EXPLORER_H
 #define EXPLORER_H
@@ -66,6 +68,10 @@ namespace SourceExplorer
 
     struct game_t;
     struct source_explorer_t;
+
+    using texture_t = std::variant<std::monostate,
+                                   lak::opengl::texture,
+                                   texture_color32_t>;
 
     struct pack_file_t
     {
@@ -863,6 +869,8 @@ namespace SourceExplorer
 
     struct source_explorer_t
     {
+        lak::graphics_mode graphicsMode;
+
         game_t state;
 
         bool loaded = false;
@@ -881,7 +889,7 @@ namespace SourceExplorer
         MemoryEditor editor;
 
         const basic_entry_t *view = nullptr;
-        lak::opengl::texture image;
+        texture_t image;
         std::vector<uint8_t> buffer;
     };
 
@@ -903,8 +911,9 @@ namespace SourceExplorer
         game_t &gameState
     );
 
-    lak::opengl::texture CreateTexture(
-        const lak::image4_t &bitmap
+    texture_t CreateTexture(
+        const lak::image4_t &bitmap,
+        const lak::graphics_mode mode
     );
 
     void ViewImage(

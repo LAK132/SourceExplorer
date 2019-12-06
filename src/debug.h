@@ -52,131 +52,71 @@ namespace lak
   extern debugger_t debugger;
 }
 
-#ifdef DEBUG_LINE_FILE
-#undef DEBUG_LINE_FILE
-#endif
-
-#ifdef _WIN32
-#define DEBUG_LINE_FILE "(" << __FILE__ << ":" << std::dec << __LINE__ << ")"
+#ifdef NDEBUG
+#define TRY try
+#define CATCH(X) catch(X)
 #else
-#define DEBUG_LINE_FILE "\x1B[2m(" << __FILE__ << ":" << std::dec << __LINE__ << ")\x1B[0m"
-#endif
-
-#ifdef WDEBUG_LINE_FILE
-#undef WDEBUG_LINE_FILE
-#endif
-
-#ifdef _WIN32
-#define WDEBUG_LINE_FILE L"(" << __FILE__ << L":" << std::dec << __LINE__ << L")"
-#else
-#define WDEBUG_LINE_FILE L"\x1B[2m(" << __FILE__ << L":" << std::dec << __LINE__ << L")\x1B[0m"
-#endif
-
-#ifdef DEBUG
-#undef DEBUG
-#endif
-
-#ifdef NOLOG
-#define DEBUG(x)
-#else
-#define DEBUG(x) lak::debugger.std_out(TO_STRING("DEBUG" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
-#endif
-
-#ifdef WDEBUG
-#undef WDEBUG
-#endif
-
-#ifdef NOLOG
-#define WDEBUG(x)
-#else
-#define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-#endif
-
-#ifdef WARNING
-#undef WARNING
-#endif
-
-#ifdef NOLOG
-#define WARNING(x)
-#else
-#ifdef _WIN32
-#define WARNING(x) lak::debugger.std_err(TO_STRING("WARNING" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
-#else
-#define WARNING(x) lak::debugger.std_err(TO_STRING("\x1B[33m\x1B[1m" "WARNING" "\x1B[0m\x1B[33m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
-#endif
-#endif
-
-#ifdef WWARNING
-#undef WWARNING
-#endif
-
-#ifdef NOLOG
-#define WWARNING(x)
-#else
-#ifdef _WIN32
-#define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"WARNING" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-#else
-#define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"\x1B[33m\x1B[1m" L"WARNING" L"\x1B[0m\x1B[33m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-#endif
-#endif
-
-#ifdef ERROR
-#undef ERROR
-#endif
-
-#ifdef NOLOG
-#define ERROR(x)
-#else
-#ifdef _WIN32
-#define ERROR(x) lak::debugger.std_err(TO_STRING("ERROR" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
-#else
-#define ERROR(x) lak::debugger.std_err(TO_STRING("\x1B[91m\x1B[1m" "ERROR" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n"));
-#endif
-#endif
-
-#ifdef WERROR
-#undef WERROR
-#endif
-
-#ifdef NOLOG
-#define WERROR(x)
-#else
-#ifdef _WIN32
-#define WERROR(x) lak::debugger.std_err(WTO_STRING(L"ERROR" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-#else
-#define WERROR(x) lak::debugger.std_err(WTO_STRING(L"\x1B[91m\x1B[1m" L"ERROR" L"\x1B[0m\x1B[91m" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-#endif
-#endif
-
-#ifdef ENTER_CONTINUE
-#undef ENTER_CONTINUE
-#endif
-
-#define ENTER_CONTINUE { std::cout << "Press enter to continue..."; getchar(); }
-
-#ifdef FATAL
-#undef FATAL
-#endif
-
-#ifdef _WIN32
-#define FATAL(x) { lak::debugger.std_err(TO_STRING("FATAL" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); ENTER_CONTINUE; std::abort(); }
-#else
-#define FATAL(x) { lak::debugger.std_err(TO_STRING("\x1B[91m\x1B[1m" "FATAL" "\x1B[0m\x1B[91m" << DEBUG_LINE_FILE << ": "), TO_STRING(std::hex << x << "\n")); ENTER_CONTINUE; std::abort(); }
+#define TRY
+#define CATCH(X) try {} catch(X)
 #endif
 
 #define STRINGIFY_EX(x) #x
 #define STRINGIFY(x) STRINGIFY_EX(x)
 
-#ifdef ASSERT
-#undef ASSERT
+#define LAK_ESC "\x1B"
+#define LAK_CSI LAK_ESC "["
+#define LAK_SGR(x) LAK_CSI STRINGIFY(x) "m"
+#define LAK_SGR_RESET LAK_SGR(0)
+#define LAK_BOLD LAK_SGR(1)
+#define LAK_FAINT LAK_SGR(2)
+#define LAK_ITALIC LAK_SGR(3)
+#define LAK_YELLOW LAK_SGR(33)
+#define LAK_BRIGHT_RED LAK_SGR(91)
+
+#ifdef NOLOG
+# define CHECKPOINT()
+# define DEBUG(x)
+# define WDEBUG(x)
+#else
+# ifdef _WIN32
+#   define  DEBUG_LINE_FILE  "(" << __FILE__ <<  ":" << std::dec << __LINE__ <<  ")"
+#   define WDEBUG_LINE_FILE L"(" << __FILE__ << L":" << std::dec << __LINE__ << L")"
+# else
+#   define  DEBUG_LINE_FILE     LAK_FAINT "(" << __FILE__ <<  ":" << std::dec << __LINE__ <<  ")" LAK_SGR_RESET
+#   define WDEBUG_LINE_FILE L"" LAK_FAINT "(" << __FILE__ << L":" << std::dec << __LINE__ << L")" LAK_SGR_RESET
+# endif
+# define CHECKPOINT() std::cerr << "CHECKPOINT" << DEBUG_LINE_FILE << "\n";
+# define  DEBUG(x) lak::debugger.std_out( TO_STRING( "DEBUG" <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
+# define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
 
-#define ASSERT(x) { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed") } }
+#define ABORT() { std::cerr << "Aborted. Press enter to continue..."; getchar(); std::abort(); }
 
-#ifdef ASSERTF
-#undef ASSERTF
+#if defined(NOLOG)
+# define  WARNING(x)
+# define WWARNING(x)
+# define  ERROR(x)
+# define WERROR(x)
+# define ABORTF(x) ABORT()
+# define FATAL(x)
+#elif defined(_WIN32)
+# define  WARNING(x) lak::debugger.std_err( TO_STRING( "WARNING" <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
+# define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"WARNING" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+# define  ERROR(x)   lak::debugger.std_err( TO_STRING( "ERROR"   <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
+# define WERROR(x)   lak::debugger.std_err(WTO_STRING(L"ERROR"   << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+# define ABORTF(x) { std::cerr << X << "\n"; ABORT() }
+# define FATAL(x)  { lak::debugger.std_err( TO_STRING( "FATAL"   <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x << "\n")); ABORT(); }
+#else
+# define  WARNING(x) lak::debugger.std_err( TO_STRING(    LAK_YELLOW     LAK_BOLD "WARNING" LAK_SGR_RESET LAK_YELLOW     <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
+# define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"" LAK_YELLOW     LAK_BOLD "WARNING" LAK_SGR_RESET LAK_YELLOW     << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+# define  ERROR(x)   lak::debugger.std_err( TO_STRING(    LAK_BRIGHT_RED LAK_BOLD "ERROR"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
+# define WERROR(x)   lak::debugger.std_err(WTO_STRING(L"" LAK_BRIGHT_RED LAK_BOLD "ERROR"   LAK_SGR_RESET LAK_BRIGHT_RED << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
+# define ABORTF(x) { std::cerr << X << "\n"; ABORT(); }
+# define FATAL(x)  { lak::debugger.std_err(TO_STRING(     LAK_BRIGHT_RED LAK_BOLD "FATAL"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x << "\n")); ABORT(); }
 #endif
 
-#define ASSERTF(x, str) { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed: " str) } }
+#define ASSERT(x)       { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed"); } }
+#define ASSERTF(x, str) { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed: " str); } }
+#define NOISY_ABORT()   { ABORTF(lak::debugger.stream.str()); }
 
 #endif

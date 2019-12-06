@@ -78,7 +78,7 @@ namespace SourceExplorer
     if (!FileState.valid)
     {
       if (Load(FileState))
-        if (!FileState.valid)
+        if (!FileState.valid) // User cancelled
           FileState.attempt = false;
     }
     else if (Manip())

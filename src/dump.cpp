@@ -74,7 +74,7 @@ bool se::OpenGame(source_explorer_t &srcexp)
 {
     static std::tuple<se::source_explorer_t&> data = {srcexp};
 
-    static std::thread *thread = nullptr;
+    static std::unique_ptr<std::thread> thread = nullptr;
     static std::atomic<bool> finished = false;
     static bool popupOpen = false;
 
@@ -107,7 +107,7 @@ bool se::DumpStuff(source_explorer_t &srcexp,
   static std::atomic<float> completed = 0.0f;
   static dump_data_t data = {srcexp, completed};
 
-  static std::thread *thread = nullptr;
+  static std::unique_ptr<std::thread> thread = nullptr;
   static std::atomic<bool> finished = false;
   static bool popupOpen = false;
 
@@ -477,7 +477,7 @@ void se::DumpSounds(source_explorer_t &srcexp,
     fs::path filename = srcexp.sounds.path / name;
     std::vector<uint8_t> file(sound.cursor(), sound.end());
 
-    if (!lak::SaveFile(filename, file))
+    if (!lak::save_file(filename, file))
     {
       ERROR("Failed To Save File '" << filename << "'");
     }
@@ -543,7 +543,7 @@ void se::DumpMusic(source_explorer_t &srcexp,
     fs::path filename = srcexp.music.path / name;
     std::vector<uint8_t> file(sound.cursor(), sound.end());
 
-    if (!lak::SaveFile(filename, file))
+    if (!lak::save_file(filename, file))
     {
       ERROR("Failed To Save File '" << filename << "'");
     }
@@ -584,8 +584,8 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
     std::string file = strm.read_string();
 
     DEBUG(filename);
-    if (!lak::SaveFile(filename, std::vector<uint8_t>(file.begin(),
-                                                      file.end())))
+    if (!lak::save_file(filename, std::vector<uint8_t>(file.begin(),
+                                                       file.end())))
     {
       ERROR("Failed To Save File '" << filename << "'");
     }
@@ -612,7 +612,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
     fs::path filename = file.name;
     filename = srcexp.binaryFiles.path / filename.filename();
     DEBUG(filename);
-    if (!lak::SaveFile(filename, file.data._data))
+    if (!lak::save_file(filename, file.data._data))
     {
       ERROR("Failed To Save File '" << filename << "'");
     }
@@ -623,7 +623,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
 void se::SaveErrorLog(source_explorer_t &srcexp,
                       std::atomic<float> &completed)
 {
-  if (!lak::SaveFile(srcexp.errorLog.path, lak::debugger.str()))
+  if (!lak::save_file(srcexp.errorLog.path, lak::debugger.str()))
   {
     ERROR("Failed To Save File '" << srcexp.errorLog.path << "'");
   }

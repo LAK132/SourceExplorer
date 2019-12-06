@@ -166,7 +166,7 @@ namespace lak
     {
         if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            if (lak::Await(staticThread, &staticFinished, callback, callbackData))
+            if (lak::await(staticThread, &staticFinished, callback, callbackData))
             {
                 ImGui::CloseCurrentPopup();
                 ImGui::EndPopup();
