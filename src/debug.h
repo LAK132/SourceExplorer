@@ -100,6 +100,8 @@ namespace lak
 # define ABORTF(x) ABORT()
 # define FATAL(x)
 #elif defined(_WIN32)
+// Windows needs to seriously fuck off
+# undef ERROR
 # define  WARNING(x) lak::debugger.std_err( TO_STRING( "WARNING" <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
 # define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"WARNING" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 # define  ERROR(x)   lak::debugger.std_err( TO_STRING( "ERROR"   <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
