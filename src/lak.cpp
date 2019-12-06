@@ -75,7 +75,7 @@ namespace lak
     SDL_Quit();
   }
 
-  void create_common_window(window_t &window,
+  bool create_common_window(window_t &window,
                             const window_settings_t &settings,
                             Uint32 flags)
   {
@@ -91,41 +91,52 @@ namespace lak
                                      settings.size.x,
                                      settings.size.y,
                                      flags);
+
+    return window.window != nullptr;
   }
 
-  void create_software_window(window_t &window,
-                              const window_settings_t &settings)
-  {
-    create_common_window(window, settings, SDL_WINDOW_RESIZABLE);
-  }
-
-  void destroy_software_window(window_t &window)
+  void destroy_common_window(window_t &window)
   {
     SDL_DestroyWindow(window.window);
   }
 
-  void create_opengl_window(window_t &window,
+  bool create_software_window(window_t &window,
+                              const window_settings_t &settings)
+  {
+    return create_common_window(window, settings, SDL_WINDOW_RESIZABLE);
+  }
+
+  void destroy_software_window(window_t &window)
+  {
+    destroy_common_window(window);
+  }
+
+  bool create_opengl_window(window_t &window,
                             const window_settings_t &settings)
   {
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS,
-                                SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                                SDL_GL_CONTEXT_PROFILE_CORE));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,
-                                settings.double_buffered));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,   settings.depth_size));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_RED_SIZE,     settings.colour_size));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,   settings.colour_size));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,    settings.colour_size));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, settings.stencil_size));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3));
-    ASSERT(!SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2));
+    #define SET_ATTRIB(A, B) if (SDL_GL_SetAttribute(A, B))\
+    { WARNING("Failed to set " #A " to " #B " (" << B << ")"); return false; }
+    SET_ATTRIB(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)
+    SET_ATTRIB(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SET_ATTRIB(SDL_GL_DOUBLEBUFFER, settings.double_buffered);
+    SET_ATTRIB(SDL_GL_DEPTH_SIZE, settings.depth_size);
+    SET_ATTRIB(SDL_GL_RED_SIZE, settings.colour_size);
+    SET_ATTRIB(SDL_GL_GREEN_SIZE, settings.colour_size);
+    SET_ATTRIB(SDL_GL_BLUE_SIZE, settings.colour_size);
+    SET_ATTRIB(SDL_GL_STENCIL_SIZE, settings.stencil_size);
+    SET_ATTRIB(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SET_ATTRIB(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    #undef SET_ATTRIB
 
-    create_common_window(window,
-                         settings,
-                         SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+    if (!create_common_window(window, settings,
+                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL))
+      return false;
 
-    window.context.sdl_gl = SDL_GL_CreateContext(window.window);
+    if (!(window.context.sdl_gl = SDL_GL_CreateContext(window.window)))
+    {
+      destroy_common_window(window);
+      return false;
+    }
 
     // context must be created before calling this
     ASSERTF(gl3wInit() == GL3W_OK,
@@ -138,12 +149,14 @@ namespace lak
 
     if (SDL_GL_SetSwapInterval(-1) == -1)
       ASSERT(SDL_GL_SetSwapInterval(1) == 0);
+
+    return true;
   }
 
   void destroy_opengl_window(window_t &window)
   {
     ASSERT(window.context.sdl_gl != nullptr);
     SDL_GL_DeleteContext(window.context.sdl_gl);
-    SDL_DestroyWindow(window.window);
+    destroy_common_window(window);
   }
 }
