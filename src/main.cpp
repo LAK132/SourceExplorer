@@ -817,33 +817,30 @@ void Update(float FrameTime)
 }
 
 ImGui::ImplContext start_graphics(lak::window_t &window,
-                                  lak::window_settings_t &settings,
-                                  lak::graphics_mode mode)
+                                  lak::window_settings_t &settings)
 {
     ImGui::ImplContext result;
-    switch (mode)
+    if (lak::create_opengl_window(window, settings))
     {
-        case lak::graphics_mode::OPENGL: {
-            lak::create_opengl_window(window, settings);
-            // :TODO: check if opengl startup succeeded
-            window.mode = lak::graphics_mode::OPENGL;
-            openglMajor = lak::opengl::GetUint<1>(GL_MAJOR_VERSION);
-            openglMinor = lak::opengl::GetUint<1>(GL_MINOR_VERSION);
-            result = ImGui::ImplCreateContext(
-                ImGui::GraphicsMode::OPENGL);
-        } break;
-
-        case lak::graphics_mode::SOFTWARE: {
-            lak::create_software_window(window, settings);
-            window.mode = lak::graphics_mode::SOFTWARE;
-            result = ImGui::ImplCreateContext(
-                ImGui::GraphicsMode::SOFTWARE);
-            // If this isn't called here it crashes when it's called later.
-            SDL_GetWindowSurface(window.window);
-        } break;
-
-        default: FATAL("Unknown graphics mode"); return nullptr;
+        window.mode = lak::graphics_mode::OPENGL;
+        openglMajor = lak::opengl::GetUint<1>(GL_MAJOR_VERSION);
+        openglMinor = lak::opengl::GetUint<1>(GL_MINOR_VERSION);
+        result = ImGui::ImplCreateContext(ImGui::GraphicsMode::OPENGL);
     }
+    else if (lak::create_software_window(window, settings))
+    {
+        window.mode = lak::graphics_mode::SOFTWARE;
+        result = ImGui::ImplCreateContext(ImGui::GraphicsMode::SOFTWARE);
+        // If this isn't called here it crashes when it's called later.
+        SDL_GetWindowSurface(window.window);
+    }
+    else
+    {
+        window.mode = lak::graphics_mode::ERROR;
+        FATAL("Failed to start any of the available graphics modes");
+        return nullptr;
+    }
+
     ImGui::ImplInit();
     ImGui::ImplInitContext(result, window);
     return result;
@@ -870,8 +867,6 @@ void stop_graphics(lak::window_t &window,
 
 int main(int argc, char **argv)
 {
-    SrcExp.graphicsMode = lak::graphics_mode::OPENGL;
-
     SrcExp.exe.path = SrcExp.images.path = SrcExp.sortedImages.path =
         SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
         SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
@@ -889,9 +884,8 @@ int main(int argc, char **argv)
     lak::init_graphics();
     lak::window_t window;
     lak::window_settings_t window_settings {APP_NAME, {1280, 720}, true};
-    ImGui::ImplContext context = start_graphics(window,
-                                                window_settings,
-                                                SrcExp.graphicsMode);
+    ImGui::ImplContext context = start_graphics(window, window_settings);
+    SrcExp.graphicsMode = window.mode;
 
     if (SDL_Init(SDL_INIT_AUDIO)) ERROR("Failed to initialise SDL audio");
 
