@@ -22,130 +22,109 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <assert.h>
-#include <thread>
-#include <vector>
-#include <string>
-#include <tuple>
-#include <stdint.h>
-#include <thread>
-#include <atomic>
-#include <iostream>
-#include <fstream>
-#include <filesystem>
-namespace fs = std::filesystem;
+#ifndef LAK_LAK_H
+#define LAK_LAK_H
+
+#include <lak/vec.h>
 
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
-#include <SDL_audio.h>
-extern "C" {
-#include <GL/gl3w.h>
-}
 
-#include <lak/vec.h>
-#include <memory/memory.hpp>
-
-#ifndef LAK_H
-#define LAK_H
+#include <tuple>
+#include <thread>
+#include <atomic>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace lak
 {
-    std::vector<uint8_t> LoadFile(
-        const fs::path &path
-    );
+  namespace fs = std::filesystem;
 
-    bool SaveFile(
-        const fs::path &path,
-        const std::vector<uint8_t> &data
-    );
+  std::vector<uint8_t> read_file(const fs::path &path);
+  bool save_file(const fs::path &path, const std::vector<uint8_t> &data);
+  bool save_file(const fs::path &path, const std::string &string);
 
-    bool SaveFile(
-        const fs::path &path,
-        const std::string &str
-    );
-
-    template<typename R, typename ...T, typename ...D>
-    bool Await(
-        std::thread *&thread,
-        std::atomic<bool> *finished,
-        R(*func)(T...),
-        const std::tuple<D...> &data
-    )
+  template<typename R, typename ...T, typename ...D>
+  bool await(std::unique_ptr<std::thread> &thread,
+             std::atomic<bool> &finished,
+             R(*func)(T...),
+             const std::tuple<D...> &data)
+  {
+    if (!thread)
     {
-        if (thread == nullptr)
+      finished.store(false);
+      void (*functor)(std::atomic<bool>*, R(*)(T...), const std::tuple<D...>*)
+        = [](std::atomic<bool> *finished,
+             R(*f)(T...), const
+             std::tuple<D...> *data)
+      {
+        try
         {
-            finished->store(false);
-            thread = new std::thread(
-                [](std::atomic<bool> *finished, R(*f)(T...), const std::tuple<D...> *data) {
-                    try { std::apply(f, *data); }
-                    catch (...) { }
-                    finished->store(true);
-                },
-                finished, func, &data
-            );
+          std::apply(f, *data);
         }
-        else if (finished->load())
-        {
-            thread->join();
-            delete thread;
-            thread = nullptr;
-            return true;
-        }
-        return false;
+        catch (...)
+        { }
+        finished->store(true);
+      };
+
+      thread = std::make_unique<std::thread>(
+        std::thread(functor, &finished, func, &data));
     }
-
-    struct glRect_t
+    else if (finished.load())
     {
-        GLint x = 0, y = 0;
-        GLsizei w = 0, h = 0;
-    };
+      thread->join();
+      thread.reset();
+      return true;
+    }
+    return false;
+  }
 
-    struct window_t
-    {
-        SDL_DisplayMode displayMode;
-        SDL_Window *window = nullptr;
-        SDL_GLContext glContext = nullptr;
-        vec2u32_t size;
-    };
+  enum struct graphics_mode
+  {
+    SOFTWARE = 0,
+    OPENGL = 1
+  };
 
-    void InitSR(
-        window_t &wnd,
-        const char *title,
-        vec2i_t screenSize,
-        bool doubleBuffered = false,
-        int display = 0
-    );
+  union graphics_context_t
+  {
+    void *ptr;
+    SDL_GLContext sdl_gl;
+  };
 
-    void ShutdownSR(
-        window_t &wnd
-    );
+  struct window_t
+  {
+    SDL_DisplayMode display_mode;
+    SDL_Window *window = nullptr;
+    graphics_context_t context = {nullptr};
+    graphics_mode mode = graphics_mode::OPENGL;
+    vec2u32_t size;
+  };
 
-    void InitGL(
-        window_t &wnd,
-        const char *title,
-        vec2i_t screenSize,
-        bool doubleBuffered = false,
-        uint8_t depthSize = 24,
-        uint8_t colorSize = 8,
-        uint8_t stencilSize = 8,
-        int display = 0
-    );
+  struct window_settings_t
+  {
+    std::string title;
+    vec2i_t size;
+    bool double_buffered = false;
+    int display = 0;
 
-    void ShutdownGL(
-        window_t &wnd
-    );
+    // OpenGL
+    uint8_t depth_size = 24;
+    uint8_t colour_size = 8;
+    uint8_t stencil_size = 8;
+  };
 
-    void InitVk(
-        window_t &wnd,
-        const char *title,
-        vec2i_t screenSize,
-        bool doubleBuffered = false,
-        int display = 0
-    );
+  void init_graphics();
+  void quit_graphics();
 
-    void ShutdownVk(
-        window_t &wnd
-    );
+  void create_software_window(window_t &window,
+                              const window_settings_t &settings);
+  void destroy_software_window(window_t &window);
+
+  void create_opengl_window(window_t &window,
+                            const window_settings_t &settings);
+  void destroy_opengl_window(window_t &window);
 }
 
 #endif

@@ -28,74 +28,148 @@ SOFTWARE.
 
 #include <array>
 
+#define glEnableDisable(TARGET, BOOL) ((BOOL) ? glEnable : glDisable)((TARGET))
+
 namespace lak
 {
-    namespace opengl
+  namespace opengl
+  {
+    template <size_t S>
+    auto GetBoolean(GLenum target)
     {
-        template <size_t S>
-        std::array<GLboolean, S> GetBoolean(GLenum target)
-        {
-            std::array<GLboolean, S> result;
-            glGetBooleanv(target, result.data());
-            return result;
-        }
-
-        template <size_t S>
-        std::array<GLint, S> GetInt(GLenum target)
-        {
-            std::array<GLint, S> result;
-            glGetIntegerv(target, result.data());
-            return result;
-        }
-
-        template <size_t S>
-        std::array<GLuint, S> GetUint(GLenum target)
-        {
-            std::array<GLuint, S> result;
-            glGetIntegerv(target, (GLint*)result.data());
-            return result;
-        }
-
-        template <size_t S>
-        std::array<GLenum, S> GetEnum(GLenum target)
-        {
-            std::array<GLenum, S> result;
-            glGetIntegerv(target, (GLint*)result.data());
-            return result;
-        }
-
-        template <size_t S>
-        std::array<GLint64, S> GetInt64(GLenum target)
-        {
-            std::array<GLint64, S> result;
-            glGetInteger64v(target, result.data());
-            return result;
-        }
-
-        template <size_t S>
-        std::array<GLuint64, S> GetUint64(GLenum target)
-        {
-            std::array<GLuint64, S> result;
-            glGetInteger64v(target, (GLint64*)result.data());
-            return result;
-        }
-
-        template <size_t S>
-        std::array<GLfloat, S> GetFloat(GLenum target)
-        {
-            std::array<GLfloat, S> result;
-            glGetFloatv(target, result.data());
-            return result;
-        }
-
-        template <size_t S>
-        std::array<GLdouble, S> GetDouble(GLenum target)
-        {
-            std::array<GLdouble, S> result;
-            glGetDoublev(target, result.data());
-            return result;
-        }
+      if constexpr (S == 1)
+      {
+        GLboolean result;
+        glGetBooleanv(target, &result);
+        return result;
+      }
+      else
+      {
+        std::array<GLboolean, S> result;
+        glGetBooleanv(target, result.data());
+        return result;
+      }
     }
+
+    template <size_t S>
+    auto GetInt(GLenum target)
+    {
+      if constexpr (S == 1)
+      {
+        GLint result;
+        glGetIntegerv(target, &result);
+        return result;
+      }
+      else
+      {
+        std::array<GLint, S> result;
+        glGetIntegerv(target, result.data());
+        return result;
+      }
+    }
+
+    template <size_t S>
+    auto GetUint(GLenum target)
+    {
+      if constexpr (S == 1)
+      {
+        GLuint result;
+        glGetIntegerv(target, (GLint*)&result);
+        return result;
+      }
+      else
+      {
+        std::array<GLuint, S> result;
+        glGetIntegerv(target, (GLint*)result.data());
+        return result;
+      }
+    }
+
+    template <size_t S>
+    auto GetEnum(GLenum target)
+    {
+      if constexpr (S == 1)
+      {
+        GLenum result;
+        glGetIntegerv(target, (GLint*)&result);
+        return result;
+      }
+      else
+      {
+        std::array<GLenum, S> result;
+        glGetIntegerv(target, (GLint*)result.data());
+        return result;
+      }
+    }
+
+    template <size_t S>
+    auto GetInt64(GLenum target)
+    {
+      if constexpr (S == 1)
+      {
+        GLint64 result;
+        glGetInteger64v(target, &result);
+        return result;
+      }
+      else
+      {
+        std::array<GLint64, S> result;
+        glGetInteger64v(target, result.data());
+        return result;
+      }
+    }
+
+    template <size_t S>
+    auto GetUint64(GLenum target)
+    {
+      if constexpr (S == 1)
+      {
+        GLuint64 result;
+        glGetInteger64v(target, (GLint64*)&result);
+        return result;
+      }
+      else
+      {
+        std::array<GLuint64, S> result;
+        glGetInteger64v(target, (GLint64*)result.data());
+        return result;
+      }
+    }
+
+    template <size_t S>
+    auto GetFloat(GLenum target)
+    {
+      if constexpr (S == 1)
+      {
+        GLfloat result;
+        glGetFloatv(target, &result);
+        return result;
+      }
+      else
+      {
+        std::array<GLfloat, S> result;
+        glGetFloatv(target, result.data());
+        return result;
+      }
+    }
+
+    template <size_t S>
+    auto GetDouble(GLenum target)
+    {
+      if constexpr (S == 1)
+      {
+        GLdouble result;
+        glGetDoublev(target, &result);
+        return result;
+      }
+      else
+      {
+        std::array<GLdouble, S> result;
+        glGetDoublev(target, result.data());
+        return result;
+      }
+    }
+  }
 }
 
 #endif // LAK_OPENGL_STATE_HPP

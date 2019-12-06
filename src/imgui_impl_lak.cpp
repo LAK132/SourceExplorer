@@ -62,7 +62,7 @@ namespace ImGui
                     case GraphicsMode::SOFTWARE: delete context->srContext; break;
                     case GraphicsMode::OPENGL: delete context->glContext; break;
                     case GraphicsMode::VULKAN: delete context->vkContext; break;
-                    default: ASSERTF(false, "Invalid Context Mode"); break;
+                    default: FATAL("Invalid graphics mode"); break;
                 }
             }
             delete context;
@@ -95,8 +95,7 @@ namespace ImGui
                         context->srContext->screenTexture.h,
                         context->srContext->screenTexture.size * 8,
                         context->srContext->screenTexture.w * context->srContext->screenTexture.size,
-                        context->srContext->screenFormat
-                    );
+                        context->srContext->screenFormat);
                 }
             } break;
             case GraphicsMode::OPENGL: {
@@ -224,7 +223,7 @@ namespace ImGui
         lak::vec2i_t size;
         io.Fonts->GetTexDataAsRGBA32(&pixels, &size.x, &size.y);
 
-        auto [old_texture] = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
+        auto old_texture = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
         DEFER(glBindTexture(GL_TEXTURE_2D, old_texture));
 
         context->font.init(GL_TEXTURE_2D).bind()
@@ -487,48 +486,22 @@ namespace ImGui
 
     void ImplSRRender(ImplSRContext context, ImDrawData *drawData)
     {
-        // ERROR(context);
         ASSERT(context != nullptr);
-        // ERROR(context->window);
         ASSERT(context->window != nullptr);
 
         ImGui_ImplSoftraster_RenderDrawData(drawData);
-        // ERROR(drawData);
 
         [[maybe_unused]] SDL_Surface *window = SDL_GetWindowSurface(context->window);
-        // ERROR(window);
 
         if (window != nullptr)
         {
             SDL_Rect clip;
             SDL_GetClipRect(window, &clip);
-            // SDL_FillRect(window, &clip, SDL_MapRGBA(window->format, 0xFF, 0xFF, 0xFF, 0xFF));
-            SDL_FillRect(window, &clip, SDL_MapRGBA(window->format, 0x00, 0x00, 0x00, 0xFF));
-            // DEBUG("Pixels " << context->screenTexture.pixels <<
-            // "\nWidth " << context->screenTexture.w <<
-            // "\nHeight " << context->screenTexture.h <<
-            // "\nDepth " << context->screenTexture.size * 8 <<
-            // "\nPitch " << context->screenTexture.w * context->screenTexture.size);
-
-            // SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(
-            //     context->screenTexture.pixels,
-            //     context->screenTexture.w,
-            //     context->screenTexture.h,
-            //     context->screenTexture.size * 8,
-            //     context->screenTexture.w * context->screenTexture.align,
-            //     SDL_PIXELFORMAT_RGB888
-            // );
-            // SDL_LockSurface(context->screenSurface);
-            // ASSERT(SDL_LockSurface(surf) == 0);
-            // ASSERT(SDL_LockSurface(window) == 0);
-            if(SDL_BlitSurface(context->screenSurface, nullptr, window, nullptr))
-            // if(SDL_BlitSurface(surf, nullptr, window, nullptr))
+            SDL_FillRect(window, &clip,
+                         SDL_MapRGBA(window->format, 0x00, 0x00, 0x00, 0xFF));
+            if (SDL_BlitSurface(context->screenSurface, nullptr,
+                                window, nullptr))
                 ERROR(SDL_GetError());
-            // SDL_UnlockSurface(window);
-            // SDL_UnlockSurface(surf);
-            // SDL_UnlockSurface(context->screenSurface);
-
-            // SDL_FreeSurface(surf);
         }
     }
 
@@ -546,19 +519,19 @@ namespace ImGui
 
         drawData->ScaleClipRects(io.DisplayFramebufferScale);
 
-        auto [old_program] = lak::opengl::GetUint<1>(GL_CURRENT_PROGRAM);
-        auto [old_texture] = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
-        auto [old_active_texture] = lak::opengl::GetUint<1>(GL_ACTIVE_TEXTURE);
-        auto [old_vertex_array] = lak::opengl::GetUint<1>(GL_VERTEX_ARRAY_BINDING);
-        auto [old_array_buffer] = lak::opengl::GetUint<1>(GL_ARRAY_BUFFER_BINDING);
-        auto [old_index_buffer] = lak::opengl::GetUint<1>(GL_ELEMENT_ARRAY_BUFFER_BINDING);
+        auto old_program = lak::opengl::GetUint<1>(GL_CURRENT_PROGRAM);
+        auto old_texture = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
+        auto old_active_texture = lak::opengl::GetUint<1>(GL_ACTIVE_TEXTURE);
+        auto old_vertex_array = lak::opengl::GetUint<1>(GL_VERTEX_ARRAY_BINDING);
+        auto old_array_buffer = lak::opengl::GetUint<1>(GL_ARRAY_BUFFER_BINDING);
+        auto old_index_buffer = lak::opengl::GetUint<1>(GL_ELEMENT_ARRAY_BUFFER_BINDING);
         auto old_blend_enabled = glIsEnabled(GL_BLEND);
         auto old_cull_face_enabled = glIsEnabled(GL_CULL_FACE);
         auto old_depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
         auto old_scissor_test_enabled = glIsEnabled(GL_SCISSOR_TEST);
         auto old_viewport = lak::opengl::GetInt<4>(GL_VIEWPORT);
         auto old_scissor = lak::opengl::GetInt<4>(GL_SCISSOR_BOX);
-        auto [old_clip_origin] = lak::opengl::GetEnum<1>(GL_CLIP_ORIGIN);
+        auto old_clip_origin = lak::opengl::GetEnum<1>(GL_CLIP_ORIGIN);
 
         glGenVertexArrays(1, &context->vertexArray);
 
@@ -570,16 +543,14 @@ namespace ImGui
             glBindVertexArray(old_vertex_array);
             glBindBuffer(GL_ARRAY_BUFFER, old_array_buffer);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, old_index_buffer);
-            if (old_blend_enabled) glEnable(GL_BLEND);
-            else glDisable(GL_BLEND);
-            if (old_cull_face_enabled) glEnable(GL_CULL_FACE);
-            else glDisable(GL_CULL_FACE);
-            if (old_depth_test_enabled) glEnable(GL_DEPTH_TEST);
-            else glDisable(GL_DEPTH_TEST);
-            if (old_scissor_test_enabled) glEnable(GL_SCISSOR_TEST);
-            else glDisable(GL_SCISSOR_TEST);
-            glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
-            glScissor(old_scissor[0], old_scissor[1], old_scissor[2], old_scissor[3]);
+            glEnableDisable(GL_BLEND, old_blend_enabled);
+            glEnableDisable(GL_CULL_FACE, old_cull_face_enabled);
+            glEnableDisable(GL_DEPTH_TEST, old_depth_test_enabled);
+            glEnableDisable(GL_SCISSOR_TEST, old_scissor_test_enabled);
+            glViewport(old_viewport[0], old_viewport[1],
+                       old_viewport[2], old_viewport[3]);
+            glScissor(old_scissor[0], old_scissor[1],
+                      old_scissor[2], old_scissor[3]);
 
             glDeleteVertexArrays(1, &context->vertexArray);
             context->vertexArray = 0;
@@ -696,6 +667,8 @@ namespace ImGui
 
     void ImplRender(ImplContext context, ImDrawData *drawData)
     {
+        ASSERT(context);
+        ASSERT(drawData);
         switch (context->mode)
         {
             case GraphicsMode::SOFTWARE:
@@ -708,7 +681,7 @@ namespace ImGui
                 ImplVkRender(context->vkContext, drawData);
                 break;
             default:
-                ASSERTF(false, "Invalid Context Mode");
+                FATAL("Invalid context mode");
                 break;
         }
 
