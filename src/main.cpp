@@ -19,6 +19,8 @@
 #include "main.h"
 #include "dump.h"
 #include "imgui_utils.hpp"
+#include <lak/defer/defer.hpp>
+#include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
 #include <lak/opengl/shader.hpp>
 
