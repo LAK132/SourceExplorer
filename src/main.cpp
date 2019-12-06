@@ -453,19 +453,10 @@ void MemoryExplorer(bool &Update)
 
 void ImageExplorer(bool &Update)
 {
-    static GLuint last = 0;
     static float scale = 1.0f;
-    if (SrcExp.image.get())
-    {
-        ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
-        ImGui::Separator();
-        se::ViewImage(SrcExp, scale);
-        if (last != SrcExp.image.get())
-        {
-            last = SrcExp.image.get();
-            DEBUG("Viewing image: " << SrcExp.image.get());
-        }
-    }
+    ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
+    ImGui::Separator();
+    se::ViewImage(SrcExp, scale);
     Update = false;
 }
 
