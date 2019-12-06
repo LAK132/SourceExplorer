@@ -83,8 +83,9 @@ namespace lak
 
   enum struct graphics_mode
   {
-    SOFTWARE = 0,
-    OPENGL = 1
+    ERROR = 0,
+    OPENGL = 1,
+    SOFTWARE = 2,
   };
 
   union graphics_context_t
@@ -118,11 +119,11 @@ namespace lak
   void init_graphics();
   void quit_graphics();
 
-  void create_software_window(window_t &window,
+  bool create_software_window(window_t &window,
                               const window_settings_t &settings);
   void destroy_software_window(window_t &window);
 
-  void create_opengl_window(window_t &window,
+  bool create_opengl_window(window_t &window,
                             const window_settings_t &settings);
   void destroy_opengl_window(window_t &window);
 }
