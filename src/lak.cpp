@@ -92,6 +92,8 @@ namespace lak
                                      settings.size.y,
                                      flags);
 
+    if (window.window == nullptr) WARNING("Failed to create common window");
+
     return window.window != nullptr;
   }
 
@@ -114,6 +116,10 @@ namespace lak
   bool create_opengl_window(window_t &window,
                             const window_settings_t &settings)
   {
+    if (!create_common_window(window, settings,
+                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL))
+      return false;
+
     #define SET_ATTRIB(A, B) if (SDL_GL_SetAttribute(A, B))\
     { WARNING("Failed to set " #A " to " #B " (" << B << ")"); return false; }
     SET_ATTRIB(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)
@@ -128,27 +134,25 @@ namespace lak
     SET_ATTRIB(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     #undef SET_ATTRIB
 
-    if (!create_common_window(window, settings,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL))
-      return false;
-
     if (!(window.context.sdl_gl = SDL_GL_CreateContext(window.window)))
     {
+      WARNING("Failed to create an OpenGL context");
       destroy_common_window(window);
       return false;
     }
 
-    // context must be created before calling this
-    ASSERTF(gl3wInit() == GL3W_OK,
-            "Failed to initialise OpenGL. It is possible that your computer "
-            "does not support OpenGL 3.2 which Source Explorer requires to "
-            "run.\n!!THIS IS NOT A BUG!! (unless you are certain that your "
-            "computer does actually support OpenGL 3.2)");
+    if (gl3wInit() != GL3W_OK)
+    {
+      WARNING("Failed to initialise gl3w");
+      destroy_common_window(window);
+      return false;
+    }
 
     SDL_GL_MakeCurrent(window.window, window.context.sdl_gl);
 
-    if (SDL_GL_SetSwapInterval(-1) == -1)
-      ASSERT(SDL_GL_SetSwapInterval(1) == 0);
+    ASSERTF(SDL_GL_SetSwapInterval(-1) == 0 ||
+            SDL_GL_SetSwapInterval(1) == 0,
+            "Failed to set swap interval");
 
     return true;
   }
