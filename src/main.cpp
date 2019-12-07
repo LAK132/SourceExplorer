@@ -867,11 +867,12 @@ void stop_graphics(lak::window_t &window,
 
 int main(int argc, char **argv)
 {
+    lak::debugger.crash_path = SrcExp.errorLog.path =
+        fs::current_path()/"SEND-THIS-CRASH-LOG-TO-LAK132.txt";
+
     SrcExp.exe.path = SrcExp.images.path = SrcExp.sortedImages.path =
         SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
         SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
-
-    SrcExp.errorLog.path = fs::current_path()/"error.log";
 
     if (argc > 1)
     {

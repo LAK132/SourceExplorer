@@ -47,6 +47,12 @@ namespace lak
     void clear();
 
     std::string str();
+
+    fs::path save();
+
+    fs::path save(const fs::path &path);
+
+    fs::path crash_path;
   };
 
   extern debugger_t debugger;
@@ -90,15 +96,14 @@ namespace lak
 # define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
 
-#define ABORT() { std::cerr << "Aborted. Press enter to continue..."; getchar(); std::abort(); }
+#define ABORT() { std::cerr << "Aborted. Saving crash log to " << lak::debugger.save() << "\n"; std::cerr << "Press enter to continue..."; getchar(); std::abort(); }
 
 #if defined(NOLOG)
 # define  WARNING(x)
 # define WWARNING(x)
 # define  ERROR(x)
 # define WERROR(x)
-# define ABORTF(x) ABORT()
-# define FATAL(x)
+# define  FATAL(x) ABORT()
 #elif defined(_WIN32)
 // Windows needs to seriously fuck off
 # undef ERROR
@@ -106,19 +111,17 @@ namespace lak
 # define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"WARNING" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 # define  ERROR(x)   lak::debugger.std_err( TO_STRING( "ERROR"   <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
 # define WERROR(x)   lak::debugger.std_err(WTO_STRING(L"ERROR"   << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-# define ABORTF(x) { std::cerr << X << "\n"; ABORT() }
-# define FATAL(x)  { lak::debugger.std_err( TO_STRING( "FATAL"   <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x << "\n")); ABORT(); }
+# define  FATAL(x) { lak::debugger.std_err( TO_STRING( "FATAL"   <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n")); ABORT(); }
 #else
 # define  WARNING(x) lak::debugger.std_err( TO_STRING(    LAK_YELLOW     LAK_BOLD "WARNING" LAK_SGR_RESET LAK_YELLOW     <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
 # define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"" LAK_YELLOW     LAK_BOLD "WARNING" LAK_SGR_RESET LAK_YELLOW     << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 # define  ERROR(x)   lak::debugger.std_err( TO_STRING(    LAK_BRIGHT_RED LAK_BOLD "ERROR"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
 # define WERROR(x)   lak::debugger.std_err(WTO_STRING(L"" LAK_BRIGHT_RED LAK_BOLD "ERROR"   LAK_SGR_RESET LAK_BRIGHT_RED << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-# define ABORTF(x) { std::cerr << X << "\n"; ABORT(); }
-# define FATAL(x)  { lak::debugger.std_err(TO_STRING(     LAK_BRIGHT_RED LAK_BOLD "FATAL"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x << "\n")); ABORT(); }
+# define  FATAL(x) { lak::debugger.std_err(TO_STRING(     LAK_BRIGHT_RED LAK_BOLD "FATAL"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n")); ABORT(); }
 #endif
 
 #define ASSERT(x)       { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed"); } }
 #define ASSERTF(x, str) { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed: " str); } }
-#define NOISY_ABORT()   { ABORTF(lak::debugger.stream.str()); }
+#define NOISY_ABORT()   { std::cerr << lak::debugger.stream.str() << "\n"; ABORT(); }
 
 #endif

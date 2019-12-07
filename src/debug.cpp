@@ -33,5 +33,20 @@ namespace lak
     return stream.str();
   }
 
+  fs::path debugger_t::save()
+  {
+    return save(crash_path);
+  }
+
+  fs::path debugger_t::save(const fs::path &path)
+  {
+    lak::save_file(path, str());
+    std::error_code ec;
+    if (auto absolute = fs::absolute(path, ec); ec)
+      return path;
+    else
+      return absolute;
+  }
+
   debugger_t debugger;
 }
