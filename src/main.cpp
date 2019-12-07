@@ -726,8 +726,12 @@ void SourceExplorerMain(float FrameTime)
     else
     {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10.0, 10.0));
-        ImGui::Text("To open a game: File -> Open");
-        ImGui::Text("!!If Source Explorer cannot open/throws errors while opening a file, please save the error log!!: File -> Save Error Log");
+        ImGui::Text("To open a game either drag and drop it into this window or go to [File]->[Open]\n");
+        ImGui::Text("If Source Explorer cannot open/throws errors while opening a file,\n"
+                    "please save the error log ([File]->[Save Error Log]) and share\n"
+                    "it on https://github.com/LAK132/SourceExplorer/issues\n");
+        ImGui::Text("If Source Explorer crashes before you can save the log file,\n"
+                    "it will attempt to save it to:\n'%s'\n", lak::debugger.crash_path.string().c_str());
         ImGui::PopStyleVar();
     }
 
