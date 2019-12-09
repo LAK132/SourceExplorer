@@ -193,8 +193,7 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
         auto it = begin + from;
 
         const GLfloat step = 1.0f / ((to - from) / image.contig_size());
-        for (uint8_t prev = (it != end ? *it : 0);
-             it != end; prev = *(it++))
+        for (uint8_t prev = (it != end ? *it : 0); it != end; prev = *(it++))
             image[{prev, *it}] += step;
 
         texture.bind()
@@ -889,6 +888,7 @@ int main(int argc, char **argv)
     lak::init_graphics();
     lak::window_t window;
     lak::window_settings_t window_settings {APP_NAME, {1280, 720}, true};
+
     ImGui::ImplContext context = start_graphics(window, window_settings);
     SrcExp.graphicsMode = window.mode;
 
@@ -906,13 +906,6 @@ int main(int argc, char **argv)
         glViewport(0, 0, window.size.x, window.size.y);
         glClearColor(0.0f, 0.3125f, 0.3125f, 1.0f);
         glEnable(GL_DEPTH_TEST);
-    }
-    else
-    {
-        // SDL_Rect rect;
-        // rect.x = 0; rect.y = 0;
-        // rect.w = window.size.x; rect.h = window.size.y;
-        // SDL_RenderSetViewport(window.sr_context, &rect);
     }
 
     ImGuiIO &io = ImGui::GetIO();
@@ -975,11 +968,6 @@ int main(int argc, char **argv)
         {
             glViewport(0, 0, window.size.x, window.size.y);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        }
-        else
-        {
-            // SDL_SetRenderDrawColor(window.sr_context, 0x00, 0x80, 0x80, 0xFF);
-            // SDL_RenderClear(window.sr_context);
         }
 
         // --- BEGIN DRAW ---

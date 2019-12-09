@@ -96,7 +96,7 @@ namespace lak
 # define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
 
-#define ABORT() { std::cerr << "Aborted. Saving crash log to " << lak::debugger.save() << "\n"; std::cerr << "Press enter to continue..."; getchar(); std::abort(); }
+#define ABORT() { std::cerr << "Aborting...\nSaving crash log to " << lak::debugger.save() << "\n"; std::cerr << "Press enter to continue...\n"; getchar(); std::abort(); }
 
 #if defined(NOLOG)
 # define  WARNING(x)
@@ -117,7 +117,7 @@ namespace lak
 # define WWARNING(x) lak::debugger.std_err(WTO_STRING(L"" LAK_YELLOW     LAK_BOLD "WARNING" LAK_SGR_RESET LAK_YELLOW     << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 # define  ERROR(x)   lak::debugger.std_err( TO_STRING(    LAK_BRIGHT_RED LAK_BOLD "ERROR"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
 # define WERROR(x)   lak::debugger.std_err(WTO_STRING(L"" LAK_BRIGHT_RED LAK_BOLD "ERROR"   LAK_SGR_RESET LAK_BRIGHT_RED << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
-# define  FATAL(x) { lak::debugger.std_err(TO_STRING(     LAK_BRIGHT_RED LAK_BOLD "FATAL"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n")); ABORT(); }
+# define  FATAL(x) { lak::debugger.std_err( TO_STRING(    LAK_BRIGHT_RED LAK_BOLD "FATAL"   LAK_SGR_RESET LAK_BRIGHT_RED <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n")); ABORT(); }
 #endif
 
 #define ASSERT(x)       { if (!(x)) { FATAL("Assertion '" STRINGIFY(x) "' failed"); } }
