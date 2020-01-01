@@ -30,9 +30,10 @@ SOFTWARE.
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <filesystem>
 
-#define TO_STRING(x) [&]{ std::stringstream s; s << x; return s.str(); }()
-#define WTO_STRING(x) [&]{ std::wstringstream s; s << x; return lak::strconv_ascii(s.str()); }()
+#define TO_STRING(x) [&]{ std::stringstream _debug_stream; _debug_stream << x; return _debug_stream.str(); }()
+#define WTO_STRING(x) [&]{ std::wstringstream _debug_stream; _debug_stream << x; return lak::strconv_ascii(_debug_stream.str()); }()
 
 namespace lak
 {
@@ -48,12 +49,25 @@ namespace lak
 
     std::string str();
 
-    fs::path save();
+    std::filesystem::path save();
 
-    fs::path save(const fs::path &path);
+    std::filesystem::path save(const std::filesystem::path &path);
 
-    fs::path crash_path;
+    std::filesystem::path crash_path;
   };
+
+  struct scoped_indenter
+  {
+    scoped_indenter();
+
+    ~scoped_indenter();
+
+    static std::string str();
+
+    static std::wstring wstr();
+  };
+
+  extern size_t debug_indent;
 
   extern debugger_t debugger;
 }
@@ -91,7 +105,7 @@ namespace lak
 #   define  DEBUG_LINE_FILE     LAK_FAINT "(" << __FILE__ <<  ":" << std::dec << __LINE__ <<  ")" LAK_SGR_RESET
 #   define WDEBUG_LINE_FILE L"" LAK_FAINT "(" << __FILE__ << L":" << std::dec << __LINE__ << L")" LAK_SGR_RESET
 # endif
-# define CHECKPOINT() std::cerr << "CHECKPOINT" << DEBUG_LINE_FILE << "\n";
+# define CHECKPOINT() lak::debugger.std_err(TO_STRING("CHECKPOINT" << DEBUG_LINE_FILE), TO_STRING("\n"));
 # define  DEBUG(x) lak::debugger.std_out( TO_STRING( "DEBUG" <<  DEBUG_LINE_FILE <<  ": "),  TO_STRING(std::hex << x <<  "\n"));
 # define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
