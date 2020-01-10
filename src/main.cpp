@@ -893,6 +893,10 @@ void stop_graphics(lak::window_t &window, ImGui::ImplContext &gui)
   gui = nullptr;
 }
 
+#include "lisk.hpp"
+
+lisk::environment default_env = lisk::builtin::default_env();
+
 int main(int argc, char **argv)
 {
   lak::debugger.crash_path = SrcExp.errorLog.path =
@@ -1048,6 +1052,18 @@ int main(int argc, char **argv)
 #include <examples/imgui_impl_softraster.cpp>
 
 #include <memory/memory.cpp>
+
+#include <atom.cpp>
+#include <callable.cpp>
+#include <environment.cpp>
+#include <eval.cpp>
+#include <expression.cpp>
+#include <functor.cpp>
+#include <lambda.cpp>
+#include <lisk.cpp>
+#include <number.cpp>
+#include <pointer.cpp>
+#include <string.cpp>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
