@@ -82,12 +82,13 @@ void MenuBar(float FrameTime)
 
   ImGui::Checkbox("Color transparency?", &SrcExp.dumpColorTrans);
   ImGui::Checkbox("Force compat mode?", &se::forceCompat);
-  ImGui::Checkbox("Debug console? (May make SE slow)", &se::debugConsole);
+  ImGui::Checkbox("Debug console? (May make SE slow)",
+                  &lak::debugger.live_output_enabled);
 
-  if (se::debugConsole)
+  if (lak::debugger.live_output_enabled)
   {
-    ImGui::Checkbox("Only errors?", &se::errorOnlyConsole);
-    ImGui::Checkbox("Developer mode?", &se::developerConsole);
+    ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
+    ImGui::Checkbox("Developer mode?", &lak::debugger.line_info_enabled);
   }
 }
 

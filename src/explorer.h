@@ -55,9 +55,6 @@ namespace std
 
 namespace SourceExplorer
 {
-    extern bool debugConsole;
-    extern bool developerConsole;
-    extern bool errorOnlyConsole;
     extern bool forceCompat;
     extern m128i_t _xmmword;
     extern std::vector<uint8_t> _magic_key;

@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2019 LAK132
+Copyright (c) 2019, 2020 LAK132
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ SOFTWARE.
 #include <sstream>
 #include <filesystem>
 
-#define TO_STRING(x) [&]{ std::stringstream _debug_stream; _debug_stream << x; return _debug_stream.str(); }()
+#define  TO_STRING(x) [&]{ std::stringstream  _debug_stream; _debug_stream << x; return _debug_stream.str(); }()
 #define WTO_STRING(x) [&]{ std::wstringstream _debug_stream; _debug_stream << x; return lak::strconv_ascii(_debug_stream.str()); }()
 
 namespace lak
@@ -49,16 +49,22 @@ namespace lak
 
     std::string str();
 
+    void abort();
+
     std::filesystem::path save();
 
     std::filesystem::path save(const std::filesystem::path &path);
 
     std::filesystem::path crash_path;
+
+    bool live_output_enabled = true;
+    bool live_errors_only = false;
+    bool line_info_enabled = true;
   };
 
   struct scoped_indenter
   {
-    scoped_indenter();
+    scoped_indenter(const std::string &name);
 
     ~scoped_indenter();
 
@@ -110,7 +116,7 @@ namespace lak
 # define WDEBUG(x) lak::debugger.std_out(WTO_STRING(L"DEBUG" << WDEBUG_LINE_FILE << L": "), WTO_STRING(std::hex << x << L"\n"));
 #endif
 
-#define ABORT() { std::cerr << "Aborting...\nSaving crash log to " << lak::debugger.save() << "\n"; std::cerr << "Press enter to continue...\n"; getchar(); std::abort(); }
+#define ABORT() { lak::debugger.abort(); }
 
 #if defined(NOLOG)
 # define  WARNING(x)
