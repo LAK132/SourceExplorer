@@ -895,8 +895,6 @@ void stop_graphics(lak::window_t &window, ImGui::ImplContext &gui)
 
 #include "lisk.hpp"
 
-lisk::environment default_env = lisk::builtin::default_env();
-
 int main(int argc, char **argv)
 {
   lak::debugger.crash_path = SrcExp.errorLog.path =
@@ -943,7 +941,24 @@ int main(int argc, char **argv)
   ImGuiStyle &style = ImGui::GetStyle();
   style.WindowRounding = 0;
 
-  for (bool running = true; running;)
+  std::mutex lisk_reader_mutex;
+  lisk::reader reader(lisk::builtin::default_env());
+  reader += "(println \"Welcome to Source Explorer\")";
+
+  auto reader_thread = std::thread([&]
+  {
+    for (;;)
+    {
+      std::string str;
+      std::getline(std::cin, str, '\n');
+      if (!std::cin) return;
+
+      std::scoped_lock lock(lisk_reader_mutex);
+      reader += str;
+    }
+  });
+
+  for (bool running = true; running; )
   {
     /* --- BEGIN EVENTS --- */
 
@@ -988,6 +1003,14 @@ int main(int argc, char **argv)
     ImGui::ImplNewFrame(context, window.window, frameTime);
 
     // --- BEGIN UPDATE ---
+
+    if (lisk_reader_mutex.try_lock())
+    {
+      for (auto expr : reader)
+        if (!expr.is_atom() || !expr.as_atom().is_nil())
+          std::cout << lisk::to_string(expr) << "\n";
+      lisk_reader_mutex.unlock();
+    }
 
     Update(frameTime);
 
