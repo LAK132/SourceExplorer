@@ -50,7 +50,7 @@ namespace SourceExplorer
         error_t err = ParsePEHeader(srcexp.state.file, srcexp.state);
         if (err != error_t::OK)
         {
-            ERROR("Error '" << se::error_name(err) <<
+            ERROR("Error '" << error_name(err) <<
                   "' While Parsing PE Header, At: 0x" <<
                   srcexp.state.file.position);
             return err;
@@ -82,7 +82,7 @@ namespace SourceExplorer
         err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
         if (err != error_t::OK)
         {
-            ERROR("Error '" << se::error_name(err) <<
+            ERROR("Error '" << error_name(err) <<
                   "' While Parsing PE Header, At: 0x" <<
                   srcexp.state.file.position);
         }
@@ -1447,7 +1447,7 @@ namespace SourceExplorer
             value = ReadStringEntry(game, entry);
         else
             ERROR("Failed To Read String Chunk (" <<
-                  se::error_name(result) << ")");
+                  error_name(result) << ")");
         return result;
     }
 
@@ -1511,7 +1511,7 @@ namespace SourceExplorer
         else
         {
             ERROR("Failed To Read Strings Chunk (" <<
-                  se::error_name(result) << ")");
+                  error_name(result) << ")");
         }
         return result;
     }
@@ -1695,7 +1695,7 @@ namespace SourceExplorer
 
             if (ImGui::Button("View Image"))
             {
-                srcexp.image = CreateTexture(bitmap, SrcExp.graphicsMode);
+                srcexp.image = CreateTexture(bitmap, srcexp.graphicsMode);
             }
 
             ImGui::TreePop();
