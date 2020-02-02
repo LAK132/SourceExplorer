@@ -207,13 +207,13 @@ namespace SourceExplorer
         OBJECTNAMES     = 0x2254,
         // "Empty"
         CHUNK2255       = 0x2255,
-        // Compressed
-        CHUNK2256       = 0x2256,
+        // Recompiled games only (?)
+        OBJECTPROPERTIES= 0x2256,
         // 4 bytes
         CHUNK2257       = 0x2257,
-        // Fonts
-        FONTBANK2       = 0x2258,
-        // True Type Font ??
+        // Recompiled games only (?)
+        FONTMETA        = 0x2258,
+        // Recompiled games only (?)
         FONTCHUNK       = 0x2259,
         // Frame Chunks (0x33XX)
         FRAME           = 0x3333,

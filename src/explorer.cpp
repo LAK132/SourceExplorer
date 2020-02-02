@@ -780,10 +780,10 @@ namespace SourceExplorer
             case chunk_t::CHUNK2253:        return "CHUNK 2253 (16 bytes?)";
             case chunk_t::OBJECTNAMES:      return "Object Names";
             case chunk_t::CHUNK2255:        return "CHUNK 2255 (Empty?)";
-            case chunk_t::CHUNK2256:        return "CHUNK 2256 (Compressed?)";
+            case chunk_t::OBJECTPROPERTIES: return "Object Properties";
             case chunk_t::CHUNK2257:        return "CHUNK 2257 (4 bytes?)";
-            case chunk_t::FONTBANK2:        return "Font Bank 2";
-            case chunk_t::FONTCHUNK:        return "TrueType Font Chunk";
+            case chunk_t::FONTMETA:         return "TrueType Fonts Meta";
+            case chunk_t::FONTCHUNK:        return "TrueType Fonts Chunk";
 
             case chunk_t::FRAME:            return "Frame";
             case chunk_t::FRAMEHEADER:      return "Frame Header";
@@ -1889,9 +1889,61 @@ namespace SourceExplorer
         return basic_view(srcexp, "Object Names");
     }
 
+    error_t object_properties_t::read(game_t &game, lak::memory &strm)
+    {
+        error_t result = entry.read(game, strm);
+
+        if (result != error_t::OK) return result;
+
+        const auto end = strm.position;
+        strm.position = entry.data.position;
+
+        while (strm.position < end && result == error_t::OK)
+        {
+            items.emplace_back();
+            result = items.back().read(game, strm, false);
+        }
+
+        strm.position = end;
+
+        return result;
+    }
+
+    error_t object_properties_t::view(source_explorer_t &srcexp) const
+    {
+        if (lak::TreeNode("0x%zX Object Properties (%zu Items)##%zX", (size_t)entry.ID, items.size(), entry.position))
+        {
+            ImGui::Separator();
+
+            entry.view(srcexp);
+
+            for (const auto &item : items)
+            {
+                if (lak::TreeNode("0x%zX Properties##%zX", (size_t)item.ID, item.position))
+                {
+                    ImGui::Separator();
+
+                    item.view(srcexp);
+
+                    ImGui::Separator();
+                    ImGui::TreePop();
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::TreePop();
+        }
+
+        return error_t::OK;
+    }
+
+    error_t truetype_fonts_meta_t::view(source_explorer_t &srcexp) const
+    {
+        return basic_view(srcexp, "TrueType Fonts Meta");
+    }
+
     error_t truetype_fonts_t::read(game_t &game, lak::memory &strm)
     {
-        DEBUG("Reading TrueType Font Chunk");
         error_t result = entry.read(game, strm);
 
         if (result != error_t::OK) return result;
@@ -3762,14 +3814,20 @@ namespace SourceExplorer
                     result = objectNames->read(game, strm);
                     break;
 
-                case chunk_t::CHUNK2256:
-                    DEBUG("Reading Unknown Compressed Chunk");
-                    unknownCompressed.emplace_back();
-                    result = unknownCompressed.back().read(game, strm);
+                case chunk_t::OBJECTPROPERTIES:
+                    DEBUG("Reading Object Properties");
+                    objectProperties = std::make_unique<object_properties_t>();
+                    result = objectProperties->read(game, strm);
+                    break;
+
+                case chunk_t::FONTMETA:
+                    DEBUG("Reading TrueType Fonts Meta");
+                    truetypeFontsMeta = std::make_unique<truetype_fonts_meta_t>();
+                    result = truetypeFontsMeta->read(game, strm);
                     break;
 
                 case chunk_t::FONTCHUNK:
-                    DEBUG("Reading TrueType Font Chunk");
+                    DEBUG("Reading TrueType Fonts");
                     truetypeFonts = std::make_unique<truetype_fonts_t>();
                     result = truetypeFonts->read(game, strm);
                     break;
@@ -3938,6 +3996,8 @@ namespace SourceExplorer
             if (fontBank) fontBank->view(srcexp);
 
             if (objectNames) objectNames->view(srcexp);
+            if (objectProperties) objectProperties->view(srcexp);
+            if (truetypeFontsMeta) truetypeFontsMeta->view(srcexp);
             if (truetypeFonts) truetypeFonts->view(srcexp);
 
             for (auto &unk : unknownStrings) unk.view(srcexp);

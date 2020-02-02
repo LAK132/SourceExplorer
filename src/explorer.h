@@ -328,6 +328,19 @@ namespace SourceExplorer
         error_t view(source_explorer_t &srcexp) const;
     };
 
+    struct object_properties_t : public basic_chunk_t
+    {
+        std::vector<item_entry_t> items;
+
+        error_t read(game_t &game, lak::memory &strm);
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct truetype_fonts_meta_t : public basic_chunk_t
+    {
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
     struct truetype_fonts_t : public basic_chunk_t
     {
         std::vector<item_entry_t> items;
@@ -826,6 +839,8 @@ namespace SourceExplorer
 
         // Recompiled games (?):
         std::unique_ptr<object_names_t> objectNames;
+        std::unique_ptr<object_properties_t> objectProperties;
+        std::unique_ptr<truetype_fonts_meta_t> truetypeFontsMeta;
         std::unique_ptr<truetype_fonts_t> truetypeFonts;
 
         // Unknown chunks:
