@@ -152,6 +152,7 @@ namespace SourceExplorer
         mutable std::vector<std::u16string> values;
 
         error_t read(game_t &game, lak::memory &strm);
+        error_t basic_view(source_explorer_t &srcexp, const char *name) const;
         error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -318,6 +319,11 @@ namespace SourceExplorer
     };
 
     struct title2_t : public basic_chunk_t
+    {
+        error_t view(source_explorer_t &srcexp) const;
+    };
+
+    struct object_names_t : public strings_chunk_t
     {
         error_t view(source_explorer_t &srcexp) const;
     };
@@ -810,6 +816,10 @@ namespace SourceExplorer
         std::unique_ptr<music::bank_t> musicBank;
         std::unique_ptr<font::bank_t> fontBank;
 
+        // Recompiled games (?):
+        std::unique_ptr<object_names_t> objectNames;
+
+        // Unknown chunks:
         std::vector<basic_chunk_t> unknownChunks;
         std::vector<strings_chunk_t> unknownStrings;
         std::vector<compressed_chunk_t> unknownCompressed;

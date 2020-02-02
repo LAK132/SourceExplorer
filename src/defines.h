@@ -203,8 +203,8 @@ namespace SourceExplorer
         TITLE2          = 0x2251,
         // 16 bytes
         CHUNK2253       = 0x2253,
-        // Strings
-        CHUNK2254       = 0x2254,
+        // Recompiled games only (?), array of null terminated strings.
+        OBJECTNAMES     = 0x2254,
         // "Empty"
         CHUNK2255       = 0x2255,
         // Compressed

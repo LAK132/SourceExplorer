@@ -778,7 +778,7 @@ namespace SourceExplorer
             case chunk_t::TITLE2:           return "Title2";
 
             case chunk_t::CHUNK2253:        return "CHUNK 2253 (16 bytes?)";
-            case chunk_t::CHUNK2254:        return "CHUNK 2254 (Strings?)";
+            case chunk_t::OBJECTNAMES:      return "Object Names";
             case chunk_t::CHUNK2255:        return "CHUNK 2255 (Empty?)";
             case chunk_t::CHUNK2256:        return "CHUNK 2256 (Compressed?)";
             case chunk_t::CHUNK2257:        return "CHUNK 2257 (4 bytes?)";
@@ -1516,11 +1516,11 @@ namespace SourceExplorer
         return result;
     }
 
-    error_t strings_chunk_t::view(source_explorer_t &srcexp) const
+    error_t strings_chunk_t::basic_view(source_explorer_t &srcexp, const char *name) const
     {
         error_t result = error_t::OK;
 
-        if (lak::TreeNode("0x%zX Unknown Strings##%zX", (size_t)entry.ID, entry.position))
+        if (lak::TreeNode("0x%zX %s (%zu Items)##%zX", (size_t)entry.ID, name, values.size(), entry.position))
         {
             ImGui::Separator();
 
@@ -1533,6 +1533,11 @@ namespace SourceExplorer
         }
 
         return result;
+    }
+
+    error_t strings_chunk_t::view(source_explorer_t &srcexp) const
+    {
+        return basic_view(srcexp, "Unknown Strings");
     }
 
     error_t compressed_chunk_t::view(source_explorer_t &srcexp) const
@@ -1867,6 +1872,11 @@ namespace SourceExplorer
     error_t title2_t::view(source_explorer_t &srcexp) const
     {
         return basic_view(srcexp, "Title 2");
+    }
+
+    error_t object_names_t::view(source_explorer_t &srcexp) const
+    {
+        return basic_view(srcexp, "Object Names");
     }
 
     namespace object
@@ -3687,10 +3697,10 @@ namespace SourceExplorer
                     result = title2->read(game, strm);
                     break;
 
-                case chunk_t::CHUNK2254:
-                    DEBUG("Reading Unknown Strings Chunk");
-                    unknownStrings.emplace_back();
-                    result = unknownStrings.back().read(game, strm);
+                case chunk_t::OBJECTNAMES:
+                    DEBUG("Reading Object Names");
+                    objectNames = std::make_unique<object_names_t>();
+                    result = objectNames->read(game, strm);
                     break;
 
                 case chunk_t::CHUNK2256:
@@ -3862,6 +3872,8 @@ namespace SourceExplorer
             if (soundBank) soundBank->view(srcexp);
             if (musicBank) musicBank->view(srcexp);
             if (fontBank) fontBank->view(srcexp);
+
+            if (objectNames) objectNames->view(srcexp);
 
             for (auto &unk : unknownStrings) unk.view(srcexp);
 
