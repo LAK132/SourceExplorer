@@ -845,6 +845,7 @@ namespace SourceExplorer
         bool oldGame = false;
         bool compat = false;
         bool cnc = false;
+        bool recompiled = false;
         std::vector<uint8_t> protection;
 
         header_t game;

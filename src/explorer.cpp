@@ -1163,6 +1163,7 @@ namespace SourceExplorer
         if (newItem)
         {
             WARNING("New Item");
+            game.recompiled |= true;
             headersize = 12;
             mode = encoding_t::MODE0;
             compressed = false;

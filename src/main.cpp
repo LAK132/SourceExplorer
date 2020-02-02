@@ -114,6 +114,14 @@ void Navigator()
 
     ImGui::Separator();
 
+    if (SrcExp.state.recompiled)
+    {
+      ImGui::PushStyleColor(ImGuiCol_Text, 0xFF8080FF);
+      ImGui::Text("WARNING: THIS GAME APPEARS TO HAVE BEEN RECOMPILED WITH\n"
+                  "AN EXTERNAL TOOL, DUMPING WILL FAIL!\nTHIS IS NOT A BUG.");
+      ImGui::PopStyleColor();
+    }
+
     ImGui::Text("New Game: %s", SrcExp.state.oldGame ? "No" : "Yes");
     ImGui::Text("Unicode Game: %s", SrcExp.state.unicode ? "Yes" : "No");
     ImGui::Text("Compat Game: %s", SrcExp.state.compat ? "Yes" : "No");
