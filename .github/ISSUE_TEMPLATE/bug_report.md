@@ -7,6 +7,9 @@ assignees: LAK132
 
 ---
 
+# IMPORTANT
+Please provide a copy of the Error Log (File -> Save Error Log...) or the Crash Log ("SEND-THIS-CRASH-LOG-TO-LAK132.txt") uploaded to https://pastebin.com . Without this we cannot/will not help you! 
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 
