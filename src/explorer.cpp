@@ -1107,6 +1107,15 @@ namespace SourceExplorer
                 const auto dataSize = strm.read_u32();
                 data.position = strm.position;
                 data.data = strm.read(dataSize);
+                if (strm.position > chunkDataEnd)
+                {
+                    ERROR("Read Too Much Data");
+                }
+                else if (strm.position < chunkDataEnd)
+                {
+                    ERROR("Read Too Little Data");
+                }
+                strm.position = chunkDataEnd;
             }
         }
         else
