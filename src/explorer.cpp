@@ -1089,6 +1089,7 @@ namespace SourceExplorer
             GetEncryptionKey(game);
 
         const auto chunkSize = strm.read_u32();
+        const auto chunkDataEnd = strm.position + chunkSize;
 
         if (mode == encoding_t::MODE1)
         {
