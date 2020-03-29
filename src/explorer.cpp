@@ -19,9 +19,6 @@
 
 namespace SourceExplorer
 {
-    bool debugConsole = false;
-    bool developerConsole = true;
-    bool errorOnlyConsole = false;
     bool forceCompat = false;
     m128i_t _xmmword;
     std::vector<uint8_t> _magic_key;

@@ -81,11 +81,11 @@ bool se::OpenGame(source_explorer_t &srcexp)
                          &LoadGame, data))
     {
         ImGui::Text("Loading, please wait...");
-        ImGui::Checkbox("Print to debug console?", &debugConsole);
-        if (debugConsole)
+        ImGui::Checkbox("Print to debug console?", &lak::debugger.live_output_enabled);
+        if (lak::debugger.live_output_enabled)
         {
-            ImGui::Checkbox("Only errors?", &errorOnlyConsole);
-            ImGui::Checkbox("Developer mode?", &developerConsole);
+            ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
+            ImGui::Checkbox("Developer mode?", &lak::debugger.line_info_enabled);
         }
         ImGui::ProgressBar(srcexp.state.completed);
         if (popupOpen)
@@ -113,11 +113,11 @@ bool se::DumpStuff(source_explorer_t &srcexp,
   if (lak::await_popup(str_id, popupOpen, thread, finished, func, data))
   {
     ImGui::Text("Dumping, please wait...");
-    ImGui::Checkbox("Print to debug console?", &debugConsole);
-    if (debugConsole)
+    ImGui::Checkbox("Print to debug console?", &lak::debugger.live_output_enabled);
+    if (&lak::debugger.live_output_enabled)
     {
-      ImGui::Checkbox("Only errors?", &errorOnlyConsole);
-      ImGui::Checkbox("Developer mode?", &developerConsole);
+      ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
+      ImGui::Checkbox("Developer mode?", &lak::debugger.line_info_enabled);
     }
     ImGui::ProgressBar(completed);
     if (popupOpen)
