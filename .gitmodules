@@ -17,7 +17,7 @@
 	path = include/tinflate
 	url = https://github.com/LAK132/tinflate
 [submodule "include/lak/defer"]
-	path = include/lak/defer
+	path = include/lak2/lak/defer
 	url = https://github.com/LAK132/defer.git
 [submodule "include/lisk"]
 	path = include/lisk

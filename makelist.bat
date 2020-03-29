@@ -1,7 +1,7 @@
 set BINDIR=bin
 set OBJDIR=obj
 
-set INCDIRS=include include\SDL include\imgui include\imgui\misc\cpp include\lisk
+set INCDIRS=include include\SDL include\imgui include\imgui\misc\cpp include\lisk include\lak2
 set LIBDIR=lib
 set LIBS=SDL2main.lib SDL2.lib
 
