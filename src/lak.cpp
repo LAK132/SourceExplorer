@@ -26,8 +26,9 @@ SOFTWARE.
 
 #include <GL/gl3w.h>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
+
 
 namespace lak
 {
@@ -40,16 +41,16 @@ namespace lak
     if (fileSize == std::streampos(-1)) return result;
     file.seekg(0);
     result.resize(fileSize);
-    file.read(reinterpret_cast<char*>(result.data()), result.size());
+    file.read(reinterpret_cast<char *>(result.data()), result.size());
     return result;
   }
 
   bool save_file(const fs::path &path, const std::vector<uint8_t> &data)
   {
-    std::ofstream file(path,
-                       std::ios::binary | std::ios::out | std::ios::trunc);
+    std::ofstream file(
+      path, std::ios::binary | std::ios::out | std::ios::trunc);
     if (!file.is_open()) return false;
-    file.write(reinterpret_cast<const char*>(data.data()), data.size());
+    file.write(reinterpret_cast<const char *>(data.data()), data.size());
     return true;
   }
 
@@ -64,20 +65,17 @@ namespace lak
   void init_graphics()
   {
     SDL_SetMainReady();
-    ASSERTF(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0,
-            "Failed to initialise SDL. Make sure you system has SDL2 "
-            "installed or the SDL dll is in the same directory as Source "
-            "Explorer");
+    ASSERTF(
+      SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0,
+      "Failed to initialise SDL. Make sure you system has SDL2 "
+      "installed or the SDL dll is in the same directory as Source "
+      "Explorer");
   }
 
-  void quit_graphics()
-  {
-    SDL_Quit();
-  }
+  void quit_graphics() { SDL_Quit(); }
 
-  bool create_common_window(window_t &window,
-                            const window_settings_t &settings,
-                            Uint32 flags)
+  bool create_common_window(
+    window_t &window, const window_settings_t &settings, Uint32 flags)
   {
     ASSERT(settings.size.x > 0);
     ASSERT(settings.size.y > 0);
@@ -85,12 +83,13 @@ namespace lak
 
     SDL_GetCurrentDisplayMode(settings.display, &window.display_mode);
 
-    window.window = SDL_CreateWindow(settings.title.c_str(),
-                                     SDL_WINDOWPOS_CENTERED,
-                                     SDL_WINDOWPOS_CENTERED,
-                                     settings.size.x,
-                                     settings.size.y,
-                                     flags);
+    window.window = SDL_CreateWindow(
+      settings.title.c_str(),
+      SDL_WINDOWPOS_CENTERED,
+      SDL_WINDOWPOS_CENTERED,
+      settings.size.x,
+      settings.size.y,
+      flags);
 
     if (window.window == nullptr) WARNING("Failed to create common window");
 
@@ -102,8 +101,8 @@ namespace lak
     SDL_DestroyWindow(window.window);
   }
 
-  bool create_software_window(window_t &window,
-                              const window_settings_t &settings)
+  bool create_software_window(
+    window_t &window, const window_settings_t &settings)
   {
     return create_common_window(window, settings, SDL_WINDOW_RESIZABLE);
   }
@@ -113,15 +112,19 @@ namespace lak
     destroy_common_window(window);
   }
 
-  bool create_opengl_window(window_t &window,
-                            const window_settings_t &settings)
+  bool create_opengl_window(
+    window_t &window, const window_settings_t &settings)
   {
-    if (!create_common_window(window, settings,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL))
+    if (!create_common_window(
+          window, settings, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL))
       return false;
 
-    #define SET_ATTRIB(A, B) if (SDL_GL_SetAttribute(A, B))\
-    { WARNING("Failed to set " #A " to " #B " (" << B << ")"); return false; }
+#define SET_ATTRIB(A, B)                                                      \
+  if (SDL_GL_SetAttribute(A, B))                                              \
+  {                                                                           \
+    WARNING("Failed to set " #A " to " #B " (" << B << ")");                  \
+    return false;                                                             \
+  }
     SET_ATTRIB(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)
     SET_ATTRIB(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SET_ATTRIB(SDL_GL_DOUBLEBUFFER, settings.double_buffered);
@@ -132,7 +135,7 @@ namespace lak
     SET_ATTRIB(SDL_GL_STENCIL_SIZE, settings.stencil_size);
     SET_ATTRIB(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SET_ATTRIB(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    #undef SET_ATTRIB
+#undef SET_ATTRIB
 
     if (!(window.context.sdl_gl = SDL_GL_CreateContext(window.window)))
     {
@@ -150,9 +153,9 @@ namespace lak
 
     SDL_GL_MakeCurrent(window.window, window.context.sdl_gl);
 
-    ASSERTF(SDL_GL_SetSwapInterval(-1) == 0 ||
-            SDL_GL_SetSwapInterval(1) == 0,
-            "Failed to set swap interval");
+    ASSERTF(
+      SDL_GL_SetSwapInterval(-1) == 0 || SDL_GL_SetSwapInterval(1) == 0,
+      "Failed to set swap interval");
 
     return true;
   }

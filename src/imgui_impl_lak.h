@@ -24,188 +24,159 @@ SOFTWARE.
 #ifndef IMGUI_IMPL_LAK_H
 #define IMGUI_IMPL_LAK_H
 
-#include <cstdlib>
-#include <cstring>
-#include <algorithm>
+#include "lak.h"
 
+#include <imgui/examples/imgui_impl_softraster.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
-#include <imgui/examples/imgui_impl_softraster.h>
 
 #ifdef _WIN32
-#include "SDL_syswm.h"
+#  include "SDL_syswm.h"
 #endif
 
+#include <lak/image.h>
 #include <lak/opengl/shader.hpp>
 #include <lak/opengl/texture.hpp>
-#include <lak/image.h>
 
-#include "lak.h"
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
 
 namespace ImGui
 {
-    enum class GraphicsMode
-    {
-        SOFTWARE = 0, OPENGL = 1, VULKAN = 2
+  enum class GraphicsMode
+  {
+    SOFTWARE = 0,
+    OPENGL   = 1,
+    VULKAN   = 2
+  };
+
+  typedef struct _ImplSRContext
+  {
+    SDL_Window *window;
+    SDL_Surface *screenSurface;
+    texture_alpha8_t atlasTexture;
+    texture_color16_t screenTexture;
+    static const Uint32 screenFormat = SDL_PIXELFORMAT_RGB565;
+    // texture_color24_t screenTexture;
+    // static const Uint32 screenFormat = SDL_PIXELFORMAT_RGB888;
+    // texture_color32_t screenTexture;
+    // static const Uint32 screenFormat = SDL_PIXELFORMAT_ABGR8888;
+  } * ImplSRContext;
+
+  typedef struct _ImplGLContext
+  {
+    GLint attribTex;
+    GLint attribViewProj;
+    GLint attribPos;
+    GLint attribUV;
+    GLint attribCol;
+    GLuint elements;
+    GLuint arrayBuffer;
+    GLuint vertexArray;
+    lak::opengl::program shader;
+    lak::opengl::texture font;
+  } * ImplGLContext;
+
+  typedef struct _ImplVkContext
+  {
+  } * ImplVkContext;
+
+  typedef struct _ImplContext
+  {
+    ImGuiContext *imContext;
+    SDL_Cursor *mouseCursors[ImGuiMouseCursor_COUNT];
+    bool mouseRelease[3];
+    GraphicsMode mode;
+    union {
+      void *vdContext;
+      ImplSRContext srContext;
+      ImplGLContext glContext;
+      ImplVkContext vkContext;
     };
+  } * ImplContext;
 
-    typedef struct _ImplSRContext
-    {
-        SDL_Window *window;
-        SDL_Surface *screenSurface;
-        texture_alpha8_t atlasTexture;
-        texture_color16_t screenTexture;
-        static const Uint32 screenFormat = SDL_PIXELFORMAT_RGB565;
-        // texture_color24_t screenTexture;
-        // static const Uint32 screenFormat = SDL_PIXELFORMAT_RGB888;
-        // texture_color32_t screenTexture;
-        // static const Uint32 screenFormat = SDL_PIXELFORMAT_ABGR8888;
-    } *ImplSRContext;
+  ImplContext ImplCreateContext(GraphicsMode mode);
 
-    typedef struct _ImplGLContext
-    {
-        GLint attribTex;
-        GLint attribViewProj;
-        GLint attribPos;
-        GLint attribUV;
-        GLint attribCol;
-        GLuint elements;
-        GLuint arrayBuffer;
-        GLuint vertexArray;
-        lak::opengl::program shader;
-        lak::opengl::texture font;
-    } *ImplGLContext;
+  void ImplDestroyContext(ImplContext context);
 
-    typedef struct _ImplVkContext
-    {
+  // Run once at startup
+  void ImplInit();
 
-    } *ImplVkContext;
+  // Run once per context
+  void ImplInitContext(ImplContext context, const lak::window_t &window);
 
-    typedef struct _ImplContext
-    {
-        ImGuiContext *imContext;
-        SDL_Cursor *mouseCursors[ImGuiMouseCursor_COUNT];
-        bool mouseRelease[3];
-        GraphicsMode mode;
-        union
-        {
-            void *vdContext;
-            ImplSRContext srContext;
-            ImplGLContext glContext;
-            ImplVkContext vkContext;
-        };
-    } *ImplContext;
+  // Run once per context
+  void ImplShutdownContext(ImplContext context);
 
-    ImplContext ImplCreateContext(
-        GraphicsMode mode
-    );
+  void ImplSetCurrentContext(ImplContext context);
 
-    void ImplDestroyContext(
-        ImplContext context
-    );
+  void ImplNewFrame(
+    ImplContext context,
+    SDL_Window *window,
+    const float deltaTime,
+    const bool callBaseNewFrame = true);
 
-    // Run once at startup
-    void ImplInit();
+  bool ImplProcessEvent(ImplContext context, const SDL_Event &event);
 
-    // Run once per context
-    void ImplInitContext(
-        ImplContext context,
-        const lak::window_t &window
-    );
+  void ImplRender(ImplContext context, const bool callBaseRender = true);
 
-    // Run once per context
-    void ImplShutdownContext(
-        ImplContext context
-    );
+  void ImplRender(ImplContext context, ImDrawData *drawData);
 
-    void ImplSetCurrentContext(
-        ImplContext context
-    );
+  void ImplSetClipboard(void *, const char *text);
 
-    void ImplNewFrame(
-        ImplContext context,
-        SDL_Window *window,
-        const float deltaTime,
-        const bool callBaseNewFrame = true
-    );
-
-    bool ImplProcessEvent(
-        ImplContext context,
-        const SDL_Event &event
-    );
-
-    void ImplRender(
-        ImplContext context,
-        const bool callBaseRender = true
-    );
-
-    void ImplRender(
-        ImplContext context,
-        ImDrawData *drawData
-    );
-
-    void ImplSetClipboard(
-        void *,
-        const char *text
-    );
-
-    const char *ImplGetClipboard(
-        char **clipboard
-    );
+  const char *ImplGetClipboard(char **clipboard);
 }
 
 namespace lak
 {
-    template<typename R, typename ...T, typename ...D>
-    bool AwaitPopup(
-        const char *str_id, bool &open,
-        std::thread *&staticThread, std::atomic<bool> &staticFinished,
-        R(*callback)(T...), const std::tuple<D...> &callbackData
-    )
+  template<typename R, typename... T, typename... D>
+  bool AwaitPopup(
+    const char *str_id,
+    bool &open,
+    std::thread *&staticThread,
+    std::atomic<bool> &staticFinished,
+    R (*callback)(T...),
+    const std::tuple<D...> &callbackData)
+  {
+    if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-            if (lak::await(staticThread, &staticFinished, callback, callbackData))
-            {
-                ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
-                open = false;
-                return false;
-            }
-            open = true;
-        }
-        else
-        {
-            open = false;
-            ImGui::OpenPopup(str_id);
-        }
-
-        return true;
+      if (lak::await(staticThread, &staticFinished, callback, callbackData))
+      {
+        ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+        open = false;
+        return false;
+      }
+      open = true;
+    }
+    else
+    {
+      open = false;
+      ImGui::OpenPopup(str_id);
     }
 
-    bool VertSplitter(
-        float &left,
-        float &right,
-        float width,
-        float leftMin = 8.0f,
-        float rightMin = 8.0f,
-        float length = -1.0f
-    );
+    return true;
+  }
 
-    bool HoriSplitter(
-        float &top,
-        float &bottom,
-        float width,
-        float topMin = 8.0f,
-        float bottomMin = 8.0f,
-        float length = -1.0f
-    );
+  bool VertSplitter(
+    float &left,
+    float &right,
+    float width,
+    float leftMin  = 8.0f,
+    float rightMin = 8.0f,
+    float length   = -1.0f);
 
-    bool TreeNode(
-        const char *fmt,
-        ...
-    );
+  bool HoriSplitter(
+    float &top,
+    float &bottom,
+    float width,
+    float topMin    = 8.0f,
+    float bottomMin = 8.0f,
+    float length    = -1.0f);
+
+  bool TreeNode(const char *fmt, ...);
 }
 
 #endif

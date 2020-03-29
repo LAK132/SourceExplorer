@@ -50,18 +50,18 @@ namespace se = SourceExplorer;
 
 namespace fs = std::filesystem;
 
-#define APP_NAME "Source Explorer"
+#define APP_NAME    "Source Explorer"
 #define APP_VERSION "v1.0"
 
 #ifndef MAIN_H
-#define MAIN_H
+#  define MAIN_H
 
 void credits()
 {
-    ImGui::PushID("Credits");
-    if (ImGui::TreeNode("ImGui"))
-    {
-        ImGui::Text(R"(https://github.com/ocornut/imgui
+  ImGui::PushID("Credits");
+  if (ImGui::TreeNode("ImGui"))
+  {
+    ImGui::Text(R"(https://github.com/ocornut/imgui
 
 The MIT License (MIT)
 
@@ -84,32 +84,33 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.)");
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("gl3w"))
-    {
-        ImGui::Text("https://github.com/skaslev/gl3w");
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("SDL2"))
-    {
-        ImGui::Text("https://www.libsdl.org/");
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("tinflate"))
-    {
-        ImGui::Text("http://achurch.org/tinflate.c");
-        ImGui::Text("Fork: https://github.com/LAK132/tinflate");
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("stb_image_write"))
-    {
-        ImGui::Text("https://github.com/nothings/stb/blob/master/stb_image_write.h");
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("Anaconda/Chowdren"))
-    {
-        ImGui::Text(R"(https://github.com/Matt-Esch/anaconda
+    ImGui::TreePop();
+  }
+  if (ImGui::TreeNode("gl3w"))
+  {
+    ImGui::Text("https://github.com/skaslev/gl3w");
+    ImGui::TreePop();
+  }
+  if (ImGui::TreeNode("SDL2"))
+  {
+    ImGui::Text("https://www.libsdl.org/");
+    ImGui::TreePop();
+  }
+  if (ImGui::TreeNode("tinflate"))
+  {
+    ImGui::Text("http://achurch.org/tinflate.c");
+    ImGui::Text("Fork: https://github.com/LAK132/tinflate");
+    ImGui::TreePop();
+  }
+  if (ImGui::TreeNode("stb_image_write"))
+  {
+    ImGui::Text(
+      "https://github.com/nothings/stb/blob/master/stb_image_write.h");
+    ImGui::TreePop();
+  }
+  if (ImGui::TreeNode("Anaconda/Chowdren"))
+  {
+    ImGui::Text(R"(https://github.com/Matt-Esch/anaconda
 
 http://mp2.dk/anaconda/
 
@@ -127,9 +128,9 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
-        ImGui::TreePop();
-    }
-    ImGui::PopID();
+    ImGui::TreePop();
+  }
+  ImGui::PopID();
 }
 
 #endif

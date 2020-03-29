@@ -25,17 +25,17 @@ SOFTWARE.
 #ifndef LAK_LAK_H
 #define LAK_LAK_H
 
-#include <lak/vec.h>
 #include <lak/string.hpp>
+#include <lak/vec.h>
 
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
 
-#include <tuple>
-#include <thread>
 #include <atomic>
 #include <filesystem>
 #include <memory>
+#include <thread>
+#include <tuple>
 #include <vector>
 
 namespace lak
@@ -46,28 +46,31 @@ namespace lak
   bool save_file(const fs::path &path, const std::vector<uint8_t> &data);
   bool save_file(const fs::path &path, const std::string &string);
 
-  template<typename R, typename ...T, typename ...D>
-  bool await(std::unique_ptr<std::thread> &thread,
-             std::atomic<bool> &finished,
-             R(*func)(T...),
-             const std::tuple<D...> &data)
+  template<typename R, typename... T, typename... D>
+  bool await(
+    std::unique_ptr<std::thread> &thread,
+    std::atomic<bool> &finished,
+    R (*func)(T...),
+    const std::tuple<D...> &data)
   {
     if (!thread)
     {
       finished.store(false);
-      void (*functor)(std::atomic<bool>*, R(*)(T...), const std::tuple<D...>*)
-        = [](std::atomic<bool> *finished,
-             R(*f)(T...), const
-             std::tuple<D...> *data)
-      {
-        try
-        {
-          std::apply(f, *data);
-        }
-        catch (...)
-        { }
-        finished->store(true);
-      };
+      void (*functor)(
+        std::atomic<bool> *, R(*)(T...), const std::tuple<D...> *) =
+        [](
+          std::atomic<bool> *finished,
+          R (*f)(T...),
+          const std::tuple<D...> *data) {
+          try
+          {
+            std::apply(f, *data);
+          }
+          catch (...)
+          {
+          }
+          finished->store(true);
+        };
 
       thread = std::make_unique<std::thread>(
         std::thread(functor, &finished, func, &data));
@@ -83,13 +86,12 @@ namespace lak
 
   enum struct graphics_mode
   {
-    ERROR = 0,
-    OPENGL = 1,
+    ERROR    = 0,
+    OPENGL   = 1,
     SOFTWARE = 2,
   };
 
-  union graphics_context_t
-  {
+  union graphics_context_t {
     void *ptr;
     SDL_GLContext sdl_gl;
   };
@@ -97,9 +99,9 @@ namespace lak
   struct window_t
   {
     SDL_DisplayMode display_mode;
-    SDL_Window *window = nullptr;
+    SDL_Window *window         = nullptr;
     graphics_context_t context = {nullptr};
-    graphics_mode mode = graphics_mode::OPENGL;
+    graphics_mode mode         = graphics_mode::OPENGL;
     vec2u32_t size;
   };
 
@@ -108,23 +110,23 @@ namespace lak
     std::string title;
     vec2i_t size;
     bool double_buffered = false;
-    int display = 0;
+    int display          = 0;
 
     // OpenGL
-    uint8_t depth_size = 24;
-    uint8_t colour_size = 8;
+    uint8_t depth_size   = 24;
+    uint8_t colour_size  = 8;
     uint8_t stencil_size = 8;
   };
 
   void init_graphics();
   void quit_graphics();
 
-  bool create_software_window(window_t &window,
-                              const window_settings_t &settings);
+  bool create_software_window(
+    window_t &window, const window_settings_t &settings);
   void destroy_software_window(window_t &window);
 
-  bool create_opengl_window(window_t &window,
-                            const window_settings_t &settings);
+  bool create_opengl_window(
+    window_t &window, const window_settings_t &settings);
   void destroy_opengl_window(window_t &window);
 }
 
