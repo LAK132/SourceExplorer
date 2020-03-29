@@ -2602,8 +2602,8 @@ namespace SourceExplorer
       return result;
     }
 
-    std::unordered_map<uint32_t, std::vector<std::u16string>> item_t::
-      image_handles() const
+    std::unordered_map<uint32_t, std::vector<std::u16string>>
+    item_t::image_handles() const
     {
       std::unordered_map<uint32_t, std::vector<std::u16string>> result;
 

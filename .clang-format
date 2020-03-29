@@ -96,7 +96,7 @@ NamespaceIndentation: All
 # PenaltyBreakString:
 # PenaltyBreakTemplateDeclaration:
 # PenaltyExcessCharacter:
-PenaltyReturnTypeOnItsOwnLine: 100000
+PenaltyReturnTypeOnItsOwnLine: 350
 
 PointerAlignment: Right
 
