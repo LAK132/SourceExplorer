@@ -23,10 +23,11 @@ SOFTWARE.
 */
 
 #include "imgui_utils.hpp"
-#include "debug.h"
 
 #include <imgui/imgui.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
+
+#include <lak/debug.hpp>
 
 #include <algorithm>
 #include <deque>

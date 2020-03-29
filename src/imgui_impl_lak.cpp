@@ -24,7 +24,9 @@ SOFTWARE.
 
 #include "imgui_impl_lak.h"
 #include "lak/opengl/state.hpp"
-#include "lak/defer/defer.hpp"
+
+#include <lak/debug.hpp>
+#include <lak/defer.hpp>
 
 namespace ImGui
 {

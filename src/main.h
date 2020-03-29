@@ -22,31 +22,33 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <stdint.h>
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <queue>
-#include <unordered_set>
-#include <exception>
-#include <atomic>
-#include <thread>
-#include <future>
-#include <filesystem>
-namespace fs = std::filesystem;
-
-// UI
+#include "explorer.h"
+#include "image.h"
 #include "lak.h"
-#include <strconv/strconv.hpp>
-#include <strconv/tostring.hpp>
+#include "tostring.hpp"
+
+namespace se = SourceExplorer;
+
 #include "imgui_impl_lak.h"
 #include <imgui_memory_editor.h>
 #include <imgui_stdlib.h>
 
-#include <tinflate/tinflate.hpp>
-#include "explorer.h"
-#include "image.h"
-namespace se = SourceExplorer;
+#include <lak/strconv.hpp>
+#include <lak/tinflate.hpp>
+
+#include <atomic>
+#include <exception>
+#include <filesystem>
+#include <fstream>
+#include <future>
+#include <iostream>
+#include <queue>
+#include <stdint.h>
+#include <thread>
+#include <unordered_set>
+#include <vector>
+
+namespace fs = std::filesystem;
 
 #define APP_NAME "Source Explorer"
 #define APP_VERSION "v1.0"

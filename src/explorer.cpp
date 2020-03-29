@@ -1070,7 +1070,7 @@ namespace SourceExplorer
 
     lak::memory data_point_t::decode(const chunk_t ID, const encoding_t mode) const
     {
-        auto [success, mem] = Decode(data._data, ID, mode);
+        auto [success, mem] = Decode(data, ID, mode);
         if (success)
             return lak::memory(mem);
         return lak::memory();
@@ -1268,7 +1268,7 @@ namespace SourceExplorer
                     else
                     {
                         result.position -= 3;
-                        if (!Inflate(result, result._data, true, true, std::min(data.expectedSize, max_size)))
+                        if (!Inflate(result, result, true, true, std::min(data.expectedSize, max_size)))
                         {
                             ERROR("... MODE1 Failed To Inflate");
                             result.clear();
@@ -1286,7 +1286,7 @@ namespace SourceExplorer
             {
                 case encoding_t::MODE3:
                 case encoding_t::MODE2:
-                    if (auto [success, mem] = Decrypt(data.data._data, ID, mode); success)
+                    if (auto [success, mem] = Decrypt(data.data, ID, mode); success)
                     {
                         result = mem;
                     }
@@ -1297,7 +1297,7 @@ namespace SourceExplorer
                     }
                     break;
                 case encoding_t::MODE1:
-                    if (!Inflate(result, data.data._data, false, false, max_size))
+                    if (!Inflate(result, data.data, false, false, max_size))
                     {
                         ERROR("... MODE1 Failed To Inflate");
                         result.clear();
@@ -1306,14 +1306,14 @@ namespace SourceExplorer
                 default:
                     if (data.data.size() > 0 && data.data[0] == 0x78)
                     {
-                        if (!Inflate(result, data.data._data, false, false, max_size))
+                        if (!Inflate(result, data.data, false, false, max_size))
                         {
                             WARNING("... Guessed MODE1 Failed To Inflate");
-                            result = data.data._data;
+                            result = data.data;
                         }
                     }
                     else
-                        result = data.data._data;
+                        result = data.data;
                     break;
             }
         }
@@ -1333,13 +1333,13 @@ namespace SourceExplorer
             {
                 case encoding_t::MODE3:
                 case encoding_t::MODE2:
-                    if (auto [success, mem] = Decrypt(data.data._data, ID, mode); success)
+                    if (auto [success, mem] = Decrypt(data.data, ID, mode); success)
                         result = mem;
                     else
                         result.clear();
                     break;
                 case encoding_t::MODE1:
-                    if (!Inflate(result, header.data._data, false, false, max_size))
+                    if (!Inflate(result, header.data, false, false, max_size))
                     {
                         ERROR("MODE1 Inflation Failed");
                         result.clear();
@@ -1348,14 +1348,14 @@ namespace SourceExplorer
                 default:
                     if (header.data.size() > 0 && header.data[0] == 0x78)
                     {
-                        if (!Inflate(result, header.data._data, false, false, max_size))
+                        if (!Inflate(result, header.data, false, false, max_size))
                         {
                             DEBUG("Guessed MODE1 Inflation Failed");
-                            result = header.data._data;
+                            result = header.data;
                         }
                     }
                     else
-                        result = header.data._data;
+                        result = header.data;
                     break;
             }
         }
@@ -1536,7 +1536,7 @@ namespace SourceExplorer
 
             entry.view(srcexp);
             for (const auto &s : values)
-                ImGui::Text((const char *)lak::strconv_u8(s).c_str());
+                ImGui::Text("%s", (const char *)lak::strconv_u8(s).c_str());
 
             ImGui::Separator();
             ImGui::TreePop();
@@ -2286,7 +2286,7 @@ namespace SourceExplorer
             if (ImGui::TreeNode("Animations"))
             {
                 ImGui::Separator();
-                ImGui::Text("Size: 0x%zX", size);
+                ImGui::Text("Size: 0x%zX", (size_t)size);
                 ImGui::Text("Animations: %zu", animations.size());
                 size_t index = 0;
                 for (const auto &animation : animations)

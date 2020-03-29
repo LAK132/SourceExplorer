@@ -25,6 +25,11 @@ SOFTWARE.
 #ifndef IMGUI_UTILS_H
 #define IMGUI_UTILS_H
 
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
+#include <imgui.h>
+
 #include <filesystem>
 
 namespace lak

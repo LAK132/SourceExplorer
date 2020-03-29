@@ -26,6 +26,7 @@ SOFTWARE.
 #define LAK_LAK_H
 
 #include <lak/vec.h>
+#include <lak/string.hpp>
 
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
@@ -35,7 +36,6 @@ SOFTWARE.
 #include <atomic>
 #include <filesystem>
 #include <memory>
-#include <string>
 #include <vector>
 
 namespace lak

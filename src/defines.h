@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <string>
+#include <lak/string.hpp>
 
 #ifndef DEFINES_H
 #define DEFINES_H

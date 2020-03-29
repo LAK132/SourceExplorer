@@ -1,9 +1,3 @@
-[submodule "include/memory"]
-	path = include/memory
-	url = https://github.com/LAK132/memory.git
-[submodule "include/strconv"]
-	path = include/strconv
-	url = https://github.com/LAK132/strconv.git
 [submodule "include/imgui"]
 	path = include/imgui
 	url = https://github.com/LAK132/ImSoft.git
@@ -13,9 +7,6 @@
 [submodule "glm"]
 	path = include/glm
 	url = https://github.com/g-truc/glm
-[submodule "include/tinflate"]
-	path = include/tinflate
-	url = https://github.com/LAK132/tinflate
 [submodule "include/lisk"]
 	path = include/lisk
 	url = https://github.com/LAK132/lisk

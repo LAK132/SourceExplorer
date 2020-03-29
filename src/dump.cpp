@@ -23,8 +23,7 @@ SOFTWARE.
 */
 
 #include "dump.h"
-
-#include <strconv/tostring.hpp>
+#include "tostring.hpp"
 
 #ifdef _WIN32
 #define STBI_MSC_SECURE_CRT
@@ -72,7 +71,7 @@ bool se::SaveImage(source_explorer_t &srcexp,
 
 bool se::OpenGame(source_explorer_t &srcexp)
 {
-    static std::tuple<se::source_explorer_t&> data = {srcexp};
+    static std::tuple<source_explorer_t&> data = {srcexp};
 
     static std::unique_ptr<std::thread> thread = nullptr;
     static std::atomic<bool> finished = false;
@@ -82,11 +81,11 @@ bool se::OpenGame(source_explorer_t &srcexp)
                          &LoadGame, data))
     {
         ImGui::Text("Loading, please wait...");
-        ImGui::Checkbox("Print to debug console?", &se::debugConsole);
-        if (se::debugConsole)
+        ImGui::Checkbox("Print to debug console?", &debugConsole);
+        if (debugConsole)
         {
-            ImGui::Checkbox("Only errors?", &se::errorOnlyConsole);
-            ImGui::Checkbox("Developer mode?", &se::developerConsole);
+            ImGui::Checkbox("Only errors?", &errorOnlyConsole);
+            ImGui::Checkbox("Developer mode?", &developerConsole);
         }
         ImGui::ProgressBar(srcexp.state.completed);
         if (popupOpen)
@@ -612,7 +611,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
     fs::path filename = file.name;
     filename = srcexp.binaryFiles.path / filename.filename();
     DEBUG(filename);
-    if (!lak::save_file(filename, file.data._data))
+    if (!lak::save_file(filename, file.data))
     {
       ERROR("Failed To Save File '" << filename << "'");
     }

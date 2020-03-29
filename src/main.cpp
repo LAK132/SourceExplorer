@@ -18,11 +18,14 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "main.h"
 #include "dump.h"
+#include "lisk_impl.hpp"
+
 #include "imgui_utils.hpp"
-#include <lak/defer/defer.hpp>
+
+#include <lak/defer.hpp>
+#include <lak/opengl/shader.hpp>
 #include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
-#include <lak/opengl/shader.hpp>
 
 se::source_explorer_t SrcExp;
 int openglMajor, openglMinor;
@@ -414,9 +417,8 @@ void MemoryExplorer(bool &Update)
   else if (dataMode == 1) // Header
   {
     if (Update && SrcExp.view != nullptr)
-      SrcExp.buffer = raw
-        ? SrcExp.view->header.data._data
-        : SrcExp.view->decodeHeader()._data;
+      SrcExp.buffer =
+        raw ? SrcExp.view->header.data : SrcExp.view->decodeHeader();
 
     if (contentMode == 1)
     {
@@ -441,9 +443,7 @@ void MemoryExplorer(bool &Update)
   else if (dataMode == 2) // Data
   {
     if (Update && SrcExp.view != nullptr)
-      SrcExp.buffer = raw
-        ? SrcExp.view->data.data._data
-        : SrcExp.view->decode()._data;
+      SrcExp.buffer = raw ? SrcExp.view->data.data : SrcExp.view->decode();
 
     if (contentMode == 1)
     {
@@ -1068,21 +1068,22 @@ int main(int argc, char **argv)
   return(0);
 }
 
+#include "dump.cpp"
+#include "explorer.cpp"
 #include "lak.cpp"
-#include <lak/opengl/texture.cpp>
-#include <lak/opengl/shader.cpp>
+#include "lisk_impl.cpp"
 
 #include "imgui_impl_lak.cpp"
 #include "imgui_utils.cpp"
-#include <tinflate/tinflate.cpp>
+#include <lak/src/tinflate.cpp>
 
-#include "explorer.cpp"
-#include "dump.cpp"
-#include "debug.cpp"
+#include <lak/opengl/shader.cpp>
+#include <lak/opengl/texture.cpp>
+#include <lak/src/debug.cpp>
+#include <lak/src/memory.cpp>
+#include <lak/src/strconv.cpp>
 
 #include <examples/imgui_impl_softraster.cpp>
-
-#include <memory/memory.cpp>
 
 #include <atom.cpp>
 #include <callable.cpp>
@@ -1099,6 +1100,10 @@ int main(int argc, char **argv)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
-extern "C" {
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+extern "C"
+{
 #include <GL/gl3w.c>
 }

@@ -15,46 +15,46 @@
 // You should have received a copy of the GNU General Public License
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdint.h>
-#include <iostream>
-#include <assert.h>
-#include <string>
-#include <istream>
-#include <fstream>
-#include <memory>
-#include <atomic>
-#include <stack>
-#include <vector>
-#include <variant>
-#include <unordered_map>
-#include <iterator>
-
-#include "imgui_impl_lak.h"
-#include "imgui_utils.hpp"
-#include "lak.h"
-#include <lak/opengl/texture.hpp>
-#include <strconv/strconv.hpp>
-#include "defines.h"
-#include <tinflate/tinflate.hpp>
-#include <memory/memory.hpp>
-
 #ifndef EXPLORER_H
 #define EXPLORER_H
 
+#include "defines.h"
 #include "encryption.h"
-#include "debug.h"
+#include "lak.h"
+#include "stb_image.h"
 
-// char8_t typdef for C++ < 20
-#if __cplusplus <= 201703L
-using char8_t = uint_least8_t;
-namespace std
-{
-    using u8string = basic_string<char8_t>;
-}
-#endif
+#include <lak/debug.hpp>
+#include <lak/memory.hpp>
+#include <lak/opengl/texture.hpp>
+#include <lak/strconv.hpp>
+#include <lak/string.hpp>
+#include <lak/tinflate.hpp>
+
+#include "imgui_impl_lak.h"
+#include "imgui_utils.hpp"
+#include <imgui_memory_editor.h>
+#include <imgui_stdlib.h>
+
+#include <assert.h>
+#include <atomic>
+#include <fstream>
+#include <iostream>
+#include <istream>
+#include <iterator>
+#include <memory>
+#include <stack>
+#include <stdint.h>
+#include <unordered_map>
+#include <variant>
+#include <vector>
+
+namespace fs = std::filesystem;
 
 namespace SourceExplorer
 {
+    extern bool debugConsole;
+    extern bool developerConsole;
+    extern bool errorOnlyConsole;
     extern bool forceCompat;
     extern m128i_t _xmmword;
     extern std::vector<uint8_t> _magic_key;
