@@ -19,3 +19,6 @@
 [submodule "include/lisk"]
 	path = include/lisk
 	url = https://github.com/LAK132/lisk
+[submodule "include/lak"]
+	path = include/lak
+	url = https://github.com/LAK132/lak
