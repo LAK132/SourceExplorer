@@ -112,11 +112,10 @@ namespace ImGui
 
   void ImplSetCurrentContext(ImplContext context);
 
-  void ImplNewFrame(
-    ImplContext context,
-    SDL_Window *window,
-    const float deltaTime,
-    const bool callBaseNewFrame = true);
+  void ImplNewFrame(ImplContext context,
+                    SDL_Window *window,
+                    const float deltaTime,
+                    const bool callBaseNewFrame = true);
 
   bool ImplProcessEvent(ImplContext context, const SDL_Event &event);
 
@@ -132,13 +131,12 @@ namespace ImGui
 namespace lak
 {
   template<typename R, typename... T, typename... D>
-  bool AwaitPopup(
-    const char *str_id,
-    bool &open,
-    std::thread *&staticThread,
-    std::atomic<bool> &staticFinished,
-    R (*callback)(T...),
-    const std::tuple<D...> &callbackData)
+  bool AwaitPopup(const char *str_id,
+                  bool &open,
+                  std::thread *&staticThread,
+                  std::atomic<bool> &staticFinished,
+                  R (*callback)(T...),
+                  const std::tuple<D...> &callbackData)
   {
     if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
     {
@@ -160,21 +158,19 @@ namespace lak
     return true;
   }
 
-  bool VertSplitter(
-    float &left,
-    float &right,
-    float width,
-    float leftMin  = 8.0f,
-    float rightMin = 8.0f,
-    float length   = -1.0f);
+  bool VertSplitter(float &left,
+                    float &right,
+                    float width,
+                    float leftMin  = 8.0f,
+                    float rightMin = 8.0f,
+                    float length   = -1.0f);
 
-  bool HoriSplitter(
-    float &top,
-    float &bottom,
-    float width,
-    float topMin    = 8.0f,
-    float bottomMin = 8.0f,
-    float length    = -1.0f);
+  bool HoriSplitter(float &top,
+                    float &bottom,
+                    float width,
+                    float topMin    = 8.0f,
+                    float bottomMin = 8.0f,
+                    float length    = -1.0f);
 
   bool TreeNode(const char *fmt, ...);
 }

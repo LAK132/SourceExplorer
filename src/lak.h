@@ -47,21 +47,19 @@ namespace lak
   bool save_file(const fs::path &path, const std::string &string);
 
   template<typename R, typename... T, typename... D>
-  bool await(
-    std::unique_ptr<std::thread> &thread,
-    std::atomic<bool> &finished,
-    R (*func)(T...),
-    const std::tuple<D...> &data)
+  bool await(std::unique_ptr<std::thread> &thread,
+             std::atomic<bool> &finished,
+             R (*func)(T...),
+             const std::tuple<D...> &data)
   {
     if (!thread)
     {
       finished.store(false);
       void (*functor)(
         std::atomic<bool> *, R(*)(T...), const std::tuple<D...> *) =
-        [](
-          std::atomic<bool> *finished,
-          R (*f)(T...),
-          const std::tuple<D...> *data) {
+        [](std::atomic<bool> *finished,
+           R (*f)(T...),
+           const std::tuple<D...> *data) {
           try
           {
             std::apply(f, *data);
@@ -121,12 +119,12 @@ namespace lak
   void init_graphics();
   void quit_graphics();
 
-  bool create_software_window(
-    window_t &window, const window_settings_t &settings);
+  bool create_software_window(window_t &window,
+                              const window_settings_t &settings);
   void destroy_software_window(window_t &window);
 
-  bool create_opengl_window(
-    window_t &window, const window_settings_t &settings);
+  bool create_opengl_window(window_t &window,
+                            const window_settings_t &settings);
   void destroy_opengl_window(window_t &window);
 }
 

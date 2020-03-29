@@ -33,11 +33,10 @@ namespace SourceExplorer
 {
   bool SaveImage(const lak::image4_t &image, const fs::path &filename);
 
-  bool SaveImage(
-    source_explorer_t &srcexp,
-    uint16_t handle,
-    const fs::path &filename,
-    const frame::item_t *frame);
+  bool SaveImage(source_explorer_t &srcexp,
+                 uint16_t handle,
+                 const fs::path &filename,
+                 const frame::item_t *frame);
 
   bool OpenGame(source_explorer_t &srcexp);
 
@@ -45,18 +44,19 @@ namespace SourceExplorer
 
   using dump_function_t = void(source_explorer_t &, std::atomic<float> &);
 
-  bool DumpStuff(
-    source_explorer_t &srcexp, const char *str_id, dump_function_t *func);
+  bool DumpStuff(source_explorer_t &srcexp,
+                 const char *str_id,
+                 dump_function_t *func);
 
   void DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed);
-  void DumpSortedImages(
-    source_explorer_t &srcexp, std::atomic<float> &completed);
+  void DumpSortedImages(source_explorer_t &srcexp,
+                        std::atomic<float> &completed);
   void DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed);
   void DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed);
   void DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed);
   void DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed);
-  void DumpBinaryFiles(
-    source_explorer_t &srcexp, std::atomic<float> &completed);
+  void DumpBinaryFiles(source_explorer_t &srcexp,
+                       std::atomic<float> &completed);
   void SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed);
 
   template<typename LOAD, typename MANIP>

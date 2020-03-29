@@ -34,16 +34,15 @@ SOFTWARE.
 
 namespace lak
 {
-  bool input_text(
-    const char *str_id,
-    char *buf,
-    size_t buf_size,
-    ImGuiInputTextFlags flags,
-    ImGuiInputTextCallback callback,
-    void *user_data)
+  bool input_text(const char *str_id,
+                  char *buf,
+                  size_t buf_size,
+                  ImGuiInputTextFlags flags,
+                  ImGuiInputTextCallback callback,
+                  void *user_data)
   {
-    IM_ASSERT(
-      !(flags & ImGuiInputTextFlags_Multiline) && "Call InputTextMultiline()");
+    IM_ASSERT(!(flags & ImGuiInputTextFlags_Multiline) &&
+              "Call InputTextMultiline()");
 
     bool result;
     ImGui::PushID(str_id);
@@ -53,12 +52,11 @@ namespace lak
     return result;
   }
 
-  bool input_text(
-    const char *str_id,
-    std::string *str,
-    ImGuiInputTextFlags flags,
-    ImGuiInputTextCallback callback,
-    void *user_data)
+  bool input_text(const char *str_id,
+                  std::string *str,
+                  ImGuiInputTextFlags flags,
+                  ImGuiInputTextCallback callback,
+                  void *user_data)
   {
     IM_ASSERT(!(flags & ImGuiInputTextFlags_CallbackResize));
     flags |= ImGuiInputTextFlags_CallbackResize;
@@ -68,13 +66,12 @@ namespace lak
     cb_user_data.ChainCallback         = callback;
     cb_user_data.ChainCallbackUserData = user_data;
 
-    return lak::input_text(
-      str_id,
-      (char *)str->c_str(),
-      str->capacity() + 1,
-      flags,
-      InputTextCallback,
-      &cb_user_data);
+    return lak::input_text(str_id,
+                           (char *)str->c_str(),
+                           str->capacity() + 1,
+                           flags,
+                           InputTextCallback,
+                           &cb_user_data);
   }
 
   fs::path normalised(const fs::path &path)
@@ -93,8 +90,8 @@ namespace lak
     return normalised(path).parent_path();
   }
 
-  std::pair<fs::path, fs::path> deepest_folder(
-    const fs::path &path, std::error_code &ec)
+  std::pair<fs::path, fs::path> deepest_folder(const fs::path &path,
+                                               std::error_code &ec)
   {
     fs::path folder = normalised(path);
     fs::path file;
@@ -211,8 +208,10 @@ namespace lak
     return path != cache.full();
   }
 
-  file_open_error open_file(
-    fs::path &path, bool save, std::error_code &ec, ImVec2 size)
+  file_open_error open_file(fs::path &path,
+                            bool save,
+                            std::error_code &ec,
+                            ImVec2 size)
   {
     static path_cache cache;
     static std::string file_str;
@@ -234,11 +233,10 @@ namespace lak
 
       ImGui::Separator();
 
-      const ImVec2 viewSize = ImVec2(
-        0,
-        -((ImGui::GetStyle().ItemSpacing.y +
-           ImGui::GetFrameHeightWithSpacing()) *
-          2));
+      const ImVec2 viewSize = ImVec2(0,
+                                     -((ImGui::GetStyle().ItemSpacing.y +
+                                        ImGui::GetFrameHeightWithSpacing()) *
+                                       2));
       if (auto full = cache.full(); path_navigator(full, ec, viewSize))
       {
         cache.refresh(full, ec);
@@ -309,11 +307,10 @@ namespace lak
 
       ImGui::Separator();
 
-      const ImVec2 viewSize = ImVec2(
-        0,
-        -((ImGui::GetStyle().ItemSpacing.y +
-           ImGui::GetFrameHeightWithSpacing()) *
-          2));
+      const ImVec2 viewSize = ImVec2(0,
+                                     -((ImGui::GetStyle().ItemSpacing.y +
+                                        ImGui::GetFrameHeightWithSpacing()) *
+                                       2));
       if (auto full = cache.full(); path_navigator(full, ec, viewSize))
       {
         cache.refresh(full, ec);
@@ -345,8 +342,9 @@ namespace lak
     return code;
   }
 
-  file_open_error open_file_modal(
-    fs::path &path, bool save, std::error_code &ec)
+  file_open_error open_file_modal(fs::path &path,
+                                  bool save,
+                                  std::error_code &ec)
   {
     file_open_error code = file_open_error::INCOMPLETE;
     bool open            = true;

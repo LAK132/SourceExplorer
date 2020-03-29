@@ -84,9 +84,8 @@ namespace ImGui
       {
         io.DisplayFramebufferScale.x = 1.0f;
         io.DisplayFramebufferScale.y = 1.0f;
-        if (
-          (size_t)windW != context->srContext->screenTexture.w ||
-          (size_t)windH != context->srContext->screenTexture.h)
+        if ((size_t)windW != context->srContext->screenTexture.w ||
+            (size_t)windH != context->srContext->screenTexture.h)
         {
           if (context->srContext->screenSurface != nullptr)
             SDL_FreeSurface(context->srContext->screenSurface);
@@ -362,11 +361,10 @@ namespace ImGui
     SetCurrentContext(context->imContext);
   }
 
-  void ImplNewFrame(
-    ImplContext context,
-    SDL_Window *window,
-    const float deltaTime,
-    const bool callBaseNewFrame)
+  void ImplNewFrame(ImplContext context,
+                    SDL_Window *window,
+                    const float deltaTime,
+                    const bool callBaseNewFrame)
   {
     ImGuiIO &io = ImGui::GetIO();
 
@@ -413,8 +411,8 @@ namespace ImGui
           case SDL_WINDOWEVENT_RESIZED:
           case SDL_WINDOWEVENT_SIZE_CHANGED:
           {
-            ImplUpdateDisplaySize(
-              context, SDL_GetWindowFromID(event.window.windowID));
+            ImplUpdateDisplaySize(context,
+                                  SDL_GetWindowFromID(event.window.windowID));
           }
             return true;
         }
@@ -607,11 +605,10 @@ namespace ImGui
     glBindBuffer(GL_ARRAY_BUFFER, context->arrayBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, context->elements);
     glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
-    glBlendFuncSeparate(
-      GL_SRC_ALPHA,
-      GL_ONE_MINUS_SRC_ALPHA,
-      GL_SRC_ALPHA,
-      GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFuncSeparate(GL_SRC_ALPHA,
+                        GL_ONE_MINUS_SRC_ALPHA,
+                        GL_SRC_ALPHA,
+                        GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
@@ -647,48 +644,43 @@ namespace ImGui
     // #endif
 
     glEnableVertexAttribArray(context->attribPos);
-    glVertexAttribPointer(
-      context->attribPos,
-      2,
-      GL_FLOAT,
-      GL_FALSE,
-      sizeof(ImDrawVert),
-      (GLvoid *)IM_OFFSETOF(ImDrawVert, pos));
+    glVertexAttribPointer(context->attribPos,
+                          2,
+                          GL_FLOAT,
+                          GL_FALSE,
+                          sizeof(ImDrawVert),
+                          (GLvoid *)IM_OFFSETOF(ImDrawVert, pos));
 
     glEnableVertexAttribArray(context->attribUV);
-    glVertexAttribPointer(
-      context->attribUV,
-      2,
-      GL_FLOAT,
-      GL_FALSE,
-      sizeof(ImDrawVert),
-      (GLvoid *)IM_OFFSETOF(ImDrawVert, uv));
+    glVertexAttribPointer(context->attribUV,
+                          2,
+                          GL_FLOAT,
+                          GL_FALSE,
+                          sizeof(ImDrawVert),
+                          (GLvoid *)IM_OFFSETOF(ImDrawVert, uv));
 
     glEnableVertexAttribArray(context->attribCol);
-    glVertexAttribPointer(
-      context->attribCol,
-      4,
-      GL_UNSIGNED_BYTE,
-      GL_TRUE,
-      sizeof(ImDrawVert),
-      (GLvoid *)IM_OFFSETOF(ImDrawVert, col));
+    glVertexAttribPointer(context->attribCol,
+                          4,
+                          GL_UNSIGNED_BYTE,
+                          GL_TRUE,
+                          sizeof(ImDrawVert),
+                          (GLvoid *)IM_OFFSETOF(ImDrawVert, col));
 
     for (int n = 0; n < drawData->CmdListsCount; ++n)
     {
       const ImDrawList *cmdList        = drawData->CmdLists[n];
       const ImDrawIdx *idxBufferOffset = 0;
 
-      glBufferData(
-        GL_ARRAY_BUFFER,
-        (GLsizeiptr)cmdList->VtxBuffer.Size * sizeof(ImDrawVert),
-        (const GLvoid *)cmdList->VtxBuffer.Data,
-        GL_STREAM_DRAW);
+      glBufferData(GL_ARRAY_BUFFER,
+                   (GLsizeiptr)cmdList->VtxBuffer.Size * sizeof(ImDrawVert),
+                   (const GLvoid *)cmdList->VtxBuffer.Data,
+                   GL_STREAM_DRAW);
 
-      glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        (GLsizeiptr)cmdList->IdxBuffer.Size * sizeof(ImDrawIdx),
-        (const GLvoid *)cmdList->IdxBuffer.Data,
-        GL_STREAM_DRAW);
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                   (GLsizeiptr)cmdList->IdxBuffer.Size * sizeof(ImDrawIdx),
+                   (const GLvoid *)cmdList->IdxBuffer.Data,
+                   GL_STREAM_DRAW);
 
       for (int cmdI = 0; cmdI < cmdList->CmdBuffer.Size; ++cmdI)
       {
@@ -705,9 +697,8 @@ namespace ImGui
           clip.z = pcmd.ClipRect.z - viewport.x;
           clip.w = pcmd.ClipRect.w - viewport.y;
 
-          if (
-            clip.x < viewport.z && clip.y < viewport.w && clip.z >= 0.0f &&
-            clip.w >= 0.0f)
+          if (clip.x < viewport.z && clip.y < viewport.w && clip.z >= 0.0f &&
+              clip.w >= 0.0f)
           {
 #ifdef GL_CLIP_ORIGIN
             if (old_clip_origin == GL_UPPER_LEFT)
@@ -716,18 +707,17 @@ namespace ImGui
                 (GLint)clip.x, (GLint)clip.y, (GLint)clip.z, (GLint)clip.w);
             else
 #endif
-              glScissor(
-                (GLint)clip.x,
-                (GLint)(viewport.w - clip.w),
-                (GLint)(clip.z - clip.x),
-                (GLint)(clip.w - clip.y));
+              glScissor((GLint)clip.x,
+                        (GLint)(viewport.w - clip.w),
+                        (GLint)(clip.z - clip.x),
+                        (GLint)(clip.w - clip.y));
 
             glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd.TextureId);
-            glDrawElements(
-              GL_TRIANGLES,
-              (GLsizei)pcmd.ElemCount,
-              sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT,
-              idxBufferOffset);
+            glDrawElements(GL_TRIANGLES,
+                           (GLsizei)pcmd.ElemCount,
+                           sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT
+                                                  : GL_UNSIGNED_INT,
+                           idxBufferOffset);
           }
         }
         idxBufferOffset += pcmd.ElemCount;
@@ -775,13 +765,12 @@ namespace ImGui
 
 namespace lak
 {
-  bool HoriSplitter(
-    float &top,
-    float &bottom,
-    float width,
-    float topMin,
-    float bottomMin,
-    float length)
+  bool HoriSplitter(float &top,
+                    float &bottom,
+                    float width,
+                    float topMin,
+                    float bottomMin,
+                    float length)
   {
     const float thickness = ImGui::GetStyle().FramePadding.x * 2;
     const float maxLeft   = width - (bottomMin + thickness);
@@ -804,13 +793,12 @@ namespace lak
       bb, id, ImGuiAxis_X, &top, &bottom, topMin, bottomMin);
   }
 
-  bool VertSplitter(
-    float &left,
-    float &right,
-    float width,
-    float leftMin,
-    float rightMin,
-    float length)
+  bool VertSplitter(float &left,
+                    float &right,
+                    float width,
+                    float leftMin,
+                    float rightMin,
+                    float length)
   {
     const float thickness = ImGui::GetStyle().FramePadding.x * 2;
     const float maxTop    = width - (rightMin + thickness);

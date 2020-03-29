@@ -38,20 +38,18 @@ namespace lak
 {
   namespace fs = std::filesystem;
 
-  bool input_text(
-    const char *str_id,
-    char *buf,
-    size_t buf_size,
-    ImGuiInputTextFlags flags       = 0,
-    ImGuiInputTextCallback callback = nullptr,
-    void *user_data                 = nullptr);
+  bool input_text(const char *str_id,
+                  char *buf,
+                  size_t buf_size,
+                  ImGuiInputTextFlags flags       = 0,
+                  ImGuiInputTextCallback callback = nullptr,
+                  void *user_data                 = nullptr);
 
-  bool input_text(
-    const char *str_id,
-    std::string *str,
-    ImGuiInputTextFlags flags       = 0,
-    ImGuiInputTextCallback callback = nullptr,
-    void *user_data                 = nullptr);
+  bool input_text(const char *str_id,
+                  std::string *str,
+                  ImGuiInputTextFlags flags       = 0,
+                  ImGuiInputTextCallback callback = nullptr,
+                  void *user_data                 = nullptr);
 
   fs::path normalised(const fs::path &path);
 
@@ -63,11 +61,12 @@ namespace lak
   fs::path parent(const fs::path &path);
 
   // Returns {Real folder directory, File part/bad directories}.
-  std::pair<fs::path, fs::path> deepest_folder(
-    const fs::path &path, std::error_code &ec);
+  std::pair<fs::path, fs::path> deepest_folder(const fs::path &path,
+                                               std::error_code &ec);
 
-  bool path_navigator(
-    fs::path &path, std::error_code &ec, ImVec2 size = {0, 0});
+  bool path_navigator(fs::path &path,
+                      std::error_code &ec,
+                      ImVec2 size = {0, 0});
 
   enum struct file_open_error
   {
@@ -77,25 +76,28 @@ namespace lak
     VALID
   };
 
-  file_open_error open_file(
-    fs::path &path, bool save, std::error_code &ec, ImVec2 size = {0, 0});
+  file_open_error open_file(fs::path &path,
+                            bool save,
+                            std::error_code &ec,
+                            ImVec2 size = {0, 0});
 
-  file_open_error open_folder(
-    fs::path &path, std::error_code &ec, ImVec2 size = {0, 0});
+  file_open_error open_folder(fs::path &path,
+                              std::error_code &ec,
+                              ImVec2 size = {0, 0});
 
-  file_open_error open_file_modal(
-    fs::path &path, bool save, std::error_code &ec);
+  file_open_error open_file_modal(fs::path &path,
+                                  bool save,
+                                  std::error_code &ec);
 
   file_open_error open_folder_modal(fs::path &path, std::error_code &ec);
 
   template<typename R, typename... T, typename... D>
-  bool await_popup(
-    const char *str_id,
-    bool &open,
-    std::unique_ptr<std::thread> &staticThread,
-    std::atomic<bool> &staticFinished,
-    R (*callback)(T...),
-    const std::tuple<D...> &callbackData)
+  bool await_popup(const char *str_id,
+                   bool &open,
+                   std::unique_ptr<std::thread> &staticThread,
+                   std::atomic<bool> &staticFinished,
+                   R (*callback)(T...),
+                   const std::tuple<D...> &callbackData)
   {
     if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
     {

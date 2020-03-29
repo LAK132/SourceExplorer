@@ -115,8 +115,10 @@ namespace SourceExplorer
 
   struct item_entry_t : public basic_entry_t
   {
-    error_t read(
-      game_t &game, lak::memory &strm, bool compressed, size_t headersize = 0);
+    error_t read(game_t &game,
+                 lak::memory &strm,
+                 bool compressed,
+                 size_t headersize = 0);
     void view(source_explorer_t &srcexp) const;
   };
 
@@ -141,10 +143,9 @@ namespace SourceExplorer
     mutable std::u16string value;
 
     error_t read(game_t &game, lak::memory &strm);
-    error_t view(
-      source_explorer_t &srcexp,
-      const char *name,
-      const bool preview = false) const;
+    error_t view(source_explorer_t &srcexp,
+                 const char *name,
+                 const bool preview = false) const;
 
     std::u16string u16string() const;
     std::u8string u8string() const;
@@ -710,9 +711,8 @@ namespace SourceExplorer
 
       lak::memory image_data() const;
       bool need_palette() const;
-      lak::image4_t image(
-        const bool colorTrans,
-        const lak::color4_t palette[256] = nullptr) const;
+      lak::image4_t image(const bool colorTrans,
+                          const lak::color4_t palette[256] = nullptr) const;
     };
 
     struct end_t : public basic_chunk_t
@@ -940,8 +940,8 @@ namespace SourceExplorer
 
   uint64_t ParsePackData(lak::memory &strm, game_t &gameState);
 
-  texture_t CreateTexture(
-    const lak::image4_t &bitmap, const lak::graphics_mode mode);
+  texture_t CreateTexture(const lak::image4_t &bitmap,
+                          const lak::graphics_mode mode);
 
   void ViewImage(source_explorer_t &srcexp, const float scale = 1.0f);
 
@@ -960,24 +960,22 @@ namespace SourceExplorer
     bool anaconda,
     size_t max_size = SIZE_MAX);
 
-  bool Inflate(
-    std::vector<uint8_t> &out,
-    const std::vector<uint8_t> &compressed,
-    bool skip_header,
-    bool anaconda,
-    size_t max_size = SIZE_MAX);
+  bool Inflate(std::vector<uint8_t> &out,
+               const std::vector<uint8_t> &compressed,
+               bool skip_header,
+               bool anaconda,
+               size_t max_size = SIZE_MAX);
 
-  bool Inflate(
-    lak::memory &out,
-    const std::vector<uint8_t> &compressed,
-    bool skip_header,
-    bool anaconda,
-    size_t max_size = SIZE_MAX);
+  bool Inflate(lak::memory &out,
+               const std::vector<uint8_t> &compressed,
+               bool skip_header,
+               bool anaconda,
+               size_t max_size = SIZE_MAX);
 
   std::vector<uint8_t> Inflate(const std::vector<uint8_t> &compressed);
 
-  std::vector<uint8_t> StreamDecompress(
-    lak::memory &strm, unsigned int outSize);
+  std::vector<uint8_t> StreamDecompress(lak::memory &strm,
+                                        unsigned int outSize);
 
   std::pair<bool, std::vector<uint8_t>> Decrypt(
     const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode);

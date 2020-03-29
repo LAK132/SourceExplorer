@@ -36,14 +36,12 @@ namespace se = SourceExplorer;
 
 bool se::SaveImage(const lak::image4_t &image, const fs::path &filename)
 {
-  if (
-    stbi_write_png(
-      filename.u8string().c_str(),
-      (int)image.size().x,
-      (int)image.size().y,
-      4,
-      &(image[0].r),
-      (int)(image.size().x * 4)) != 1)
+  if (stbi_write_png(filename.u8string().c_str(),
+                     (int)image.size().x,
+                     (int)image.size().y,
+                     4,
+                     &(image[0].r),
+                     (int)(image.size().x * 4)) != 1)
   {
     ERROR("Failed To Save Image '" << filename << "'");
     return true;
@@ -51,11 +49,10 @@ bool se::SaveImage(const lak::image4_t &image, const fs::path &filename)
   return false;
 }
 
-bool se::SaveImage(
-  source_explorer_t &srcexp,
-  uint16_t handle,
-  const fs::path &filename,
-  const frame::item_t *frame)
+bool se::SaveImage(source_explorer_t &srcexp,
+                   uint16_t handle,
+                   const fs::path &filename,
+                   const frame::item_t *frame)
 {
   auto *object = GetImage(srcexp.state, handle);
   if (!object)
@@ -82,8 +79,8 @@ bool se::OpenGame(source_explorer_t &srcexp)
         "Open Game", popupOpen, thread, finished, &LoadGame, data))
   {
     ImGui::Text("Loading, please wait...");
-    ImGui::Checkbox(
-      "Print to debug console?", &lak::debugger.live_output_enabled);
+    ImGui::Checkbox("Print to debug console?",
+                    &lak::debugger.live_output_enabled);
     if (lak::debugger.live_output_enabled)
     {
       ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
@@ -100,8 +97,9 @@ bool se::OpenGame(source_explorer_t &srcexp)
   return false;
 }
 
-bool se::DumpStuff(
-  source_explorer_t &srcexp, const char *str_id, dump_function_t *func)
+bool se::DumpStuff(source_explorer_t &srcexp,
+                   const char *str_id,
+                   dump_function_t *func)
 {
   static std::atomic<float> completed = 0.0f;
   static dump_data_t data             = {srcexp, completed};
@@ -113,8 +111,8 @@ bool se::DumpStuff(
   if (lak::await_popup(str_id, popupOpen, thread, finished, func, data))
   {
     ImGui::Text("Dumping, please wait...");
-    ImGui::Checkbox(
-      "Print to debug console?", &lak::debugger.live_output_enabled);
+    ImGui::Checkbox("Print to debug console?",
+                    &lak::debugger.live_output_enabled);
     if (&lak::debugger.live_output_enabled)
     {
       ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
@@ -150,8 +148,8 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
   }
 }
 
-void se::DumpSortedImages(
-  se::source_explorer_t &srcexp, std::atomic<float> &completed)
+void se::DumpSortedImages(se::source_explorer_t &srcexp,
+                          std::atomic<float> &completed)
 {
   if (!srcexp.state.game.imageBank)
   {
@@ -209,20 +207,18 @@ void se::DumpSortedImages(
 
   using std::string_literals::operator""s;
 
-  auto HandleName = [](
-                      const std::unique_ptr<string_chunk_t> &name,
-                      auto handle,
-                      std::u16string extra = u"") {
+  auto HandleName = [](const std::unique_ptr<string_chunk_t> &name,
+                       auto handle,
+                       std::u16string extra = u"") {
     std::u32string str;
     if (extra.size() > 0) str += lak::strconv_u32(extra + u" ");
     if (name) str += lak::strconv_u32(name->value);
     std::u16string result;
     for (auto &c : str)
-      if (
-        c == U' ' || c == U'(' || c == U')' || c == U'[' || c == U']' ||
-        c == U'+' || c == U'-' || c == U'=' || c == U'_' ||
-        (c >= U'0' && c <= U'9') || (c >= U'a' && c <= U'z') ||
-        (c >= U'A' && c <= U'Z') || c > 127)
+      if (c == U' ' || c == U'(' || c == U')' || c == U'[' || c == U']' ||
+          c == U'+' || c == U'-' || c == U'=' || c == U'_' ||
+          (c >= U'0' && c <= U'9') || (c >= U'a' && c <= U'z') ||
+          (c >= U'A' && c <= U'Z') || c > 127)
         result += lak::strconv_u16(std::u32string() + c);
     return u"["s + lak::to_u16string(handle) +
            (result.empty() ? u"]" : u"] ") + result;
@@ -332,8 +328,8 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed)
   lak::image4_t &bitmap = srcexp.state.game.icon->bitmap;
 
   fs::path filename = srcexp.appicon.path / "favicon.ico";
-  std::ofstream file(
-    filename, std::ios::binary | std::ios::out | std::ios::ate);
+  std::ofstream file(filename,
+                     std::ios::binary | std::ios::out | std::ios::ate);
   if (!file.is_open()) return;
 
   stbi_write_func *func = [](void *context, void *png, int len) {
@@ -357,14 +353,13 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed)
   };
 
   auto context = std::tuple<std::ofstream *, lak::image4_t *>(&file, &bitmap);
-  stbi_write_png_to_func(
-    func,
-    &context,
-    (int)bitmap.size().x,
-    (int)bitmap.size().y,
-    4,
-    bitmap.data(),
-    (int)(bitmap.size().x * 4));
+  stbi_write_png_to_func(func,
+                         &context,
+                         (int)bitmap.size().x,
+                         (int)bitmap.size().y,
+                         4,
+                         bitmap.data(),
+                         (int)(bitmap.size().x * 4));
 
   file.close();
 }
@@ -572,8 +567,8 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
     std::string file = strm.read_string();
 
     DEBUG(filename);
-    if (!lak::save_file(
-          filename, std::vector<uint8_t>(file.begin(), file.end())))
+    if (!lak::save_file(filename,
+                        std::vector<uint8_t>(file.begin(), file.end())))
     {
       ERROR("Failed To Save File '" << filename << "'");
     }
@@ -582,8 +577,8 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
   }
 }
 
-void se::DumpBinaryFiles(
-  source_explorer_t &srcexp, std::atomic<float> &completed)
+void se::DumpBinaryFiles(source_explorer_t &srcexp,
+                         std::atomic<float> &completed)
 {
   if (!srcexp.state.game.binaryFiles)
   {
@@ -617,8 +612,9 @@ void se::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed)
 }
 
 template<typename FUNCTOR>
-void AttemptFile(
-  se::file_state_t &FileState, FUNCTOR Functor, bool save = false)
+void AttemptFile(se::file_state_t &FileState,
+                 FUNCTOR Functor,
+                 bool save = false)
 {
   auto load = [save](se::file_state_t &FileState) {
     std::error_code ec;

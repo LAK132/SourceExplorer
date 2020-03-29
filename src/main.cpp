@@ -82,8 +82,8 @@ void MenuBar(float FrameTime)
 
   ImGui::Checkbox("Color transparency?", &SrcExp.dumpColorTrans);
   ImGui::Checkbox("Force compat mode?", &se::forceCompat);
-  ImGui::Checkbox(
-    "Debug console? (May make SE slow)", &lak::debugger.live_output_enabled);
+  ImGui::Checkbox("Debug console? (May make SE slow)",
+                  &lak::debugger.live_output_enabled);
 
   if (lak::debugger.live_output_enabled)
   {
@@ -97,13 +97,11 @@ void Navigator()
   if (SrcExp.loaded)
   {
     if (SrcExp.state.game.title)
-      ImGui::Text(
-        "Title: %s",
-        lak::strconv<char>(SrcExp.state.game.title->value).c_str());
+      ImGui::Text("Title: %s",
+                  lak::strconv<char>(SrcExp.state.game.title->value).c_str());
     if (SrcExp.state.game.author)
-      ImGui::Text(
-        "Author: %s",
-        lak::strconv<char>(SrcExp.state.game.author->value).c_str());
+      ImGui::Text("Author: %s",
+                  lak::strconv<char>(SrcExp.state.game.author->value).c_str());
     if (SrcExp.state.game.copyright)
       ImGui::Text(
         "Copyright: %s",
@@ -134,8 +132,8 @@ void Navigator()
     ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.productBuild);
     ImGui::Text("Product Version: %zu", (size_t)SrcExp.state.productVersion);
     ImGui::Text("Runtime Version: %zu", (size_t)SrcExp.state.runtimeVersion);
-    ImGui::Text(
-      "Runtime Sub-Version: %zu", (size_t)SrcExp.state.runtimeSubVersion);
+    ImGui::Text("Runtime Sub-Version: %zu",
+                (size_t)SrcExp.state.runtimeSubVersion);
 
     ImGui::Separator();
 
@@ -237,14 +235,13 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
       .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
       .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
       .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-      .build(
-        0,
-        GL_RED,
-        (lak::vec2<GLsizei>)image.size(),
-        0,
-        GL_RED,
-        GL_FLOAT,
-        image.data());
+      .build(0,
+             GL_RED,
+             (lak::vec2<GLsizei>)image.size(),
+             0,
+             GL_RED,
+             GL_FLOAT,
+             image.data());
   }
 
   if (texture.get())
@@ -311,26 +308,24 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
     }
     const static uint64_t sizeMin = 0;
     const static uint64_t sizeMax = 10000;
-    if (ImGui::DragScalarN(
-          "Image Size",
-          ImGuiDataType_U64,
-          &imageSize,
-          2,
-          1.0f,
-          &sizeMin,
-          &sizeMax))
+    if (ImGui::DragScalarN("Image Size",
+                           ImGuiDataType_U64,
+                           &imageSize,
+                           2,
+                           1.0f,
+                           &sizeMin,
+                           &sizeMax))
     {
       image.resize(lak::vec2s_t(imageSize));
       Update = true;
     }
-    if (ImGui::DragScalarN(
-          "Stride/Skip",
-          ImGuiDataType_U64,
-          &blockSkip,
-          2,
-          0.1f,
-          &sizeMin,
-          &sizeMax))
+    if (ImGui::DragScalarN("Stride/Skip",
+                           ImGuiDataType_U64,
+                           &blockSkip,
+                           2,
+                           0.1f,
+                           &sizeMin,
+                           &sizeMax))
     {
       Update = true;
     }
@@ -371,14 +366,13 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
       .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
       .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
       .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-      .build(
-        0,
-        GL_RGBA,
-        (lak::vec2<GLsizei>)image.size(),
-        0,
-        GL_RGBA,
-        GL_UNSIGNED_BYTE,
-        image.data());
+      .build(0,
+             GL_RGBA,
+             (lak::vec2<GLsizei>)image.size(),
+             0,
+             GL_RGBA,
+             GL_UNSIGNED_BYTE,
+             image.data());
   }
 
   if (texture.get())
@@ -436,11 +430,11 @@ void MemoryExplorer(bool &Update)
     else
     {
       if (contentMode != 0) contentMode = 0;
-      SrcExp.editor.DrawContents(
-        SrcExp.state.file.data(), SrcExp.state.file.size());
+      SrcExp.editor.DrawContents(SrcExp.state.file.data(),
+                                 SrcExp.state.file.size());
       if (Update && SrcExp.view != nullptr)
-        SrcExp.editor.GotoAddrAndHighlight(
-          SrcExp.view->position, SrcExp.view->end);
+        SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position,
+                                           SrcExp.view->end);
     }
   }
   else if (dataMode == 1) // Header
@@ -681,9 +675,8 @@ void AudioExplorer(bool &Update)
     playing = true;
   }
 
-  if (
-    playing &&
-    (ImGui::Button("Stop") || (SDL_GetQueuedAudioSize(audioDevice) == 0)))
+  if (playing &&
+      (ImGui::Button("Stop") || (SDL_GetQueuedAudioSize(audioDevice) == 0)))
   {
     SDL_PauseAudioDevice(audioDevice, 1);
     SDL_ClearQueuedAudio(audioDevice);
@@ -890,12 +883,12 @@ void Update(float FrameTime)
   ImGui::SetNextWindowSize(io.DisplaySize);
   ImVec2 oldWindowPadding = style.WindowPadding;
   style.WindowPadding     = ImVec2(0.0f, 0.0f);
-  if (ImGui::Begin(
-        APP_NAME,
-        &mainOpen,
-        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
-          ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoSavedSettings |
-          ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
+  if (ImGui::Begin(APP_NAME,
+                   &mainOpen,
+                   ImGuiWindowFlags_AlwaysAutoResize |
+                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar |
+                     ImGuiWindowFlags_NoSavedSettings |
+                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
   {
     style.WindowPadding = oldWindowPadding;
     MainScreen(FrameTime);
@@ -903,8 +896,8 @@ void Update(float FrameTime)
   }
 }
 
-ImGui::ImplContext start_graphics(
-  lak::window_t &window, lak::window_settings_t &settings)
+ImGui::ImplContext start_graphics(lak::window_t &window,
+                                  lak::window_settings_t &settings)
 {
   ImGui::ImplContext result;
   if (lak::create_opengl_window(window, settings))
@@ -1118,7 +1111,8 @@ int main(int argc, char **argv)
     {
       perfCount = SDL_GetPerformanceCounter();
       frameTime =
-        (float)(frameTimeError + ((double)(perfCount - prevPerfCount) / (double)perfFreq));
+        (float)(frameTimeError +
+                ((double)(perfCount - prevPerfCount) / (double)perfFreq));
       std::this_thread::yield();
     } while (frameTime < targetFrameTime);
   }

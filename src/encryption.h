@@ -40,20 +40,18 @@ union decode_buffer_t {
   uint64_t m128i_u64[64 * 2];
 };
 
-bool GenerateTable(
-  decode_buffer_t &decodeBuffer,
-  const std::vector<uint8_t> &magic_key,
-  const m128i_t &xmmword,
-  const char magic_char);
+bool GenerateTable(decode_buffer_t &decodeBuffer,
+                   const std::vector<uint8_t> &magic_key,
+                   const m128i_t &xmmword,
+                   const char magic_char);
 
-void DecodeWithTable(
-  std::vector<uint8_t> &chunk, decode_buffer_t &decodeBuffer);
+void DecodeWithTable(std::vector<uint8_t> &chunk,
+                     decode_buffer_t &decodeBuffer);
 
-bool DecodeChunk(
-  std::vector<uint8_t> &chunk,
-  const std::vector<uint8_t> &magic_key,
-  const m128i_t &xmmword,
-  const char magic_char = '6');
+bool DecodeChunk(std::vector<uint8_t> &chunk,
+                 const std::vector<uint8_t> &magic_key,
+                 const m128i_t &xmmword,
+                 const char magic_char = '6');
 
 std::vector<uint8_t> KeyString(const std::u16string &str);
 

@@ -29,7 +29,6 @@ SOFTWARE.
 #include <fstream>
 #include <iostream>
 
-
 namespace lak
 {
   std::vector<uint8_t> read_file(const fs::path &path)
@@ -47,8 +46,8 @@ namespace lak
 
   bool save_file(const fs::path &path, const std::vector<uint8_t> &data)
   {
-    std::ofstream file(
-      path, std::ios::binary | std::ios::out | std::ios::trunc);
+    std::ofstream file(path,
+                       std::ios::binary | std::ios::out | std::ios::trunc);
     if (!file.is_open()) return false;
     file.write(reinterpret_cast<const char *>(data.data()), data.size());
     return true;
@@ -65,17 +64,17 @@ namespace lak
   void init_graphics()
   {
     SDL_SetMainReady();
-    ASSERTF(
-      SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0,
-      "Failed to initialise SDL. Make sure you system has SDL2 "
-      "installed or the SDL dll is in the same directory as Source "
-      "Explorer");
+    ASSERTF(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0,
+            "Failed to initialise SDL. Make sure you system has SDL2 "
+            "installed or the SDL dll is in the same directory as Source "
+            "Explorer");
   }
 
   void quit_graphics() { SDL_Quit(); }
 
-  bool create_common_window(
-    window_t &window, const window_settings_t &settings, Uint32 flags)
+  bool create_common_window(window_t &window,
+                            const window_settings_t &settings,
+                            Uint32 flags)
   {
     ASSERT(settings.size.x > 0);
     ASSERT(settings.size.y > 0);
@@ -83,13 +82,12 @@ namespace lak
 
     SDL_GetCurrentDisplayMode(settings.display, &window.display_mode);
 
-    window.window = SDL_CreateWindow(
-      settings.title.c_str(),
-      SDL_WINDOWPOS_CENTERED,
-      SDL_WINDOWPOS_CENTERED,
-      settings.size.x,
-      settings.size.y,
-      flags);
+    window.window = SDL_CreateWindow(settings.title.c_str(),
+                                     SDL_WINDOWPOS_CENTERED,
+                                     SDL_WINDOWPOS_CENTERED,
+                                     settings.size.x,
+                                     settings.size.y,
+                                     flags);
 
     if (window.window == nullptr) WARNING("Failed to create common window");
 
@@ -101,8 +99,8 @@ namespace lak
     SDL_DestroyWindow(window.window);
   }
 
-  bool create_software_window(
-    window_t &window, const window_settings_t &settings)
+  bool create_software_window(window_t &window,
+                              const window_settings_t &settings)
   {
     return create_common_window(window, settings, SDL_WINDOW_RESIZABLE);
   }
@@ -112,8 +110,8 @@ namespace lak
     destroy_common_window(window);
   }
 
-  bool create_opengl_window(
-    window_t &window, const window_settings_t &settings)
+  bool create_opengl_window(window_t &window,
+                            const window_settings_t &settings)
   {
     if (!create_common_window(
           window, settings, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL))
@@ -153,9 +151,8 @@ namespace lak
 
     SDL_GL_MakeCurrent(window.window, window.context.sdl_gl);
 
-    ASSERTF(
-      SDL_GL_SetSwapInterval(-1) == 0 || SDL_GL_SetSwapInterval(1) == 0,
-      "Failed to set swap interval");
+    ASSERTF(SDL_GL_SetSwapInterval(-1) == 0 || SDL_GL_SetSwapInterval(1) == 0,
+            "Failed to set swap interval");
 
     return true;
   }
