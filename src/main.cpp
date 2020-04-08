@@ -254,8 +254,9 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
 
 void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
 {
-  static lak::vec2u32_t imageSize = {256, 256};
-  static lak::vec2u32_t blockSkip = {0, 0};
+  static bool resetOnUpdate       = true;
+  static lak::vec2u64_t imageSize = {256, 256};
+  static lak::vec2u64_t blockSkip = {0, 0};
   static lak::image4_t image{lak::vec2s_t(imageSize)};
   static lak::opengl::texture texture(GL_TEXTURE_2D);
   static float scale             = 1.0f;
@@ -274,6 +275,13 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
 
   if (Update)
   {
+    if (resetOnUpdate)
+    {
+      imageSize = {256, 256};
+      blockSkip = {0, 0};
+      image.resize(lak::vec2s_t(imageSize));
+    }
+
     if (SrcExp.view != nullptr && Data == SrcExp.state.file.data())
     {
       from = SrcExp.view->position;
@@ -289,6 +297,8 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
   Update |= !texture.get();
 
   {
+    ImGui::Checkbox("Reset Configuration On Update", &resetOnUpdate);
+
     static bool count_mode = true;
     ImGui::Checkbox("Fixed Size", &count_mode);
     uint64_t count = to - from;
@@ -308,7 +318,7 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
     }
     const static uint64_t sizeMin = 0;
     const static uint64_t sizeMax = 10000;
-    if (ImGui::DragScalarN("Image Size",
+    if (ImGui::DragScalarN("Image Size (Width/Height)",
                            ImGuiDataType_U64,
                            &imageSize,
                            2,
@@ -319,7 +329,7 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
       image.resize(lak::vec2s_t(imageSize));
       Update = true;
     }
-    if (ImGui::DragScalarN("Stride/Skip",
+    if (ImGui::DragScalarN("For Every/Skip",
                            ImGuiDataType_U64,
                            &blockSkip,
                            2,
@@ -575,9 +585,8 @@ void AudioExplorer(bool &Update)
       audioData.references = header.read_u32();
       audioData.decompLen  = header.read_u32();
       audioData.type       = (se::sound_mode_t)audio.read_u32();
-      ;
-      audioData.reserved = header.read_u32();
-      audioData.nameLen  = header.read_u32();
+      audioData.reserved   = header.read_u32();
+      audioData.nameLen    = header.read_u32();
 
       if (SrcExp.state.unicode)
       {
@@ -713,6 +722,76 @@ void AudioExplorer(bool &Update)
   Update = false;
 }
 
+lisk::string lisk_init_script;
+lisk::string lisk_loop_script;
+lisk::expression lisk_loop_expr;
+lisk::string lisk_exception_message = "";
+lisk::environment lisk_script_environment;
+bool run_lisk_script = false;
+
+void LiskEditor()
+{
+  if (!run_lisk_script)
+  {
+    if (ImGui::Button("Run"))
+    {
+      lisk_script_environment = DefaultEnvironment();
+
+      if (const auto result =
+            lisk::root_eval_string(lisk_init_script, lisk_script_environment);
+          result.is_exception())
+      {
+        lisk_exception_message = result.as_exception().message;
+      }
+
+      if (const auto tokens = lisk::root_tokenise(lisk_loop_script);
+          !tokens.empty())
+      {
+        auto loop = lisk::parse(tokens);
+        if (loop.is_exception())
+        {
+          lisk_exception_message = loop.as_exception().message;
+        }
+        else if (loop.is_list())
+        {
+          run_lisk_script = true;
+          lisk_loop_expr  = loop;
+        }
+      }
+    }
+  }
+  else
+  {
+    if (ImGui::Button("Stop"))
+    {
+      run_lisk_script = false;
+    }
+  }
+
+  if (!lisk_exception_message.empty())
+    ImGui::Text("Exception thrown: %s", lisk_exception_message.c_str());
+
+  ImGui::Text("Init:");
+
+  lak::input_text(
+    "lisk-init-editor", &lisk_init_script, ImGuiInputTextFlags_Multiline);
+
+  ImGui::Text("Loop:");
+
+  lak::input_text(
+    "lisk-loop-editor", &lisk_loop_script, ImGuiInputTextFlags_Multiline);
+
+  if (run_lisk_script)
+  {
+    auto result = lisk::eval(lisk_loop_expr, lisk_script_environment, true);
+    if (result.is_exception())
+    {
+      run_lisk_script        = false;
+      lisk_exception_message = result.as_exception().message;
+    }
+  }
+}
+
 void Explorer()
 {
   if (SrcExp.loaded)
@@ -721,7 +800,8 @@ void Explorer()
     {
       MEMORY,
       IMAGE,
-      AUDIO
+      AUDIO,
+      LISK
     };
     static int selected = 0;
     ImGui::RadioButton("Memory", &selected, MEMORY);
@@ -729,6 +809,8 @@ void Explorer()
     ImGui::RadioButton("Image", &selected, IMAGE);
     ImGui::SameLine();
     ImGui::RadioButton("Audio", &selected, AUDIO);
+    ImGui::SameLine();
+    ImGui::RadioButton("Lisk", &selected, LISK);
 
     static bool crypto = false;
     ImGui::Checkbox("Crypto", &crypto);
@@ -748,6 +830,7 @@ void Explorer()
       case MEMORY: MemoryExplorer(memUpdate); break;
       case IMAGE: ImageExplorer(imageUpdate); break;
       case AUDIO: AudioExplorer(audioUpdate); break;
+      case LISK: LiskEditor(); break;
       default: selected = 0; break;
     }
   }
@@ -948,8 +1031,6 @@ void stop_graphics(lak::window_t &window, ImGui::ImplContext &gui)
   gui = nullptr;
 }
 
-#include "lisk.hpp"
-
 int main(int argc, char **argv)
 {
   lak::debugger.crash_path = SrcExp.errorLog.path =
@@ -995,22 +1076,6 @@ int main(int argc, char **argv)
   ImGui::StyleColorsDark();
   ImGuiStyle &style    = ImGui::GetStyle();
   style.WindowRounding = 0;
-
-  std::mutex lisk_reader_mutex;
-  lisk::reader reader(lisk::builtin::default_env());
-  reader += "(println \"Welcome to Source Explorer\")";
-
-  auto reader_thread = std::thread([&] {
-    for (;;)
-    {
-      std::string str;
-      std::getline(std::cin, str, '\n');
-      if (!std::cin) return;
-
-      std::scoped_lock lock(lisk_reader_mutex);
-      reader += str;
-    }
-  });
 
   for (bool running = true; running;)
   {
@@ -1064,14 +1129,6 @@ int main(int argc, char **argv)
     ImGui::ImplNewFrame(context, window.window, frameTime);
 
     // --- BEGIN UPDATE ---
-
-    if (lisk_reader_mutex.try_lock())
-    {
-      for (auto expr : reader)
-        if (!expr.is_atom() || !expr.as_atom().is_nil())
-          std::cout << lisk::to_string(expr) << "\n";
-      lisk_reader_mutex.unlock();
-    }
 
     Update(frameTime);
 
@@ -1141,17 +1198,17 @@ int main(int argc, char **argv)
 
 #include <examples/imgui_impl_softraster.cpp>
 
-#include <atom.cpp>
-#include <callable.cpp>
-#include <environment.cpp>
-#include <eval.cpp>
-#include <expression.cpp>
-#include <functor.cpp>
-#include <lambda.cpp>
-#include <lisk.cpp>
-#include <number.cpp>
-#include <pointer.cpp>
-#include <string.cpp>
+#include <lisk/src/atom.cpp>
+#include <lisk/src/callable.cpp>
+#include <lisk/src/environment.cpp>
+#include <lisk/src/eval.cpp>
+#include <lisk/src/expression.cpp>
+#include <lisk/src/functor.cpp>
+#include <lisk/src/lambda.cpp>
+#include <lisk/src/lisk.cpp>
+#include <lisk/src/number.cpp>
+#include <lisk/src/pointer.cpp>
+#include <lisk/src/string.cpp>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>

@@ -41,9 +41,6 @@ namespace lak
                   ImGuiInputTextCallback callback,
                   void *user_data)
   {
-    IM_ASSERT(!(flags & ImGuiInputTextFlags_Multiline) &&
-              "Call InputTextMultiline()");
-
     bool result;
     ImGui::PushID(str_id);
     result = ImGui::InputTextEx(
