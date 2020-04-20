@@ -1,4 +1,9 @@
+#ifndef ENCRYPTION_H
+#define ENCRYPTION_H
+
+#include "explorer.h"
 #include "lak.h"
+
 #include <assert.h>
 #include <cstring>
 #include <emmintrin.h>
@@ -7,12 +12,8 @@
 #include <utility>
 #include <vector>
 
-#ifndef ENCRYPTION_H
-#  define ENCRYPTION_H
-
-#  include "explorer.h"
-
-union alignas(__m128i) m128i_t {
+union alignas(__m128i) m128i_t
+{
   __m128i m128i;
   int8_t m128i_i8[16];
   int16_t m128i_i16[8];
@@ -27,7 +28,8 @@ union alignas(__m128i) m128i_t {
   operator const __m128i &() const { return m128i; }
 };
 
-union decode_buffer_t {
+union decode_buffer_t
+{
   m128i_t m128i[64];
   __m128i _m128i[64];
   int8_t m128i_i8[64 * 16];

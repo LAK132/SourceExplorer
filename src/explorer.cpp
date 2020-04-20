@@ -25,7 +25,8 @@ namespace SourceExplorer
   game_mode_t _mode = game_mode_t::_OLD;
   uint8_t _magic_char;
   std::atomic<float> game_t::completed = 0.0f;
-  using std::string_literals::operator""s;
+
+  using namespace std::string_literals;
 
   std::vector<uint8_t> &operator+=(std::vector<uint8_t> &lhs,
                                    const std::vector<uint8_t> &rhs)
@@ -654,7 +655,7 @@ namespace SourceExplorer
   texture_t CreateTexture(const lak::image4_t &bitmap,
                           const lak::graphics_mode mode)
   {
-    if (mode == lak::graphics_mode::OPENGL)
+    if (mode == lak::graphics_mode::OpenGL)
     {
       auto old_texture = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
 
@@ -676,7 +677,7 @@ namespace SourceExplorer
 
       return result;
     }
-    else if (mode == lak::graphics_mode::SOFTWARE)
+    else if (mode == lak::graphics_mode::Software)
     {
       texture_color32_t result;
       result.copy(
@@ -696,7 +697,7 @@ namespace SourceExplorer
     if (std::holds_alternative<lak::opengl::texture>(srcexp.image))
     {
       const auto &img = std::get<lak::opengl::texture>(srcexp.image);
-      if (!img.get() || srcexp.graphicsMode != lak::graphics_mode::OPENGL)
+      if (!img.get() || srcexp.graphicsMode != lak::graphics_mode::OpenGL)
       {
         ImGui::Text("No image selected.");
       }
@@ -710,7 +711,7 @@ namespace SourceExplorer
     else if (std::holds_alternative<texture_color32_t>(srcexp.image))
     {
       const auto &img = std::get<texture_color32_t>(srcexp.image);
-      if (!img.pixels || srcexp.graphicsMode != lak::graphics_mode::SOFTWARE)
+      if (!img.pixels || srcexp.graphicsMode != lak::graphics_mode::Software)
       {
         ImGui::Text("No image selected.");
       }

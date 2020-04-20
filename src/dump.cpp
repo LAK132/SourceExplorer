@@ -22,13 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "dump.h"
-#include "tostring.hpp"
-
 #ifdef _WIN32
 #  define STBI_MSC_SECURE_CRT
 #endif
 #include <stb_image_write.h>
+
+#include "dump.h"
+#include "tostring.hpp"
 
 #include <unordered_set>
 
@@ -205,7 +205,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
     return result;
   };
 
-  using std::string_literals::operator""s;
+  using namespace std::string_literals;
 
   auto HandleName = [](const std::unique_ptr<string_chunk_t> &name,
                        auto handle,

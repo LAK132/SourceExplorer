@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 #include "imgui_impl_lak.h"
+
 #include "lak/opengl/state.hpp"
 
 #include <lak/debug.hpp>
@@ -36,13 +37,13 @@ namespace ImGui
     result->mode       = mode;
     switch (mode)
     {
-      case GraphicsMode::SOFTWARE:
+      case GraphicsMode::Software:
         result->srContext = new _ImplSRContext();
         break;
-      case GraphicsMode::OPENGL:
+      case GraphicsMode::OpenGL:
         result->glContext = new _ImplGLContext();
         break;
-      case GraphicsMode::VULKAN:
+      case GraphicsMode::Vulkan:
         result->vkContext = new _ImplVkContext();
         break;
       default: result->vdContext = nullptr; break;
@@ -59,9 +60,9 @@ namespace ImGui
       {
         switch (context->mode)
         {
-          case GraphicsMode::SOFTWARE: delete context->srContext; break;
-          case GraphicsMode::OPENGL: delete context->glContext; break;
-          case GraphicsMode::VULKAN: delete context->vkContext; break;
+          case GraphicsMode::Software: delete context->srContext; break;
+          case GraphicsMode::OpenGL: delete context->glContext; break;
+          case GraphicsMode::Vulkan: delete context->vkContext; break;
           default: FATAL("Invalid graphics mode"); break;
         }
       }
@@ -80,7 +81,7 @@ namespace ImGui
 
     switch (context->mode)
     {
-      case GraphicsMode::SOFTWARE:
+      case GraphicsMode::Software:
       {
         io.DisplayFramebufferScale.x = 1.0f;
         io.DisplayFramebufferScale.y = 1.0f;
@@ -102,7 +103,7 @@ namespace ImGui
         }
       }
       break;
-      case GraphicsMode::OPENGL:
+      case GraphicsMode::OpenGL:
       {
         int dispW, dispH;
         SDL_GL_GetDrawableSize(window, &dispW, &dispH);
@@ -112,7 +113,7 @@ namespace ImGui
           (windH > 0) ? (dispH / (float)windH) : 1.0f;
       }
       break;
-      case GraphicsMode::VULKAN:
+      case GraphicsMode::Vulkan:
       {
       }
       break;
@@ -271,13 +272,13 @@ namespace ImGui
 
     switch (context->mode)
     {
-      case GraphicsMode::SOFTWARE:
+      case GraphicsMode::Software:
         ImplInitSRContext(context->srContext, window);
         break;
-      case GraphicsMode::OPENGL:
+      case GraphicsMode::OpenGL:
         ImplInitGLContext(context->glContext, window);
         break;
-      case GraphicsMode::VULKAN:
+      case GraphicsMode::Vulkan:
         ImplInitVkContext(context->vkContext, window);
         break;
       default: ASSERTF(false, "Invalid Context Mode"); break;
@@ -334,13 +335,13 @@ namespace ImGui
 
     switch (context->mode)
     {
-      case GraphicsMode::SOFTWARE:
+      case GraphicsMode::Software:
         ImplShutdownSRContext(context->srContext);
         break;
-      case GraphicsMode::OPENGL:
+      case GraphicsMode::OpenGL:
         ImplShutdownGLContext(context->glContext);
         break;
-      case GraphicsMode::VULKAN:
+      case GraphicsMode::Vulkan:
         ImplShutdownVkContext(context->vkContext);
         break;
       default: ASSERTF(false, "Invalid Context Mode"); break;
@@ -733,13 +734,13 @@ namespace ImGui
     ASSERT(drawData);
     switch (context->mode)
     {
-      case GraphicsMode::SOFTWARE:
+      case GraphicsMode::Software:
         ImplSRRender(context->srContext, drawData);
         break;
-      case GraphicsMode::OPENGL:
+      case GraphicsMode::OpenGL:
         ImplGLRender(context->glContext, drawData);
         break;
-      case GraphicsMode::VULKAN:
+      case GraphicsMode::Vulkan:
         ImplVkRender(context->vkContext, drawData);
         break;
       default: FATAL("Invalid context mode"); break;

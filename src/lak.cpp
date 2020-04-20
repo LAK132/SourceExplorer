@@ -22,9 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "lak.h"
-
 #include <GL/gl3w.h>
+
+#include "lak.h"
 
 #include <fstream>
 #include <iostream>

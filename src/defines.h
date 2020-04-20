@@ -15,10 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <lak/string.hpp>
-
 #ifndef DEFINES_H
-#  define DEFINES_H
+#define DEFINES_H
+
+#include <lak/string.hpp>
 
 // Executable Signature
 static const uint16_t WIN_EXE_SIG = 0x5A4D;

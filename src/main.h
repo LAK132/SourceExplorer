@@ -22,16 +22,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include "imgui_impl_lak.h"
+#include <imgui_memory_editor.h>
+#include <imgui_stdlib.h>
+
 #include "explorer.h"
 #include "image.h"
 #include "lak.h"
 #include "tostring.hpp"
 
 namespace se = SourceExplorer;
-
-#include "imgui_impl_lak.h"
-#include <imgui_memory_editor.h>
-#include <imgui_stdlib.h>
 
 #include <lak/strconv.hpp>
 #include <lak/tinflate.hpp>

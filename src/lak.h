@@ -25,11 +25,12 @@ SOFTWARE.
 #ifndef LAK_LAK_H
 #define LAK_LAK_H
 
-#include <lak/string.hpp>
-#include <lak/vec.h>
-
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
+
+#include <lak/debug.hpp>
+#include <lak/string.hpp>
+#include <lak/vec.h>
 
 #include <atomic>
 #include <filesystem>
@@ -84,12 +85,12 @@ namespace lak
 
   enum struct graphics_mode
   {
-    ERROR    = 0,
-    OPENGL   = 1,
-    SOFTWARE = 2,
+    Software = 0,
+    OpenGL   = 1,
   };
 
-  union graphics_context_t {
+  union graphics_context_t
+  {
     void *ptr;
     SDL_GLContext sdl_gl;
   };
@@ -99,7 +100,7 @@ namespace lak
     SDL_DisplayMode display_mode;
     SDL_Window *window         = nullptr;
     graphics_context_t context = {nullptr};
-    graphics_mode mode         = graphics_mode::OPENGL;
+    graphics_mode mode         = graphics_mode::OpenGL;
     vec2u32_t size;
   };
 

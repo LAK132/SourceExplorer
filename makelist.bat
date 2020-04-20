@@ -8,7 +8,7 @@ set LIBS=SDL2main.lib SDL2.lib
 set SOURCE=src\main.cpp
 set BINARY=srcexp.exe
 
-set CXX=cl /nologo /std:c++17 /D_CRT_SECURE_NO_WARNINGS /MT /EHsc
+set CXX=cl /nologo /std:c++17 /D_CRT_SECURE_NO_WARNINGS /DNOMINMAX /MT /EHsc
 
 if "%mode%"=="debug" goto debug
 if "%mode%"=="release" goto release

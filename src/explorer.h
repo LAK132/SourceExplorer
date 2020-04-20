@@ -18,6 +18,11 @@
 #ifndef EXPLORER_H
 #define EXPLORER_H
 
+#include "imgui_impl_lak.h"
+#include "imgui_utils.hpp"
+#include <imgui_memory_editor.h>
+#include <imgui_stdlib.h>
+
 #include "defines.h"
 #include "encryption.h"
 #include "lak.h"
@@ -29,11 +34,6 @@
 #include <lak/strconv.hpp>
 #include <lak/string.hpp>
 #include <lak/tinflate.hpp>
-
-#include "imgui_impl_lak.h"
-#include "imgui_utils.hpp"
-#include <imgui_memory_editor.h>
-#include <imgui_stdlib.h>
 
 #include <assert.h>
 #include <atomic>
@@ -89,7 +89,8 @@ namespace SourceExplorer
 
   struct basic_entry_t
   {
-    union {
+    union
+    {
       uint32_t handle;
       chunk_t ID;
     };

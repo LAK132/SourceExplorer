@@ -16,11 +16,11 @@
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "main.h"
+#include "imgui_utils.hpp"
+
 #include "dump.h"
 #include "lisk_impl.hpp"
-
-#include "imgui_utils.hpp"
+#include "main.h"
 
 #include <lak/defer.hpp>
 #include <lak/opengl/shader.hpp>
@@ -72,7 +72,7 @@ void MenuBar(float FrameTime)
   if (ImGui::BeginMenu("About"))
   {
     ImGui::Text(APP_NAME " " APP_VERSION);
-    if (SrcExp.graphicsMode == lak::graphics_mode::OPENGL)
+    if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
       ImGui::Text("OpenGL %d.%d", openglMajor, openglMinor);
     ImGui::Text("Frame rate %f", 1.0f / FrameTime);
     credits();
@@ -985,21 +985,20 @@ ImGui::ImplContext start_graphics(lak::window_t &window,
   ImGui::ImplContext result;
   if (lak::create_opengl_window(window, settings))
   {
-    window.mode = lak::graphics_mode::OPENGL;
+    window.mode = lak::graphics_mode::OpenGL;
     openglMajor = lak::opengl::GetUint<1>(GL_MAJOR_VERSION);
     openglMinor = lak::opengl::GetUint<1>(GL_MINOR_VERSION);
-    result      = ImGui::ImplCreateContext(ImGui::GraphicsMode::OPENGL);
+    result      = ImGui::ImplCreateContext(ImGui::GraphicsMode::OpenGL);
   }
   else if (lak::create_software_window(window, settings))
   {
-    window.mode = lak::graphics_mode::SOFTWARE;
-    result      = ImGui::ImplCreateContext(ImGui::GraphicsMode::SOFTWARE);
+    window.mode = lak::graphics_mode::Software;
+    result      = ImGui::ImplCreateContext(ImGui::GraphicsMode::Software);
     // If this isn't called here it crashes when it's called later.
     SDL_GetWindowSurface(window.window);
   }
   else
   {
-    window.mode = lak::graphics_mode::ERROR;
     FATAL("Failed to start any of the available graphics modes");
     return nullptr;
   }
@@ -1014,13 +1013,13 @@ void stop_graphics(lak::window_t &window, ImGui::ImplContext &gui)
   ImGui::ImplShutdownContext(gui);
   switch (window.mode)
   {
-    case lak::graphics_mode::OPENGL:
+    case lak::graphics_mode::OpenGL:
     {
       lak::destroy_opengl_window(window);
     }
     break;
 
-    case lak::graphics_mode::SOFTWARE:
+    case lak::graphics_mode::Software:
     {
       lak::destroy_software_window(window);
     }
@@ -1064,7 +1063,7 @@ int main(int argc, char **argv)
   uint64_t perfCount      = SDL_GetPerformanceCounter();
   float frameTime         = targetFrameTime; // start non-zero
 
-  if (SrcExp.graphicsMode == lak::graphics_mode::OPENGL)
+  if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
   {
     glViewport(0, 0, window.size.x, window.size.y);
     glClearColor(0.0f, 0.3125f, 0.3125f, 1.0f);
@@ -1101,7 +1100,7 @@ int main(int argc, char **argv)
             {
               window.size.x = event.window.data1;
               window.size.y = event.window.data2;
-              if (SrcExp.graphicsMode == lak::graphics_mode::OPENGL)
+              if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
                 glViewport(0, 0, window.size.x, window.size.y);
             }
             break;
@@ -1134,7 +1133,7 @@ int main(int argc, char **argv)
 
     // --- END UPDATE ---
 
-    if (SrcExp.graphicsMode == lak::graphics_mode::OPENGL)
+    if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
     {
       glViewport(0, 0, window.size.x, window.size.y);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1146,7 +1145,7 @@ int main(int argc, char **argv)
 
     ImGui::ImplRender(context);
 
-    if (SrcExp.graphicsMode == lak::graphics_mode::OPENGL)
+    if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
     {
       SDL_GL_SwapWindow(window.window);
     }

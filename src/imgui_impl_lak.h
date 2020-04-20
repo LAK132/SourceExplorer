@@ -24,8 +24,6 @@ SOFTWARE.
 #ifndef IMGUI_IMPL_LAK_H
 #define IMGUI_IMPL_LAK_H
 
-#include "lak.h"
-
 #include <imgui/examples/imgui_impl_softraster.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -34,6 +32,8 @@ SOFTWARE.
 #ifdef _WIN32
 #  include "SDL_syswm.h"
 #endif
+
+#include "lak.h"
 
 #include <lak/image.h>
 #include <lak/opengl/shader.hpp>
@@ -47,9 +47,9 @@ namespace ImGui
 {
   enum class GraphicsMode
   {
-    SOFTWARE = 0,
-    OPENGL   = 1,
-    VULKAN   = 2
+    Software = 0,
+    OpenGL   = 1,
+    Vulkan   = 2
   };
 
   typedef struct _ImplSRContext
@@ -89,7 +89,8 @@ namespace ImGui
     SDL_Cursor *mouseCursors[ImGuiMouseCursor_COUNT];
     bool mouseRelease[3];
     GraphicsMode mode;
-    union {
+    union
+    {
       void *vdContext;
       ImplSRContext srContext;
       ImplGLContext glContext;
