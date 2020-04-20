@@ -207,7 +207,7 @@ namespace SourceExplorer
     error_t view(source_explorer_t &srcexp) const;
   };
 
-  struct other_extenion_t : public basic_chunk_t
+  struct other_extension_t : public basic_chunk_t
   {
     error_t view(source_explorer_t &srcexp) const;
   };
@@ -569,7 +569,7 @@ namespace SourceExplorer
       error_t view(source_explorer_t &srcexp) const;
     };
 
-    struct play_head_t : public basic_chunk_t
+    struct play_header_r : public basic_chunk_t
     {
       error_t view(source_explorer_t &srcexp) const;
     };
@@ -654,7 +654,7 @@ namespace SourceExplorer
       std::unique_ptr<fade_in_t> fadeIn;
       std::unique_ptr<fade_out_t> fadeOut;
       std::unique_ptr<events_t> events;
-      std::unique_ptr<play_head_t> playHead;
+      std::unique_ptr<play_header_r> playHead;
       std::unique_ptr<additional_item_t> additionalItem;
       std::unique_ptr<additional_item_instance_t> additionalItemInstance;
       std::unique_ptr<layers_t> layers;
@@ -813,7 +813,7 @@ namespace SourceExplorer
     std::unique_ptr<extension_data_t> extensionData;
     std::unique_ptr<additional_extensions_t> additionalExtensions;
     std::unique_ptr<application_doc_t> appDoc;
-    std::unique_ptr<other_extenion_t> otherExtension;
+    std::unique_ptr<other_extension_t> otherExtension;
     std::unique_ptr<extension_list_t> extensionList;
     std::unique_ptr<icon_t> icon;
     std::unique_ptr<demo_version_t> demoVersion;

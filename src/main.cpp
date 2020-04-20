@@ -555,7 +555,7 @@ void AudioExplorer(bool &Update)
 
       audioData.name = audio.read_u8string_exact(audioData.nameLen);
 
-      if (audioData.type == se::sound_mode_t::WAVE)
+      if (audioData.type == se::sound_mode_t::wave)
       {
         audioData.format        = audio.read_u16();
         audioData.channelCount  = audio.read_u16();
@@ -597,9 +597,9 @@ void AudioExplorer(bool &Update)
         audioData.name = audio.read_u8string_exact(audioData.nameLen);
 
       if (audio.peek_string(4) == std::string("OggS"))
-        audioData.type = se::sound_mode_t::OGGS;
+        audioData.type = se::sound_mode_t::oggs;
 
-      if (audioData.type == se::sound_mode_t::WAVE)
+      if (audioData.type == se::sound_mode_t::wave)
       {
         audio.position += 4; // "RIFF"
         uint32_t size = audio.read_s32() + 4;
@@ -704,9 +704,9 @@ void AudioExplorer(bool &Update)
   ImGui::SameLine();
   switch (audioData.type)
   {
-    case se::sound_mode_t::WAVE: ImGui::Text("WAV"); break;
-    case se::sound_mode_t::MIDI: ImGui::Text("MIDI"); break;
-    case se::sound_mode_t::OGGS: ImGui::Text("OGG"); break;
+    case se::sound_mode_t::wave: ImGui::Text("WAV"); break;
+    case se::sound_mode_t::midi: ImGui::Text("MIDI"); break;
+    case se::sound_mode_t::oggs: ImGui::Text("OGG"); break;
     default: ImGui::Text("Unknown"); break;
   }
   ImGui::Text("Data Size: 0x%zX", (size_t)audioData.data.size());

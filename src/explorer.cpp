@@ -47,7 +47,7 @@ namespace SourceExplorer
     DEBUG("File Size: 0x" << srcexp.state.file.size());
 
     error_t err = ParsePEHeader(srcexp.state.file, srcexp.state);
-    if (err != error_t::OK)
+    if (err != error_t::ok)
     {
       ERROR("Error '" << error_name(err) << "' While Parsing PE Header, At: 0x"
                       << srcexp.state.file.position);
@@ -77,7 +77,7 @@ namespace SourceExplorer
       _magic_char = 54; // 'c';
 
     err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
-    if (err != error_t::OK)
+    if (err != error_t::ok)
     {
       ERROR("Error '" << error_name(err) << "' While Parsing PE Header, At: 0x"
                       << srcexp.state.file.position);
@@ -174,7 +174,7 @@ namespace SourceExplorer
     {
       ERROR("Invalid EXE Signature, Expected: 0x" << WIN_EXE_SIG << ", At: 0x"
                                                   << (strm.position - 2));
-      return error_t::INVALID_EXE_SIGNATURE;
+      return error_t::invalid_exe_signature;
     }
 
     strm.position = WIN_EXE_PNT;
@@ -188,7 +188,7 @@ namespace SourceExplorer
     {
       ERROR("Invalid PE Signature, Expected: 0x" << WIN_PE_SIG << ", At: 0x"
                                                  << (strm.position - 4));
-      return error_t::INVALID_PE_SIGNATURE;
+      return error_t::invalid_pe_signature;
     }
 
     strm.position += 2;
@@ -243,12 +243,12 @@ namespace SourceExplorer
       strm.position = pos;
       DEBUG("Pos: 0x" << pos);
 
-      if (firstShort == (uint16_t)chunk_t::HEADER || pameMagic == HEADER_GAME)
+      if (firstShort == (uint16_t)chunk_t::header || pameMagic == HEADER_GAME)
       {
         DEBUG("Old Game");
         gameState.oldGame = true;
         gameState.state   = {};
-        gameState.state.push(chunk_t::OLD);
+        gameState.state.push(chunk_t::old);
         break;
       }
       else if (packMagic == HEADER_PACK)
@@ -256,7 +256,7 @@ namespace SourceExplorer
         DEBUG("New Game");
         gameState.oldGame = false;
         gameState.state   = {};
-        gameState.state.push(chunk_t::NEW);
+        gameState.state.push(chunk_t::_new);
         pos = ParsePackData(strm, gameState);
         break;
       }
@@ -273,14 +273,14 @@ namespace SourceExplorer
       else
       {
         ERROR("Invalid Game Header");
-        return error_t::INVALID_GAME_HEADER;
+        return error_t::invalid_game_signature;
       }
 
       if (pos > strm.size())
       {
         ERROR("Invalid Game Header: pos (0x" << pos << ") > strm.size (0x"
                                              << strm.size() << ")");
-        return error_t::INVALID_GAME_HEADER;
+        return error_t::invalid_game_signature;
       }
     }
 
@@ -298,7 +298,7 @@ namespace SourceExplorer
       ERROR("Invalid Game Header: 0x" << header << ", Expected: 0x"
                                       << HEADER_GAME << ", At: 0x"
                                       << (strm.position - 4));
-      return error_t::INVALID_GAME_HEADER;
+      return error_t::invalid_game_signature;
     }
 
     gameState.runtimeVersion = (product_code_t)strm.read_u16();
@@ -319,7 +319,7 @@ namespace SourceExplorer
       DEBUG("Product Build: 0x" << gameState.productBuild);
     }
 
-    return error_t::OK;
+    return error_t::ok;
   }
 
   uint64_t ParsePackData(lak::memory &strm, game_t &gameState)
@@ -525,13 +525,13 @@ namespace SourceExplorer
   {
     switch (mode)
     {
-      case graphics_mode_t::GRAPHICS2:
-      case graphics_mode_t::GRAPHICS3: return ColorFrom8bit(strm, palette);
-      case graphics_mode_t::GRAPHICS6: return ColorFrom15bit(strm);
-      case graphics_mode_t::GRAPHICS7:
+      case graphics_mode_t::graphics2:
+      case graphics_mode_t::graphics3: return ColorFrom8bit(strm, palette);
+      case graphics_mode_t::graphics6: return ColorFrom15bit(strm);
+      case graphics_mode_t::graphics7:
         return ColorFrom16bit(strm);
         // return ColorFrom15bit(strm);
-      case graphics_mode_t::GRAPHICS4:
+      case graphics_mode_t::graphics4:
       default:
         // return ColorFrom32bitBGRA(strm);
         return ColorFrom24bitBGR(strm);
@@ -542,11 +542,11 @@ namespace SourceExplorer
   {
     switch (mode)
     {
-      case graphics_mode_t::GRAPHICS2:
-      case graphics_mode_t::GRAPHICS3: return 1;
-      case graphics_mode_t::GRAPHICS6: return 2;
-      case graphics_mode_t::GRAPHICS7: return 2;
-      case graphics_mode_t::GRAPHICS4:
+      case graphics_mode_t::graphics2:
+      case graphics_mode_t::graphics3: return 1;
+      case graphics_mode_t::graphics6: return 2;
+      case graphics_mode_t::graphics7: return 2;
+      case graphics_mode_t::graphics4:
       default:
         // return 4;
         return 3;
@@ -735,116 +735,119 @@ namespace SourceExplorer
   {
     switch (entry.ID)
     {
-      case chunk_t::ENTRY: return "Entry (ERROR)";
+      case chunk_t::entry: return "Entry (ERROR)";
 
-      case chunk_t::VITAPREV: return "Vitalise Preview";
+      case chunk_t::vitalise_preview: return "Vitalise Preview";
 
-      case chunk_t::HEADER: return "Header";
-      case chunk_t::TITLE: return "Title";
-      case chunk_t::AUTHOR: return "Author";
-      case chunk_t::MENU: return "Menu";
-      case chunk_t::EXTPATH: return "Extra Path";
-      case chunk_t::EXTENS: return "Extensions (deprecated)";
-      case chunk_t::OBJECTBANK: return "Object Bank";
+      case chunk_t::header: return "Header";
+      case chunk_t::title: return "Title";
+      case chunk_t::author: return "Author";
+      case chunk_t::menu: return "Menu";
+      case chunk_t::extra_path: return "Extra Path";
+      case chunk_t::extensions: return "Extensions (deprecated)";
+      case chunk_t::object_bank: return "Object Bank";
 
-      case chunk_t::GLOBALEVENTS: return "Global Events (deprecated)";
-      case chunk_t::FRAMEHANDLES: return "Frame Handles";
-      case chunk_t::EXTDATA: return "Extra Data";
-      case chunk_t::ADDEXTNS: return "Additional Extensions (deprecated)";
-      case chunk_t::PROJPATH: return "Project Path";
-      case chunk_t::OUTPATH: return "Output Path";
-      case chunk_t::APPDOC: return "App Doc";
-      case chunk_t::OTHEREXT: return "Other Extension(s)";
-      case chunk_t::GLOBALVALS: return "Global Values";
-      case chunk_t::GLOBALSTRS: return "Global Strings";
-      case chunk_t::EXTNLIST: return "Extensions List";
-      case chunk_t::ICON: return "Icon";
-      case chunk_t::DEMOVER: return "Demo Version";
-      case chunk_t::SECNUM: return "Security Number";
-      case chunk_t::BINFILES: return "Binary Files";
-      case chunk_t::MENUIMAGES: return "Menu Images";
-      case chunk_t::ABOUT: return "About";
-      case chunk_t::COPYRIGHT: return "Copyright";
-      case chunk_t::GLOBALVALNAMES: return "Global Value Names";
-      case chunk_t::GLOBALSTRNAMES: return "Global String Names";
-      case chunk_t::MOVEMNTEXTNS: return "Movement Extensions";
-      // case chunk_t::UNKNOWN8:         return "UNKNOWN8";
-      case chunk_t::OBJECTBANK2: return "Object Bank 2";
-      case chunk_t::EXEONLY: return "EXE Only";
-      case chunk_t::PROTECTION: return "Protection";
-      case chunk_t::SHADERS: return "Shaders";
-      case chunk_t::EXTDHEADER: return "Extended Header";
-      case chunk_t::SPACER: return "Spacer";
-      case chunk_t::FRAMEBANK: return "Frame Bank";
-      case chunk_t::CHUNK224F: return "CHUNK 224F";
-      case chunk_t::TITLE2: return "Title2";
+      case chunk_t::global_events: return "Global Events (deprecated)";
+      case chunk_t::frame_handles: return "Frame Handles";
+      case chunk_t::extra_data: return "Extra Data";
+      case chunk_t::additional_extensions:
+        return "Additional Extensions (deprecated)";
+      case chunk_t::project_path: return "Project Path";
+      case chunk_t::output_path: return "Output Path";
+      case chunk_t::app_doc: return "App Doc";
+      case chunk_t::other_extension: return "Other Extension(s)";
+      case chunk_t::global_values: return "Global Values";
+      case chunk_t::global_strings: return "Global Strings";
+      case chunk_t::extensions_list: return "Extensions List";
+      case chunk_t::icon: return "Icon";
+      case chunk_t::demo_version: return "Demo Version";
+      case chunk_t::security_number: return "Security Number";
+      case chunk_t::binary_files: return "Binary Files";
+      case chunk_t::menu_images: return "Menu Images";
+      case chunk_t::about: return "About";
+      case chunk_t::copyright: return "Copyright";
+      case chunk_t::global_value_names: return "Global Value Names";
+      case chunk_t::global_string_names: return "Global String Names";
+      case chunk_t::movement_extensions: return "Movement Extensions";
+      // case chunk_t::UNKNOWN8: return "UNKNOWN8";
+      case chunk_t::object_bank2: return "Object Bank 2";
+      case chunk_t::exe_only: return "EXE Only";
+      case chunk_t::protection: return "Protection";
+      case chunk_t::shaders: return "Shaders";
+      case chunk_t::extended_header: return "Extended Header";
+      case chunk_t::spacer: return "Spacer";
+      case chunk_t::frame_bank: return "Frame Bank";
+      case chunk_t::chunk224F: return "CHUNK 224F";
+      case chunk_t::title2: return "Title2";
 
-      case chunk_t::CHUNK2253: return "CHUNK 2253 (16 bytes?)";
-      case chunk_t::OBJECTNAMES: return "Object Names";
-      case chunk_t::CHUNK2255: return "CHUNK 2255 (Empty?)";
-      case chunk_t::OBJECTPROPERTIES: return "Object Properties";
-      case chunk_t::CHUNK2257: return "CHUNK 2257 (4 bytes?)";
-      case chunk_t::FONTMETA: return "TrueType Fonts Meta";
-      case chunk_t::FONTCHUNK: return "TrueType Fonts Chunk";
+      case chunk_t::chunk2253: return "CHUNK 2253 (16 bytes?)";
+      case chunk_t::object_names: return "Object Names";
+      case chunk_t::chunk2255: return "CHUNK 2255 (Empty?)";
+      case chunk_t::recompiled_object_properties:
+        return "Recompiled Object Properties";
+      case chunk_t::chunk2257: return "CHUNK 2257 (4 bytes?)";
+      case chunk_t::font_meta: return "TrueType Fonts Meta";
+      case chunk_t::font_chunk: return "TrueType Fonts Chunk";
 
-      case chunk_t::FRAME: return "Frame";
-      case chunk_t::FRAMEHEADER: return "Frame Header";
-      case chunk_t::FRAMENAME: return "Frame Name";
-      case chunk_t::FRAMEPASSWORD: return "Frame Password";
-      case chunk_t::FRAMEPALETTE: return "Frame Palette";
-      case chunk_t::OBJINST: return "Frame Object Instances";
-      case chunk_t::FRAMEFADEIF: return "Frame Fade In Frame";
-      case chunk_t::FRAMEFADEOF: return "Frame Fade Out Frame";
-      case chunk_t::FRAMEFADEI: return "Frame Fade In";
-      case chunk_t::FRAMEFADEO: return "Frame Fade Out";
-      case chunk_t::FRAMEEVENTS: return "Frame Events";
-      case chunk_t::FRAMEPLYHEAD: return "Frame Play Header";
-      case chunk_t::FRAMEADDITEM: return "Frame Additional Item";
-      case chunk_t::FRAMEADDITEMINST: return "Frame Additional Item Instance";
-      case chunk_t::FRAMELAYERS: return "Frame Layers";
-      case chunk_t::FRAMEVIRTSIZE: return "Frame Virtical Size";
-      case chunk_t::DEMOFILEPATH: return "Frame Demo File Path";
-      case chunk_t::RANDOMSEED: return "Frame Random Seed";
-      case chunk_t::FRAMELAYEREFFECT: return "Frame Layer Effect";
-      case chunk_t::FRAMEBLURAY: return "Frame BluRay Options";
-      case chunk_t::MOVETIMEBASE: return "Frame Movement Timer Base";
-      case chunk_t::MOSAICIMGTABLE: return "Frame Mosaic Image Table";
-      case chunk_t::FRAMEEFFECTS: return "Frame Effects";
-      case chunk_t::FRAMEIPHONEOPTS: return "Frame iPhone Options";
-      case chunk_t::FRAMECHUNK334C: return "Frame CHUNK 334C";
+      case chunk_t::frame: return "Frame";
+      case chunk_t::frame_header: return "Frame Header";
+      case chunk_t::frame_name: return "Frame Name";
+      case chunk_t::frame_password: return "Frame Password";
+      case chunk_t::frame_palette: return "Frame Palette";
+      case chunk_t::frame_object_instances: return "Frame Object Instances";
+      case chunk_t::frame_fade_in_frame: return "Frame Fade In Frame";
+      case chunk_t::frame_fade_out_frame: return "Frame Fade Out Frame";
+      case chunk_t::frame_fade_in: return "Frame Fade In";
+      case chunk_t::frame_fade_out: return "Frame Fade Out";
+      case chunk_t::frame_events: return "Frame Events";
+      case chunk_t::frame_play_header: return "Frame Play Header";
+      case chunk_t::frame_additional_items: return "Frame Additional Item";
+      case chunk_t::frame_additional_items_instances:
+        return "Frame Additional Item Instance";
+      case chunk_t::frame_layers: return "Frame Layers";
+      case chunk_t::frame_virtual_size: return "Frame Virtical Size";
+      case chunk_t::demo_file_path: return "Frame Demo File Path";
+      case chunk_t::random_seed: return "Frame Random Seed";
+      case chunk_t::frame_layer_effect: return "Frame Layer Effect";
+      case chunk_t::frame_bluray: return "Frame BluRay Options";
+      case chunk_t::movement_timer_base: return "Frame Movement Timer Base";
+      case chunk_t::mosaic_image_table: return "Frame Mosaic Image Table";
+      case chunk_t::frame_effects: return "Frame Effects";
+      case chunk_t::frame_iphone_options: return "Frame iPhone Options";
+      case chunk_t::frame_chunk334C: return "Frame CHUNK 334C";
 
-      case chunk_t::PAERROR: return "PA (ERROR)";
+      case chunk_t::pa_error: return "PA (ERROR)";
 
-      case chunk_t::OBJHEAD: return "Object Header";
-      case chunk_t::OBJNAME: return "Object Name";
-      case chunk_t::OBJPROP: return "Object Properties";
-      case chunk_t::OBJCHUNK4447: return "Object CHUNK 4447";
-      case chunk_t::OBJEFCT: return "Object Effect";
+      case chunk_t::object_header: return "Object Header";
+      case chunk_t::object_name: return "Object Name";
+      case chunk_t::object_properties: return "Object Properties";
+      case chunk_t::object_chunk4447: return "Object CHUNK 4447";
+      case chunk_t::object_effect: return "Object Effect";
 
-      case chunk_t::ENDIMAGE: return "Image Handles";
-      case chunk_t::ENDFONT: return "Font Handles";
-      case chunk_t::ENDSOUND: return "Sound Handles";
-      case chunk_t::ENDMUSIC: return "Music Handles";
+      case chunk_t::image_handles: return "Image Handles";
+      case chunk_t::font_handles: return "Font Handles";
+      case chunk_t::sound_handles: return "Sound Handles";
+      case chunk_t::music_handles: return "Music Handles";
 
-      case chunk_t::IMAGEBANK: return "Image Bank";
-      case chunk_t::FONTBANK: return "Font Bank";
-      case chunk_t::SOUNDBANK: return "Sound Bank";
-      case chunk_t::MUSICBANK: return "Music Bank";
+      case chunk_t::image_bank: return "Image Bank";
+      case chunk_t::font_bank: return "Font Bank";
+      case chunk_t::sound_bank: return "Sound Bank";
+      case chunk_t::music_bank: return "Music Bank";
 
-      case chunk_t::LAST: return "Last";
+      case chunk_t::last: return "Last";
 
-      case chunk_t::DEFAULT:
-      case chunk_t::VITA:
-      case chunk_t::UNICODE:
-      case chunk_t::NEW:
-      case chunk_t::OLD:
-      case chunk_t::FRAME_STATE:
-      case chunk_t::IMAGE_STATE:
-      case chunk_t::FONT_STATE:
-      case chunk_t::SOUND_STATE:
-      case chunk_t::MUSIC_STATE:
-      case chunk_t::NOCHILD:
-      case chunk_t::SKIP:
+      case chunk_t::_default:
+      case chunk_t::vitalise:
+      case chunk_t::unicode:
+      case chunk_t::_new:
+      case chunk_t::old:
+      case chunk_t::frame_state:
+      case chunk_t::image_state:
+      case chunk_t::font_state:
+      case chunk_t::sound_state:
+      case chunk_t::music_state:
+      case chunk_t::no_child:
+      case chunk_t::skip:
       default: return "INVALID";
     }
   }
@@ -853,23 +856,23 @@ namespace SourceExplorer
   {
     switch (type)
     {
-      case object_type_t::QUICK_BACKDROP: return "Quick Backdrop";
-      case object_type_t::BACKDROP: return "Backdrop";
-      case object_type_t::ACTIVE: return "Active";
-      case object_type_t::TEXT: return "Text";
-      case object_type_t::QUESTION: return "Question";
-      case object_type_t::SCORE: return "Score";
-      case object_type_t::LIVES: return "Lives";
-      case object_type_t::COUNTER: return "Counter";
+      case object_type_t::quick_backdrop: return "Quick Backdrop";
+      case object_type_t::backdrop: return "Backdrop";
+      case object_type_t::active: return "Active";
+      case object_type_t::text: return "Text";
+      case object_type_t::question: return "Question";
+      case object_type_t::score: return "Score";
+      case object_type_t::lives: return "Lives";
+      case object_type_t::counter: return "Counter";
       case object_type_t::RTF: return "RTF";
-      case object_type_t::SUB_APPLICATION: return "Sub Application";
-      case object_type_t::PLAYER: return "Player";
-      case object_type_t::KEYBOARD: return "Keyboard";
-      case object_type_t::CREATE: return "Create";
-      case object_type_t::TIMER: return "Timer";
-      case object_type_t::GAME: return "Game";
-      case object_type_t::SPEAKER: return "Speaker";
-      case object_type_t::SYSTEM: return "System";
+      case object_type_t::sub_application: return "Sub Application";
+      case object_type_t::player: return "Player";
+      case object_type_t::keyboard: return "Keyboard";
+      case object_type_t::create: return "Create";
+      case object_type_t::timer: return "Timer";
+      case object_type_t::game: return "Game";
+      case object_type_t::speaker: return "Speaker";
+      case object_type_t::system: return "System";
       default: return "Unknown/Invalid";
     }
   }
@@ -878,10 +881,10 @@ namespace SourceExplorer
   {
     switch (type)
     {
-      case object_parent_type_t::NONE: return "None";
-      case object_parent_type_t::FRAME: return "Frame";
-      case object_parent_type_t::FRAME_ITEM: return "Frame Item";
-      case object_parent_type_t::QUALIFIER: return "Qualifier";
+      case object_parent_type_t::none: return "None";
+      case object_parent_type_t::frame: return "Frame";
+      case object_parent_type_t::frame_item: return "Frame Item";
+      case object_parent_type_t::qualifier: return "Qualifier";
       default: return "Invalid";
     }
   }
@@ -891,9 +894,9 @@ namespace SourceExplorer
   {
     switch (mode)
     {
-      case encoding_t::MODE3:
-      case encoding_t::MODE2: return Decrypt(encoded, id, mode);
-      case encoding_t::MODE1: return {true, Inflate(encoded)};
+      case encoding_t::mode3:
+      case encoding_t::mode2: return Decrypt(encoded, id, mode);
+      case encoding_t::mode1: return {true, Inflate(encoded)};
       default:
         if (encoded.size() > 0 && encoded[0] == 0x78)
           return {true, Inflate(encoded)};
@@ -1011,7 +1014,7 @@ namespace SourceExplorer
   std::pair<bool, std::vector<uint8_t>> Decrypt(
     const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode)
   {
-    if (mode == encoding_t::MODE3)
+    if (mode == encoding_t::mode3)
     {
       if (encrypted.size() <= 4) return {false, encrypted};
       // TODO: check endian
@@ -1044,7 +1047,7 @@ namespace SourceExplorer
 
       if (!DecodeChunk(mem, _magic_key, _xmmword))
       {
-        if (mode == encoding_t::MODE2)
+        if (mode == encoding_t::mode2)
         {
           DEBUG("MODE 2 Decryption Failed");
           return {false, mem};
@@ -1098,21 +1101,21 @@ namespace SourceExplorer
 
   error_t chunk_entry_t::read(game_t &game, lak::memory &strm)
   {
-    if (!strm.remaining()) return error_t::OUT_OF_DATA;
+    if (!strm.remaining()) return error_t::out_of_data;
 
     position = strm.position;
     old      = game.oldGame;
     ID       = (chunk_t)strm.read_u16();
     mode     = (encoding_t)strm.read_u16();
 
-    if ((mode == encoding_t::MODE2 || mode == encoding_t::MODE3) &&
+    if ((mode == encoding_t::mode2 || mode == encoding_t::mode3) &&
         _magic_key.size() < 256)
       GetEncryptionKey(game);
 
     const auto chunkSize    = strm.read_u32();
     const auto chunkDataEnd = strm.position + chunkSize;
 
-    if (mode == encoding_t::MODE1)
+    if (mode == encoding_t::mode1)
     {
       data.expectedSize = strm.read_u32();
 
@@ -1148,7 +1151,7 @@ namespace SourceExplorer
     }
     end = strm.position;
 
-    return error_t::OK;
+    return error_t::ok;
   }
 
   void chunk_entry_t::view(source_explorer_t &srcexp) const
@@ -1185,11 +1188,11 @@ namespace SourceExplorer
                              bool compressed,
                              size_t headersize)
   {
-    if (!strm.remaining()) return error_t::OUT_OF_DATA;
+    if (!strm.remaining()) return error_t::out_of_data;
 
     position = strm.position;
     old      = game.oldGame;
-    mode     = encoding_t::MODE0;
+    mode     = encoding_t::mode0;
     handle   = strm.read_u32();
 
     const bool newItem = strm.peek_s32() == -1;
@@ -1198,7 +1201,7 @@ namespace SourceExplorer
       WARNING("New Item");
       game.recompiled |= true;
       headersize = 12;
-      mode       = encoding_t::MODE0;
+      mode       = encoding_t::mode0;
       compressed = false;
     }
 
@@ -1237,11 +1240,11 @@ namespace SourceExplorer
     data.data     = strm.read(dataSize);
 
     // hack because one of MMF1.5 or tinf_uncompress is a bitch
-    if (game.oldGame) mode = encoding_t::MODE1;
+    if (game.oldGame) mode = encoding_t::mode1;
 
     end = strm.position;
 
-    return error_t::OK;
+    return error_t::ok;
   }
 
   void item_entry_t::view(source_explorer_t &srcexp) const
@@ -1279,8 +1282,8 @@ namespace SourceExplorer
     {
       switch (mode)
       {
-        case encoding_t::MODE0: result = data.data; break;
-        case encoding_t::MODE1:
+        case encoding_t::mode0: result = data.data; break;
+        case encoding_t::mode1:
         {
           result        = data.data;
           uint8_t magic = result.read_u8();
@@ -1304,8 +1307,8 @@ namespace SourceExplorer
           }
         }
         break;
-        case encoding_t::MODE2: ERROR("No Old Decode For MODE2"); break;
-        case encoding_t::MODE3: ERROR("No Old Decode For MODE3"); break;
+        case encoding_t::mode2: ERROR("No Old Decode For MODE2"); break;
+        case encoding_t::mode3: ERROR("No Old Decode For MODE3"); break;
         default: break;
       }
     }
@@ -1313,8 +1316,8 @@ namespace SourceExplorer
     {
       switch (mode)
       {
-        case encoding_t::MODE3:
-        case encoding_t::MODE2:
+        case encoding_t::mode3:
+        case encoding_t::mode2:
           if (auto [success, mem] = Decrypt(data.data, ID, mode); success)
           {
             result = mem;
@@ -1325,7 +1328,7 @@ namespace SourceExplorer
             result.clear();
           }
           break;
-        case encoding_t::MODE1:
+        case encoding_t::mode1:
           if (!Inflate(result, data.data, false, false, max_size))
           {
             ERROR("... MODE1 Failed To Inflate");
@@ -1359,14 +1362,14 @@ namespace SourceExplorer
     {
       switch (mode)
       {
-        case encoding_t::MODE3:
-        case encoding_t::MODE2:
+        case encoding_t::mode3:
+        case encoding_t::mode2:
           if (auto [success, mem] = Decrypt(data.data, ID, mode); success)
             result = mem;
           else
             result.clear();
           break;
-        case encoding_t::MODE1:
+        case encoding_t::mode1:
           if (!Inflate(result, header.data, false, false, max_size))
           {
             ERROR("MODE1 Inflation Failed");
@@ -1402,8 +1405,8 @@ namespace SourceExplorer
     {
       switch (entry.mode)
       {
-        case encoding_t::MODE0:
-        case encoding_t::MODE1:
+        case encoding_t::mode0:
+        case encoding_t::mode1:
         {
           result = lak::strconv_u16(entry.decode().read_string());
         }
@@ -1437,7 +1440,7 @@ namespace SourceExplorer
   error_t basic_chunk_t::basic_view(source_explorer_t &srcexp,
                                     const char *name) const
   {
-    error_t result = error_t::OK;
+    error_t result = error_t::ok;
 
     if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
     {
@@ -1462,7 +1465,7 @@ namespace SourceExplorer
   error_t basic_item_t::basic_view(source_explorer_t &srcexp,
                                    const char *name) const
   {
-    error_t result = error_t::OK;
+    error_t result = error_t::ok;
 
     if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
     {
@@ -1481,7 +1484,7 @@ namespace SourceExplorer
   {
     DEBUG("Reading String Chunk");
     error_t result = entry.read(game, strm);
-    if (result == error_t::OK)
+    if (result == error_t::ok)
       value = ReadStringEntry(game, entry);
     else
       ERROR("Failed To Read String Chunk (" << error_name(result) << ")");
@@ -1492,7 +1495,7 @@ namespace SourceExplorer
                                const char *name,
                                const bool preview) const
   {
-    error_t result  = error_t::OK;
+    error_t result  = error_t::ok;
     std::string str = string();
     bool open       = false;
 
@@ -1537,7 +1540,7 @@ namespace SourceExplorer
   {
     DEBUG("Reading Strings Chunk");
     error_t result = entry.read(game, strm);
-    if (result == error_t::OK)
+    if (result == error_t::ok)
     {
       auto sstrm = entry.decode();
 
@@ -1559,7 +1562,7 @@ namespace SourceExplorer
   error_t strings_chunk_t::basic_view(source_explorer_t &srcexp,
                                       const char *name) const
   {
-    error_t result = error_t::OK;
+    error_t result = error_t::ok;
 
     if (lak::TreeNode("0x%zX %s (%zu Items)##%zX",
                       (size_t)entry.ID,
@@ -1587,7 +1590,7 @@ namespace SourceExplorer
 
   error_t compressed_chunk_t::view(source_explorer_t &srcexp) const
   {
-    error_t result = error_t::OK;
+    error_t result = error_t::ok;
 
     if (lak::TreeNode(
           "0x%zX Unknown Compressed##%zX", (size_t)entry.ID, entry.position))
@@ -1657,7 +1660,7 @@ namespace SourceExplorer
     return basic_view(srcexp, "Appliocation Doc");
   }
 
-  error_t other_extenion_t::view(source_explorer_t &srcexp) const
+  error_t other_extension_t::view(source_explorer_t &srcexp) const
   {
     return basic_view(srcexp, "Other Extension");
   }
@@ -1729,7 +1732,7 @@ namespace SourceExplorer
 
   error_t icon_t::view(source_explorer_t &srcexp) const
   {
-    error_t result = error_t::OK;
+    error_t result = error_t::ok;
 
     if (lak::TreeNode("0x%zX Icon##%zX", (size_t)entry.ID, entry.position))
     {
@@ -1773,7 +1776,7 @@ namespace SourceExplorer
 
     data = strm.read(strm.read_u32());
 
-    return error_t::OK;
+    return error_t::ok;
   }
 
   error_t binary_file_t::view(source_explorer_t &srcexp) const
@@ -1789,7 +1792,7 @@ namespace SourceExplorer
       ImGui::Separator();
       ImGui::TreePop();
     }
-    return error_t::OK;
+    return error_t::ok;
   }
 
   error_t binary_files_t::read(game_t &game, lak::memory &strm)
@@ -1797,7 +1800,7 @@ namespace SourceExplorer
     DEBUG("Reading Binary Files");
     error_t result = entry.read(game, strm);
 
-    if (result == error_t::OK)
+    if (result == error_t::ok)
     {
       lak::memory bstrm = entry.decode();
       items.resize(bstrm.read_u32());
@@ -1827,7 +1830,7 @@ namespace SourceExplorer
       ImGui::Separator();
       ImGui::TreePop();
     }
-    return error_t::OK;
+    return error_t::ok;
   }
 
   error_t menu_images_t::view(source_explorer_t &srcexp) const
@@ -1906,7 +1909,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return error_t::OK;
+    return error_t::ok;
   }
 
   error_t spacer_t::view(source_explorer_t &srcexp) const
@@ -1933,12 +1936,12 @@ namespace SourceExplorer
   {
     error_t result = entry.read(game, strm);
 
-    if (result != error_t::OK) return result;
+    if (result != error_t::ok) return result;
 
     const auto end = strm.position;
     strm.position  = entry.data.position;
 
-    while (strm.position < end && result == error_t::OK)
+    while (strm.position < end && result == error_t::ok)
     {
       items.emplace_back();
       result = items.back().read(game, strm, false);
@@ -1978,7 +1981,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return error_t::OK;
+    return error_t::ok;
   }
 
   error_t truetype_fonts_meta_t::view(source_explorer_t &srcexp) const
@@ -1990,12 +1993,12 @@ namespace SourceExplorer
   {
     error_t result = entry.read(game, strm);
 
-    if (result != error_t::OK) return result;
+    if (result != error_t::ok) return result;
 
     const auto end = strm.position;
     strm.position  = entry.data.position;
 
-    while (strm.position < end && result == error_t::OK)
+    while (strm.position < end && result == error_t::ok)
     {
       items.emplace_back();
       result = items.back().read(game, strm, false);
@@ -2034,7 +2037,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return error_t::OK;
+    return error_t::ok;
   }
 
   namespace object
@@ -2056,22 +2059,22 @@ namespace SourceExplorer
       shape         = (shape_type_t)strm.read_u16();
       fill          = (fill_type_t)strm.read_u16();
 
-      line     = line_flags_t::NONE;
-      gradient = gradient_flags_t::HORIZONTAL;
+      line     = line_flags_t::none;
+      gradient = gradient_flags_t::horizontal;
       handle   = 0xFFFF;
 
-      if (shape == shape_type_t::LINE)
+      if (shape == shape_type_t::line)
       {
         line = (line_flags_t)strm.read_u16();
       }
-      else if (fill == fill_type_t::SOLID)
+      else if (fill == fill_type_t::solid)
       {
         color1.r = strm.read_u8();
         color1.g = strm.read_u8();
         color1.b = strm.read_u8();
         color1.a = strm.read_u8();
       }
-      else if (fill == fill_type_t::GRADIENT)
+      else if (fill == fill_type_t::gradient)
       {
         color1.r = strm.read_u8();
         color1.g = strm.read_u8();
@@ -2083,12 +2086,12 @@ namespace SourceExplorer
         color2.a = strm.read_u8();
         gradient = (gradient_flags_t)strm.read_u16();
       }
-      else if (fill == fill_type_t::MOTIF)
+      else if (fill == fill_type_t::motif)
       {
         handle = strm.read_u16();
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t shape_t::view(source_explorer_t &srcexp) const
@@ -2103,16 +2106,16 @@ namespace SourceExplorer
         ImGui::Text("Shape: 0x%zX", (size_t)shape);
         ImGui::Text("Fill: 0x%zX", (size_t)fill);
 
-        if (shape == shape_type_t::LINE)
+        if (shape == shape_type_t::line)
         {
           ImGui::Text("Line: 0x%zX", (size_t)line);
         }
-        else if (fill == fill_type_t::SOLID)
+        else if (fill == fill_type_t::solid)
         {
           col = ((lak::vec4f_t)color1) / 255.0f;
           ImGui::ColorEdit4("Fill Color", &col.x);
         }
-        else if (fill == fill_type_t::GRADIENT)
+        else if (fill == fill_type_t::gradient)
         {
           col = ((lak::vec4f_t)color1) / 255.0f;
           ImGui::ColorEdit4("Gradient Color 1", &col.x);
@@ -2120,7 +2123,7 @@ namespace SourceExplorer
           ImGui::ColorEdit4("Gradient Color 2", &col.x);
           ImGui::Text("Gradient Flags: 0x%zX", (size_t)gradient);
         }
-        else if (fill == fill_type_t::MOTIF)
+        else if (fill == fill_type_t::motif)
         {
           ImGui::Text("Handle: 0x%zX", (size_t)handle);
         }
@@ -2128,7 +2131,7 @@ namespace SourceExplorer
         ImGui::Separator();
         ImGui::TreePop();
       }
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t quick_backdrop_t::read(game_t &game, lak::memory &strm)
@@ -2136,7 +2139,7 @@ namespace SourceExplorer
       DEBUG("Reading Quick Backdrop");
       error_t result = entry.read(game, strm);
 
-      if (result == error_t::OK)
+      if (result == error_t::ok)
       {
         lak::memory qstrm = entry.decode();
         size              = qstrm.read_u32();
@@ -2179,7 +2182,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t backdrop_t::read(game_t &game, lak::memory &strm)
@@ -2187,7 +2190,7 @@ namespace SourceExplorer
       DEBUG("Reading Backdrop");
       error_t result = entry.read(game, strm);
 
-      if (result == error_t::OK)
+      if (result == error_t::ok)
       {
         lak::memory bstrm = entry.decode();
         size              = bstrm.read_u32();
@@ -2228,7 +2231,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t animation_direction_t::read(game_t &game, lak::memory &strm)
@@ -2242,7 +2245,7 @@ namespace SourceExplorer
       handles.resize(strm.read_u16());
       for (auto &handle : handles) handle = strm.read_u16();
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t animation_direction_t::view(source_explorer_t &srcexp) const
@@ -2262,7 +2265,7 @@ namespace SourceExplorer
         ImGui::PopID();
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t animation_t::read(game_t &game, lak::memory &strm)
@@ -2285,7 +2288,7 @@ namespace SourceExplorer
         ++index;
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t animation_t::view(source_explorer_t &srcexp) const
@@ -2304,7 +2307,7 @@ namespace SourceExplorer
         ++index;
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t animation_header_t::read(game_t &game, lak::memory &strm)
@@ -2331,7 +2334,7 @@ namespace SourceExplorer
         ++index;
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t animation_header_t::view(source_explorer_t &srcexp) const
@@ -2358,7 +2361,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t common_t::read(game_t &game, lak::memory &strm)
@@ -2366,7 +2369,7 @@ namespace SourceExplorer
       DEBUG("Reading Common Object");
       error_t result = entry.read(game, strm);
 
-      if (result == error_t::OK)
+      if (result == error_t::ok)
       {
         lak::memory cstrm = entry.decode();
 
@@ -2509,7 +2512,7 @@ namespace SourceExplorer
         ImGui::Separator();
         ImGui::TreePop();
       }
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t item_t::read(game_t &game, lak::memory &strm)
@@ -2525,23 +2528,23 @@ namespace SourceExplorer
       inkEffect      = dstrm.read_u32();
       inkEffectParam = dstrm.read_u32();
 
-      while (result == error_t::OK)
+      while (result == error_t::ok)
       {
         switch ((chunk_t)strm.peek_u16())
         {
-          case chunk_t::OBJNAME:
+          case chunk_t::object_name:
             name   = std::make_unique<string_chunk_t>();
             result = name->read(game, strm);
             break;
 
-          case chunk_t::OBJPROP:
+          case chunk_t::object_properties:
             switch (type)
             {
-              case object_type_t::QUICK_BACKDROP:
+              case object_type_t::quick_backdrop:
                 quickBackdrop = std::make_unique<quick_backdrop_t>();
                 quickBackdrop->read(game, strm);
                 break;
-              case object_type_t::BACKDROP:
+              case object_type_t::backdrop:
                 backdrop = std::make_unique<backdrop_t>();
                 backdrop->read(game, strm);
                 break;
@@ -2552,12 +2555,12 @@ namespace SourceExplorer
             }
             break;
 
-          case chunk_t::OBJEFCT:
+          case chunk_t::object_effect:
             effect = std::make_unique<effect_t>();
             result = effect->read(game, strm);
             break;
 
-          case chunk_t::LAST:
+          case chunk_t::last:
             end    = std::make_unique<last_t>();
             result = end->read(game, strm);
           default: goto finished;
@@ -2570,7 +2573,7 @@ namespace SourceExplorer
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX %s '%s'##%zX",
                         (size_t)entry.ID,
@@ -2651,7 +2654,7 @@ namespace SourceExplorer
 
       for (auto &item : items)
       {
-        if (result != error_t::OK) break;
+        if (result != error_t::ok) break;
         result         = item.read(game, strm);
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
@@ -2674,7 +2677,7 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX Object Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
@@ -2713,7 +2716,7 @@ namespace SourceExplorer
       DEBUG("Reading Frame Palette");
       error_t result = entry.read(game, strm);
 
-      if (result == error_t::OK)
+      if (result == error_t::ok)
       {
         auto pstrm = entry.decode();
         unknown    = pstrm.read_u32();
@@ -2732,7 +2735,7 @@ namespace SourceExplorer
 
     error_t palette_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode(
             "0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position))
@@ -2784,7 +2787,7 @@ namespace SourceExplorer
         unknown = strm.read_u16();
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t object_instance_t::view(source_explorer_t &srcexp) const
@@ -2813,18 +2816,18 @@ namespace SourceExplorer
 
         switch (parentType)
         {
-          case object_parent_type_t::FRAME_ITEM:
+          case object_parent_type_t::frame_item:
             if (auto *parentObj = GetObject(srcexp.state, parentHandle);
                 parentObj)
               parentObj->view(srcexp);
             break;
-          case object_parent_type_t::FRAME:
+          case object_parent_type_t::frame:
             if (auto *parentObj = GetFrame(srcexp.state, parentHandle);
                 parentObj)
               parentObj->view(srcexp);
             break;
-          case object_parent_type_t::NONE:
-          case object_parent_type_t::QUALIFIER:
+          case object_parent_type_t::none:
+          case object_parent_type_t::qualifier:
           default: break;
         }
 
@@ -2832,7 +2835,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return error_t::OK;
+      return error_t::ok;
     }
 
     error_t object_instances_t::read(game_t &game, lak::memory &strm)
@@ -2840,7 +2843,7 @@ namespace SourceExplorer
       DEBUG("Reading Object Instances");
       error_t result = entry.read(game, strm);
 
-      if (result == error_t::OK)
+      if (result == error_t::ok)
       {
         auto hstrm = entry.decode();
         objects.clear();
@@ -2854,7 +2857,7 @@ namespace SourceExplorer
 
     error_t object_instances_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode(
             "0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position))
@@ -2898,7 +2901,7 @@ namespace SourceExplorer
       return basic_view(srcexp, "Events");
     }
 
-    error_t play_head_t::view(source_explorer_t &srcexp) const
+    error_t play_header_r::view(source_explorer_t &srcexp) const
     {
       return basic_view(srcexp, "Play Head");
     }
@@ -2940,7 +2943,7 @@ namespace SourceExplorer
 
     error_t random_seed_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode(
             "0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position))
@@ -2999,133 +3002,133 @@ namespace SourceExplorer
 
       strm.position = entry.position + 0x8;
 
-      while (result == error_t::OK)
+      while (result == error_t::ok)
       {
         game.completed = (float)((double)strm.position / (double)strm.size());
         switch ((chunk_t)strm.peek_u16())
         {
-          case chunk_t::FRAMENAME:
+          case chunk_t::frame_name:
             name   = std::make_unique<string_chunk_t>();
             result = name->read(game, strm);
             break;
 
-          case chunk_t::FRAMEHEADER:
+          case chunk_t::frame_header:
             header = std::make_unique<header_t>();
             result = header->read(game, strm);
             break;
 
-          case chunk_t::FRAMEPASSWORD:
+          case chunk_t::frame_password:
             password = std::make_unique<password_t>();
             result   = password->read(game, strm);
             break;
 
-          case chunk_t::FRAMEPALETTE:
+          case chunk_t::frame_palette:
             palette = std::make_unique<palette_t>();
             result  = palette->read(game, strm);
             break;
 
-          case chunk_t::OBJINST:
+          case chunk_t::frame_object_instances:
             objectInstances = std::make_unique<object_instances_t>();
             result          = objectInstances->read(game, strm);
             break;
 
-          case chunk_t::FRAMEFADEIF:
+          case chunk_t::frame_fade_in_frame:
             fadeInFrame = std::make_unique<fade_in_frame_t>();
             result      = fadeInFrame->read(game, strm);
             break;
 
-          case chunk_t::FRAMEFADEOF:
+          case chunk_t::frame_fade_out_frame:
             fadeOutFrame = std::make_unique<fade_out_frame_t>();
             result       = fadeOutFrame->read(game, strm);
             break;
 
-          case chunk_t::FRAMEFADEI:
+          case chunk_t::frame_fade_in:
             fadeIn = std::make_unique<fade_in_t>();
             result = fadeIn->read(game, strm);
             break;
 
-          case chunk_t::FRAMEFADEO:
+          case chunk_t::frame_fade_out:
             fadeOut = std::make_unique<fade_out_t>();
             result  = fadeOut->read(game, strm);
             break;
 
-          case chunk_t::FRAMEEVENTS:
+          case chunk_t::frame_events:
             events = std::make_unique<events_t>();
             result = events->read(game, strm);
             break;
 
-          case chunk_t::FRAMEPLYHEAD:
-            playHead = std::make_unique<play_head_t>();
+          case chunk_t::frame_play_header:
+            playHead = std::make_unique<play_header_r>();
             result   = playHead->read(game, strm);
             break;
 
-          case chunk_t::FRAMEADDITEM:
+          case chunk_t::frame_additional_items:
             additionalItem = std::make_unique<additional_item_t>();
             result         = additionalItem->read(game, strm);
             break;
 
-          case chunk_t::FRAMEADDITEMINST:
+          case chunk_t::frame_additional_items_instances:
             additionalItemInstance =
               std::make_unique<additional_item_instance_t>();
             result = additionalItemInstance->read(game, strm);
             break;
 
-          case chunk_t::FRAMELAYERS:
+          case chunk_t::frame_layers:
             layers = std::make_unique<layers_t>();
             result = layers->read(game, strm);
             break;
 
-          case chunk_t::FRAMEVIRTSIZE:
+          case chunk_t::frame_virtual_size:
             virtualSize = std::make_unique<virtual_size_t>();
             result      = virtualSize->read(game, strm);
             break;
 
-          case chunk_t::DEMOFILEPATH:
+          case chunk_t::demo_file_path:
             demoFilePath = std::make_unique<demo_file_path_t>();
             result       = demoFilePath->read(game, strm);
             break;
 
-          case chunk_t::RANDOMSEED:
+          case chunk_t::random_seed:
             randomSeed = std::make_unique<random_seed_t>();
             result     = randomSeed->read(game, strm);
             break;
 
-          case chunk_t::FRAMELAYEREFFECT:
+          case chunk_t::frame_layer_effect:
             layerEffect = std::make_unique<layer_effect_t>();
             result      = layerEffect->read(game, strm);
             break;
 
-          case chunk_t::FRAMEBLURAY:
+          case chunk_t::frame_bluray:
             blueray = std::make_unique<blueray_t>();
             result  = blueray->read(game, strm);
             break;
 
-          case chunk_t::MOVETIMEBASE:
+          case chunk_t::movement_timer_base:
             movementTimeBase = std::make_unique<movement_time_base_t>();
             result           = movementTimeBase->read(game, strm);
             break;
 
-          case chunk_t::MOSAICIMGTABLE:
+          case chunk_t::mosaic_image_table:
             mosaicImageTable = std::make_unique<mosaic_image_table_t>();
             result           = mosaicImageTable->read(game, strm);
             break;
 
-          case chunk_t::FRAMEEFFECTS:
+          case chunk_t::frame_effects:
             effects = std::make_unique<effects_t>();
             result  = effects->read(game, strm);
             break;
 
-          case chunk_t::FRAMEIPHONEOPTS:
+          case chunk_t::frame_iphone_options:
             iphoneOptions = std::make_unique<iphone_options_t>();
             result        = iphoneOptions->read(game, strm);
             break;
 
-          case chunk_t::FRAMECHUNK334C:
+          case chunk_t::frame_chunk334C:
             chunk334C = std::make_unique<chunk_334C_t>();
             result    = chunk334C->read(game, strm);
             break;
 
-          case chunk_t::LAST:
+          case chunk_t::last:
             end    = std::make_unique<last_t>();
             result = end->read(game, strm);
           default: goto finished;
@@ -3140,7 +3143,7 @@ namespace SourceExplorer
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX '%s'##%zX",
                         (size_t)entry.ID,
@@ -3188,7 +3191,7 @@ namespace SourceExplorer
       DEBUG("Reading Frame Handles");
       error_t result = entry.read(game, strm);
 
-      if (result == error_t::OK)
+      if (result == error_t::ok)
       {
         auto hstrm = entry.decode();
         handles.resize(hstrm.size() / 2);
@@ -3209,8 +3212,8 @@ namespace SourceExplorer
       error_t result = entry.read(game, strm);
 
       items.clear();
-      while (result == error_t::OK &&
-             (chunk_t)strm.peek_u16() == chunk_t::FRAME)
+      while (result == error_t::ok &&
+             (chunk_t)strm.peek_u16() == chunk_t::frame)
       {
         items.emplace_back();
         result         = items.back().read(game, strm);
@@ -3235,7 +3238,7 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX Frame Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
@@ -3267,7 +3270,7 @@ namespace SourceExplorer
 
       DEBUG("Reading Image (Handle: " << entry.handle << ")");
 
-      if (result == error_t::OK)
+      if (result == error_t::ok)
       {
         lak::memory istrm = entry.decode(176 + (game.oldGame ? 16 : 80));
         if (game.oldGame)
@@ -3281,7 +3284,7 @@ namespace SourceExplorer
         graphicsMode = (graphics_mode_t)istrm.read_u8();
         flags        = (image_flag_t)istrm.read_u8();
 #if 0
-                if (graphicsMode <= graphics_mode_t::GRAPHICS3)
+                if (graphicsMode <= graphics_mode_t::graphics3)
                 {
                     paletteEntries = istrm.read_u8();
                     for (size_t i = 0; i < palette.size(); ++i) // where is this size coming from???
@@ -3305,7 +3308,7 @@ namespace SourceExplorer
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode(
             "0x%zX Image##%zX", (size_t)entry.handle, entry.position))
@@ -3346,7 +3349,7 @@ namespace SourceExplorer
     lak::memory item_t::image_data() const
     {
       lak::memory strm = entry.decode().seek(dataPosition);
-      if ((flags & image_flag_t::LZX) != image_flag_t::NONE)
+      if ((flags & image_flag_t::LZX) != image_flag_t::none)
       {
         [[maybe_unused]] const uint32_t decomplen = strm.read_u32();
         return lak::memory(Inflate(strm.read(strm.read_u32())));
@@ -3359,8 +3362,8 @@ namespace SourceExplorer
 
     bool item_t::need_palette() const
     {
-      return graphicsMode == graphics_mode_t::GRAPHICS2 ||
-             graphicsMode == graphics_mode_t::GRAPHICS3;
+      return graphicsMode == graphics_mode_t::graphics2 ||
+             graphicsMode == graphics_mode_t::graphics3;
     }
 
     lak::image4_t item_t::image(const bool colorTrans,
@@ -3373,7 +3376,7 @@ namespace SourceExplorer
 
       [[maybe_unused]] size_t bytesRead;
       if ((flags & (image_flag_t::RLE | image_flag_t::RLEW |
-                    image_flag_t::RLET)) != image_flag_t::NONE)
+                    image_flag_t::RLET)) != image_flag_t::none)
       {
         bytesRead = ReadRLE(strm, result, graphicsMode, palette);
       }
@@ -3382,7 +3385,7 @@ namespace SourceExplorer
         bytesRead = ReadRGB(strm, result, graphicsMode, palette);
       }
 
-      if ((flags & image_flag_t::ALPHA) != image_flag_t::NONE)
+      if ((flags & image_flag_t::alpha) != image_flag_t::none)
       {
         ReadAlpha(strm, result);
       }
@@ -3412,7 +3415,7 @@ namespace SourceExplorer
 
       for (auto &item : items)
       {
-        if (result != error_t::OK) break;
+        if (result != error_t::ok) break;
         result         = item.read(game, strm);
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
@@ -3430,7 +3433,7 @@ namespace SourceExplorer
 
       strm.position = entry.end;
 
-      if ((chunk_t)strm.peek_u16() == chunk_t::ENDIMAGE)
+      if ((chunk_t)strm.peek_u16() == chunk_t::image_handles)
       {
         end = std::make_unique<end_t>();
         if (end) result = end->read(game, strm);
@@ -3441,7 +3444,7 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX Image Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
@@ -3488,7 +3491,7 @@ namespace SourceExplorer
 
       for (auto &item : items)
       {
-        if (result != error_t::OK) break;
+        if (result != error_t::ok) break;
         result         = item.read(game, strm);
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
@@ -3506,7 +3509,7 @@ namespace SourceExplorer
 
       strm.position = entry.end;
 
-      if ((chunk_t)strm.peek_u16() == chunk_t::ENDFONT)
+      if ((chunk_t)strm.peek_u16() == chunk_t::font_handles)
       {
         end = std::make_unique<end_t>();
         if (end) result = end->read(game, strm);
@@ -3517,7 +3520,7 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX Font Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
@@ -3571,7 +3574,7 @@ namespace SourceExplorer
 
       for (auto &item : items)
       {
-        if (result != error_t::OK) break;
+        if (result != error_t::ok) break;
         result         = item.read(game, strm);
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
@@ -3589,7 +3592,7 @@ namespace SourceExplorer
 
       strm.position = entry.end;
 
-      if ((chunk_t)strm.peek_u16() == chunk_t::ENDSOUND)
+      if ((chunk_t)strm.peek_u16() == chunk_t::sound_handles)
       {
         end = std::make_unique<end_t>();
         if (end) result = end->read(game, strm);
@@ -3600,7 +3603,7 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX Sound Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
@@ -3647,7 +3650,7 @@ namespace SourceExplorer
 
       for (auto &item : items)
       {
-        if (result != error_t::OK) break;
+        if (result != error_t::ok) break;
         result         = item.read(game, strm);
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
@@ -3665,7 +3668,7 @@ namespace SourceExplorer
 
       strm.position = entry.end;
 
-      if ((chunk_t)strm.peek_u16() == chunk_t::ENDMUSIC)
+      if ((chunk_t)strm.peek_u16() == chunk_t::music_handles)
       {
         end = std::make_unique<end_t>();
         if (end) result = end->read(game, strm);
@@ -3676,7 +3679,7 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::OK;
+      error_t result = error_t::ok;
 
       if (lak::TreeNode("0x%zX Music Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
@@ -3710,298 +3713,298 @@ namespace SourceExplorer
     DEBUG("Reading Header");
     error_t result = entry.read(game, strm);
 
-    while (result == error_t::OK)
+    while (result == error_t::ok)
     {
       if (strm.size() > 0)
         game.completed = (float)((double)strm.position / (double)strm.size());
       chunk_t childID = (chunk_t)strm.peek_u16();
       switch (childID)
       {
-        case chunk_t::TITLE:
+        case chunk_t::title:
           DEBUG("Reading Title");
           title  = std::make_unique<string_chunk_t>();
           result = title->read(game, strm);
           break;
 
-        case chunk_t::AUTHOR:
+        case chunk_t::author:
           DEBUG("Reading Author");
           author = std::make_unique<string_chunk_t>();
           result = author->read(game, strm);
           break;
 
-        case chunk_t::COPYRIGHT:
+        case chunk_t::copyright:
           DEBUG("Reading Copyright");
           copyright = std::make_unique<string_chunk_t>();
           result    = copyright->read(game, strm);
           break;
 
-        case chunk_t::PROJPATH:
+        case chunk_t::project_path:
           DEBUG("Reading Project Path");
           projectPath = std::make_unique<string_chunk_t>();
           result      = projectPath->read(game, strm);
           break;
 
-        case chunk_t::OUTPATH:
+        case chunk_t::output_path:
           DEBUG("Reading Project Output Path");
           outputPath = std::make_unique<string_chunk_t>();
           result     = outputPath->read(game, strm);
           break;
 
-        case chunk_t::ABOUT:
+        case chunk_t::about:
           DEBUG("Reading About");
           about  = std::make_unique<string_chunk_t>();
           result = about->read(game, strm);
           break;
 
-        case chunk_t::VITAPREV:
+        case chunk_t::vitalise_preview:
           DEBUG("Reading Project Vitalise Preview");
           vitalisePreview = std::make_unique<vitalise_preview_t>();
           result          = vitalisePreview->read(game, strm);
           break;
 
-        case chunk_t::MENU:
+        case chunk_t::menu:
           DEBUG("Reading Project Menu");
           menu   = std::make_unique<menu_t>();
           result = menu->read(game, strm);
           break;
 
-        case chunk_t::EXTPATH:
+        case chunk_t::extra_path:
           DEBUG("Reading Extension Path");
           extensionPath = std::make_unique<extension_path_t>();
           result        = extensionPath->read(game, strm);
           break;
 
-        case chunk_t::EXTENS:
+        case chunk_t::extensions:
           DEBUG("Reading Extensions");
           extensions = std::make_unique<extensions_t>();
           result     = extensions->read(game, strm);
           break;
 
-        case chunk_t::EXTDATA:
+        case chunk_t::extra_data:
           DEBUG("Reading Extension Data");
           extensionData = std::make_unique<extension_data_t>();
           result        = extensionData->read(game, strm);
           break;
 
-        case chunk_t::ADDEXTNS:
+        case chunk_t::additional_extensions:
           DEBUG("Reading Additional Extensions");
           additionalExtensions = std::make_unique<additional_extensions_t>();
           result               = additionalExtensions->read(game, strm);
           break;
 
-        case chunk_t::APPDOC:
+        case chunk_t::app_doc:
           DEBUG("Reading Application Doc");
           appDoc = std::make_unique<application_doc_t>();
           result = appDoc->read(game, strm);
           break;
 
-        case chunk_t::OTHEREXT:
+        case chunk_t::other_extension:
           DEBUG("Reading Other Extension");
-          otherExtension = std::make_unique<other_extenion_t>();
+          otherExtension = std::make_unique<other_extension_t>();
           result         = otherExtension->read(game, strm);
           break;
 
-        case chunk_t::EXTNLIST:
+        case chunk_t::extensions_list:
           DEBUG("Reading Extension List");
           extensionList = std::make_unique<extension_list_t>();
           result        = extensionList->read(game, strm);
           break;
 
-        case chunk_t::ICON:
+        case chunk_t::icon:
           DEBUG("Reading Icon");
           icon   = std::make_unique<icon_t>();
           result = icon->read(game, strm);
           break;
 
-        case chunk_t::DEMOVER:
+        case chunk_t::demo_version:
           DEBUG("Reading Demo Version");
           demoVersion = std::make_unique<demo_version_t>();
           result      = demoVersion->read(game, strm);
           break;
 
-        case chunk_t::SECNUM:
+        case chunk_t::security_number:
           DEBUG("Reading Security Number");
           security = std::make_unique<security_number_t>();
           result   = security->read(game, strm);
           break;
 
-        case chunk_t::BINFILES:
+        case chunk_t::binary_files:
           DEBUG("Reading Binary Files");
           binaryFiles = std::make_unique<binary_files_t>();
           result      = binaryFiles->read(game, strm);
           break;
 
-        case chunk_t::MENUIMAGES:
+        case chunk_t::menu_images:
           DEBUG("Reading Menu Images");
           menuImages = std::make_unique<menu_images_t>();
           result     = menuImages->read(game, strm);
           break;
 
-        case chunk_t::MOVEMNTEXTNS:
+        case chunk_t::movement_extensions:
           DEBUG("Reading Movement Extensions");
           movementExtensions = std::make_unique<movement_extensions_t>();
           result             = movementExtensions->read(game, strm);
           break;
 
-        case chunk_t::EXEONLY:
+        case chunk_t::exe_only:
           DEBUG("Reading EXE Only");
           exe    = std::make_unique<exe_t>();
           result = exe->read(game, strm);
           break;
 
-        case chunk_t::PROTECTION:
+        case chunk_t::protection:
           DEBUG("Reading Protection");
           protection = std::make_unique<protection_t>();
           result     = protection->read(game, strm);
           break;
 
-        case chunk_t::SHADERS:
+        case chunk_t::shaders:
           DEBUG("Reading Shaders");
           shaders = std::make_unique<shaders_t>();
           result  = shaders->read(game, strm);
           break;
 
-        case chunk_t::EXTDHEADER:
+        case chunk_t::extended_header:
           DEBUG("Reading Extended Header");
           extendedHeader = std::make_unique<extended_header_t>();
           result         = extendedHeader->read(game, strm);
           break;
 
-        case chunk_t::SPACER:
+        case chunk_t::spacer:
           DEBUG("Reading Spacer");
           spacer = std::make_unique<spacer_t>();
           result = spacer->read(game, strm);
           break;
 
-        case chunk_t::CHUNK224F:
+        case chunk_t::chunk224F:
           DEBUG("Reading Chunk 224F");
           chunk224F = std::make_unique<chunk_224F_t>();
           result    = chunk224F->read(game, strm);
           break;
 
-        case chunk_t::TITLE2:
+        case chunk_t::title2:
           DEBUG("Reading Title 2");
           title2 = std::make_unique<title2_t>();
           result = title2->read(game, strm);
           break;
 
-        case chunk_t::OBJECTNAMES:
+        case chunk_t::object_names:
           DEBUG("Reading Object Names");
           objectNames = std::make_unique<object_names_t>();
           result      = objectNames->read(game, strm);
           break;
 
-        case chunk_t::OBJECTPROPERTIES:
+        case chunk_t::object_properties:
           DEBUG("Reading Object Properties");
           objectProperties = std::make_unique<object_properties_t>();
           result           = objectProperties->read(game, strm);
           break;
 
-        case chunk_t::FONTMETA:
+        case chunk_t::font_meta:
           DEBUG("Reading TrueType Fonts Meta");
           truetypeFontsMeta = std::make_unique<truetype_fonts_meta_t>();
           result            = truetypeFontsMeta->read(game, strm);
           break;
 
-        case chunk_t::FONTCHUNK:
+        case chunk_t::font_chunk:
           DEBUG("Reading TrueType Fonts");
           truetypeFonts = std::make_unique<truetype_fonts_t>();
           result        = truetypeFonts->read(game, strm);
           break;
 
-        case chunk_t::GLOBALEVENTS:
+        case chunk_t::global_events:
           DEBUG("Reading Global Events");
           globalEvents = std::make_unique<global_events_t>();
           result       = globalEvents->read(game, strm);
           break;
 
-        case chunk_t::GLOBALSTRS:
+        case chunk_t::global_strings:
           DEBUG("Reading Global Strings");
           globalStrings = std::make_unique<global_strings_t>();
           result        = globalStrings->read(game, strm);
           break;
 
-        case chunk_t::GLOBALSTRNAMES:
+        case chunk_t::global_string_names:
           DEBUG("Reading Global String Names");
           globalStringNames = std::make_unique<global_string_names_t>();
           result            = globalStringNames->read(game, strm);
           break;
 
-        case chunk_t::GLOBALVALS:
+        case chunk_t::global_values:
           DEBUG("Reading Global Values");
           globalValues = std::make_unique<global_values_t>();
           result       = globalValues->read(game, strm);
           break;
 
-        case chunk_t::GLOBALVALNAMES:
+        case chunk_t::global_value_names:
           DEBUG("Reading Global Value Names");
           globalValueNames = std::make_unique<global_value_names_t>();
           result           = globalValueNames->read(game, strm);
           break;
 
-        case chunk_t::FRAMEHANDLES:
+        case chunk_t::frame_handles:
           DEBUG("Reading Frame Handles");
           frameHandles = std::make_unique<frame::handles_t>();
           result       = frameHandles->read(game, strm);
           break;
 
-        case chunk_t::FRAMEBANK:
+        case chunk_t::frame_bank:
           DEBUG("Reading Fame Bank");
           frameBank = std::make_unique<frame::bank_t>();
           result    = frameBank->read(game, strm);
           break;
 
-        case chunk_t::FRAME:
+        case chunk_t::frame:
           DEBUG("Reading Frame (Missing Frame Bank)");
           if (frameBank) ERROR("Frame Bank Already Exists");
           frameBank = std::make_unique<frame::bank_t>();
           frameBank->items.clear();
-          while (result == error_t::OK &&
-                 (chunk_t)strm.peek_u16() == chunk_t::FRAME)
+          while (result == error_t::ok &&
+                 (chunk_t)strm.peek_u16() == chunk_t::frame)
           {
             frameBank->items.emplace_back();
             result = frameBank->items.back().read(game, strm);
           }
           break;
 
-          // case chunk_t::OBJECTBANK2:
+          // case chunk_t::object_bank2:
           //     DEBUG("Reading Object Bank 2");
           //     objectBank2 = std::make_unique<object_bank2_t>();
           //     result = objectBank2->read(game, strm);
           //     break;
 
-        case chunk_t::OBJECTBANK:
-        case chunk_t::OBJECTBANK2:
+        case chunk_t::object_bank:
+        case chunk_t::object_bank2:
           DEBUG("Reading Object Bank");
           objectBank = std::make_unique<object::bank_t>();
           result     = objectBank->read(game, strm);
           break;
 
-        case chunk_t::IMAGEBANK:
+        case chunk_t::image_bank:
           DEBUG("Reading Image Bank");
           imageBank = std::make_unique<image::bank_t>();
           result    = imageBank->read(game, strm);
           break;
 
-        case chunk_t::SOUNDBANK:
+        case chunk_t::sound_bank:
           DEBUG("Reading Sound Bank");
           soundBank = std::make_unique<sound::bank_t>();
           result    = soundBank->read(game, strm);
           break;
 
-        case chunk_t::MUSICBANK:
+        case chunk_t::music_bank:
           DEBUG("Reading Music Bank");
           musicBank = std::make_unique<music::bank_t>();
           result    = musicBank->read(game, strm);
           break;
 
-        case chunk_t::FONTBANK:
+        case chunk_t::font_bank:
           DEBUG("Reading Font Bank");
           fontBank = std::make_unique<font::bank_t>();
           result   = fontBank->read(game, strm);
           break;
 
-        case chunk_t::LAST:
+        case chunk_t::last:
           DEBUG("Reading Last");
           last   = std::make_unique<last_t>();
           result = last->read(game, strm);
@@ -4021,7 +4024,7 @@ namespace SourceExplorer
 
   error_t header_t::view(source_explorer_t &srcexp) const
   {
-    error_t result = error_t::OK;
+    error_t result = error_t::ok;
 
     if (lak::TreeNode(
           "0x%zX Game Header##%zX", (size_t)entry.ID, entry.position))

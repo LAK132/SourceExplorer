@@ -445,15 +445,15 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 
       if (sound.peek_string(4) == std::string("OggS"))
       {
-        type = sound_mode_t::OGGS;
+        type = sound_mode_t::oggs;
       }
     }
 
     switch (type)
     {
-      case sound_mode_t::WAVE: name += u".wav"; break;
-      case sound_mode_t::MIDI: name += u".midi"; break;
-      case sound_mode_t::OGGS: name += u".ogg"; break;
+      case sound_mode_t::wave: name += u".wav"; break;
+      case sound_mode_t::midi: name += u".midi"; break;
+      case sound_mode_t::oggs: name += u".ogg"; break;
       default: name += u".mp3"; break;
     }
 
@@ -519,8 +519,8 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 
     switch (type)
     {
-      case sound_mode_t::WAVE: name += u".wav"; break;
-      case sound_mode_t::MIDI: name += u".midi"; break;
+      case sound_mode_t::wave: name += u".wav"; break;
+      case sound_mode_t::midi: name += u".midi"; break;
       default: name += u".mp3"; break;
     }
 
