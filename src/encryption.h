@@ -2,7 +2,6 @@
 #define ENCRYPTION_H
 
 #include "explorer.h"
-#include "lak.h"
 
 #include <assert.h>
 #include <cstring>

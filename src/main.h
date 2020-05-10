@@ -28,7 +28,6 @@ SOFTWARE.
 
 #include "explorer.h"
 #include "image.h"
-#include "lak.h"
 #include "tostring.hpp"
 
 namespace se = SourceExplorer;
@@ -50,8 +49,8 @@ namespace se = SourceExplorer;
 
 namespace fs = std::filesystem;
 
-#define APP_NAME    "Source Explorer"
-#define APP_VERSION "v1.2a"
+#define APP_VERSION "v2.0a"
+#define APP_NAME    "Source Explorer " APP_VERSION
 
 #ifndef MAIN_H
 #  define MAIN_H

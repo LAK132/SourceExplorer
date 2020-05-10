@@ -160,9 +160,9 @@ namespace ImGui
     io.ClipboardUserData  = (void *)&ImplStaticClipboard;
   }
 
-  void ImplInitSRContext(ImplSRContext context, const lak::window_t &window)
+  void ImplInitSRContext(ImplSRContext context, const lak::window &window)
   {
-    context->window = window.window;
+    context->window = window.sdl_window();
 
     ImGuiIO &io = ImGui::GetIO();
 
@@ -172,7 +172,7 @@ namespace ImGui
     context->atlasTexture.init(width, height, (alpha8_t *)pixels);
     io.Fonts->TexID = &context->atlasTexture;
 
-    context->screenTexture.init(window.size.x, window.size.y);
+    context->screenTexture.init(window.size().x, window.size().y);
 
     context->screenSurface = SDL_CreateRGBSurfaceWithFormatFrom(
       context->screenTexture.pixels,
@@ -185,7 +185,7 @@ namespace ImGui
     ImGui_ImplSoftraster_Init(&context->screenTexture);
   }
 
-  void ImplInitGLContext(ImplGLContext context, const lak::window_t &window)
+  void ImplInitGLContext(ImplGLContext context, const lak::window &window)
   {
     using namespace lak::opengl::literals;
 
@@ -232,7 +232,7 @@ namespace ImGui
     lak::vec2i_t size;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &size.x, &size.y);
 
-    auto old_texture = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
+    auto old_texture = lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D);
     DEFER(glBindTexture(GL_TEXTURE_2D, old_texture));
 
     context->font.init(GL_TEXTURE_2D)
@@ -245,9 +245,9 @@ namespace ImGui
     io.Fonts->TexID = (ImTextureID)(intptr_t)context->font.get();
   }
 
-  void ImplInitVkContext(ImplVkContext context, const lak::window_t &window) {}
+  void ImplInitVkContext(ImplVkContext context, const lak::window &window) {}
 
-  void ImplInitContext(ImplContext context, const lak::window_t &window)
+  void ImplInitContext(ImplContext context, const lak::window &window)
   {
     context->mouseCursors[ImGuiMouseCursor_Arrow] =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -284,12 +284,12 @@ namespace ImGui
       default: ASSERTF(false, "Invalid Context Mode"); break;
     }
 
-    ImplUpdateDisplaySize(context, window.window);
+    ImplUpdateDisplaySize(context, window.sdl_window());
 
 #ifdef _WIN32
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
-    SDL_GetWindowWMInfo(window.window, &wmInfo);
+    SDL_GetWindowWMInfo(window.sdl_window(), &wmInfo);
     ImGui::GetIO().ImeWindowHandle = wmInfo.info.win.window;
 #endif
   }
@@ -562,20 +562,20 @@ namespace ImGui
 
     drawData->ScaleClipRects(io.DisplayFramebufferScale);
 
-    auto old_program        = lak::opengl::GetUint<1>(GL_CURRENT_PROGRAM);
-    auto old_texture        = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
-    auto old_active_texture = lak::opengl::GetUint<1>(GL_ACTIVE_TEXTURE);
-    auto old_vertex_array   = lak::opengl::GetUint<1>(GL_VERTEX_ARRAY_BINDING);
-    auto old_array_buffer   = lak::opengl::GetUint<1>(GL_ARRAY_BUFFER_BINDING);
+    auto old_program        = lak::opengl::get_uint<1>(GL_CURRENT_PROGRAM);
+    auto old_texture        = lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D);
+    auto old_active_texture = lak::opengl::get_uint<1>(GL_ACTIVE_TEXTURE);
+    auto old_vertex_array = lak::opengl::get_uint<1>(GL_VERTEX_ARRAY_BINDING);
+    auto old_array_buffer = lak::opengl::get_uint<1>(GL_ARRAY_BUFFER_BINDING);
     auto old_index_buffer =
-      lak::opengl::GetUint<1>(GL_ELEMENT_ARRAY_BUFFER_BINDING);
+      lak::opengl::get_uint<1>(GL_ELEMENT_ARRAY_BUFFER_BINDING);
     auto old_blend_enabled        = glIsEnabled(GL_BLEND);
     auto old_cull_face_enabled    = glIsEnabled(GL_CULL_FACE);
     auto old_depth_test_enabled   = glIsEnabled(GL_DEPTH_TEST);
     auto old_scissor_test_enabled = glIsEnabled(GL_SCISSOR_TEST);
-    auto old_viewport             = lak::opengl::GetInt<4>(GL_VIEWPORT);
-    auto old_scissor              = lak::opengl::GetInt<4>(GL_SCISSOR_BOX);
-    auto old_clip_origin          = lak::opengl::GetEnum<1>(GL_CLIP_ORIGIN);
+    auto old_viewport             = lak::opengl::get_int<4>(GL_VIEWPORT);
+    auto old_scissor              = lak::opengl::get_int<4>(GL_SCISSOR_BOX);
+    auto old_clip_origin          = lak::opengl::get_enum<1>(GL_CLIP_ORIGIN);
 
     glGenVertexArrays(1, &context->vertexArray);
 
@@ -617,26 +617,18 @@ namespace ImGui
     glViewport(viewport.x, viewport.y, viewport.z, viewport.w);
 
     {
-      const float &W          = drawData->DisplaySize.x;
-      const float &H          = drawData->DisplaySize.y;
-      const float O1          = ((drawData->DisplayPos.x * 2) + W) / -W;
-      const float O2          = ((drawData->DisplayPos.y * 2) + H) / H;
-      const float orthoProj[] = {2.0f / W,
-                                 0.0f,
-                                 0.0f,
-                                 0.0f,
-                                 0.0f,
-                                 2.0f / -H,
-                                 0.0f,
-                                 0.0f,
-                                 0.0f,
-                                 0.0f,
-                                 -1.0f,
-                                 0.0f,
-                                 O1,
-                                 O2,
-                                 0.0f,
-                                 1.0f};
+      const float &W = drawData->DisplaySize.x;
+      const float &H = drawData->DisplaySize.y;
+      const float O1 = ((drawData->DisplayPos.x * 2) + W) / -W;
+      const float O2 = ((drawData->DisplayPos.y * 2) + H) / H;
+      // clang-format off
+      const float orthoProj[] = {
+        2.0f / W, 0.0f,       0.0f,   0.0f,
+        0.0f,     2.0f / -H,  0.0f,   0.0f,
+        0.0f,     0.0f,       -1.0f,  0.0f,
+        O1,       O2,         0.0f,   1.0f
+      };
+      // clang-format on
       glUniformMatrix4fv(context->attribViewProj, 1, GL_FALSE, orthoProj);
     }
     glUniform1i(context->attribTex, 0);

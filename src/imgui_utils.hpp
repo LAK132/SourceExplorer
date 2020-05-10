@@ -30,6 +30,8 @@ SOFTWARE.
 #endif
 #include <imgui.h>
 
+#include "await.hpp"
+
 #include <atomic>
 #include <filesystem>
 #include <thread>
@@ -50,19 +52,6 @@ namespace lak
                   ImGuiInputTextFlags flags       = 0,
                   ImGuiInputTextCallback callback = nullptr,
                   void *user_data                 = nullptr);
-
-  fs::path normalised(const fs::path &path);
-
-  bool has_parent(const fs::path &path);
-
-  // The the ACTUAL parent path.
-  // .parent_path() incorrectly changes gets "a/b" from "a/b/", this function
-  // would instead return "a/" by normalising to "a/b/."
-  fs::path parent(const fs::path &path);
-
-  // Returns {Real folder directory, File part/bad directories}.
-  std::pair<fs::path, fs::path> deepest_folder(const fs::path &path,
-                                               std::error_code &ec);
 
   bool path_navigator(fs::path &path,
                       std::error_code &ec,

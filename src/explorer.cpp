@@ -657,7 +657,7 @@ namespace SourceExplorer
   {
     if (mode == lak::graphics_mode::OpenGL)
     {
-      auto old_texture = lak::opengl::GetUint<1>(GL_TEXTURE_BINDING_2D);
+      auto old_texture = lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D);
 
       lak::opengl::texture result(GL_TEXTURE_2D);
       result.bind()

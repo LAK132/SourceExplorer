@@ -71,42 +71,6 @@ namespace lak
                            &cb_user_data);
   }
 
-  fs::path normalised(const fs::path &path)
-  {
-    // ("a/b" | "a/b/") -> "a/b/." -> "a/b"
-    return (path / ".").parent_path();
-  }
-
-  bool has_parent(const fs::path &path)
-  {
-    return normalised(path).has_parent_path();
-  }
-
-  fs::path parent(const fs::path &path)
-  {
-    return normalised(path).parent_path();
-  }
-
-  std::pair<fs::path, fs::path> deepest_folder(const fs::path &path,
-                                               std::error_code &ec)
-  {
-    fs::path folder = normalised(path);
-    fs::path file;
-    auto entry = fs::directory_entry(path, ec);
-    while (!entry.is_directory() && has_parent(folder))
-    {
-      folder = parent(folder);
-      file   = path.lexically_relative(folder);
-      // we're intentionally ignoring errors if there's still parent
-      // directories, but we don't want to ignore the error of the last call
-      // to fs::directory_entry.
-      ec.clear();
-      entry = fs::directory_entry(folder, ec);
-    }
-    if (ec) WARNING(path << ": " << ec.message());
-    return {normalised(folder), normalised(file)};
-  }
-
   struct path_cache
   {
     fs::path folder;

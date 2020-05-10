@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
+#define SDL_MAIN_HANDLED
+
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_utils.hpp"
 
@@ -22,10 +24,13 @@
 #include "lisk_impl.hpp"
 #include "main.h"
 
-#include <lak/defer.hpp>
 #include <lak/opengl/shader.hpp>
 #include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
+
+#include <lak/defer.hpp>
+#include <lak/file.hpp>
+#include <lak/window.hpp>
 
 se::source_explorer_t SrcExp;
 int openglMajor, openglMinor;
@@ -71,7 +76,7 @@ void MenuBar(float FrameTime)
 
   if (ImGui::BeginMenu("About"))
   {
-    ImGui::Text(APP_NAME " " APP_VERSION);
+    ImGui::Text(APP_NAME " by LAK132");
     if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
       ImGui::Text("OpenGL %d.%d", openglMajor, openglMinor);
     ImGui::Text("Frame rate %f", 1.0f / FrameTime);
@@ -951,10 +956,6 @@ void MainScreen(float FrameTime)
     SourceExplorerMain(FrameTime);
 }
 
-///
-/// loop()
-/// Called every loop
-///
 void Update(float FrameTime)
 {
   bool mainOpen = true;
@@ -979,59 +980,10 @@ void Update(float FrameTime)
   }
 }
 
-ImGui::ImplContext start_graphics(lak::window_t &window,
-                                  lak::window_settings_t &settings)
-{
-  ImGui::ImplContext result;
-  if (lak::create_opengl_window(window, settings))
-  {
-    window.mode = lak::graphics_mode::OpenGL;
-    openglMajor = lak::opengl::GetUint<1>(GL_MAJOR_VERSION);
-    openglMinor = lak::opengl::GetUint<1>(GL_MINOR_VERSION);
-    result      = ImGui::ImplCreateContext(ImGui::GraphicsMode::OpenGL);
-  }
-  else if (lak::create_software_window(window, settings))
-  {
-    window.mode = lak::graphics_mode::Software;
-    result      = ImGui::ImplCreateContext(ImGui::GraphicsMode::Software);
-    // If this isn't called here it crashes when it's called later.
-    SDL_GetWindowSurface(window.window);
-  }
-  else
-  {
-    FATAL("Failed to start any of the available graphics modes");
-    return nullptr;
-  }
-
-  ImGui::ImplInit();
-  ImGui::ImplInitContext(result, window);
-  return result;
-}
-
-void stop_graphics(lak::window_t &window, ImGui::ImplContext &gui)
-{
-  ImGui::ImplShutdownContext(gui);
-  switch (window.mode)
-  {
-    case lak::graphics_mode::OpenGL:
-    {
-      lak::destroy_opengl_window(window);
-    }
-    break;
-
-    case lak::graphics_mode::Software:
-    {
-      lak::destroy_software_window(window);
-    }
-    break;
-
-    default: FATAL("Unknown graphics mode"); return;
-  }
-  gui = nullptr;
-}
-
 int main(int argc, char **argv)
 {
+  /* --- Debugger initialisation --- */
+
   lak::debugger.crash_path = SrcExp.errorLog.path =
     fs::current_path() / "SEND-THIS-CRASH-LOG-TO-LAK132.txt";
 
@@ -1039,36 +991,64 @@ int main(int argc, char **argv)
     SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
       SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
 
+  bool force_software = false;
   if (argc > 1)
   {
-    SrcExp.babyMode    = false;
-    SrcExp.exe.path    = argv[1];
-    SrcExp.exe.valid   = true;
-    SrcExp.exe.attempt = true;
+    if (argv[1] == std::string("-nogl"))
+    {
+      force_software = true;
+    }
+    else
+    {
+      SrcExp.babyMode    = false;
+      SrcExp.exe.path    = argv[1];
+      SrcExp.exe.valid   = true;
+      SrcExp.exe.attempt = true;
+    }
   }
 
-  lak::init_graphics();
-  lak::window_t window;
-  lak::window_settings_t window_settings{APP_NAME, {1280, 720}, true};
+  std::set_terminate(lak::terminate_handler);
 
-  ImGui::ImplContext context = start_graphics(window, window_settings);
-  SrcExp.graphicsMode        = window.mode;
+  /* --- Window initialisation --- */
 
-  if (SDL_Init(SDL_INIT_AUDIO)) ERROR("Failed to initialise SDL audio");
+  lak::core_init();
 
-  uint16_t targetFrameFreq = 59;                            // FPS
-  float targetFrameTime    = 1.0f / (float)targetFrameFreq; // SPF
+  auto window = lak::window(
+    APP_NAME, {720, 480}, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
 
-  const uint64_t perfFreq = SDL_GetPerformanceFrequency();
-  uint64_t perfCount      = SDL_GetPerformanceCounter();
-  float frameTime         = targetFrameTime; // start non-zero
+  if (!window) FATAL("Failed to create window");
 
-  if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
+  /* --- Graphics initialisation --- */
+
+  ImGui::ImplContext imgui_context = nullptr;
+  if (!force_software && window.init_opengl({}))
   {
-    glViewport(0, 0, window.size.x, window.size.y);
+    imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::OpenGL);
+    openglMajor   = lak::opengl::get_uint<1>(GL_MAJOR_VERSION);
+    openglMinor   = lak::opengl::get_uint<1>(GL_MINOR_VERSION);
+  }
+  else if (window.init_software())
+  {
+    imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::Software);
+    // If this isn't called here it crashes when it's called later.
+    SDL_GetWindowSurface(window.sdl_window());
+  }
+  else
+  {
+    FATAL("Failed to start any known graphics mode");
+  }
+  SrcExp.graphicsMode = window.graphics();
+  ImGui::ImplInit();
+  ImGui::ImplInitContext(imgui_context, window);
+
+  if (window.graphics() == lak::graphics_mode::OpenGL)
+  {
+    glViewport(0, 0, window.size().x, window.size().y);
     glClearColor(0.0f, 0.3125f, 0.3125f, 1.0f);
     glEnable(GL_DEPTH_TEST);
   }
+
+  if (SDL_Init(SDL_INIT_AUDIO)) ERROR("Failed to initialise SDL audio");
 
   ImGuiIO &io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -1076,12 +1056,17 @@ int main(int argc, char **argv)
   ImGuiStyle &style    = ImGui::GetStyle();
   style.WindowRounding = 0;
 
+  /* --- Main program loop --- */
+
+  const uint32_t framerate = 60;
+  uint64_t last_counter    = lak::performance_counter();
+  float frame_time         = 1.0f / framerate;
+
   for (bool running = true; running;)
   {
-    /* --- BEGIN EVENTS --- */
-
+    /* --- Handle SDL2 events --- */
     for (SDL_Event event; SDL_PollEvent(&event);
-         ImGui::ImplProcessEvent(context, event))
+         ImGui::ImplProcessEvent(imgui_context, event))
     {
       switch (event.type)
       {
@@ -1093,22 +1078,23 @@ int main(int argc, char **argv)
 
         /* --- Window events --- */
         case SDL_WINDOWEVENT:
+        {
           switch (event.window.event)
           {
             case SDL_WINDOWEVENT_RESIZED:
             case SDL_WINDOWEVENT_SIZE_CHANGED:
             {
-              window.size.x = event.window.data1;
-              window.size.y = event.window.data2;
-              if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
-                glViewport(0, 0, window.size.x, window.size.y);
+              window.set_size(
+                {(uint32_t)event.window.data1, (uint32_t)event.window.data2});
+              if (window.graphics() == lak::graphics_mode::OpenGL)
+                glViewport(0, 0, window.size().x, window.size().y);
             }
             break;
           }
-          break;
+        }
+        break;
 
-          /* --- Drag and drop events --- */
-
+        /* --- Drag and drop events --- */
         case SDL_DROPFILE:
         {
           if (event.drop.file != nullptr)
@@ -1123,77 +1109,51 @@ int main(int argc, char **argv)
       }
     }
 
-    // --- END EVENTS ---
+    ImGui::ImplNewFrame(imgui_context, window.sdl_window(), frame_time);
 
-    ImGui::ImplNewFrame(context, window.window, frameTime);
-
-    // --- BEGIN UPDATE ---
-
-    Update(frameTime);
-
-    // --- END UPDATE ---
+    Update(frame_time);
 
     if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
     {
-      glViewport(0, 0, window.size.x, window.size.y);
+      glViewport(0, 0, window.size().x, window.size().y);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    // --- BEGIN DRAW ---
+    ImGui::ImplRender(imgui_context);
 
-    // --- END DRAW ---
+    window.swap();
 
-    ImGui::ImplRender(context);
-
-    if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
-    {
-      SDL_GL_SwapWindow(window.window);
-    }
-    else
-    {
-      context->srContext->window = window.window;
-      ASSERT(SDL_UpdateWindowSurface(window.window) == 0);
-    }
-
-    // --- TIMING ---
-
-    float frameTimeError = frameTime - targetFrameTime;
-    if (frameTimeError < 0.0f)
-      frameTimeError = 0.0f;
-    else if (frameTimeError > 0.0f)
-      frameTimeError = std::fmod(frameTimeError, targetFrameTime);
-    const uint64_t prevPerfCount = perfCount;
-    do
-    {
-      perfCount = SDL_GetPerformanceCounter();
-      frameTime =
-        (float)(frameTimeError +
-                ((double)(perfCount - prevPerfCount) / (double)perfFreq));
-      std::this_thread::yield();
-    } while (frameTime < targetFrameTime);
+    const auto counter = lak::yield_frame(last_counter, framerate);
+    frame_time =
+      (float)(counter - last_counter) / lak::performance_frequency();
+    last_counter = counter;
   }
 
-  stop_graphics(window, context);
+  ImGui::ImplShutdownContext(imgui_context);
 
-  lak::quit_graphics();
+  window.close();
 
-  return (0);
+  lak::core_quit();
+
+  return EXIT_SUCCESS;
 }
 
 #include "dump.cpp"
 #include "explorer.cpp"
-#include "lak.cpp"
 #include "lisk_impl.cpp"
 
 #include "imgui_impl_lak.cpp"
 #include "imgui_utils.cpp"
-#include <lak/src/tinflate.cpp>
 
-#include <lak/opengl/shader.cpp>
-#include <lak/opengl/texture.cpp>
+#include <lak/src/opengl/shader.cpp>
+#include <lak/src/opengl/texture.cpp>
+
 #include <lak/src/debug.cpp>
+#include <lak/src/file.cpp>
 #include <lak/src/memory.cpp>
 #include <lak/src/strconv.cpp>
+#include <lak/src/tinflate.cpp>
+#include <lak/src/window.cpp>
 
 #include <examples/imgui_impl_softraster.cpp>
 

@@ -25,7 +25,6 @@
 
 #include "defines.h"
 #include "encryption.h"
-#include "lak.h"
 #include "stb_image.h"
 
 #include <lak/debug.hpp>

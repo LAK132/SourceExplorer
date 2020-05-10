@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2019 LAK132
+Copyright (c) 2019, 2020 LAK132
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,31 +22,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef LAK_LAK_H
-#define LAK_LAK_H
-
-#define SDL_MAIN_HANDLED
-#include <SDL.h>
-
-#include <lak/debug.hpp>
-#include <lak/string.hpp>
-#include <lak/vec.h>
+#ifndef LAK_AWAIT_HPP
+#define LAK_AWAIT_HPP
 
 #include <atomic>
-#include <filesystem>
-#include <memory>
 #include <thread>
 #include <tuple>
 #include <vector>
 
 namespace lak
 {
-  namespace fs = std::filesystem;
-
-  std::vector<uint8_t> read_file(const fs::path &path);
-  bool save_file(const fs::path &path, const std::vector<uint8_t> &data);
-  bool save_file(const fs::path &path, const std::string &string);
-
   template<typename R, typename... T, typename... D>
   bool await(std::unique_ptr<std::thread> &thread,
              std::atomic<bool> &finished,
@@ -82,51 +67,6 @@ namespace lak
     }
     return false;
   }
-
-  enum struct graphics_mode
-  {
-    Software = 0,
-    OpenGL   = 1,
-  };
-
-  union graphics_context_t
-  {
-    void *ptr;
-    SDL_GLContext sdl_gl;
-  };
-
-  struct window_t
-  {
-    SDL_DisplayMode display_mode;
-    SDL_Window *window         = nullptr;
-    graphics_context_t context = {nullptr};
-    graphics_mode mode         = graphics_mode::OpenGL;
-    vec2u32_t size;
-  };
-
-  struct window_settings_t
-  {
-    std::string title;
-    vec2i_t size;
-    bool double_buffered = false;
-    int display          = 0;
-
-    // OpenGL
-    uint8_t depth_size   = 24;
-    uint8_t colour_size  = 8;
-    uint8_t stencil_size = 8;
-  };
-
-  void init_graphics();
-  void quit_graphics();
-
-  bool create_software_window(window_t &window,
-                              const window_settings_t &settings);
-  void destroy_software_window(window_t &window);
-
-  bool create_opengl_window(window_t &window,
-                            const window_settings_t &settings);
-  void destroy_opengl_window(window_t &window);
 }
 
 #endif

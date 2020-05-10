@@ -29,15 +29,19 @@ SOFTWARE.
 #include <imgui/imgui_internal.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
 
+#include <SDL.h>
+
 #ifdef _WIN32
 #  include "SDL_syswm.h"
 #endif
 
-#include "lak.h"
+#include "await.hpp"
 
-#include <lak/image.h>
 #include <lak/opengl/shader.hpp>
 #include <lak/opengl/texture.hpp>
+
+#include <lak/image.hpp>
+#include <lak/window.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -106,7 +110,7 @@ namespace ImGui
   void ImplInit();
 
   // Run once per context
-  void ImplInitContext(ImplContext context, const lak::window_t &window);
+  void ImplInitContext(ImplContext context, const lak::window &window);
 
   // Run once per context
   void ImplShutdownContext(ImplContext context);
