@@ -966,34 +966,13 @@ void MainScreen(float FrameTime)
     SourceExplorerMain(FrameTime);
 }
 
-void Update(float FrameTime)
+
+#include <lak/basic_program.inl>
+
+ImGui::ImplContext imgui_context = nullptr;
+
+void basic_window_init(int argc, char **argv, lak::window &window)
 {
-  bool mainOpen = true;
-
-  ImGuiStyle &style = ImGui::GetStyle();
-  ImGuiIO &io       = ImGui::GetIO();
-
-  ImGui::SetNextWindowPos(ImVec2(0, 0));
-  ImGui::SetNextWindowSize(io.DisplaySize);
-  ImVec2 oldWindowPadding = style.WindowPadding;
-  style.WindowPadding     = ImVec2(0.0f, 0.0f);
-  if (ImGui::Begin(APP_NAME,
-                   &mainOpen,
-                   ImGuiWindowFlags_AlwaysAutoResize |
-                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar |
-                     ImGuiWindowFlags_NoSavedSettings |
-                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
-  {
-    style.WindowPadding = oldWindowPadding;
-    MainScreen(FrameTime);
-    ImGui::End();
-  }
-}
-
-int main(int argc, char **argv)
-{
-  /* --- Debugger initialisation --- */
-
   lak::debugger.crash_path = SrcExp.errorLog.path =
     fs::current_path() / "SEND-THIS-CRASH-LOG-TO-LAK132.txt";
 
@@ -1017,135 +996,81 @@ int main(int argc, char **argv)
     }
   }
 
-  std::set_terminate(lak::terminate_handler);
-
-  /* --- Window initialisation --- */
-
-  lak::core_init();
-
-  auto window = lak::window(
-    APP_NAME, {720, 480}, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
-
-  if (!window) FATAL("Failed to create window");
-
-  /* --- Graphics initialisation --- */
-
-  ImGui::ImplContext imgui_context = nullptr;
-  if (!force_software && window.init_opengl({}))
+  switch (window.graphics())
   {
-    imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::OpenGL);
-    openglMajor   = lak::opengl::get_uint<1>(GL_MAJOR_VERSION);
-    openglMinor   = lak::opengl::get_uint<1>(GL_MINOR_VERSION);
+    case lak::graphics_mode::OpenGL:
+      imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::OpenGL);
+      openglMajor   = lak::opengl::get_uint<1>(GL_MAJOR_VERSION);
+      openglMinor   = lak::opengl::get_uint<1>(GL_MINOR_VERSION);
+      break;
+    case lak::graphics_mode::Software:
+      imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::Software);
+      break;
   }
-  else if (window.init_software())
-  {
-    imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::Software);
-    // If this isn't called here it crashes when it's called later.
-    SDL_GetWindowSurface(window.sdl_window());
-  }
-  else
-  {
-    FATAL("Failed to start any known graphics mode");
-  }
+
   SrcExp.graphicsMode = window.graphics();
   ImGui::ImplInit();
   ImGui::ImplInitContext(imgui_context, window);
 
-  if (window.graphics() == lak::graphics_mode::OpenGL)
-  {
-    glViewport(0, 0, window.size().x, window.size().y);
-    glClearColor(0.0f, 0.3125f, 0.3125f, 1.0f);
-    glEnable(GL_DEPTH_TEST);
-  }
-
   if (SDL_Init(SDL_INIT_AUDIO)) ERROR("Failed to initialise SDL audio");
 
-  ImGuiIO &io = ImGui::GetIO();
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   ImGui::StyleColorsDark();
-  ImGuiStyle &style    = ImGui::GetStyle();
-  style.WindowRounding = 0;
+  ImGui::GetStyle().WindowRounding = 0;
+}
 
-  /* --- Main program loop --- */
+void basic_window_handle_event(SDL_Event &event, lak::window &window)
+{
+  ImGui::ImplProcessEvent(imgui_context, event);
 
-  const uint32_t framerate = 60;
-  uint64_t last_counter    = lak::performance_counter();
-  float frame_time         = 1.0f / framerate;
-
-  for (bool running = true; running;)
+  switch (event.type)
   {
-    /* --- Handle SDL2 events --- */
-    for (SDL_Event event; SDL_PollEvent(&event);
-         ImGui::ImplProcessEvent(imgui_context, event))
+    case SDL_DROPFILE:
     {
-      switch (event.type)
+      if (event.drop.file != nullptr)
       {
-        case SDL_QUIT:
-        {
-          running = false;
-        }
-        break;
-
-        /* --- Window events --- */
-        case SDL_WINDOWEVENT:
-        {
-          switch (event.window.event)
-          {
-            case SDL_WINDOWEVENT_RESIZED:
-            case SDL_WINDOWEVENT_SIZE_CHANGED:
-            {
-              window.set_size(
-                {(uint32_t)event.window.data1, (uint32_t)event.window.data2});
-              if (window.graphics() == lak::graphics_mode::OpenGL)
-                glViewport(0, 0, window.size().x, window.size().y);
-            }
-            break;
-          }
-        }
-        break;
-
-        /* --- Drag and drop events --- */
-        case SDL_DROPFILE:
-        {
-          if (event.drop.file != nullptr)
-          {
-            SrcExp.exe.path    = event.drop.file;
-            SrcExp.exe.valid   = true;
-            SrcExp.exe.attempt = true;
-            SDL_free(event.drop.file);
-          }
-        }
-        break;
+        SrcExp.exe.path    = event.drop.file;
+        SrcExp.exe.valid   = true;
+        SrcExp.exe.attempt = true;
+        SDL_free(event.drop.file);
       }
     }
+    break;
+  }
+}
 
-    ImGui::ImplNewFrame(imgui_context, window.sdl_window(), frame_time);
+void basic_window_loop(lak::window &window, uint64_t counter_delta)
+{
+  const float frame_time = (float)counter_delta / lak::performance_frequency();
+  ImGui::ImplNewFrame(imgui_context, window.sdl_window(), frame_time);
 
-    Update(frame_time);
+  bool mainOpen = true;
 
-    if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
-    {
-      glViewport(0, 0, window.size().x, window.size().y);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    }
+  ImGuiStyle &style = ImGui::GetStyle();
+  ImGuiIO &io       = ImGui::GetIO();
 
-    ImGui::ImplRender(imgui_context);
-
-    window.swap();
-
-    const auto counter = lak::yield_frame(last_counter, framerate);
-    frame_time =
-      (float)(counter - last_counter) / lak::performance_frequency();
-    last_counter = counter;
+  ImGui::SetNextWindowPos(ImVec2(0, 0));
+  ImGui::SetNextWindowSize(io.DisplaySize);
+  ImVec2 old_window_padding = style.WindowPadding;
+  style.WindowPadding       = ImVec2(0.0f, 0.0f);
+  if (ImGui::Begin(APP_NAME,
+                   &mainOpen,
+                   ImGuiWindowFlags_AlwaysAutoResize |
+                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar |
+                     ImGuiWindowFlags_NoSavedSettings |
+                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
+  {
+    style.WindowPadding = old_window_padding;
+    MainScreen(frame_time);
+    ImGui::End();
   }
 
+  ImGui::ImplRender(imgui_context);
+}
+
+void basic_window_quit(lak::window &window)
+{
   ImGui::ImplShutdownContext(imgui_context);
-
-  window.close();
-
-  lak::core_quit();
-
-  return EXIT_SUCCESS;
 }
 
 #include "dump.cpp"
