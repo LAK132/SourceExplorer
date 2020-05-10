@@ -48,6 +48,23 @@ void ViewImage(const lak::opengl::texture &texture, const float scale)
     ImVec2(scale * (float)texture.size().x, scale * (float)texture.size().y));
 }
 
+void HelpText()
+{
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10.0, 10.0));
+  ImGui::Text(
+    "To open a game either drag and drop it into this window or "
+    "go to [File]->[Open]\n");
+  ImGui::Text(
+    "If Source Explorer cannot open/throws errors while opening a file,\n"
+    "please save the error log ([File]->[Save Error Log]) and share\n"
+    "it at https://github.com/LAK132/SourceExplorer/issues\n");
+  ImGui::Text(
+    "If Source Explorer crashes before you can save the log file,\n"
+    "it will attempt to save it to:\n'%s'\n",
+    lak::debugger.crash_path.string().c_str());
+  ImGui::PopStyleVar();
+}
+
 void MenuBar(float FrameTime)
 {
   if (ImGui::BeginMenu("File"))
@@ -82,6 +99,12 @@ void MenuBar(float FrameTime)
     ImGui::Text("Frame rate %f", 1.0f / FrameTime);
     credits();
     ImGui::Checkbox("Byte Pairs", &bytePairsMode);
+    ImGui::EndMenu();
+  }
+
+  if (ImGui::BeginMenu("Help"))
+  {
+    HelpText();
     ImGui::EndMenu();
   }
 
@@ -873,20 +896,7 @@ void SourceExplorerMain(float FrameTime)
   }
   else
   {
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10.0, 10.0));
-    ImGui::Text(
-      "To open a game either drag and drop it into this window or "
-      "go to [File]->[Open]\n");
-    ImGui::Text(
-      "If Source Explorer cannot open/throws errors while opening a "
-      "file,\nplease save the error log ([File]->[Save Error Log]) "
-      "and share\nit on "
-      "https://github.com/LAK132/SourceExplorer/issues\n");
-    ImGui::Text(
-      "If Source Explorer crashes before you can save the log file,"
-      "\nit will attempt to save it to:\n'%s'\n",
-      lak::debugger.crash_path.string().c_str());
-    ImGui::PopStyleVar();
+    HelpText();
   }
 
   if (SrcExp.exe.attempt)
