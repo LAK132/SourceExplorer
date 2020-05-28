@@ -20,6 +20,7 @@
 
 #include "imgui_impl_lak.h"
 #include "imgui_utils.hpp"
+#include <imgui/misc/softraster/texture.h>
 #include <imgui_memory_editor.h>
 #include <imgui_stdlib.h>
 
@@ -41,6 +42,7 @@
 #include <istream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <stack>
 #include <stdint.h>
 #include <unordered_map>

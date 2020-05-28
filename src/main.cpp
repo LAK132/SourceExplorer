@@ -15,6 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
+// This is here to stop the #define ERROR clash caused by wingdi
+#include <GL/gl3w.h>
+
 #define SDL_MAIN_HANDLED
 
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -971,16 +974,10 @@ void MainScreen(float FrameTime)
 
 ImGui::ImplContext imgui_context = nullptr;
 
-void basic_window_init(int argc, char **argv, lak::window &window)
+bool force_software = false;
+
+void basic_window_preinit(int argc, char **argv)
 {
-  lak::debugger.crash_path = SrcExp.errorLog.path =
-    fs::current_path() / "SEND-THIS-CRASH-LOG-TO-LAK132.txt";
-
-  SrcExp.exe.path = SrcExp.images.path = SrcExp.sortedImages.path =
-    SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
-      SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
-
-  bool force_software = false;
   if (argc > 1)
   {
     if (argv[1] == std::string("-nogl"))
@@ -996,18 +993,29 @@ void basic_window_init(int argc, char **argv, lak::window &window)
     }
   }
 
+  basic_window_target_framerate      = 30;
+  basic_window_opengl_settings.major = 3;
+  basic_window_opengl_settings.minor = 2;
+}
+
+void basic_window_init(lak::window &window)
+{
+  lak::debugger.crash_path = SrcExp.errorLog.path =
+    fs::current_path() / "SEND-THIS-CRASH-LOG-TO-LAK132.txt";
+
+  SrcExp.exe.path = SrcExp.images.path = SrcExp.sortedImages.path =
+    SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
+      SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
+
   switch (window.graphics())
   {
     case lak::graphics_mode::OpenGL:
-      imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::OpenGL);
-      openglMajor   = lak::opengl::get_uint<1>(GL_MAJOR_VERSION);
-      openglMinor   = lak::opengl::get_uint<1>(GL_MINOR_VERSION);
-      break;
-    case lak::graphics_mode::Software:
-      imgui_context = ImGui::ImplCreateContext(ImGui::GraphicsMode::Software);
+      openglMajor = lak::opengl::get_uint(GL_MAJOR_VERSION);
+      openglMinor = lak::opengl::get_uint(GL_MINOR_VERSION);
       break;
   }
 
+  imgui_context       = ImGui::ImplCreateContext(window.graphics());
   SrcExp.graphicsMode = window.graphics();
   ImGui::ImplInit();
   ImGui::ImplInitContext(imgui_context, window);
