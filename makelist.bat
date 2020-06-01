@@ -5,10 +5,10 @@ set INCDIRS=include include\SDL include\imgui include\imgui\misc\cpp include\lis
 set LIBDIR=lib
 set LIBS=SDL2main.lib SDL2.lib
 
-set SOURCE=src\main.cpp
+set SOURCE=src\all.cpp
 set BINARY=srcexp.exe
 
-set CXX=cl /nologo /std:c++17 /D_CRT_SECURE_NO_WARNINGS /DNOMINMAX /MT /EHsc
+set CXX=cl /nologo /std:c++17 /D_CRT_SECURE_NO_WARNINGS /DNOMINMAX /MT /EHsc /Zc:rvalueCast /Zc:wchar_t /Zc:ternary
 
 if "%mode%"=="debug" goto debug
 if "%mode%"=="release" goto release

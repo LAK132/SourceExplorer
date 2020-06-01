@@ -406,9 +406,8 @@ namespace SourceExplorer
       // strm.position = strstart + (unicode ? read * 2 : read);
 
       // DEBUG("String Start: 0x" << strstart);
-      WDEBUG(
-        L"Packfile '" << lak::strconv_wide(gameState.packFiles[i].filename)
-                      << L"'");
+      WDEBUG(L"Packfile '" << lak::to_wstring(gameState.packFiles[i].filename)
+                           << L"'");
 
       if (hasBingo)
         gameState.packFiles[i].bingo = strm.read_u32();
@@ -1408,7 +1407,7 @@ namespace SourceExplorer
         case encoding_t::mode0:
         case encoding_t::mode1:
         {
-          result = lak::strconv_u16(entry.decode().read_string());
+          result = lak::to_u16string(entry.decode().read_string());
         }
         break;
         default:
@@ -1574,7 +1573,7 @@ namespace SourceExplorer
 
       entry.view(srcexp);
       for (const auto &s : values)
-        ImGui::Text("%s", (const char *)lak::strconv_u8(s).c_str());
+        ImGui::Text("%s", (const char *)lak::to_u8string(s).c_str());
 
       ImGui::Separator();
       ImGui::TreePop();
@@ -1772,7 +1771,7 @@ namespace SourceExplorer
     if (game.unicode)
       name = strm.read_u16string_exact(strm.read_u16());
     else
-      name = lak::strconv_u16(strm.read_string_exact(strm.read_u16()));
+      name = lak::to_u16string(strm.read_string_exact(strm.read_u16()));
 
     data = strm.read(strm.read_u32());
 
@@ -1781,7 +1780,7 @@ namespace SourceExplorer
 
   error_t binary_file_t::view(source_explorer_t &srcexp) const
   {
-    std::u8string str = lak::strconv_u8(name);
+    std::u8string str = lak::to_u8string(name);
     if (lak::TreeNode("%s", str.c_str()))
     {
       ImGui::Separator();
@@ -2631,9 +2630,9 @@ namespace SourceExplorer
               {
                 auto handle = animation.directions[i].handles[frame];
                 result[handle].emplace_back(
-                  u"Animation-"s + lak::to_u16string(animIndex) +
-                  u" Direction-"s + lak::to_u16string(i) + u" Frame-"s +
-                  lak::to_u16string(frame));
+                  u"Animation-"s + se::to_u16string(animIndex) +
+                  u" Direction-"s + se::to_u16string(i) + u" Frame-"s +
+                  se::to_u16string(frame));
               }
             }
           }
@@ -2794,7 +2793,7 @@ namespace SourceExplorer
     {
       auto *obj = GetObject(srcexp.state, handle);
       std::u8string str;
-      if (obj && obj->name) str += lak::strconv_u8(obj->name->value);
+      if (obj && obj->name) str += lak::to_u8string(obj->name->value);
 
       if (lak::TreeNode(
             "0x%zX %s##%zX", (size_t)handle, str.c_str(), (size_t)info))

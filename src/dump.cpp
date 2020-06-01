@@ -211,17 +211,17 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                        auto handle,
                        std::u16string extra = u"") {
     std::u32string str;
-    if (extra.size() > 0) str += lak::strconv_u32(extra + u" ");
-    if (name) str += lak::strconv_u32(name->value);
+    if (extra.size() > 0) str += lak::to_u32string(extra + u" ");
+    if (name) str += lak::to_u32string(name->value);
     std::u16string result;
     for (auto &c : str)
       if (c == U' ' || c == U'(' || c == U')' || c == U'[' || c == U']' ||
           c == U'+' || c == U'-' || c == U'=' || c == U'_' ||
           (c >= U'0' && c <= U'9') || (c >= U'a' && c <= U'z') ||
           (c >= U'A' && c <= U'Z') || c > 127)
-        result += lak::strconv_u16(std::u32string() + c);
-    return u"["s + lak::to_u16string(handle) +
-           (result.empty() ? u"]" : u"] ") + result;
+        result += lak::to_u16string(std::u32string() + c);
+    return u"["s + se::to_u16string(handle) + (result.empty() ? u"]" : u"] ") +
+           result;
   };
 
   fs::path rootPath     = srcexp.sortedImages.path;
@@ -233,7 +233,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
   const size_t imageCount = srcexp.state.game.imageBank->items.size();
   for (const auto &image : srcexp.state.game.imageBank->items)
   {
-    std::u16string imageName = lak::to_u16string(image.entry.handle) + u".png";
+    std::u16string imageName = se::to_u16string(image.entry.handle) + u".png";
     fs::path imagePath       = unsortedPath / imageName;
     SaveImage(image.image(srcexp.dumpColorTrans), imagePath);
     completed = (float)((double)imageIndex++ / imageCount);
@@ -266,7 +266,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
             obj->name,
             obj->handle,
             u"[" +
-              lak::strconv_u16(std::string(GetObjectTypeString(obj->type))) +
+              lak::to_u16string(std::string(GetObjectTypeString(obj->type))) +
               u"]");
           fs::path objectPath = framePath / objectName;
           fs::create_directories(objectPath, err);
@@ -285,7 +285,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
               {
                 usedImages.insert(imghandle);
                 std::u16string imageName =
-                  lak::to_u16string(imghandle) + u".png";
+                  se::to_u16string(imghandle) + u".png";
                 fs::path imagePath = framePath / "[unsorted]" / imageName;
 
                 // check if 8bit image
@@ -299,7 +299,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
               for (const auto &imgname : imgnames)
               {
                 std::u16string unsortedImageName =
-                  lak::to_u16string(imghandle) + u".png";
+                  se::to_u16string(imghandle) + u".png";
                 fs::path unsortedImagePath =
                   framePath / "[unsorted]" / unsortedImageName;
                 std::u16string imageName = imgname + u".png";
@@ -435,12 +435,12 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       if (srcexp.state.unicode)
       {
         name = sound.read_u16string_exact(nameLen);
-        WDEBUG("u16string name: " << lak::strconv_wide(name));
+        WDEBUG("u16string name: " << lak::to_wstring(name));
       }
       else
       {
-        name = lak::strconv_u16(sound.read_string_exact(nameLen));
-        WDEBUG("u8string name: " << lak::strconv_wide(name));
+        name = lak::to_u16string(sound.read_string_exact(nameLen));
+        WDEBUG("u8string name: " << lak::to_wstring(name));
       }
 
       if (sound.peek_string(4) == std::string("OggS"))
@@ -496,7 +496,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
       [[maybe_unused]] uint32_t reserved   = sound.read_u32();
       uint32_t nameLen                     = sound.read_u32();
 
-      name = lak::strconv_u16(sound.read_string_exact(nameLen));
+      name = lak::to_u16string(sound.read_string_exact(nameLen));
     }
     else
     {
@@ -513,7 +513,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
       }
       else
       {
-        name = lak::strconv_u16(sound.read_string_exact(nameLen));
+        name = lak::to_u16string(sound.read_string_exact(nameLen));
       }
     }
 
