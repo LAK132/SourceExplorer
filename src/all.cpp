@@ -46,3 +46,10 @@ extern "C"
 {
 #include <GL/gl3w.c>
 }
+
+// Fuck you Micro$oft
+#include <locale>
+#if _MSC_VER >= 1900 && _MSC_VER <= 1926
+std::locale::id std::codecvt<char16_t, char, _Mbstatet>::id;
+std::locale::id std::codecvt<char32_t, char, _Mbstatet>::id;
+#endif
