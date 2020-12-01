@@ -3,6 +3,8 @@
 
 #include "explorer.h"
 
+#include <lak/span.hpp>
+
 #include <assert.h>
 #include <cstring>
 #include <emmintrin.h>
@@ -27,32 +29,28 @@ union alignas(__m128i) m128i_t
   operator const __m128i &() const { return m128i; }
 };
 
-union decode_buffer_t
+struct encryption_table
 {
-  m128i_t m128i[64];
-  __m128i _m128i[64];
-  int8_t m128i_i8[64 * 16];
-  int16_t m128i_i16[64 * 8];
-  int32_t m128i_i32[64 * 4];
-  int64_t m128i_i64[64 * 2];
-  uint8_t m128i_u8[64 * 16];
-  uint16_t m128i_u16[64 * 8];
-  uint32_t m128i_u32[64 * 4];
-  uint64_t m128i_u64[64 * 2];
+  union decode_buffer_t
+  {
+    m128i_t m128i[64];
+    __m128i _m128i[64];
+    int8_t i8[64 * 16];
+    int16_t i16[64 * 8];
+    int32_t i32[64 * 4];
+    int64_t i64[64 * 2];
+    uint8_t u8[64 * 16];
+    uint16_t u16[64 * 8];
+    uint32_t u32[64 * 4];
+    uint64_t u64[64 * 2];
+  };
+  decode_buffer_t decode_buffer;
+  bool valid = false;
+
+  bool init(lak::span<const uint8_t, 0x100> magic_key, const char magic_char);
+
+  bool decode(lak::span<uint8_t> chunk) const;
 };
-
-bool GenerateTable(decode_buffer_t &decodeBuffer,
-                   const std::vector<uint8_t> &magic_key,
-                   const m128i_t &xmmword,
-                   const char magic_char);
-
-void DecodeWithTable(std::vector<uint8_t> &chunk,
-                     decode_buffer_t &decodeBuffer);
-
-bool DecodeChunk(std::vector<uint8_t> &chunk,
-                 const std::vector<uint8_t> &magic_key,
-                 const m128i_t &xmmword,
-                 const char magic_char = '6');
 
 std::vector<uint8_t> KeyString(const std::u16string &str);
 

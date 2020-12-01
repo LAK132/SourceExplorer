@@ -15,11 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.
 
+#ifndef NOMINMAX
+#  define NOMINMAX
+#endif
+
 #include "explorer.h"
+#include "tostring.hpp"
 
 namespace SourceExplorer
 {
   bool forceCompat = false;
+  encryption_table decryptor;
   m128i_t _xmmword;
   std::vector<uint8_t> _magic_key;
   game_mode_t _mode = game_mode_t::_OLD;
@@ -147,13 +153,12 @@ namespace SourceExplorer
         _magic_key += KeyString(gameState.game.projectPath->value);
     }
     _magic_key.resize(0x100);
-    std::memset(&_magic_key[0x80], 0, 0x80);
+    std::memset(_magic_key.data() + 0x80, 0, 0x80);
 
-    uint8_t *keyPtr = &(_magic_key[0]);
-    memset(keyPtr + 128, 0, 0x80U);
-    size_t len    = strlen((char *)keyPtr);
-    uint8_t accum = _magic_char;
-    uint8_t hash  = _magic_char;
+    uint8_t *keyPtr = _magic_key.data();
+    size_t len      = strlen((char *)keyPtr);
+    uint8_t accum   = _magic_char;
+    uint8_t hash    = _magic_char;
     for (size_t i = 0; i <= len; ++i)
     {
       hash = (hash << 7) + (hash >> 1);
@@ -162,6 +167,17 @@ namespace SourceExplorer
       ++keyPtr;
     }
     *keyPtr = accum;
+
+    decryptor.valid = false;
+  }
+
+  bool DecodeChunk(lak::span<uint8_t> chunk)
+  {
+    if (!decryptor.valid &&
+        !decryptor.init(lak::span(_magic_key).first<0x100>(), _magic_char))
+      return false;
+
+    return decryptor.decode(chunk);
   }
 
   error_t ParsePEHeader(lak::memory &strm, game_t &gameState)
@@ -1023,7 +1039,7 @@ namespace SourceExplorer
       if ((_mode != game_mode_t::_284) && ((uint16_t)ID & 0x1) != 0)
         mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
-      if (DecodeChunk(mem, _magic_key, _xmmword))
+      if (DecodeChunk(mem))
       {
         if (mem.size() <= 4) return {false, mem};
         // dataLen = *reinterpret_cast<uint32_t*>(&mem[0]);
@@ -1044,7 +1060,7 @@ namespace SourceExplorer
       if ((_mode != game_mode_t::_284) && (uint16_t)ID & 0x1)
         mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
-      if (!DecodeChunk(mem, _magic_key, _xmmword))
+      if (!DecodeChunk(mem))
       {
         if (mode == encoding_t::mode2)
         {
