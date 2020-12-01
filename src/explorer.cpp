@@ -3728,6 +3728,12 @@ namespace SourceExplorer
     DEBUG("Reading Header");
     error_t result = entry.read(game, strm);
 
+    auto init_chunk = [&](auto &chunk) {
+      chunk = std::make_unique<
+        typename std::remove_reference_t<decltype(chunk)>::value_type>();
+      return chunk->read(game, strm);
+    };
+
     while (result == error_t::ok)
     {
       if (strm.size() > 0)
@@ -3737,236 +3743,197 @@ namespace SourceExplorer
       {
         case chunk_t::title:
           DEBUG("Reading Title");
-          title  = std::make_unique<string_chunk_t>();
-          result = title->read(game, strm);
+          result = init_chunk(title);
           break;
 
         case chunk_t::author:
           DEBUG("Reading Author");
-          author = std::make_unique<string_chunk_t>();
-          result = author->read(game, strm);
+          result = init_chunk(author);
           break;
 
         case chunk_t::copyright:
           DEBUG("Reading Copyright");
-          copyright = std::make_unique<string_chunk_t>();
-          result    = copyright->read(game, strm);
+          result = init_chunk(copyright);
           break;
 
         case chunk_t::project_path:
           DEBUG("Reading Project Path");
-          projectPath = std::make_unique<string_chunk_t>();
-          result      = projectPath->read(game, strm);
+          result = init_chunk(projectPath);
           break;
 
         case chunk_t::output_path:
           DEBUG("Reading Project Output Path");
-          outputPath = std::make_unique<string_chunk_t>();
-          result     = outputPath->read(game, strm);
+          result = init_chunk(outputPath);
           break;
 
         case chunk_t::about:
           DEBUG("Reading About");
-          about  = std::make_unique<string_chunk_t>();
-          result = about->read(game, strm);
+          result = init_chunk(about);
           break;
 
         case chunk_t::vitalise_preview:
           DEBUG("Reading Project Vitalise Preview");
-          vitalisePreview = std::make_unique<vitalise_preview_t>();
-          result          = vitalisePreview->read(game, strm);
+          result = init_chunk(vitalisePreview);
           break;
 
         case chunk_t::menu:
           DEBUG("Reading Project Menu");
-          menu   = std::make_unique<menu_t>();
-          result = menu->read(game, strm);
+          result = init_chunk(menu);
           break;
 
         case chunk_t::extra_path:
           DEBUG("Reading Extension Path");
-          extensionPath = std::make_unique<extension_path_t>();
-          result        = extensionPath->read(game, strm);
+          result = init_chunk(extensionPath);
           break;
 
         case chunk_t::extensions:
           DEBUG("Reading Extensions");
-          extensions = std::make_unique<extensions_t>();
-          result     = extensions->read(game, strm);
+          result = init_chunk(extensions);
           break;
 
         case chunk_t::extra_data:
           DEBUG("Reading Extension Data");
-          extensionData = std::make_unique<extension_data_t>();
-          result        = extensionData->read(game, strm);
+          result = init_chunk(extensionData);
           break;
 
         case chunk_t::additional_extensions:
           DEBUG("Reading Additional Extensions");
-          additionalExtensions = std::make_unique<additional_extensions_t>();
-          result               = additionalExtensions->read(game, strm);
+          result = init_chunk(additionalExtensions);
           break;
 
         case chunk_t::app_doc:
           DEBUG("Reading Application Doc");
-          appDoc = std::make_unique<application_doc_t>();
-          result = appDoc->read(game, strm);
+          result = init_chunk(appDoc);
           break;
 
         case chunk_t::other_extension:
           DEBUG("Reading Other Extension");
-          otherExtension = std::make_unique<other_extension_t>();
-          result         = otherExtension->read(game, strm);
+          result = init_chunk(otherExtension);
           break;
 
         case chunk_t::extensions_list:
           DEBUG("Reading Extension List");
-          extensionList = std::make_unique<extension_list_t>();
-          result        = extensionList->read(game, strm);
+          result = init_chunk(extensionList);
           break;
 
         case chunk_t::icon:
           DEBUG("Reading Icon");
-          icon   = std::make_unique<icon_t>();
-          result = icon->read(game, strm);
+          result = init_chunk(icon);
           break;
 
         case chunk_t::demo_version:
           DEBUG("Reading Demo Version");
-          demoVersion = std::make_unique<demo_version_t>();
-          result      = demoVersion->read(game, strm);
+          result = init_chunk(demoVersion);
           break;
 
         case chunk_t::security_number:
           DEBUG("Reading Security Number");
-          security = std::make_unique<security_number_t>();
-          result   = security->read(game, strm);
+          result = init_chunk(security);
           break;
 
         case chunk_t::binary_files:
           DEBUG("Reading Binary Files");
-          binaryFiles = std::make_unique<binary_files_t>();
-          result      = binaryFiles->read(game, strm);
+          result = init_chunk(binaryFiles);
           break;
 
         case chunk_t::menu_images:
           DEBUG("Reading Menu Images");
-          menuImages = std::make_unique<menu_images_t>();
-          result     = menuImages->read(game, strm);
+          result = init_chunk(menuImages);
           break;
 
         case chunk_t::movement_extensions:
           DEBUG("Reading Movement Extensions");
-          movementExtensions = std::make_unique<movement_extensions_t>();
-          result             = movementExtensions->read(game, strm);
+          result = init_chunk(movementExtensions);
           break;
 
         case chunk_t::exe_only:
           DEBUG("Reading EXE Only");
-          exe    = std::make_unique<exe_t>();
-          result = exe->read(game, strm);
+          result = init_chunk(exe);
           break;
 
         case chunk_t::protection:
           DEBUG("Reading Protection");
-          protection = std::make_unique<protection_t>();
-          result     = protection->read(game, strm);
+          result = init_chunk(protection);
           break;
 
         case chunk_t::shaders:
           DEBUG("Reading Shaders");
-          shaders = std::make_unique<shaders_t>();
-          result  = shaders->read(game, strm);
+          result = init_chunk(shaders);
           break;
 
         case chunk_t::extended_header:
           DEBUG("Reading Extended Header");
-          extendedHeader = std::make_unique<extended_header_t>();
-          result         = extendedHeader->read(game, strm);
+          result = init_chunk(extendedHeader);
           break;
 
         case chunk_t::spacer:
           DEBUG("Reading Spacer");
-          spacer = std::make_unique<spacer_t>();
-          result = spacer->read(game, strm);
+          result = init_chunk(spacer);
           break;
 
         case chunk_t::chunk224F:
           DEBUG("Reading Chunk 224F");
-          chunk224F = std::make_unique<chunk_224F_t>();
-          result    = chunk224F->read(game, strm);
+          result = init_chunk(chunk224F);
           break;
 
         case chunk_t::title2:
           DEBUG("Reading Title 2");
-          title2 = std::make_unique<title2_t>();
-          result = title2->read(game, strm);
+          result = init_chunk(title2);
           break;
 
         case chunk_t::object_names:
           DEBUG("Reading Object Names");
-          objectNames = std::make_unique<object_names_t>();
-          result      = objectNames->read(game, strm);
+          result = init_chunk(objectNames);
           break;
 
         case chunk_t::object_properties:
           DEBUG("Reading Object Properties");
-          objectProperties = std::make_unique<object_properties_t>();
-          result           = objectProperties->read(game, strm);
+          result = init_chunk(objectProperties);
           break;
 
         case chunk_t::font_meta:
           DEBUG("Reading TrueType Fonts Meta");
-          truetypeFontsMeta = std::make_unique<truetype_fonts_meta_t>();
-          result            = truetypeFontsMeta->read(game, strm);
+          result = init_chunk(truetypeFontsMeta);
           break;
 
         case chunk_t::font_chunk:
           DEBUG("Reading TrueType Fonts");
-          truetypeFonts = std::make_unique<truetype_fonts_t>();
-          result        = truetypeFonts->read(game, strm);
+          result = init_chunk(truetypeFonts);
           break;
 
         case chunk_t::global_events:
           DEBUG("Reading Global Events");
-          globalEvents = std::make_unique<global_events_t>();
-          result       = globalEvents->read(game, strm);
+          result = init_chunk(globalEvents);
           break;
 
         case chunk_t::global_strings:
           DEBUG("Reading Global Strings");
-          globalStrings = std::make_unique<global_strings_t>();
-          result        = globalStrings->read(game, strm);
+          result = init_chunk(globalStrings);
           break;
 
         case chunk_t::global_string_names:
           DEBUG("Reading Global String Names");
-          globalStringNames = std::make_unique<global_string_names_t>();
-          result            = globalStringNames->read(game, strm);
+          result = init_chunk(globalStringNames);
           break;
 
         case chunk_t::global_values:
           DEBUG("Reading Global Values");
-          globalValues = std::make_unique<global_values_t>();
-          result       = globalValues->read(game, strm);
+          result = init_chunk(globalValues);
           break;
 
         case chunk_t::global_value_names:
           DEBUG("Reading Global Value Names");
-          globalValueNames = std::make_unique<global_value_names_t>();
-          result           = globalValueNames->read(game, strm);
+          result = init_chunk(globalValueNames);
           break;
 
         case chunk_t::frame_handles:
           DEBUG("Reading Frame Handles");
-          frameHandles = std::make_unique<frame::handles_t>();
-          result       = frameHandles->read(game, strm);
+          result = init_chunk(frameHandles);
           break;
 
         case chunk_t::frame_bank:
           DEBUG("Reading Fame Bank");
-          frameBank = std::make_unique<frame::bank_t>();
-          result    = frameBank->read(game, strm);
+          result = init_chunk(frameBank);
           break;
 
         case chunk_t::frame:
@@ -3984,45 +3951,38 @@ namespace SourceExplorer
 
           // case chunk_t::object_bank2:
           //     DEBUG("Reading Object Bank 2");
-          //     objectBank2 = std::make_unique<object_bank2_t>();
-          //     result = objectBank2->read(game, strm);
+          //     result = init_chunk(objectBank2);
           //     break;
 
         case chunk_t::object_bank:
         case chunk_t::object_bank2:
           DEBUG("Reading Object Bank");
-          objectBank = std::make_unique<object::bank_t>();
-          result     = objectBank->read(game, strm);
+          result = init_chunk(objectBank);
           break;
 
         case chunk_t::image_bank:
           DEBUG("Reading Image Bank");
-          imageBank = std::make_unique<image::bank_t>();
-          result    = imageBank->read(game, strm);
+          result = init_chunk(imageBank);
           break;
 
         case chunk_t::sound_bank:
           DEBUG("Reading Sound Bank");
-          soundBank = std::make_unique<sound::bank_t>();
-          result    = soundBank->read(game, strm);
+          result = init_chunk(soundBank);
           break;
 
         case chunk_t::music_bank:
           DEBUG("Reading Music Bank");
-          musicBank = std::make_unique<music::bank_t>();
-          result    = musicBank->read(game, strm);
+          result = init_chunk(musicBank);
           break;
 
         case chunk_t::font_bank:
           DEBUG("Reading Font Bank");
-          fontBank = std::make_unique<font::bank_t>();
-          result   = fontBank->read(game, strm);
+          result = init_chunk(fontBank);
           break;
 
         case chunk_t::last:
           DEBUG("Reading Last");
-          last   = std::make_unique<last_t>();
-          result = last->read(game, strm);
+          result = init_chunk(last);
           goto finished;
 
         default:
@@ -4048,55 +4008,55 @@ namespace SourceExplorer
 
       entry.view(srcexp);
 
-      if (title) title->view(srcexp, "Title", true);
-      if (author) author->view(srcexp, "Author", true);
-      if (copyright) copyright->view(srcexp, "Copyright", true);
-      if (outputPath) outputPath->view(srcexp, "Output Path");
-      if (projectPath) projectPath->view(srcexp, "Project Path");
-      if (about) about->view(srcexp, "About");
+      title.view(srcexp, "Title", true);
+      author.view(srcexp, "Author", true);
+      copyright.view(srcexp, "Copyright", true);
+      outputPath.view(srcexp, "Output Path");
+      projectPath.view(srcexp, "Project Path");
+      about.view(srcexp, "About");
 
-      if (vitalisePreview) vitalisePreview->view(srcexp);
-      if (menu) menu->view(srcexp);
-      if (extensionPath) extensionPath->view(srcexp);
-      if (extensions) extensions->view(srcexp);
-      if (extensionData) extensionData->view(srcexp);
-      if (additionalExtensions) additionalExtensions->view(srcexp);
-      if (appDoc) appDoc->view(srcexp);
-      if (otherExtension) otherExtension->view(srcexp);
-      if (extensionList) extensionList->view(srcexp);
-      if (icon) icon->view(srcexp);
-      if (demoVersion) demoVersion->view(srcexp);
-      if (security) security->view(srcexp);
-      if (binaryFiles) binaryFiles->view(srcexp);
-      if (menuImages) menuImages->view(srcexp);
-      if (movementExtensions) movementExtensions->view(srcexp);
-      if (objectBank2) objectBank2->view(srcexp);
-      if (exe) exe->view(srcexp);
-      if (protection) protection->view(srcexp);
-      if (shaders) shaders->view(srcexp);
-      if (extendedHeader) extendedHeader->view(srcexp);
-      if (spacer) spacer->view(srcexp);
-      if (chunk224F) chunk224F->view(srcexp);
-      if (title2) title2->view(srcexp);
+      vitalisePreview.view(srcexp);
+      menu.view(srcexp);
+      extensionPath.view(srcexp);
+      extensions.view(srcexp);
+      extensionData.view(srcexp);
+      additionalExtensions.view(srcexp);
+      appDoc.view(srcexp);
+      otherExtension.view(srcexp);
+      extensionList.view(srcexp);
+      icon.view(srcexp);
+      demoVersion.view(srcexp);
+      security.view(srcexp);
+      binaryFiles.view(srcexp);
+      menuImages.view(srcexp);
+      movementExtensions.view(srcexp);
+      objectBank2.view(srcexp);
+      exe.view(srcexp);
+      protection.view(srcexp);
+      shaders.view(srcexp);
+      extendedHeader.view(srcexp);
+      spacer.view(srcexp);
+      chunk224F.view(srcexp);
+      title2.view(srcexp);
 
-      if (globalEvents) globalEvents->view(srcexp);
-      if (globalStrings) globalStrings->view(srcexp);
-      if (globalStringNames) globalStringNames->view(srcexp);
-      if (globalValues) globalValues->view(srcexp);
-      if (globalValueNames) globalValueNames->view(srcexp);
+      globalEvents.view(srcexp);
+      globalStrings.view(srcexp);
+      globalStringNames.view(srcexp);
+      globalValues.view(srcexp);
+      globalValueNames.view(srcexp);
 
-      if (frameHandles) frameHandles->view(srcexp);
-      if (frameBank) frameBank->view(srcexp);
-      if (objectBank) objectBank->view(srcexp);
-      if (imageBank) imageBank->view(srcexp);
-      if (soundBank) soundBank->view(srcexp);
-      if (musicBank) musicBank->view(srcexp);
-      if (fontBank) fontBank->view(srcexp);
+      frameHandles.view(srcexp);
+      frameBank.view(srcexp);
+      objectBank.view(srcexp);
+      imageBank.view(srcexp);
+      soundBank.view(srcexp);
+      musicBank.view(srcexp);
+      fontBank.view(srcexp);
 
-      if (objectNames) objectNames->view(srcexp);
-      if (objectProperties) objectProperties->view(srcexp);
-      if (truetypeFontsMeta) truetypeFontsMeta->view(srcexp);
-      if (truetypeFonts) truetypeFonts->view(srcexp);
+      objectNames.view(srcexp);
+      objectProperties.view(srcexp);
+      truetypeFontsMeta.view(srcexp);
+      truetypeFonts.view(srcexp);
 
       for (auto &unk : unknownStrings) unk.view(srcexp);
 
@@ -4108,7 +4068,7 @@ namespace SourceExplorer
           (std::string("Unknown ") + std::to_string(unk.entry.position))
             .c_str());
 
-      if (last) last->view(srcexp);
+      last.view(srcexp);
 
       ImGui::Separator();
 

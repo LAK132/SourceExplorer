@@ -799,65 +799,93 @@ namespace SourceExplorer
     };
   }
 
+  template<typename T>
+  struct chunk_ptr
+  {
+    using value_type = T;
+
+    std::unique_ptr<T> ptr;
+
+    auto &operator=(std::unique_ptr<T> &&p)
+    {
+      ptr = lak::move(p);
+      return *this;
+    }
+
+    template<typename... ARGS>
+    void view(ARGS &&... args) const
+    {
+      if (ptr) ptr->view(args...);
+    }
+
+    operator bool() const { return static_cast<bool>(ptr); }
+
+    auto *operator->() { return ptr.get(); }
+    auto *operator->() const { return ptr.get(); }
+
+    auto &operator*() { return *ptr; }
+    auto &operator*() const { return *ptr; }
+  };
+
   struct header_t : public basic_chunk_t
   {
-    std::unique_ptr<string_chunk_t> title;
-    std::unique_ptr<string_chunk_t> author;
-    std::unique_ptr<string_chunk_t> copyright;
-    std::unique_ptr<string_chunk_t> outputPath;
-    std::unique_ptr<string_chunk_t> projectPath;
+    chunk_ptr<string_chunk_t> title;
+    chunk_ptr<string_chunk_t> author;
+    chunk_ptr<string_chunk_t> copyright;
+    chunk_ptr<string_chunk_t> outputPath;
+    chunk_ptr<string_chunk_t> projectPath;
 
-    std::unique_ptr<vitalise_preview_t> vitalisePreview;
-    std::unique_ptr<menu_t> menu;
-    std::unique_ptr<extension_path_t> extensionPath;
-    std::unique_ptr<extensions_t> extensions; // deprecated
-    std::unique_ptr<extension_data_t> extensionData;
-    std::unique_ptr<additional_extensions_t> additionalExtensions;
-    std::unique_ptr<application_doc_t> appDoc;
-    std::unique_ptr<other_extension_t> otherExtension;
-    std::unique_ptr<extension_list_t> extensionList;
-    std::unique_ptr<icon_t> icon;
-    std::unique_ptr<demo_version_t> demoVersion;
-    std::unique_ptr<security_number_t> security;
-    std::unique_ptr<binary_files_t> binaryFiles;
-    std::unique_ptr<menu_images_t> menuImages;
-    std::unique_ptr<string_chunk_t> about;
-    std::unique_ptr<movement_extensions_t> movementExtensions;
-    std::unique_ptr<object_bank2_t> objectBank2;
-    std::unique_ptr<exe_t> exe;
-    std::unique_ptr<protection_t> protection;
-    std::unique_ptr<shaders_t> shaders;
-    std::unique_ptr<extended_header_t> extendedHeader;
-    std::unique_ptr<spacer_t> spacer;
-    std::unique_ptr<chunk_224F_t> chunk224F;
-    std::unique_ptr<title2_t> title2;
+    chunk_ptr<vitalise_preview_t> vitalisePreview;
+    chunk_ptr<menu_t> menu;
+    chunk_ptr<extension_path_t> extensionPath;
+    chunk_ptr<extensions_t> extensions; // deprecated
+    chunk_ptr<extension_data_t> extensionData;
+    chunk_ptr<additional_extensions_t> additionalExtensions;
+    chunk_ptr<application_doc_t> appDoc;
+    chunk_ptr<other_extension_t> otherExtension;
+    chunk_ptr<extension_list_t> extensionList;
+    chunk_ptr<icon_t> icon;
+    chunk_ptr<demo_version_t> demoVersion;
+    chunk_ptr<security_number_t> security;
+    chunk_ptr<binary_files_t> binaryFiles;
+    chunk_ptr<menu_images_t> menuImages;
+    chunk_ptr<string_chunk_t> about;
+    chunk_ptr<movement_extensions_t> movementExtensions;
+    chunk_ptr<object_bank2_t> objectBank2;
+    chunk_ptr<exe_t> exe;
+    chunk_ptr<protection_t> protection;
+    chunk_ptr<shaders_t> shaders;
+    chunk_ptr<extended_header_t> extendedHeader;
+    chunk_ptr<spacer_t> spacer;
+    chunk_ptr<chunk_224F_t> chunk224F;
+    chunk_ptr<title2_t> title2;
 
-    std::unique_ptr<global_events_t> globalEvents;
-    std::unique_ptr<global_strings_t> globalStrings;
-    std::unique_ptr<global_string_names_t> globalStringNames;
-    std::unique_ptr<global_values_t> globalValues;
-    std::unique_ptr<global_value_names_t> globalValueNames;
+    chunk_ptr<global_events_t> globalEvents;
+    chunk_ptr<global_strings_t> globalStrings;
+    chunk_ptr<global_string_names_t> globalStringNames;
+    chunk_ptr<global_values_t> globalValues;
+    chunk_ptr<global_value_names_t> globalValueNames;
 
-    std::unique_ptr<frame::handles_t> frameHandles;
-    std::unique_ptr<frame::bank_t> frameBank;
-    std::unique_ptr<object::bank_t> objectBank;
-    std::unique_ptr<image::bank_t> imageBank;
-    std::unique_ptr<sound::bank_t> soundBank;
-    std::unique_ptr<music::bank_t> musicBank;
-    std::unique_ptr<font::bank_t> fontBank;
+    chunk_ptr<frame::handles_t> frameHandles;
+    chunk_ptr<frame::bank_t> frameBank;
+    chunk_ptr<object::bank_t> objectBank;
+    chunk_ptr<image::bank_t> imageBank;
+    chunk_ptr<sound::bank_t> soundBank;
+    chunk_ptr<music::bank_t> musicBank;
+    chunk_ptr<font::bank_t> fontBank;
 
     // Recompiled games (?):
-    std::unique_ptr<object_names_t> objectNames;
-    std::unique_ptr<object_properties_t> objectProperties;
-    std::unique_ptr<truetype_fonts_meta_t> truetypeFontsMeta;
-    std::unique_ptr<truetype_fonts_t> truetypeFonts;
+    chunk_ptr<object_names_t> objectNames;
+    chunk_ptr<object_properties_t> objectProperties;
+    chunk_ptr<truetype_fonts_meta_t> truetypeFontsMeta;
+    chunk_ptr<truetype_fonts_t> truetypeFonts;
 
     // Unknown chunks:
     std::vector<basic_chunk_t> unknownChunks;
     std::vector<strings_chunk_t> unknownStrings;
     std::vector<compressed_chunk_t> unknownCompressed;
 
-    std::unique_ptr<last_t> last;
+    chunk_ptr<last_t> last;
 
     error_t read(game_t &game, lak::memory &strm);
     error_t view(source_explorer_t &srcexp) const;
