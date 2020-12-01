@@ -32,6 +32,8 @@ SOFTWARE.
 
 #include "await.hpp"
 
+#include <lak/string.hpp>
+
 #include <atomic>
 #include <filesystem>
 #include <thread>
@@ -48,7 +50,7 @@ namespace lak
                   void *user_data                 = nullptr);
 
   bool input_text(const char *str_id,
-                  std::string *str,
+                  lak::astring *str,
                   ImGuiInputTextFlags flags       = 0,
                   ImGuiInputTextCallback callback = nullptr,
                   void *user_data                 = nullptr);

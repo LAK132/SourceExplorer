@@ -43,7 +43,7 @@ bool se::SaveImage(const lak::image4_t &image, const fs::path &filename)
                      &(image[0].r),
                      (int)(image.size().x * 4)) != 1)
   {
-    ERROR("Failed To Save Image '" << filename << "'");
+    ERROR("Failed To Save Image '", filename, "'");
     return true;
   }
   return false;
@@ -57,7 +57,7 @@ bool se::SaveImage(source_explorer_t &srcexp,
   auto *object = GetImage(srcexp.state, handle);
   if (!object)
   {
-    ERROR("Failed To Save Image: Bad Handle '0x" << (int)handle << "'");
+    ERROR("Failed To Save Image: Bad Handle '0x", (int)handle, "'");
     return true;
   }
 
@@ -174,7 +174,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
     std::error_code ec;
     if (fs::exists(To, ec))
     {
-      ERROR("File " << To << " Already Exists");
+      ERROR("File ", To, " Already Exists");
       result = true;
     }
     else if (!ec)
@@ -186,20 +186,20 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
       }
       else if (!ec)
       {
-        ERROR("File " << From << " Does Not Exist");
+        ERROR("File ", From, " Does Not Exist");
         result = true;
       }
     }
 
     if (ec)
     {
-      ERROR("File System Error: " << ec.message());
+      ERROR("File System Error: ", ec.message());
       result = true;
     }
 
     if (result)
     {
-      ERROR("Failed To Link Image " << From << " To " << To);
+      ERROR("Failed To Link Image ", From, " To ", To);
     }
 
     return result;
@@ -248,7 +248,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
     fs::create_directories(framePath / "[unsorted]", err);
     if (err)
     {
-      ERROR("File System Error: " << err.message());
+      ERROR("File System Error: ", err.message());
       continue;
     }
 
@@ -266,13 +266,13 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
             obj->name,
             obj->handle,
             u"[" +
-              lak::to_u16string(std::string(GetObjectTypeString(obj->type))) +
+              lak::to_u16string(lak::astring(GetObjectTypeString(obj->type))) +
               u"]");
           fs::path objectPath = framePath / objectName;
           fs::create_directories(objectPath, err);
           if (err)
           {
-            ERROR("File System Error: " << err.message());
+            ERROR("File System Error: ", err.message());
             continue;
           }
 
@@ -393,7 +393,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       (void)reserved;
       uint32_t nameLen = sound.read_u32();
 
-      name = lak::strconv<char16_t>(sound.read_string_exact(nameLen));
+      name = lak::to_u16string(sound.read_astring_exact(nameLen));
 
       [[maybe_unused]] uint16_t format           = sound.read_u16();
       [[maybe_unused]] uint16_t channelCount     = sound.read_u16();
@@ -406,9 +406,9 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       [[maybe_unused]] std::vector<uint8_t> data = sound.read(chunkSize);
 
       lak::memory output;
-      output.write_string("RIFF", false);
+      output.write_astring("RIFF", false);
       output.write_s32(data.size() - 44);
-      output.write_string("WAVEfmt ", false);
+      output.write_astring("WAVEfmt ", false);
       output.write_u32(0x10);
       output.write_u16(format);
       output.write_u16(channelCount);
@@ -416,11 +416,11 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       output.write_u32(byteRate);
       output.write_u16(blockAlign);
       output.write_u16(bitsPerSample);
-      output.write_string("data", false);
+      output.write_astring("data", false);
       output.write_u32(chunkSize);
       output.write(data);
       output.position = 0;
-      sound           = std::move(output);
+      sound           = lak::move(output);
     }
     else
     {
@@ -435,15 +435,15 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       if (srcexp.state.unicode)
       {
         name = sound.read_u16string_exact(nameLen);
-        WDEBUG("u16string name: " << lak::to_wstring(name));
+        WDEBUG("u16string name: ", lak::to_wstring(name));
       }
       else
       {
-        name = lak::to_u16string(sound.read_string_exact(nameLen));
-        WDEBUG("u8string name: " << lak::to_wstring(name));
+        name = lak::to_u16string(sound.read_astring_exact(nameLen));
+        WDEBUG("u8string name: ", lak::to_wstring(name));
       }
 
-      if (sound.peek_string(4) == std::string("OggS"))
+      if (sound.peek_astring(4) == lak::astring("OggS"))
       {
         type = sound_mode_t::oggs;
       }
@@ -457,14 +457,14 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       default: name += u".mp3"; break;
     }
 
-    DEBUG("MP3" << (size_t)item.entry.ID);
+    DEBUG("MP3", (size_t)item.entry.ID);
 
     fs::path filename = srcexp.sounds.path / name;
     std::vector<uint8_t> file(sound.cursor(), sound.end());
 
     if (!lak::save_file(filename, file))
     {
-      ERROR("Failed To Save File '" << filename << "'");
+      ERROR("Failed To Save File '", filename, "'");
     }
 
     completed = (float)((double)(index++) / (double)count);
@@ -496,7 +496,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
       [[maybe_unused]] uint32_t reserved   = sound.read_u32();
       uint32_t nameLen                     = sound.read_u32();
 
-      name = lak::to_u16string(sound.read_string_exact(nameLen));
+      name = lak::to_u16string(sound.read_astring_exact(nameLen));
     }
     else
     {
@@ -513,7 +513,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
       }
       else
       {
-        name = lak::to_u16string(sound.read_string_exact(nameLen));
+        name = lak::to_u16string(sound.read_astring_exact(nameLen));
       }
     }
 
@@ -529,7 +529,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 
     if (!lak::save_file(filename, file))
     {
-      ERROR("Failed To Save File '" << filename << "'");
+      ERROR("Failed To Save File '", filename, "'");
     }
 
     completed = (float)((double)(index++) / (double)count);
@@ -561,16 +561,16 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
     [[maybe_unused]] uint32_t backTex     = strm.read_u32();
 
     strm.position     = offset + nameOffset;
-    fs::path filename = srcexp.shaders.path / strm.read_string();
+    fs::path filename = srcexp.shaders.path / strm.read_astring();
 
-    strm.position    = offset + dataOffset;
-    std::string file = strm.read_string();
+    strm.position     = offset + dataOffset;
+    lak::astring file = strm.read_astring();
 
     DEBUG(filename);
     if (!lak::save_file(filename,
                         std::vector<uint8_t>(file.begin(), file.end())))
     {
-      ERROR("Failed To Save File '" << filename << "'");
+      ERROR("Failed To Save File '", filename, "'");
     }
 
     completed = (float)((double)count++ / (double)offsets.size());
@@ -597,7 +597,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
     DEBUG(filename);
     if (!lak::save_file(filename, file.data))
     {
-      ERROR("Failed To Save File '" << filename << "'");
+      ERROR("Failed To Save File '", filename, "'");
     }
     completed = (float)((double)index++ / (double)count);
   }
@@ -607,7 +607,7 @@ void se::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed)
 {
   if (!lak::save_file(srcexp.errorLog.path, lak::debugger.str()))
   {
-    ERROR("Failed To Save File '" << srcexp.errorLog.path << "'");
+    ERROR("Failed To Save File '", srcexp.errorLog.path, "'");
   }
 }
 
@@ -675,7 +675,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
           if (fs::create_directories(srcexp.sortedImages.path, er); er)
           {
             ERROR("Failed To Dump Images");
-            ERROR("File System Error: " << er.message());
+            ERROR("File System Error: ", er.message());
           }
           else
           {
@@ -690,7 +690,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
           if (fs::create_directories(srcexp.appicon.path, er); er)
           {
             ERROR("Failed To Dump Icon");
-            ERROR("File System Error: " << er.message());
+            ERROR("File System Error: ", er.message());
           }
           else
           {
@@ -705,7 +705,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
           if (fs::create_directories(srcexp.sounds.path, er); er)
           {
             ERROR("Failed To Dump Audio");
-            ERROR("File System Error: " << er.message());
+            ERROR("File System Error: ", er.message());
           }
           else
           {
@@ -720,7 +720,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
           if (fs::create_directories(srcexp.sounds.path, er); er)
           {
             ERROR("Failed To Dump Audio");
-            ERROR("File System Error: " << er.message());
+            ERROR("File System Error: ", er.message());
           }
           else
           {
@@ -735,7 +735,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
           if (fs::create_directories(srcexp.shaders.path, er); er)
           {
             ERROR("Failed To Dump Shaders");
-            ERROR("File System Error: " << er.message());
+            ERROR("File System Error: ", er.message());
           }
           else
           {
@@ -750,7 +750,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
           if (fs::create_directories(srcexp.binaryFiles.path, er); er)
           {
             ERROR("Failed To Dump Binary Files");
-            ERROR("File System Error: " << er.message());
+            ERROR("File System Error: ", er.message());
           }
           else
           {

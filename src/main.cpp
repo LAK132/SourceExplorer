@@ -18,8 +18,6 @@
 // This is here to stop the #define ERROR clash caused by wingdi
 #include <GL/gl3w.h>
 
-#define SDL_MAIN_HANDLED
-
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_utils.hpp"
 
@@ -31,6 +29,7 @@
 #include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
 
+#include <lak/bank_ptr.hpp>
 #include <lak/defer.hpp>
 #include <lak/file.hpp>
 #include <lak/window.hpp>
@@ -548,8 +547,8 @@ void AudioExplorer(bool &Update)
 {
   struct audio_data_t
   {
-    std::u8string name;
-    std::u16string u16name;
+    lak::u8string name;
+    lak::u16string u16name;
     se::sound_mode_t type  = (se::sound_mode_t)0;
     uint32_t checksum      = 0;
     uint32_t references    = 0;
@@ -627,7 +626,7 @@ void AudioExplorer(bool &Update)
       else
         audioData.name = audio.read_u8string_exact(audioData.nameLen);
 
-      if (audio.peek_string(4) == std::string("OggS"))
+      if (audio.peek_astring(4) == lak::astring("OggS"))
         audioData.type = se::sound_mode_t::oggs;
 
       if (audioData.type == se::sound_mode_t::wave)
@@ -638,7 +637,7 @@ void AudioExplorer(bool &Update)
         // audio.position += 4; // 0x00000010
         // 16, 18 or 40
         uint32_t chunkSize = audio.read_u32();
-        DEBUG("Chunk Size 0x" << chunkSize);
+        DEBUG("Chunk Size ", chunkSize);
         const size_t pos        = audio.position + chunkSize;
         audioData.format        = audio.read_u16(); // 2
         audioData.channelCount  = audio.read_u16(); // 4
@@ -649,14 +648,14 @@ void AudioExplorer(bool &Update)
         if (chunkSize >= 18)
         {
           [[maybe_unused]] uint16_t extensionSize = audio.read_u16(); // 18
-          DEBUG("Extension Size 0x" << extensionSize);
+          DEBUG("Extension Size ", extensionSize);
         }
         if (chunkSize >= 40)
         {
           [[maybe_unused]] uint16_t validPerSample = audio.read_u16(); // 20
-          DEBUG("Valid Bits Per Sample 0x" << validPerSample);
+          DEBUG("Valid Bits Per Sample ", validPerSample);
           [[maybe_unused]] uint16_t channelMask = audio.read_u32(); // 24
-          DEBUG("Channel Mask 0x" << channelMask);
+          DEBUG("Channel Mask ", channelMask);
           // SubFormat // 40
         }
         audio.position = pos;
@@ -667,6 +666,7 @@ void AudioExplorer(bool &Update)
     }
   }
 
+#if defined(LAK_USE_SDL)
   static size_t audioSize = 0;
   static bool playing     = false;
   static SDL_AudioSpec audioSpec;
@@ -729,6 +729,7 @@ void AudioExplorer(bool &Update)
       1.0 - (SDL_GetQueuedAudioSize(audioDevice) / (double)audioSize));
   else
     ImGui::ProgressBar(0);
+#endif
 
   ImGui::Text("Name: %s", audioData.name.c_str());
   ImGui::Text("Type: ");
@@ -944,7 +945,7 @@ void SourceBytePairsMain(float FrameTime)
   };
 
   auto manip = [] {
-    DEBUG("File size: 0x" << SrcExp.state.file.size());
+    DEBUG("File size: ", SrcExp.state.file.size());
     SrcExp.loaded = true;
     return true;
   };
@@ -961,6 +962,7 @@ void SourceBytePairsMain(float FrameTime)
       SrcExp.state.file.data(), SrcExp.state.file.size(), false);
 }
 
+#if 1
 void MainScreen(float FrameTime)
 {
   if (bytePairsMode)
@@ -969,25 +971,48 @@ void MainScreen(float FrameTime)
     SourceExplorerMain(FrameTime);
 }
 
+#else
+void FloatThing(lak::memory &Block)
+{
+  if (auto *ptr = Block.read_type<float>(); ptr)
+    ImGui::DragFloat("FloatThing", ptr);
+}
+
+std::vector<void (*)(lak::memory &Block)> funcs = {&FloatThing};
+
+void MainScreen(float FrameTime)
+{
+  if (ImGui::BeginMenuBar())
+  {
+    ImGui::EndMenuBar();
+  }
+
+  float f = 0.0;
+
+  lak::memory block;
+  block.write_type(&f);
+  block.position = 0;
+
+  for (auto *func : funcs) func(block);
+}
+#endif
 
 #include <lak/basic_program.inl>
 
 ImGui::ImplContext imgui_context = nullptr;
 
-bool force_software = false;
-
 void basic_window_preinit(int argc, char **argv)
 {
-  if (argc > 1)
+  while (argc-- > 1)
   {
-    if (argv[1] == std::string("-nogl"))
+    if (argv[argc] == lak::astring("-nogl"))
     {
-      force_software = true;
+      basic_window_force_software = true;
     }
     else
     {
       SrcExp.babyMode    = false;
-      SrcExp.exe.path    = argv[1];
+      SrcExp.exe.path    = argv[argc];
       SrcExp.exe.valid   = true;
       SrcExp.exe.attempt = true;
     }
@@ -1007,50 +1032,73 @@ void basic_window_init(lak::window &window)
     SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
       SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
 
-  switch (window.graphics())
-  {
-    case lak::graphics_mode::OpenGL:
-      openglMajor = lak::opengl::get_uint(GL_MAJOR_VERSION);
-      openglMinor = lak::opengl::get_uint(GL_MINOR_VERSION);
-      break;
-  }
-
   imgui_context       = ImGui::ImplCreateContext(window.graphics());
   SrcExp.graphicsMode = window.graphics();
   ImGui::ImplInit();
   ImGui::ImplInitContext(imgui_context, window);
 
+  switch (window.graphics())
+  {
+    case lak::graphics_mode::OpenGL:
+    {
+      openglMajor = lak::opengl::get_uint(GL_MAJOR_VERSION);
+      openglMinor = lak::opengl::get_uint(GL_MINOR_VERSION);
+    }
+    break;
+
+    case lak::graphics_mode::Software:
+    {
+      ImGuiStyle &style      = ImGui::GetStyle();
+      style.AntiAliasedLines = false;
+      style.AntiAliasedFill  = false;
+      style.WindowRounding   = 0.0f;
+    }
+    break;
+  }
+
+#ifdef LAK_USE_SDL
   if (SDL_Init(SDL_INIT_AUDIO)) ERROR("Failed to initialise SDL audio");
+#endif
 
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   ImGui::StyleColorsDark();
   ImGui::GetStyle().WindowRounding = 0;
 }
 
-void basic_window_handle_event(SDL_Event &event, lak::window &window)
+void basic_window_handle_event(lak::window &window, lak::event &event)
 {
   ImGui::ImplProcessEvent(imgui_context, event);
 
-  switch (event.type)
+#if defined(LAK_USE_WINAPI)
+  switch (event.platform_event.message)
+  {
+    case WM_DROPFILES:
+    {
+    }
+    break;
+  }
+#elif defined(LAK_USE_SDL)
+  switch (event.platform_event.type)
   {
     case SDL_DROPFILE:
     {
-      if (event.drop.file != nullptr)
+      if (event.platform_event.drop.file != nullptr)
       {
-        SrcExp.exe.path    = event.drop.file;
+        SrcExp.exe.path    = event.platform_event.drop.file;
         SrcExp.exe.valid   = true;
         SrcExp.exe.attempt = true;
-        SDL_free(event.drop.file);
+        SDL_free(event.platform_event.drop.file);
       }
     }
     break;
   }
+#endif
 }
 
 void basic_window_loop(lak::window &window, uint64_t counter_delta)
 {
   const float frame_time = (float)counter_delta / lak::performance_frequency();
-  ImGui::ImplNewFrame(imgui_context, window.sdl_window(), frame_time);
+  ImGui::ImplNewFrame(imgui_context, window, frame_time);
 
   bool mainOpen = true;
 
@@ -1076,7 +1124,8 @@ void basic_window_loop(lak::window &window, uint64_t counter_delta)
   ImGui::ImplRender(imgui_context);
 }
 
-void basic_window_quit(lak::window &window)
+int basic_window_quit(lak::window &window)
 {
   ImGui::ImplShutdownContext(imgui_context);
+  return 0;
 }

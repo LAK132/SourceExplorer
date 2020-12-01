@@ -1,6 +1,8 @@
 // This is here to stop the #define ERROR clash caused by wingdi
 #include <GL/gl3w.h>
 
+#include <lak/bitset.hpp>
+
 #include "main.cpp"
 
 #include "dump.cpp"
@@ -14,8 +16,12 @@
 #include <lak/src/opengl/texture.cpp>
 
 #include <lak/src/debug.cpp>
+#include <lak/src/events.cpp>
 #include <lak/src/file.cpp>
+#include <lak/src/memmanip.cpp>
 #include <lak/src/memory.cpp>
+#include <lak/src/platform.cpp>
+#include <lak/src/profile.cpp>
 #include <lak/src/strconv.cpp>
 #include <lak/src/tinflate.cpp>
 #include <lak/src/tokeniser.cpp>

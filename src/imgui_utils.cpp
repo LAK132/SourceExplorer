@@ -50,7 +50,7 @@ namespace lak
   }
 
   bool input_text(const char *str_id,
-                  std::string *str,
+                  lak::astring *str,
                   ImGuiInputTextFlags flags,
                   ImGuiInputTextCallback callback,
                   void *user_data)
@@ -175,8 +175,8 @@ namespace lak
                             ImVec2 size)
   {
     static path_cache cache;
-    static std::string file_str;
-    static std::string folder_str;
+    static lak::astring file_str;
+    static lak::astring folder_str;
     if (path.empty()) path = fs::current_path();
     if (cache.refresh(path, ec))
     {
@@ -251,7 +251,7 @@ namespace lak
   file_open_error open_folder(fs::path &path, std::error_code &ec, ImVec2 size)
   {
     static path_cache cache;
-    static std::string folder_str;
+    static lak::astring folder_str;
     if (path.empty()) path = fs::current_path();
     if (cache.refresh(path, ec))
     {

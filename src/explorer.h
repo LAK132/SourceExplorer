@@ -29,7 +29,9 @@
 #include "stb_image.h"
 
 #include <lak/debug.hpp>
+#include <lak/file.hpp>
 #include <lak/memory.hpp>
+#include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
 #include <lak/strconv.hpp>
 #include <lak/string.hpp>
@@ -149,9 +151,9 @@ namespace SourceExplorer
                  const char *name,
                  const bool preview = false) const;
 
-    std::u16string u16string() const;
-    std::u8string u8string() const;
-    std::string string() const;
+    lak::u16string u16string() const;
+    lak::u8string u8string() const;
+    lak::astring astring() const;
   };
 
   struct strings_chunk_t : public basic_chunk_t
@@ -895,8 +897,8 @@ namespace SourceExplorer
   {
     static std::atomic<float> completed;
 
-    std::string gamePath;
-    std::string gameDir;
+    lak::astring gamePath;
+    lak::astring gameDir;
 
     lak::memory file;
 
@@ -921,9 +923,9 @@ namespace SourceExplorer
 
     header_t game;
 
-    std::u16string project;
-    std::u16string title;
-    std::u16string copyright;
+    lak::u16string project;
+    lak::u16string title;
+    lak::u16string copyright;
 
     std::unordered_map<uint32_t, size_t> imageHandles;
     std::unordered_map<uint16_t, size_t> objectHandles;

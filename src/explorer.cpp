@@ -50,13 +50,15 @@ namespace SourceExplorer
 
     srcexp.state.file = lak::read_file(srcexp.exe.path);
 
-    DEBUG("File Size: 0x" << srcexp.state.file.size());
+    DEBUG("File Size: ", srcexp.state.file.size());
 
     error_t err = ParsePEHeader(srcexp.state.file, srcexp.state);
     if (err != error_t::ok)
     {
-      ERROR("Error '" << error_name(err) << "' While Parsing PE Header, At: 0x"
-                      << srcexp.state.file.position);
+      ERROR("Error '",
+            error_name(err),
+            "' While Parsing PE Header, At: ",
+            srcexp.state.file.position);
       return err;
     }
 
@@ -85,15 +87,17 @@ namespace SourceExplorer
     err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
     if (err != error_t::ok)
     {
-      ERROR("Error '" << error_name(err) << "' While Parsing PE Header, At: 0x"
-                      << srcexp.state.file.position);
+      ERROR("Error '",
+            error_name(err),
+            "' While Parsing PE Header, At: ",
+            srcexp.state.file.position);
     }
     else
     {
       DEBUG("Successfully Read Game Entry");
     }
 
-    DEBUG("Unicode: " << (srcexp.state.unicode ? "true" : "false"));
+    DEBUG("Unicode: ", (srcexp.state.unicode ? "true" : "false"));
 
     if (srcexp.state.game.projectPath)
       srcexp.state.project = srcexp.state.game.projectPath->value;
@@ -104,9 +108,9 @@ namespace SourceExplorer
     if (srcexp.state.game.copyright)
       srcexp.state.copyright = srcexp.state.game.copyright->value;
 
-    DEBUG("Project Path: " << lak::strconv<char>(srcexp.state.project));
-    DEBUG("Title: " << lak::strconv<char>(srcexp.state.title));
-    DEBUG("Copyright: " << lak::strconv<char>(srcexp.state.copyright));
+    DEBUG("Project Path: ", lak::strconv<char>(srcexp.state.project));
+    DEBUG("Title: ", lak::strconv<char>(srcexp.state.title));
+    DEBUG("Copyright: ", lak::strconv<char>(srcexp.state.copyright));
 
     if (srcexp.state.game.imageBank)
     {
@@ -185,46 +189,49 @@ namespace SourceExplorer
     DEBUG("Parsing PE header");
 
     uint16_t exeSig = strm.read_u16();
-    DEBUG("EXE Signature: 0x" << exeSig);
+    DEBUG("EXE Signature: ", exeSig);
     if (exeSig != WIN_EXE_SIG)
     {
-      ERROR("Invalid EXE Signature, Expected: 0x" << WIN_EXE_SIG << ", At: 0x"
-                                                  << (strm.position - 2));
+      ERROR("Invalid EXE Signature, Expected: ",
+            WIN_EXE_SIG,
+            ", At: ",
+            (strm.position - 2));
       return error_t::invalid_exe_signature;
     }
 
     strm.position = WIN_EXE_PNT;
     strm.position = strm.read_u16();
-    DEBUG("EXE Pointer: 0x" << strm.position << ", At: 0x"
-                            << (size_t)WIN_EXE_PNT);
+    DEBUG("EXE Pointer: ", strm.position, ", At: ", (size_t)WIN_EXE_PNT);
 
     int32_t peSig = strm.read_s32();
-    DEBUG("PE Signature: 0x" << peSig);
+    DEBUG("PE Signature: ", peSig);
     if (peSig != WIN_PE_SIG)
     {
-      ERROR("Invalid PE Signature, Expected: 0x" << WIN_PE_SIG << ", At: 0x"
-                                                 << (strm.position - 4));
+      ERROR("Invalid PE Signature, Expected: ",
+            WIN_PE_SIG,
+            ", At: ",
+            (strm.position - 4));
       return error_t::invalid_pe_signature;
     }
 
     strm.position += 2;
 
     uint16_t numHeaderSections = strm.read_u16();
-    DEBUG("Number Of Header Sections: " << numHeaderSections);
+    DEBUG("Number Of Header Sections: ", numHeaderSections);
 
     strm.position += 16;
 
     const uint16_t optionalHeader = 0x60;
     const uint16_t dataDir        = 0x80;
     strm.position += optionalHeader + dataDir;
-    DEBUG("Pos: 0x" << strm.position);
+    DEBUG("Pos: ", strm.position);
 
     uint64_t pos = 0;
     for (uint16_t i = 0; i < numHeaderSections; ++i)
     {
-      uint64_t start   = strm.position;
-      std::string name = strm.read_string();
-      DEBUG("Name: " << name);
+      uint64_t start    = strm.position;
+      lak::astring name = strm.read_astring();
+      DEBUG("Name: ", name);
       if (name == ".extra")
       {
         strm.position = start + 0x14;
@@ -236,28 +243,28 @@ namespace SourceExplorer
         strm.position = start + 0x10;
         uint32_t size = strm.read_u32();
         uint32_t addr = strm.read_u32();
-        DEBUG("Size: 0x" << size);
-        DEBUG("Addr: 0x" << addr);
+        DEBUG("Size: ", size);
+        DEBUG("Addr: ", addr);
         pos = size + addr;
         break;
       }
       strm.position = start + 0x28;
-      DEBUG("Pos: 0x" << strm.position);
+      DEBUG("Pos: ", strm.position);
     }
 
     while (true)
     {
       strm.position       = pos;
       uint16_t firstShort = strm.read_u16();
-      DEBUG("First Short: 0x" << firstShort);
+      DEBUG("First Short: ", firstShort);
       strm.position      = pos;
       uint32_t pameMagic = strm.read_u32();
-      DEBUG("PAME Magic: 0x" << pameMagic);
+      DEBUG("PAME Magic: ", pameMagic);
       strm.position      = pos;
       uint64_t packMagic = strm.read_u64();
-      DEBUG("Pack Magic: 0x" << packMagic);
+      DEBUG("Pack Magic: ", packMagic);
       strm.position = pos;
-      DEBUG("Pos: 0x" << pos);
+      DEBUG("Pos: ", pos);
 
       if (firstShort == (uint16_t)chunk_t::header || pameMagic == HEADER_GAME)
       {
@@ -294,14 +301,17 @@ namespace SourceExplorer
 
       if (pos > strm.size())
       {
-        ERROR("Invalid Game Header: pos (0x" << pos << ") > strm.size (0x"
-                                             << strm.size() << ")");
+        ERROR("Invalid Game Header: pos (",
+              pos,
+              ") > strm.size (",
+              strm.size(),
+              ")");
         return error_t::invalid_game_signature;
       }
     }
 
     uint32_t header = strm.read_u32();
-    DEBUG("Header: 0x" << header);
+    DEBUG("Header: ", header);
 
     gameState.unicode = false;
     if (header == HEADER_UNIC)
@@ -311,14 +321,17 @@ namespace SourceExplorer
     }
     else if (header != HEADER_GAME)
     {
-      ERROR("Invalid Game Header: 0x" << header << ", Expected: 0x"
-                                      << HEADER_GAME << ", At: 0x"
-                                      << (strm.position - 4));
+      ERROR("Invalid Game Header: ",
+            header,
+            ", Expected: ",
+            HEADER_GAME,
+            ", At: ",
+            (strm.position - 4));
       return error_t::invalid_game_signature;
     }
 
     gameState.runtimeVersion = (product_code_t)strm.read_u16();
-    DEBUG("Runtime Version: 0x" << (int)gameState.runtimeVersion);
+    DEBUG("Runtime Version: ", (int)gameState.runtimeVersion);
     if (gameState.runtimeVersion == product_code_t::CNCV1VER)
     {
       DEBUG("CNCV1VER");
@@ -328,11 +341,11 @@ namespace SourceExplorer
     else
     {
       gameState.runtimeSubVersion = strm.read_u16();
-      DEBUG("Runtime Sub-Version: 0x" << gameState.runtimeSubVersion);
+      DEBUG("Runtime Sub-Version: ", gameState.runtimeSubVersion);
       gameState.productVersion = strm.read_u32();
-      DEBUG("Product Version: 0x" << gameState.productVersion);
+      DEBUG("Product Version: ", gameState.productVersion);
       gameState.productBuild = strm.read_u32();
-      DEBUG("Product Build: 0x" << gameState.productBuild);
+      DEBUG("Product Build: ", gameState.productBuild);
     }
 
     return error_t::ok;
@@ -344,17 +357,17 @@ namespace SourceExplorer
 
     uint64_t start  = strm.position;
     uint64_t header = strm.read_u64();
-    DEBUG("Header: 0x" << header);
+    DEBUG("Header: ", header);
     uint32_t headerSize = strm.read_u32();
     (void)headerSize;
-    DEBUG("Header Size: 0x" << headerSize);
+    DEBUG("Header Size: ", headerSize);
     uint32_t dataSize = strm.read_u32();
-    DEBUG("Data Size: 0x" << dataSize);
+    DEBUG("Data Size: ", dataSize);
 
     strm.position = start + dataSize - 0x20;
 
     header = strm.read_u32();
-    DEBUG("Head: 0x" << header);
+    DEBUG("Head: ", header);
     bool unicode = header == HEADER_UNIC;
     if (unicode)
     {
@@ -369,16 +382,16 @@ namespace SourceExplorer
 
     uint32_t formatVersion = strm.read_u32();
     (void)formatVersion;
-    DEBUG("Format Version: 0x" << formatVersion);
+    DEBUG("Format Version: ", formatVersion);
 
     strm.position += 0x8;
 
     int32_t count = strm.read_s32();
     assert(count >= 0);
-    DEBUG("Pack Count: 0x" << count);
+    DEBUG("Pack Count: ", count);
 
     uint64_t off = strm.position;
-    DEBUG("Offset: 0x" << off);
+    DEBUG("Offset: ", off);
 
     for (int32_t i = 0; i < count; ++i)
     {
@@ -396,10 +409,10 @@ namespace SourceExplorer
     }
 
     header = strm.read_u32();
-    DEBUG("Header: 0x" << header);
+    DEBUG("Header: ", header);
 
     bool hasBingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
-    DEBUG("Has Bingo: " << (hasBingo ? "true" : "false"));
+    DEBUG("Has Bingo: ", (hasBingo ? "true" : "false"));
 
     strm.position = off;
 
@@ -410,27 +423,32 @@ namespace SourceExplorer
       uint32_t read = strm.read_u16();
       // size_t strstart = strm.position;
 
-      DEBUG("Pack 0x" << i + 1 << " of 0x" << count << ", filename length: 0x"
-                      << read << ", pos: 0x" << strm.position);
+      DEBUG("Pack ",
+            i + 1,
+            " of ",
+            count,
+            ", filename length: ",
+            read,
+            ", pos: ",
+            strm.position);
 
       if (unicode)
         gameState.packFiles[i].filename = strm.read_u16string_exact(read);
       else
         gameState.packFiles[i].filename =
-          lak::strconv<char16_t>(strm.read_string_exact(read));
+          lak::to_u16string(strm.read_astring_exact(read));
 
       // strm.position = strstart + (unicode ? read * 2 : read);
 
-      // DEBUG("String Start: 0x" << strstart);
-      WDEBUG(L"Packfile '" << lak::to_wstring(gameState.packFiles[i].filename)
-                           << L"'");
+      // DEBUG("String Start: ", strstart);
+      DEBUG("Packfile '", gameState.packFiles[i].filename, "'");
 
       if (hasBingo)
         gameState.packFiles[i].bingo = strm.read_u32();
       else
         gameState.packFiles[i].bingo = 0;
 
-      DEBUG("Bingo: 0x" << gameState.packFiles[i].bingo);
+      DEBUG("Bingo: ", gameState.packFiles[i].bingo);
 
       // if (unicode)
       //     read = strm.read_u32();
@@ -438,12 +456,12 @@ namespace SourceExplorer
       //     read = strm.read_u16();
       read = strm.read_u32();
 
-      DEBUG("Pack File Data Size: 0x" << read << ", Pos: 0x" << strm.position);
+      DEBUG("Pack File Data Size: ", read, ", Pos: ", strm.position);
       gameState.packFiles[i].data = strm.read(read);
     }
 
     header = strm.read_u32(); // PAMU sometimes
-    DEBUG("Header: 0x" << header);
+    DEBUG("Header: ", header);
 
     if (header == HEADER_GAME || header == HEADER_UNIC)
     {
@@ -701,7 +719,7 @@ namespace SourceExplorer
     }
     else
     {
-      FATAL("Unknown graphics mode: 0x" << (uintmax_t)mode);
+      FATAL("Unknown graphics mode: ", (uintmax_t)mode);
       return std::monostate{};
     }
   }
@@ -951,10 +969,10 @@ namespace SourceExplorer
 
     if (error != tinf::error_t::OK)
     {
-      ERROR("Failed To Inflate: " << tinf::error_name(error));
-      DEBUG("Buffer Size: " << buffer.size());
-      DEBUG("Max Size: " << max_size);
-      DEBUG("Final? " << (state.final ? "True" : "False"));
+      ERROR("Failed To Inflate: ", tinf::error_name(error));
+      DEBUG("Buffer Size: ", buffer.size());
+      DEBUG("Max Size: ", max_size);
+      DEBUG("Final? ", (state.final ? "True" : "False"));
       return std::nullopt;
     }
 
@@ -969,7 +987,7 @@ namespace SourceExplorer
   {
     auto result = Inflate(compressed, skip_header, anaconda, max_size);
     if (result)
-      out = std::move(*result);
+      out = lak::move(*result);
     else
       ERROR("... Failed To Inflate");
     return (bool)result;
@@ -983,7 +1001,7 @@ namespace SourceExplorer
   {
     auto result = Inflate(compressed, skip_header, anaconda, max_size);
     if (result)
-      out = std::move(*result);
+      out = lak::move(*result);
     else
       ERROR("... Failed To Inflate");
     return (bool)result;
@@ -1021,7 +1039,7 @@ namespace SourceExplorer
       return std::vector<uint8_t>(buffer.begin(), buffer.end());
     else
     {
-      ERROR("Failed To Decompress (" << tinf::error_name(err) << ")");
+      ERROR("Failed To Decompress (", tinf::error_name(err), ")");
       return std::vector<uint8_t>(outSize, 0);
     }
   }
@@ -1239,9 +1257,11 @@ namespace SourceExplorer
       if (const auto raw = StreamDecompress(strm, data.expectedSize);
           raw.size() != data.expectedSize)
       {
-        WARNING("Actual decompressed size (0x"
-                << raw.size() << ") was not equal to the expected size (0x"
-                << data.expectedSize << ").");
+        WARNING("Actual decompressed size (",
+                raw.size(),
+                ") was not equal to the expected size (",
+                data.expectedSize,
+                ").");
       }
       dataSize      = strm.position - start;
       strm.position = start;
@@ -1423,13 +1443,15 @@ namespace SourceExplorer
         case encoding_t::mode0:
         case encoding_t::mode1:
         {
-          result = lak::to_u16string(entry.decode().read_string());
+          result = lak::to_u16string(entry.decode().read_astring());
         }
         break;
         default:
         {
-          ERROR("Invalid String Mode: 0x" << (int)entry.mode << ", Chunk: 0x"
-                                          << (int)entry.ID);
+          ERROR("Invalid String Mode: ",
+                (int)entry.mode,
+                ", Chunk: ",
+                (int)entry.ID);
         }
         break;
       }
@@ -1439,7 +1461,7 @@ namespace SourceExplorer
       if (game.unicode)
         result = entry.decode().read_u16string();
       else
-        result = lak::strconv<char16_t>(entry.decode().read_string());
+        result = lak::to_u16string(entry.decode().read_astring());
     }
 
     return result;
@@ -1502,7 +1524,7 @@ namespace SourceExplorer
     if (result == error_t::ok)
       value = ReadStringEntry(game, entry);
     else
-      ERROR("Failed To Read String Chunk (" << error_name(result) << ")");
+      ERROR("Failed To Read String Chunk (", error_name(result), ")");
     return result;
   }
 
@@ -1510,9 +1532,9 @@ namespace SourceExplorer
                                const char *name,
                                const bool preview) const
   {
-    error_t result  = error_t::ok;
-    std::string str = string();
-    bool open       = false;
+    error_t result   = error_t::ok;
+    lak::astring str = astring();
+    bool open        = false;
 
     if (preview)
       open = lak::TreeNode("0x%zX %s '%s'##%zX",
@@ -1539,14 +1561,14 @@ namespace SourceExplorer
     return result;
   }
 
-  std::u16string string_chunk_t::u16string() const { return value; }
+  lak::u16string string_chunk_t::u16string() const { return value; }
 
-  std::u8string string_chunk_t::u8string() const
+  lak::u8string string_chunk_t::u8string() const
   {
     return lak::strconv<char8_t>(value);
   }
 
-  std::string string_chunk_t::string() const
+  lak::astring string_chunk_t::astring() const
   {
     return lak::strconv<char>(value);
   }
@@ -1562,14 +1584,14 @@ namespace SourceExplorer
       while (sstrm.remaining())
       {
         auto str = sstrm.read_u16string(sstrm.remaining());
-        DEBUG("    Read String (Len 0x" << str.length() << ")");
+        DEBUG("    Read String (Len ", str.length(), ")");
         if (!str.length()) break;
         values.emplace_back(str);
       }
     }
     else
     {
-      ERROR("Failed To Read Strings Chunk (" << error_name(result) << ")");
+      ERROR("Failed To Read Strings Chunk (", error_name(result), ")");
     }
     return result;
   }
@@ -1624,8 +1646,7 @@ namespace SourceExplorer
         if (err == tinf::error_t::OK)
           srcexp.buffer = std::vector(buffer.begin(), buffer.end());
         else
-          ERROR("Failed To Decompress Chunk (" << tinf::error_name(err)
-                                               << ")");
+          ERROR("Failed To Decompress Chunk (", tinf::error_name(err), ")");
       }
 
       ImGui::Separator();
@@ -1787,7 +1808,7 @@ namespace SourceExplorer
     if (game.unicode)
       name = strm.read_u16string_exact(strm.read_u16());
     else
-      name = lak::to_u16string(strm.read_string_exact(strm.read_u16()));
+      name = lak::to_u16string(strm.read_astring_exact(strm.read_u16()));
 
     data = strm.read(strm.read_u32());
 
@@ -1796,7 +1817,7 @@ namespace SourceExplorer
 
   error_t binary_file_t::view(source_explorer_t &srcexp) const
   {
-    std::u8string str = lak::to_u8string(name);
+    lak::u8string str = lak::to_u8string(name);
     if (lak::TreeNode("%s", str.c_str()))
     {
       ImGui::Separator();
@@ -2646,9 +2667,9 @@ namespace SourceExplorer
               {
                 auto handle = animation.directions[i].handles[frame];
                 result[handle].emplace_back(
-                  u"Animation-"s + se::to_u16string(animIndex) +
-                  u" Direction-"s + se::to_u16string(i) + u" Frame-"s +
-                  se::to_u16string(frame));
+                  u"Animation-"s + SourceExplorer::to_u16string(animIndex) +
+                  u" Direction-"s + SourceExplorer::to_u16string(i) +
+                  u" Frame-"s + SourceExplorer::to_u16string(frame));
               }
             }
           }
@@ -2676,13 +2697,15 @@ namespace SourceExplorer
 
       if (strm.position < entry.end)
       {
-        WARNING("There is still 0x" << entry.end - strm.position
-                                    << " bytes left in the object bank");
+        WARNING("There is still ",
+                entry.end - strm.position,
+                " bytes left in the object bank");
       }
       else if (strm.position > entry.end)
       {
-        ERROR("Object bank overshot entry by 0x" << strm.position - entry.end
-                                                 << " bytes");
+        ERROR("Object bank overshot entry by ",
+              strm.position - entry.end,
+              " bytes");
       }
 
       strm.position = entry.end;
@@ -2808,7 +2831,7 @@ namespace SourceExplorer
     error_t object_instance_t::view(source_explorer_t &srcexp) const
     {
       auto *obj = GetObject(srcexp.state, handle);
-      std::u8string str;
+      lak::u8string str;
       if (obj && obj->name) str += lak::to_u8string(obj->name->value);
 
       if (lak::TreeNode(
@@ -2863,7 +2886,7 @@ namespace SourceExplorer
         auto hstrm = entry.decode();
         objects.clear();
         objects.resize(hstrm.read_u32());
-        DEBUG("Objects: 0x" << objects.size());
+        DEBUG("Objects: ", objects.size());
         for (auto &object : objects) object.read(game, hstrm);
       }
 
@@ -3237,13 +3260,15 @@ namespace SourceExplorer
 
       if (strm.position < entry.end)
       {
-        WARNING("There is still 0x" << entry.end - strm.position
-                                    << " bytes left in the frame bank");
+        WARNING("There is still ",
+                entry.end - strm.position,
+                " bytes left in the frame bank");
       }
       else if (strm.position > entry.end)
       {
-        DEBUG("Frame bank overshot entry by 0x" << strm.position - entry.end
-                                                << " bytes");
+        DEBUG("Frame bank overshot entry by ",
+              strm.position - entry.end,
+              " bytes");
       }
 
       // strm.position = entry.end;
@@ -3283,7 +3308,7 @@ namespace SourceExplorer
 
       if (!game.oldGame && game.productBuild >= 284) --entry.handle;
 
-      DEBUG("Reading Image (Handle: " << entry.handle << ")");
+      DEBUG("Reading Image (Handle: ", entry.handle, ")");
 
       if (result == error_t::ok)
       {
@@ -3299,13 +3324,14 @@ namespace SourceExplorer
         graphicsMode = (graphics_mode_t)istrm.read_u8();
         flags        = (image_flag_t)istrm.read_u8();
 #if 0
-                if (graphicsMode <= graphics_mode_t::graphics3)
-                {
-                    paletteEntries = istrm.read_u8();
-                    for (size_t i = 0; i < palette.size(); ++i) // where is this size coming from???
-                        palette[i] = ColorFrom32bitRGBA(strm); // not sure if RGBA or BGRA
-                    count = strm.read_u32();
-                }
+        if (graphicsMode <= graphics_mode_t::graphics3)
+        {
+          paletteEntries = istrm.read_u8();
+          for (size_t i = 0; i < palette.size();
+               ++i) // where is this size coming from???
+            palette[i] = ColorFrom32bitRGBA(strm); // not sure if RGBA or BGRA
+          count = strm.read_u32();
+        }
 #endif
         if (!game.oldGame) unknown = istrm.read_u16();
         hotspot.x = istrm.read_u16();
@@ -3316,7 +3342,7 @@ namespace SourceExplorer
         dataPosition = istrm.position;
       }
       else
-        ERROR("Error Reading Image (Handle: " << entry.handle << ")");
+        ERROR("Error Reading Image (Handle: ", entry.handle, ")");
 
       return result;
     }
@@ -3350,7 +3376,7 @@ namespace SourceExplorer
 
         if (ImGui::Button("View Image"))
         {
-          srcexp.image = std::move(
+          srcexp.image = lak::move(
             CreateTexture(image(srcexp.dumpColorTrans), srcexp.graphicsMode));
         }
 
@@ -3426,7 +3452,7 @@ namespace SourceExplorer
 
       items.resize(strm.read_u32());
 
-      DEBUG("Image Bank Size: " << items.size());
+      DEBUG("Image Bank Size: ", items.size());
 
       for (auto &item : items)
       {
@@ -3437,13 +3463,15 @@ namespace SourceExplorer
 
       if (strm.position < entry.end)
       {
-        WARNING("There is still 0x" << entry.end - strm.position
-                                    << " bytes left in the image bank");
+        WARNING("There is still ",
+                entry.end - strm.position,
+                " bytes left in the image bank");
       }
       else if (strm.position > entry.end)
       {
-        ERROR("Image bank overshot entry by 0x" << strm.position - entry.end
-                                                << " bytes");
+        ERROR("Image bank overshot entry by ",
+              strm.position - entry.end,
+              " bytes");
       }
 
       strm.position = entry.end;
@@ -3513,13 +3541,14 @@ namespace SourceExplorer
 
       if (strm.position < entry.end)
       {
-        WARNING("There is still 0x" << entry.end - strm.position
-                                    << " bytes left in the font bank");
+        WARNING("There is still ",
+                entry.end - strm.position,
+                " bytes left in the font bank");
       }
       else if (strm.position > entry.end)
       {
-        ERROR("Font bank overshot entry by 0x" << strm.position - entry.end
-                                               << " bytes");
+        ERROR(
+          "Font bank overshot entry by ", strm.position - entry.end, " bytes");
       }
 
       strm.position = entry.end;
@@ -3596,13 +3625,15 @@ namespace SourceExplorer
 
       if (strm.position < entry.end)
       {
-        WARNING("There is still 0x" << entry.end - strm.position
-                                    << " bytes left in the sound bank");
+        WARNING("There is still ",
+                entry.end - strm.position,
+                " bytes left in the sound bank");
       }
       else if (strm.position > entry.end)
       {
-        ERROR("Sound bank overshot entry by 0x" << strm.position - entry.end
-                                                << " bytes");
+        ERROR("Sound bank overshot entry by ",
+              strm.position - entry.end,
+              " bytes");
       }
 
       strm.position = entry.end;
@@ -3672,13 +3703,15 @@ namespace SourceExplorer
 
       if (strm.position < entry.end)
       {
-        WARNING("There is still 0x" << entry.end - strm.position
-                                    << " bytes left in the music bank");
+        WARNING("There is still ",
+                entry.end - strm.position,
+                " bytes left in the music bank");
       }
       else if (strm.position > entry.end)
       {
-        ERROR("Music bank overshot entry by 0x" << strm.position - entry.end
-                                                << " bytes");
+        ERROR("Music bank overshot entry by ",
+              strm.position - entry.end,
+              " bytes");
       }
 
       strm.position = entry.end;
@@ -3986,7 +4019,7 @@ namespace SourceExplorer
           goto finished;
 
         default:
-          DEBUG("Invalid Chunk: 0x" << (size_t)childID);
+          DEBUG("Invalid Chunk: ", (size_t)childID);
           unknownChunks.emplace_back();
           result = unknownChunks.back().read(game, strm);
           break;
@@ -4065,7 +4098,7 @@ namespace SourceExplorer
       for (auto &unk : unknownChunks)
         unk.basic_view(
           srcexp,
-          (std::string("Unknown ") + std::to_string(unk.entry.position))
+          (lak::astring("Unknown ") + std::to_string(unk.entry.position))
             .c_str());
 
       last.view(srcexp);

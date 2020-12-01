@@ -1,8 +1,5 @@
+#include <lak/events.hpp>
 #include <lak/os.hpp>
-
-#ifdef LAK_OS_WINDOWS
-#  include "SDL_syswm.h"
-#endif
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_impl_lak.h"
@@ -29,19 +26,82 @@
 #include <cstdlib>
 #include <cstring>
 
+#if defined(LAK_USE_WINAPI)
+// #  error "NYI"
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+#  include <SDL.h>
+#  ifdef LAK_OS_WINDOWS
+#    include <SDL_syswm.h>
+#  endif
+#else
+#  error "No implementation specified"
+#endif
+
+#if !defined(LAK_SOFTWARE_RENDER_32BIT) &&                                    \
+  !defined(LAK_SOFTWARE_RENDER_24BIT) &&                                      \
+  !defined(LAK_SOFTWARE_RENDER_16BIT) && !defined(LAK_SOFTWARE_RENDER_8BIT)
+#  define LAK_SOFTWARE_RENDER_16BIT
+#endif
+
+static const char *GetClipboardTextFn_DefaultImpl(void *);
+static void SetClipboardTextFn_DefaultImpl(void *, const char *text);
+
 namespace ImGui
 {
   typedef struct _ImplSRContext
   {
+#if defined(LAK_USE_WINAPI)
+    //     // HBITMAP bitmap_handle = NULL;
+    // #  if defined(LAK_SOFTWARE_RENDER_32BIT)
+    //     using screen_format_t = lak::colour::abgr8888;
+    // #  elif defined(LAK_SOFTWARE_RENDER_24BIT)
+    //     using screen_format_t = lak::colour::bgr888;
+    // #  elif defined(LAK_SOFTWARE_RENDER_16BIT)
+    //     using screen_format_t = lak::colour::bgr565;
+    // #  else
+    // #    error "No software render colour bit depth specified"
+    // #  endif
+
+    decltype(lak::software_context::platform_handle) *screen_surface = nullptr;
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
     SDL_Window *window;
     SDL_Surface *screen_surface;
+#  if defined(LAK_SOFTWARE_RENDER_32BIT)
+    static const Uint32 screen_format = SDL_PIXELFORMAT_ABGR8888;
+#  elif defined(LAK_SOFTWARE_RENDER_24BIT)
+    static const Uint32 screen_format = SDL_PIXELFORMAT_BGR888;
+#  elif defined(LAK_SOFTWARE_RENDER_16BIT)
+    static const Uint32 screen_format = SDL_PIXELFORMAT_BGR565;
+#  elif defined(LAK_SOFTWARE_RENDER_8BIT)
+    SDL_Palette *palette;
+    static const Uint32 screen_format = SDL_PIXELFORMAT_INDEX8;
+#  else
+#    error "No software render colour bit depth specified"
+#  endif
+#else
+#  error "No implementation specified"
+#endif
+
     texture_alpha8_t atlas_texture;
+#if defined(LAK_SOFTWARE_RENDER_32BIT)
+    texture_color32_t screen_texture;
+#elif defined(LAK_SOFTWARE_RENDER_24BIT)
+    texture_color24_t screen_texture;
+#elif defined(LAK_SOFTWARE_RENDER_16BIT)
     texture_color16_t screen_texture;
-    static const Uint32 screen_format = SDL_PIXELFORMAT_RGB565;
-    // texture_color24_t screen_texture;
-    // static const Uint32 screen_format = SDL_PIXELFORMAT_RGB888;
-    // texture_color32_t screen_texture;
-    // static const Uint32 screen_format = SDL_PIXELFORMAT_ABGR8888;
+#elif defined(LAK_SOFTWARE_RENDER_8BIT)
+    texture_value8_t screen_texture;
+#else
+#  error "No software render colour bit depth specified"
+#endif
   } * ImplSRContext;
 
   typedef struct _ImplGLContext
@@ -64,8 +124,9 @@ namespace ImGui
 
   typedef struct _ImplContext
   {
+    const lak::platform_instance *platform_instance;
     ImGuiContext *imgui_context;
-    SDL_Cursor *mouse_cursors[ImGuiMouseCursor_COUNT];
+    lak::cursor mouse_cursors[ImGuiMouseCursor_COUNT];
     bool mouse_release[3];
     lak::graphics_mode mode;
     glm::mat4x4 transform = glm::mat4x4(1.0f);
@@ -117,54 +178,86 @@ namespace ImGui
     }
   }
 
-  inline void ImplUpdateDisplaySize(ImplContext context, SDL_Window *window)
+  inline void ImplUpdateDisplaySize(ImplSRContext context,
+                                    const lak::platform_instance &instance,
+                                    const lak::window_handle *handle,
+                                    lak::vec2l_t window_size)
+  {
+    ImGuiIO &io                  = ImGui::GetIO();
+    io.DisplayFramebufferScale.x = 1.0f;
+    io.DisplayFramebufferScale.y = 1.0f;
+    if ((size_t)window_size.x != context->screen_texture.w ||
+        (size_t)window_size.y != context->screen_texture.h)
+    {
+      context->screen_texture.init(window_size.x, window_size.y);
+
+#if defined(LAK_USE_WINAPI)
+      // context->screen_surface.resize(lak::vec2s_t(window_size));
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+      if (context->screen_surface != nullptr)
+        SDL_FreeSurface(context->screen_surface);
+
+      context->screen_surface = SDL_CreateRGBSurfaceWithFormatFrom(
+        context->screen_texture.pixels,
+        context->screen_texture.w,
+        context->screen_texture.h,
+        context->screen_texture.size * 8,
+        context->screen_texture.w * context->screen_texture.size,
+        context->screen_format);
+
+#  ifdef LAK_SOFTWARE_RENDER_8BIT
+      SDL_SetSurfacePalette(context->screen_surface, context->palette);
+#  endif
+#else
+#  error "No implementation specified"
+#endif
+    }
+  }
+
+  inline void ImplUpdateDisplaySize(ImplContext context,
+                                    const lak::window_handle *handle)
   {
     ImGuiIO &io = ImGui::GetIO();
 
-    int windW, windH;
-    SDL_GetWindowSize(window, &windW, &windH);
-    io.DisplaySize.x = windW;
-    io.DisplaySize.y = windH;
+    auto window_size =
+      lak::window_drawable_size(*context->platform_instance, handle);
+    // auto window_size = lak::window_size(*context->platform_instance,
+    // handle);
+    io.DisplaySize.x = window_size.x;
+    io.DisplaySize.y = window_size.y;
 
     switch (context->mode)
     {
       case lak::graphics_mode::Software:
-      {
-        io.DisplayFramebufferScale.x = 1.0f;
-        io.DisplayFramebufferScale.y = 1.0f;
-        if ((size_t)windW != context->sr_context->screen_texture.w ||
-            (size_t)windH != context->sr_context->screen_texture.h)
-        {
-          if (context->sr_context->screen_surface != nullptr)
-            SDL_FreeSurface(context->sr_context->screen_surface);
-          context->sr_context->screen_texture.init(windW, windH);
-          context->sr_context->screen_surface =
-            SDL_CreateRGBSurfaceWithFormatFrom(
-              context->sr_context->screen_texture.pixels,
-              context->sr_context->screen_texture.w,
-              context->sr_context->screen_texture.h,
-              context->sr_context->screen_texture.size * 8,
-              context->sr_context->screen_texture.w *
-                context->sr_context->screen_texture.size,
-              context->sr_context->screen_format);
-        }
-      }
-      break;
+        ImplUpdateDisplaySize(context->sr_context,
+                              *context->platform_instance,
+                              handle,
+                              window_size);
+        break;
+
       case lak::graphics_mode::OpenGL:
       {
-        int dispW, dispH;
-        SDL_GL_GetDrawableSize(window, &dispW, &dispH);
+        auto drawable_size =
+          lak::window_drawable_size(*context->platform_instance, handle);
         io.DisplayFramebufferScale.x =
-          (windW > 0) ? (dispW / (float)windW) : 1.0f;
+          (window_size.x > 0) ? (drawable_size.x / (float)window_size.x)
+                              : 1.0f;
         io.DisplayFramebufferScale.y =
-          (windH > 0) ? (dispH / (float)windH) : 1.0f;
+          (window_size.y > 0) ? (drawable_size.y / (float)window_size.y)
+                              : 1.0f;
       }
       break;
+
       case lak::graphics_mode::Vulkan:
       {
       }
       break;
-      default: ASSERTF(false, "Invalid Context Mode"); break;
+
+      default: FATAL("Invalid Context Mode"); break;
     }
   }
 
@@ -173,12 +266,44 @@ namespace ImGui
   {
     ImGuiIO &io = ImGui::GetIO();
 
-    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
-    io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
-    io.BackendPlatformName = "imgui_impl_lak";
     io.BackendRendererName = "imgui_impl_lak";
 
-    // SDL init
+#if defined(LAK_USE_WINAPI)
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
+    io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
+    io.BackendPlatformName = "imgui_impl_lak_win32";
+
+    io.KeyMap[ImGuiKey_Tab]        = VK_TAB;
+    io.KeyMap[ImGuiKey_LeftArrow]  = VK_LEFT;
+    io.KeyMap[ImGuiKey_RightArrow] = VK_RIGHT;
+    io.KeyMap[ImGuiKey_UpArrow]    = VK_UP;
+    io.KeyMap[ImGuiKey_DownArrow]  = VK_DOWN;
+    io.KeyMap[ImGuiKey_PageUp]     = VK_PRIOR;
+    io.KeyMap[ImGuiKey_PageDown]   = VK_NEXT;
+    io.KeyMap[ImGuiKey_Home]       = VK_HOME;
+    io.KeyMap[ImGuiKey_End]        = VK_END;
+    io.KeyMap[ImGuiKey_Insert]     = VK_INSERT;
+    io.KeyMap[ImGuiKey_Delete]     = VK_DELETE;
+    io.KeyMap[ImGuiKey_Backspace]  = VK_BACK;
+    io.KeyMap[ImGuiKey_Space]      = VK_SPACE;
+    io.KeyMap[ImGuiKey_Enter]      = VK_RETURN;
+    io.KeyMap[ImGuiKey_Escape]     = VK_ESCAPE;
+    io.KeyMap[ImGuiKey_A]          = 'A';
+    io.KeyMap[ImGuiKey_C]          = 'C';
+    io.KeyMap[ImGuiKey_V]          = 'V';
+    io.KeyMap[ImGuiKey_X]          = 'X';
+    io.KeyMap[ImGuiKey_Y]          = 'Y';
+    io.KeyMap[ImGuiKey_Z]          = 'Z';
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+    io.BackendPlatformName = "imgui_impl_lak_xlib";
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+    io.BackendPlatformName = "imgui_impl_lak_xcb";
+#elif defined(LAK_USE_SDL)
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
+    io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
+    io.BackendPlatformName = "imgui_impl_lak_sdl2";
 
     io.KeyMap[ImGuiKey_Tab]        = SDL_SCANCODE_TAB;
     io.KeyMap[ImGuiKey_LeftArrow]  = SDL_SCANCODE_LEFT;
@@ -201,6 +326,9 @@ namespace ImGui
     io.KeyMap[ImGuiKey_X]          = SDL_SCANCODE_X;
     io.KeyMap[ImGuiKey_Y]          = SDL_SCANCODE_Y;
     io.KeyMap[ImGuiKey_Z]          = SDL_SCANCODE_Z;
+#else
+#  error "No implementation specified"
+#endif
 
     io.SetClipboardTextFn = ImplSetClipboard;
     io.GetClipboardTextFn = (const char *(*)(void *))ImplGetClipboard;
@@ -209,9 +337,34 @@ namespace ImGui
 
   void ImplInitSRContext(ImplSRContext context, const lak::window &window)
   {
-    context->window = window.sdl_window();
-
     ImGuiIO &io = ImGui::GetIO();
+
+#if defined(LAK_USE_WINAPI)
+    context->screen_surface =
+      &window.handle()->software_context().platform_handle;
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+    context->window                = window.platform_handle();
+
+#  ifdef LAK_SOFTWARE_RENDER_8BIT
+    context->palette               = SDL_AllocPalette(256);
+    SDL_Colour palette[256];
+    for (size_t i = 0; i < 256; ++i)
+    {
+      palette[i].r = i;
+      palette[i].g = i;
+      palette[i].b = i;
+      palette[i].a = 255;
+    }
+    SDL_SetPaletteColors(context->palette, palette, 0, 256);
+#  endif
+
+#else
+#  error "No implementation specified"
+#endif
 
     uint8_t *pixels;
     int width, height;
@@ -219,15 +372,8 @@ namespace ImGui
     context->atlas_texture.init(width, height, (alpha8_t *)pixels);
     io.Fonts->TexID = &context->atlas_texture;
 
-    context->screen_texture.init(window.size().x, window.size().y);
-
-    context->screen_surface = SDL_CreateRGBSurfaceWithFormatFrom(
-      context->screen_texture.pixels,
-      context->screen_texture.w,
-      context->screen_texture.h,
-      context->screen_texture.size * 8,
-      context->screen_texture.w * context->screen_texture.size,
-      context->screen_format);
+    ImplUpdateDisplaySize(
+      context, window.platform_instance(), window.handle(), window.size());
 
     ImGui_ImplSoftraster_Init(&context->screen_texture);
   }
@@ -293,22 +439,48 @@ namespace ImGui
 
   void ImplInitContext(ImplContext context, const lak::window &window)
   {
-    context->mouse_cursors[ImGuiMouseCursor_Arrow] =
+    context->platform_instance = &window.platform_instance();
+#if defined(LAK_USE_WINAPI)
+    context->mouse_cursors[ImGuiMouseCursor_Arrow].platform_handle =
+      LoadCursorW(NULL, IDC_ARROW);
+    context->mouse_cursors[ImGuiMouseCursor_TextInput].platform_handle =
+      LoadCursorW(NULL, IDC_IBEAM);
+    context->mouse_cursors[ImGuiMouseCursor_ResizeAll].platform_handle =
+      LoadCursorW(NULL, IDC_SIZEALL);
+    context->mouse_cursors[ImGuiMouseCursor_ResizeNS].platform_handle =
+      LoadCursorW(NULL, IDC_SIZENS);
+    context->mouse_cursors[ImGuiMouseCursor_ResizeEW].platform_handle =
+      LoadCursorW(NULL, IDC_SIZEWE);
+    context->mouse_cursors[ImGuiMouseCursor_ResizeNESW].platform_handle =
+      LoadCursorW(NULL, IDC_SIZENESW);
+    context->mouse_cursors[ImGuiMouseCursor_ResizeNWSE].platform_handle =
+      LoadCursorW(NULL, IDC_SIZENWSE);
+    context->mouse_cursors[ImGuiMouseCursor_Hand].platform_handle =
+      LoadCursorW(NULL, IDC_HAND);
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+    context->mouse_cursors[ImGuiMouseCursor_Arrow].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
-    context->mouse_cursors[ImGuiMouseCursor_TextInput] =
+    context->mouse_cursors[ImGuiMouseCursor_TextInput].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
-    context->mouse_cursors[ImGuiMouseCursor_ResizeAll] =
+    context->mouse_cursors[ImGuiMouseCursor_ResizeAll].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
-    context->mouse_cursors[ImGuiMouseCursor_ResizeNS] =
+    context->mouse_cursors[ImGuiMouseCursor_ResizeNS].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
-    context->mouse_cursors[ImGuiMouseCursor_ResizeEW] =
+    context->mouse_cursors[ImGuiMouseCursor_ResizeEW].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
-    context->mouse_cursors[ImGuiMouseCursor_ResizeNESW] =
+    context->mouse_cursors[ImGuiMouseCursor_ResizeNESW].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
-    context->mouse_cursors[ImGuiMouseCursor_ResizeNWSE] =
+    context->mouse_cursors[ImGuiMouseCursor_ResizeNWSE].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
-    context->mouse_cursors[ImGuiMouseCursor_Hand] =
+    context->mouse_cursors[ImGuiMouseCursor_Hand].platform_handle =
       SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+#else
+#  error "No implementation specified"
+#endif
 
     context->mouse_release[0] = false;
     context->mouse_release[1] = false;
@@ -328,24 +500,49 @@ namespace ImGui
       default: ASSERTF(false, "Invalid Context Mode"); break;
     }
 
-    ImplUpdateDisplaySize(context, window.sdl_window());
+    ImplUpdateDisplaySize(context, window.handle());
 
 #ifdef LAK_OS_WINDOWS
+#  if defined(LAK_USE_WINAPI)
+    ImGui::GetIO().ImeWindowHandle = window.platform_handle();
+#  elif defined(LAK_USE_XLIB)
+#    error "NYI"
+#  elif defined(LAK_USE_XCB)
+#    error "NYI"
+#  elif defined(LAK_USE_SDL)
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
-    SDL_GetWindowWMInfo(window.sdl_window(), &wmInfo);
+    SDL_GetWindowWMInfo(window.platform_handle(), &wmInfo);
     ImGui::GetIO().ImeWindowHandle = wmInfo.info.win.window;
+#  else
+#    error "No implementation specified"
+#  endif
 #endif
   }
 
   void ImplShutdownSRContext(ImplSRContext context)
   {
-    context->window = nullptr;
-
     ImGui_ImplSoftraster_Shutdown();
+
+#if defined(LAK_USE_WINAPI)
+    context->screen_surface = nullptr;
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+    context->window = nullptr;
 
     SDL_FreeSurface(context->screen_surface);
     context->screen_surface = nullptr;
+
+#  ifdef LAK_SOFTWARE_RENDER_8BIT
+    SDL_FreePalette(context->palette);
+    context->palette = nullptr;
+#  endif
+#else
+#  error "No implementation specified"
+#endif
 
     context->screen_texture.init(0, 0);
     context->atlas_texture.init(0, 0);
@@ -369,12 +566,20 @@ namespace ImGui
 
   void ImplShutdownContext(ImplContext context)
   {
-    // SDL shutdown
-
-    for (SDL_Cursor *&cursor : context->mouse_cursors)
+    for (auto &cursor : context->mouse_cursors)
     {
-      SDL_FreeCursor(cursor);
-      cursor = nullptr;
+#if defined(LAK_USE_WINAPI)
+      cursor.platform_handle = NULL;
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+      SDL_FreeCursor(cursor.platform_handle);
+      cursor.platform_handle = nullptr;
+#else
+#  error "No implementation specified"
+#endif
     }
 
     switch (context->mode)
@@ -412,7 +617,7 @@ namespace ImGui
   }
 
   void ImplNewFrame(ImplContext context,
-                    SDL_Window *window,
+                    const lak::window &window,
                     const float delta_time,
                     const bool call_base_new_frame)
   {
@@ -427,7 +632,7 @@ namespace ImGui
     if (io.WantSetMousePos)
     {
       // ImGui enforces mouse position
-      SDL_WarpMouseInWindow(window, (int)io.MousePos.x, (int)io.MousePos.y);
+      window.set_cursor_pos({(long)io.MousePos.x, (long)io.MousePos.y});
     }
 
     // UpdateMouseCursor()
@@ -437,136 +642,193 @@ namespace ImGui
 
       if (io.MouseDrawCursor || (cursor == ImGuiMouseCursor_None))
       {
+#if defined(LAK_USE_WINAPI)
+        SetCursor(NULL);
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
         SDL_ShowCursor(SDL_FALSE);
+#else
+#  error "No implementation specified"
+#endif
       }
       else
       {
-        SDL_SetCursor(context->mouse_cursors[cursor]);
+#if defined(LAK_USE_WINAPI)
+        SetCursor(context->mouse_cursors[cursor].platform_handle);
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+        SDL_SetCursor(context->mouse_cursors[cursor].platform_handle);
         SDL_ShowCursor(SDL_TRUE);
+#else
+#  error "No implementation specified"
+#endif
       }
     }
 
     if (call_base_new_frame) ImGui::NewFrame();
   }
 
-  bool ImplProcessEvent(ImplContext context, const SDL_Event &event)
+  bool ImplProcessEvent(ImplContext context, const lak::event &event)
   {
     ImGuiIO &io = ImGui::GetIO();
 
     switch (event.type)
     {
-      case SDL_WINDOWEVENT:
-        switch (event.window.event)
-        {
-          case SDL_WINDOWEVENT_RESIZED:
-          case SDL_WINDOWEVENT_SIZE_CHANGED:
-          {
-            ImplUpdateDisplaySize(context,
-                                  SDL_GetWindowFromID(event.window.windowID));
-          }
-            return true;
-        }
-        return false;
-
-      case SDL_MOUSEWHEEL:
+      case lak::event_type::window_changed:
       {
-        if (event.wheel.x > 0)
-          io.MouseWheelH += 1;
-        else if (event.wheel.x < 0)
-          io.MouseWheelH -= 1;
-        if (event.wheel.y > 0)
-          io.MouseWheel += 1;
-        else if (event.wheel.y < 0)
-          io.MouseWheel -= 1;
+        if (event.handle)
+        {
+          ImplUpdateDisplaySize(context, event.handle);
+          return true;
+        }
+        else
+        {
+          WARNING("No window handle attached to event");
+          return false;
+        }
       }
-        return true;
 
-      case SDL_MOUSEMOTION:
+      case lak::event_type::wheel:
+      {
+        if (event.wheel().wheel.y > 0)
+          io.MouseWheel += 1;
+        else if (event.wheel().wheel.y < 0)
+          io.MouseWheel -= 1;
+
+        if (event.wheel().wheel.x > 0)
+          io.MouseWheelH -= 1;
+        else if (event.wheel().wheel.x < 0)
+          io.MouseWheelH += 1;
+
+        return true;
+      }
+
+      case lak::event_type::motion:
       {
         if (io.WantSetMousePos) return false;
-        io.MousePos.x = (float)event.motion.x;
-        io.MousePos.y = (float)event.motion.y;
-        SDL_CaptureMouse(ImGui::IsAnyMouseDown() ? SDL_TRUE : SDL_FALSE);
-      }
+        io.MousePos.x = (float)event.motion().position.x;
+        io.MousePos.y = (float)event.motion().position.y;
         return true;
+      }
 
-      case SDL_MOUSEBUTTONDOWN:
+      case lak::event_type::button_down:
       {
-        switch (event.button.button)
+        switch (event.button().button)
         {
-          case SDL_BUTTON_LEFT:
+          case lak::mouse_button::left:
           {
             io.MouseDown[0]           = true;
             context->mouse_release[0] = false;
           }
           break;
-
-          case SDL_BUTTON_RIGHT:
+          case lak::mouse_button::right:
           {
             io.MouseDown[1]           = true;
             context->mouse_release[1] = false;
           }
           break;
-
-          case SDL_BUTTON_MIDDLE:
+          case lak::mouse_button::middle:
           {
             io.MouseDown[2]           = true;
             context->mouse_release[2] = false;
           }
           break;
-
           default: return false;
         }
-      }
+#if defined(LAK_USE_WINAPI)
+        SetCapture(event.handle->_platform_handle);
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+        SDL_CaptureMouse(SDL_TRUE);
+#else
+#  error "No implementation specified"
+#endif
         return true;
-      case SDL_MOUSEBUTTONUP:
+      }
+
+      case lak::event_type::button_up:
       {
-        switch (event.button.button)
+        switch (event.button().button)
         {
-          case SDL_BUTTON_LEFT:
+          case lak::mouse_button::left:
           {
             context->mouse_release[0] = true;
           }
           break;
-
-          case SDL_BUTTON_RIGHT:
+          case lak::mouse_button::right:
           {
             context->mouse_release[1] = true;
           }
           break;
-
-          case SDL_BUTTON_MIDDLE:
+          case lak::mouse_button::middle:
           {
             context->mouse_release[2] = true;
           }
           break;
-
           default: return false;
         }
-      }
+#if defined(LAK_USE_WINAPI)
+        ReleaseCapture();
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+        SDL_CaptureMouse(SDL_FALSE);
+#else
+#  error "No implementation specified"
+#endif
         return true;
+      }
 
-      case SDL_TEXTINPUT:
+      case lak::event_type::key_down:
+      case lak::event_type::key_up:
       {
-        io.AddInputCharactersUTF8(event.text.text);
-      }
-        return true;
+        const int key = event.key().scancode;
+        ASSERT(key >= 0 && key <= IM_ARRAYSIZE(io.KeysDown));
+        io.KeysDown[key] = event.type == lak::event_type::key_down;
 
-      case SDL_KEYDOWN:
-      case SDL_KEYUP:
-      {
-        const int key = event.key.keysym.scancode;
-        ASSERT(key >= 0 && key < IM_ARRAYSIZE(io.KeysDown));
-        io.KeysDown[key] = (event.type == SDL_KEYDOWN);
-
-        const SDL_Keymod mod = SDL_GetModState();
-        io.KeyShift          = ((mod & KMOD_SHIFT) != 0);
-        io.KeyCtrl           = ((mod & KMOD_CTRL) != 0);
-        io.KeyAlt            = ((mod & KMOD_ALT) != 0);
-        io.KeySuper          = ((mod & KMOD_GUI) != 0);
-      }
+        io.KeyShift =
+          (event.key().mod & lak::mod_key::shift) != lak::mod_key::none;
+        io.KeyCtrl =
+          (event.key().mod & lak::mod_key::ctrl) != lak::mod_key::none;
+        io.KeyAlt =
+          (event.key().mod & lak::mod_key::alt) != lak::mod_key::none;
+        io.KeySuper =
+          (event.key().mod & lak::mod_key::super) != lak::mod_key::none;
         return true;
+      }
     }
+
+#if defined(LAK_USE_WINAPI)
+    if (event.platform_event.message == WM_CHAR)
+    {
+      io.AddInputCharacter((unsigned int)event.platform_event.wParam);
+      return true;
+    }
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+    if (event.platform_event.type == SDL_TEXTINPUT)
+    {
+      io.AddInputCharactersUTF8(event.platform_event.text.text);
+      return true;
+    }
+#else
+#  error "No implementation specified"
+#endif
+
     return false;
   }
 
@@ -581,9 +843,41 @@ namespace ImGui
     ASSERT(context != nullptr);
     ASSERT(context->sr_context != nullptr);
     auto *sr_context = context->sr_context;
-    ASSERT(sr_context->window != nullptr);
 
     ImGui_ImplSoftraster_RenderDrawData(draw_data);
+
+#if defined(LAK_USE_WINAPI)
+#  if defined(LAK_SOFTWARE_RENDER_32BIT)
+    using texture_colour_t = color32_t; // lak::colour::rgba8888;
+#  elif defined(LAK_SOFTWARE_RENDER_24BIT)
+    using texture_colour_t = color24_t; // lak::colour::rgb888;
+#  elif defined(LAK_SOFTWARE_RENDER_16BIT)
+    using texture_colour_t = color16_t; // lak::colour::rgb565;
+#  elif defined(LAK_SOFTWARE_RENDER_8BIT)
+    using texture_colour_t         = alpha8_t; // lak::colour::v8;
+#  else
+#    error "No software render colour bit depth specified"
+#  endif
+    auto screen_texture_pixels = lak::span<void>(
+      sr_context->screen_texture.pixels,
+      sr_context->screen_texture.w * sr_context->screen_texture.h *
+        sr_context->screen_texture.size);
+    {
+      SCOPED_TIMER([](uint64_t diff) {
+        DEBUG("blit time: ", diff / (double)lak::performance_frequency())
+      });
+      lak::blit(
+        lak::image_subview(*sr_context->screen_surface),
+        lak::image_subview(lak::image_view(
+          lak::span<texture_colour_t>(screen_texture_pixels),
+          {sr_context->screen_texture.w, sr_context->screen_texture.h})));
+    }
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
+    ASSERT(sr_context->window != nullptr);
 
     SDL_Surface *window = SDL_GetWindowSurface(sr_context->window);
 
@@ -597,6 +891,9 @@ namespace ImGui
             sr_context->screen_surface, nullptr, window, nullptr))
         ERROR(SDL_GetError());
     }
+#else
+#  error "No implementation specified"
+#endif
   }
 
   void ImplGLRender(ImplContext context, ImDrawData *draw_data)
@@ -616,42 +913,47 @@ namespace ImGui
 
     draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
-    auto old_program        = lak::opengl::get_uint(GL_CURRENT_PROGRAM);
-    auto old_texture        = lak::opengl::get_uint(GL_TEXTURE_BINDING_2D);
-    auto old_active_texture = lak::opengl::get_uint(GL_ACTIVE_TEXTURE);
-    auto old_vertex_array   = lak::opengl::get_uint(GL_VERTEX_ARRAY_BINDING);
-    auto old_array_buffer   = lak::opengl::get_uint(GL_ARRAY_BUFFER_BINDING);
-    auto old_index_buffer =
-      lak::opengl::get_uint(GL_ELEMENT_ARRAY_BUFFER_BINDING);
-    auto old_blend_enabled        = glIsEnabled(GL_BLEND);
-    auto old_cull_face_enabled    = glIsEnabled(GL_CULL_FACE);
-    auto old_depth_test_enabled   = glIsEnabled(GL_DEPTH_TEST);
-    auto old_scissor_test_enabled = glIsEnabled(GL_SCISSOR_TEST);
-    auto old_viewport             = lak::opengl::get_int<4>(GL_VIEWPORT);
-    auto old_scissor              = lak::opengl::get_int<4>(GL_SCISSOR_BOX);
-    auto old_clip_origin          = lak::opengl::get_enum(GL_CLIP_ORIGIN);
+    // As these are deferred, they are evaluated in reverse order to how they
+    // appear here.
+    DEFER(gl_context->vertex_array = 0);
+    DEFER_CALL(glDeleteVertexArrays, 1, &gl_context->vertex_array);
+    auto old_scissor     = lak::opengl::get_int<4>(GL_SCISSOR_BOX);
+    auto old_clip_origin = lak::opengl::get_enum(GL_CLIP_ORIGIN);
+    DEFER_CALL(glScissor,
+               old_scissor[0],
+               old_scissor[1],
+               old_scissor[2],
+               old_scissor[3]);
+    auto old_viewport = lak::opengl::get_int<4>(GL_VIEWPORT);
+    DEFER_CALL(glViewport,
+               old_viewport[0],
+               old_viewport[1],
+               old_viewport[2],
+               old_viewport[3]);
+    DEFER_CALL(
+      lak::opengl::enable_if, GL_SCISSOR_TEST, glIsEnabled(GL_SCISSOR_TEST));
+    DEFER_CALL(
+      lak::opengl::enable_if, GL_DEPTH_TEST, glIsEnabled(GL_DEPTH_TEST));
+    DEFER_CALL(
+      lak::opengl::enable_if, GL_CULL_FACE, glIsEnabled(GL_CULL_FACE));
+    DEFER_CALL(lak::opengl::enable_if, GL_BLEND, glIsEnabled(GL_BLEND));
+    DEFER_CALL(glBindBuffer,
+               GL_ELEMENT_ARRAY_BUFFER,
+               lak::opengl::get_uint(GL_ELEMENT_ARRAY_BUFFER_BINDING));
+    DEFER_CALL(glBindBuffer,
+               GL_ARRAY_BUFFER,
+               lak::opengl::get_uint(GL_ARRAY_BUFFER_BINDING));
+    DEFER_CALL(glBindVertexArray,
+               lak::opengl::get_uint(GL_VERTEX_ARRAY_BINDING));
+    DEFER_CALL(glBindTexture,
+               GL_TEXTURE_2D,
+               lak::opengl::get_uint(GL_TEXTURE_BINDING_2D));
+    DEFER_CALL(glActiveTexture, lak::opengl::get_uint(GL_ACTIVE_TEXTURE));
+    DEFER_CALL(glUseProgram, lak::opengl::get_uint(GL_CURRENT_PROGRAM));
 
     glGenVertexArrays(1, &gl_context->vertex_array);
 
-    DEFER({
-      glUseProgram(old_program);
-      glActiveTexture(old_active_texture);
-      glBindTexture(GL_TEXTURE_2D, old_texture);
-      glBindVertexArray(old_vertex_array);
-      glBindBuffer(GL_ARRAY_BUFFER, old_array_buffer);
-      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, old_index_buffer);
-      glEnableDisable(GL_BLEND, old_blend_enabled);
-      glEnableDisable(GL_CULL_FACE, old_cull_face_enabled);
-      glEnableDisable(GL_DEPTH_TEST, old_depth_test_enabled);
-      glEnableDisable(GL_SCISSOR_TEST, old_scissor_test_enabled);
-      glViewport(
-        old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
-      glScissor(
-        old_scissor[0], old_scissor[1], old_scissor[2], old_scissor[3]);
-
-      glDeleteVertexArrays(1, &gl_context->vertex_array);
-      gl_context->vertex_array = 0;
-    });
+    const bool using_scissor_test = false;
 
     glUseProgram(gl_context->shader.get());
     glBindTexture(GL_TEXTURE_2D, gl_context->font.get());
@@ -667,7 +969,7 @@ namespace ImGui
     glEnable(GL_BLEND);
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
-    glEnable(GL_SCISSOR_TEST);
+    lak::opengl::enable_if(GL_SCISSOR_TEST, using_scissor_test);
     glViewport(viewport.x, viewport.y, viewport.z, viewport.w);
 
     {
@@ -753,7 +1055,7 @@ namespace ImGui
         {
           pcmd.UserCallback(cmdList, &pcmd);
         }
-        else if (true)
+        else if (!using_scissor_test)
         {
           glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd.TextureId);
           glDrawElements(GL_TRIANGLES,
@@ -819,15 +1121,35 @@ namespace ImGui
       if (context->mouse_release[i]) io.MouseDown[i] = false;
   }
 
-  void ImplSetClipboard(void *, const char *text)
+  void ImplSetClipboard(void *v, const char *text)
   {
+#if defined(LAK_USE_WINAPI)
+    SetClipboardTextFn_DefaultImpl(v, text);
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
     SDL_SetClipboardText(text);
+#else
+#  error "No implementation specified"
+#endif
   }
 
   const char *ImplGetClipboard(char **clipboard)
   {
+#if defined(LAK_USE_WINAPI)
+    return GetClipboardTextFn_DefaultImpl(clipboard);
+#elif defined(LAK_USE_XLIB)
+#  error "NYI"
+#elif defined(LAK_USE_XCB)
+#  error "NYI"
+#elif defined(LAK_USE_SDL)
     if (*clipboard) SDL_free(*clipboard);
     *clipboard = SDL_GetClipboardText();
+#else
+#  error "No implementation specified"
+#endif
     return *clipboard;
   }
 

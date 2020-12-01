@@ -5,8 +5,6 @@
 
 #include <imgui/imgui.h>
 
-#include <SDL.h>
-
 #include "await.hpp"
 
 #include <lak/span.hpp>
@@ -35,11 +33,11 @@ namespace ImGui
   void ImplSetTransform(ImplContext context, const glm::mat4x4 &transform);
 
   void ImplNewFrame(ImplContext context,
-                    SDL_Window *window,
+                    const lak::window &window,
                     const float delta_time,
                     const bool call_base_new_frame = true);
 
-  bool ImplProcessEvent(ImplContext context, const SDL_Event &event);
+  bool ImplProcessEvent(ImplContext context, const lak::event &event);
 
   void ImplRender(ImplContext context, const bool call_base_render = true);
 

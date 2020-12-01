@@ -6,8 +6,8 @@ TCC_LNAME  = tinycc
 TCC_FNAME  = lib$(TCC_LNAME).a
 TINYCC     = $(OBJDIR)/$(TCC_FNAME)
 
-CXX = g++-8
-CC  = gcc-8
+CXX = g++
+CC  = gcc
 AR  = ar
 RL  = ranlib
 
@@ -26,9 +26,9 @@ LIBDIRS = $(OBJDIR)
 LIBS    = SDL2 GL dl stdc++fs
 
 # explorer.elf: $(TINYCC) | $(BINDIR) $(OBJDIR)
-# 	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/main.cpp $(TINYCC) $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
+# 	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/all.cpp $(TINYCC) $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
 explorer.elf: | $(BINDIR) $(OBJDIR)
-	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/main.cpp $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
+	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/all.cpp $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
 
 .PHONY: explorer.elf
 
