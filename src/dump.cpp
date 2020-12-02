@@ -435,12 +435,12 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       if (srcexp.state.unicode)
       {
         name = sound.read_u16string_exact(nameLen);
-        WDEBUG("u16string name: ", lak::to_wstring(name));
+        DEBUG("u16string name: ", name);
       }
       else
       {
         name = lak::to_u16string(sound.read_astring_exact(nameLen));
-        WDEBUG("u8string name: ", lak::to_wstring(name));
+        DEBUG("u8string name: ", name);
       }
 
       if (sound.peek_astring(4) == lak::astring("OggS"))
