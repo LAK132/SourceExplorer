@@ -29,46 +29,6 @@ static const uint32_t WIN_PE_SIG = 0x00004550;
 
 namespace SourceExplorer
 {
-  enum class error_t
-  {
-    ok = 0x0,
-
-    invalid_exe_signature  = 0x1,
-    invalid_pe_signature   = 0x2,
-    invalid_game_signature = 0x3,
-
-    invalid_state = 0x4,
-    invalid_mode  = 0x5,
-    invalid_chunk = 0x6,
-
-    no_mode0 = 0x7,
-    no_mode1 = 0x8,
-    no_mode2 = 0x9,
-    no_mode3 = 0xA,
-
-    out_of_data = 0xB
-  };
-
-  static const char *error_name(error_t err)
-  {
-    switch (err)
-    {
-      case error_t::ok: return "Ok";
-      case error_t::invalid_exe_signature: return "Invalid EXE Signature";
-      case error_t::invalid_pe_signature: return "Invalid PE Signature";
-      case error_t::invalid_game_signature: return "Invalid Game Header";
-      case error_t::invalid_state: return "Invalid State";
-      case error_t::invalid_mode: return "Invalid Mode";
-      case error_t::invalid_chunk: return "Invalid Chunk";
-      case error_t::no_mode0: return "No MODE0";
-      case error_t::no_mode1: return "No MODE1";
-      case error_t::no_mode2: return "No MODE2";
-      case error_t::no_mode3: return "No MODE3";
-      case error_t::out_of_data: return "Out Of Data";
-      default: return "Invalid Error Code";
-    }
-  }
-
   //
   // Game Headers
   //

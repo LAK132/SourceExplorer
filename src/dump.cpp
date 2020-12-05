@@ -28,13 +28,21 @@ SOFTWARE.
 #include <stb_image_write.h>
 
 #include "dump.h"
+#include "explorer.h"
 #include "tostring.hpp"
+
+#include <lak/result.hpp>
+#include <lak/visit.hpp>
 
 #include <unordered_set>
 
+#ifdef GetObject
+#  undef GetObject
+#endif
+
 namespace se = SourceExplorer;
 
-bool se::SaveImage(const lak::image4_t &image, const fs::path &filename)
+se::error_t se::SaveImage(const lak::image4_t &image, const fs::path &filename)
 {
   if (stbi_write_png(filename.u8string().c_str(),
                      (int)image.size().x,
@@ -43,89 +51,130 @@ bool se::SaveImage(const lak::image4_t &image, const fs::path &filename)
                      &(image[0].r),
                      (int)(image.size().x * 4)) != 1)
   {
-    ERROR("Failed To Save Image '", filename, "'");
-    return true;
+    return lak::err_t{
+      lak::streamify<char8_t>("Failed to save image '", filename, "'")};
   }
-  return false;
+  return lak::ok_t{};
 }
 
-bool se::SaveImage(source_explorer_t &srcexp,
-                   uint16_t handle,
-                   const fs::path &filename,
-                   const frame::item_t *frame)
+se::error_t se::SaveImage(source_explorer_t &srcexp,
+                          uint16_t handle,
+                          const fs::path &filename,
+                          const frame::item_t *frame)
 {
-  auto *object = GetImage(srcexp.state, handle);
-  if (!object)
-  {
-    ERROR("Failed To Save Image: Bad Handle '0x", (int)handle, "'");
-    return true;
-  }
+  HANDLE_RESULT_ERR(error);
 
-  lak::image4_t image = object->image(
-    srcexp.dumpColorTrans,
-    (frame && frame->palette) ? frame->palette->colors : nullptr);
+  RES_TRY(lak::image4_t image =,
+          GetImage(srcexp.state, handle)
+            .map_err(APPEND_TRACE("failed to save image")))
+    .image(srcexp.dumpColorTrans,
+           (frame && frame->palette) ? frame->palette->colors : nullptr);
   return SaveImage(image, filename);
 }
 
-bool se::OpenGame(source_explorer_t &srcexp)
+lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
 {
-  static std::tuple<source_explorer_t &> data = {srcexp};
+  static lak::await<se::error_t> awaiter;
 
-  static std::unique_ptr<std::thread> thread = nullptr;
-  static std::atomic<bool> finished          = false;
-  static bool popupOpen                      = false;
-
-  if (lak::await_popup(
-        "Open Game", popupOpen, thread, finished, &LoadGame, data))
+  if (auto result = awaiter(LoadGame, std::ref(srcexp)); result.is_ok())
   {
-    ImGui::Text("Loading, please wait...");
-    ImGui::Checkbox("Print to debug console?",
-                    &lak::debugger.live_output_enabled);
-    if (lak::debugger.live_output_enabled)
-    {
-      ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
-      ImGui::Checkbox("Developer mode?", &lak::debugger.line_info_enabled);
-    }
-    ImGui::ProgressBar(srcexp.state.completed);
-    if (popupOpen) ImGui::EndPopup();
+    return lak::ok_t{result.unwrap().map_err(APPEND_TRACE())};
   }
   else
   {
-    srcexp.state.completed = 0.0f;
-    return true;
+    switch (result.unwrap_err())
+    {
+      case lak::await_error::running:
+      {
+        const auto str_id = "Open Game";
+        if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+          ImGui::Text("Loading, please wait...");
+          ImGui::Checkbox("Print to debug console?",
+                          &lak::debugger.live_output_enabled);
+          if (lak::debugger.live_output_enabled)
+          {
+            ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
+            ImGui::Checkbox("Developer mode?",
+                            &lak::debugger.line_info_enabled);
+          }
+          ImGui::ProgressBar(srcexp.state.completed);
+          ImGui::EndPopup();
+        }
+        else
+        {
+          ImGui::OpenPopup(str_id);
+        }
+
+        return lak::err_t{lak::await_error::running};
+      }
+      break;
+
+      case lak::await_error::failed:
+        return lak::err_t{lak::await_error::failed};
+        break;
+
+      default:
+        ASSERT_NYI();
+        return lak::err_t{lak::await_error::failed};
+        break;
+    }
   }
-  return false;
 }
 
 bool se::DumpStuff(source_explorer_t &srcexp,
                    const char *str_id,
                    dump_function_t *func)
 {
+  static lak::await<se::error_t> awaiter;
   static std::atomic<float> completed = 0.0f;
-  static dump_data_t data             = {srcexp, completed};
 
-  static std::unique_ptr<std::thread> thread = nullptr;
-  static std::atomic<bool> finished          = false;
-  static bool popupOpen                      = false;
+  auto functor = [&]() -> se::error_t {
+    func(srcexp, completed);
+    return lak::ok_t{};
+  };
 
-  if (lak::await_popup(str_id, popupOpen, thread, finished, func, data))
-  {
-    ImGui::Text("Dumping, please wait...");
-    ImGui::Checkbox("Print to debug console?",
-                    &lak::debugger.live_output_enabled);
-    if (&lak::debugger.live_output_enabled)
-    {
-      ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
-      ImGui::Checkbox("Developer mode?", &lak::debugger.line_info_enabled);
-    }
-    ImGui::ProgressBar(completed);
-    if (popupOpen) ImGui::EndPopup();
-  }
-  else
+  if (auto result = awaiter(functor); result.is_ok())
   {
     return true;
   }
-  return false;
+  else
+  {
+    switch (result.unwrap_err())
+    {
+      case lak::await_error::running:
+      {
+        if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+          ImGui::Text("Dumping, please wait...");
+          ImGui::Checkbox("Print to debug console?",
+                          &lak::debugger.live_output_enabled);
+          if (&lak::debugger.live_output_enabled)
+          {
+            ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
+            ImGui::Checkbox("Developer mode?",
+                            &lak::debugger.line_info_enabled);
+          }
+          ImGui::ProgressBar(completed);
+          ImGui::EndPopup();
+        }
+        else
+        {
+          ImGui::OpenPopup(str_id);
+        }
+        return false;
+      }
+      break;
+
+      case lak::await_error::failed:
+      default:
+      {
+        ASSERT_NYI();
+        return false;
+      }
+      break;
+    }
+  }
 }
 
 void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
@@ -143,7 +192,7 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
     lak::image4_t image = item.image(srcexp.dumpColorTrans);
     fs::path filename =
       srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
-    SaveImage(image, filename);
+    (void)SaveImage(image, filename);
     completed = (float)((double)(index++) / (double)count);
   }
 }
@@ -169,13 +218,15 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
     return;
   }
 
-  auto LinkImages = [](const fs::path &From, const fs::path &To) {
+  auto LinkImages = [](const fs::path &From, const fs::path &To)
+    -> lak::error_codes<std::error_code, lak::u8string> {
     bool result = false;
     std::error_code ec;
+
     if (fs::exists(To, ec))
     {
-      ERROR("File ", To, " Already Exists");
-      result = true;
+      return lak::err_t{
+        lak::var_t<1>(lak::streamify<char8_t>(To, " already exists"))};
     }
     else if (!ec)
     {
@@ -186,23 +237,17 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
       }
       else if (!ec)
       {
-        ERROR("File ", From, " Does Not Exist");
-        result = true;
+        return lak::err_t{
+          lak::var_t<1>(lak::streamify<char8_t>(From, " does not exist"))};
       }
     }
 
     if (ec)
     {
-      ERROR("File System Error: ", ec.message());
-      result = true;
+      return lak::err_t{lak::var_t<0>(ec)};
     }
 
-    if (result)
-    {
-      ERROR("Failed To Link Image ", From, " To ", To);
-    }
-
-    return result;
+    return lak::ok_t{};
   };
 
   using namespace std::string_literals;
@@ -235,7 +280,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
   {
     std::u16string imageName = se::to_u16string(image.entry.handle) + u".png";
     fs::path imagePath       = unsortedPath / imageName;
-    SaveImage(image.image(srcexp.dumpColorTrans), imagePath);
+    (void)SaveImage(image.image(srcexp.dumpColorTrans), imagePath);
     completed = (float)((double)imageIndex++ / imageCount);
   }
 
@@ -260,7 +305,9 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
       {
         if (usedObjects.find(object.handle) != usedObjects.end()) continue;
         usedObjects.insert(object.handle);
-        if (const auto *obj = GetObject(srcexp.state, object.handle); obj)
+        if (const auto *obj =
+              lak::as_ptr(se::GetObject(srcexp.state, object.handle).ok());
+            obj)
         {
           std::u16string objectName = HandleName(
             obj->name,
@@ -279,7 +326,9 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
           for (auto [imghandle, imgnames] : obj->image_handles())
           {
             if (imghandle == 0xFFFF) continue;
-            if (const auto *img = GetImage(srcexp.state, imghandle); img)
+            if (const auto *img =
+                  lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
+                img)
             {
               if (usedImages.find(imghandle) == usedImages.end())
               {
@@ -290,11 +339,23 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 
                 // check if 8bit image
                 if (img->need_palette() && frame.palette)
-                  SaveImage(
+                  (void)SaveImage(
                     img->image(srcexp.dumpColorTrans, frame.palette->colors),
                     imagePath);
-                else if (LinkImages(unsortedPath / imageName, imagePath))
-                  ERROR("Linking Failed");
+                else if (auto res =
+                           LinkImages(unsortedPath / imageName, imagePath);
+                         res.is_err())
+                  lak::visit(res.unwrap_err(), [](const auto &err) {
+                    if constexpr (lak::is_same_v<decltype(err),
+                                                 std::error_code>)
+                    {
+                      ERROR("Linking Failed: ", err.message());
+                    }
+                    else
+                    {
+                      ERROR("Linking Failed: ", err);
+                    }
+                  });
               }
               for (const auto &imgname : imgnames)
               {
@@ -304,9 +365,22 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                   framePath / "[unsorted]" / unsortedImageName;
                 std::u16string imageName = imgname + u".png";
                 fs::path imagePath       = objectPath / imageName;
-                if (const auto *img = GetImage(srcexp.state, imghandle); img)
-                  if (LinkImages(unsortedImagePath, imagePath))
-                    ERROR("Linking Failed");
+                if (const auto *img =
+                      lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
+                    img)
+                  if (auto res = LinkImages(unsortedImagePath, imagePath);
+                      res.is_err())
+                    lak::visit(res.unwrap_err(), [](const auto &err) {
+                      if constexpr (lak::is_same_v<decltype(err),
+                                                   std::error_code>)
+                      {
+                        ERROR("Linking Failed: ", err.message());
+                      }
+                      else
+                      {
+                        ERROR("Linking Failed: ", err);
+                      }
+                    });
               }
             }
           }
@@ -616,21 +690,31 @@ void AttemptFile(se::file_state_t &FileState,
                  FUNCTOR Functor,
                  bool save = false)
 {
-  auto load = [save](se::file_state_t &FileState) {
-    std::error_code ec;
-    if (auto code = lak::open_file_modal(FileState.path, save, ec);
-        code == lak::file_open_error::INCOMPLETE)
-    {
-      // Not finished.
-      return false;
-    }
-    else
-    {
-      FileState.valid = code == lak::file_open_error::VALID;
-      return true;
-    }
-  };
-  se::Attempt(FileState, load, Functor);
+  se::Attempt(
+    FileState,
+    [save](se::file_state_t &FileState) {
+      if (auto result = lak::open_file_modal(FileState.path, save);
+          result.is_ok())
+      {
+        if (auto code = result.unwrap();
+            code == lak::file_open_error::INCOMPLETE)
+        {
+          // Not finished.
+          return false;
+        }
+        else
+        {
+          FileState.valid = code == lak::file_open_error::VALID;
+          return true;
+        }
+      }
+      else
+      {
+        FileState.valid = false;
+        return true;
+      }
+    },
+    Functor);
 }
 
 template<typename FUNCTOR>
@@ -638,15 +722,23 @@ void AttemptFolder(se::file_state_t &FileState, FUNCTOR Functor)
 {
   auto load = [](se::file_state_t &FileState) {
     std::error_code ec;
-    if (auto code = lak::open_folder_modal(FileState.path, ec);
-        code == lak::file_open_error::INCOMPLETE)
+    if (auto result = lak::open_folder_modal(FileState.path); result.is_ok())
     {
-      // Not finished.
-      return false;
+      if (auto code = result.unwrap();
+          code == lak::file_open_error::INCOMPLETE)
+      {
+        // Not finished.
+        return false;
+      }
+      else
+      {
+        FileState.valid = code == lak::file_open_error::VALID;
+        return true;
+      }
     }
     else
     {
-      FileState.valid = code == lak::file_open_error::VALID;
+      FileState.valid = false;
       return true;
     }
   };
@@ -658,8 +750,15 @@ void se::AttemptExe(source_explorer_t &srcexp)
   lak::debugger.clear();
   srcexp.loaded = false;
   AttemptFile(srcexp.exe, [&srcexp] {
-    if (OpenGame(srcexp))
+    if (auto result = OpenGame(srcexp); result.is_err())
     {
+      ASSERT(result.unwrap_err() == lak::await_error::running);
+      return false;
+    }
+    else
+    {
+      result.unwrap().EXPECT("failed to open game");
+
       srcexp.loaded = true;
       if (srcexp.babyMode)
       {
@@ -761,8 +860,6 @@ void se::AttemptExe(source_explorer_t &srcexp)
       }
       return true;
     }
-    else
-      return false;
   });
 }
 

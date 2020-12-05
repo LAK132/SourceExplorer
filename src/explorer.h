@@ -33,6 +33,7 @@
 #include <lak/memory.hpp>
 #include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
+#include <lak/result.hpp>
 #include <lak/strconv.hpp>
 #include <lak/string.hpp>
 #include <lak/tinflate.hpp>
@@ -51,10 +52,121 @@
 #include <variant>
 #include <vector>
 
+#ifdef GetObject
+#  undef GetObject
+#endif
+
 namespace fs = std::filesystem;
 
 namespace SourceExplorer
 {
+  struct error
+  {
+    enum value_t : uint32_t
+    {
+      str_err = 0x0,
+
+      invalid_exe_signature  = 0x1,
+      invalid_pe_signature   = 0x2,
+      invalid_game_signature = 0x3,
+
+      invalid_state = 0x4,
+      invalid_mode  = 0x5,
+      invalid_chunk = 0x6,
+
+      no_mode0 = 0x7,
+      no_mode1 = 0x8,
+      no_mode2 = 0x9,
+      no_mode3 = 0xA,
+
+      out_of_data = 0xB
+    } value = str_err;
+
+    lak::u8string trace;
+
+    // error() {}
+    // error(const error &other) : value(other.value), trace(other.trace) {}
+    // error &operator=(const error &other)
+    // {
+    //   value = other.value;
+    //   trace = other.trace;
+    //   return *this;
+    // }
+    error()              = default;
+    error(const error &) = default;
+    error &operator=(const error &) = default;
+
+    error(value_t v) : value(v) {}
+    error(const lak::astring &str)
+    : value(str_err), trace(lak::to_u8string(str))
+    {
+    }
+    error(const lak::u8string &str) : value(str_err), trace(str) {}
+    template<typename... ARGS>
+    error(value_t v, ARGS &&... args)
+    : value(v), trace(lak::streamify<char8_t>(lak::forward<ARGS>(args)...))
+    {
+    }
+
+    inline lak::u8string to_string() const
+    {
+      switch (value)
+      {
+        case str_err: return trace;
+        case invalid_exe_signature:
+          return lak::as_u8string("Invalid EXE Signature: ").to_string() +
+                 trace;
+        case invalid_pe_signature:
+          return lak::as_u8string("Invalid PE Signature: ").to_string() +
+                 trace;
+        case invalid_game_signature:
+          return lak::as_u8string("Invalid Game Header: ").to_string() + trace;
+        case invalid_state:
+          return lak::as_u8string("Invalid State: ").to_string() + trace;
+        case invalid_mode:
+          return lak::as_u8string("Invalid Mode: ").to_string() + trace;
+        case invalid_chunk:
+          return lak::as_u8string("Invalid Chunk: ").to_string() + trace;
+        case no_mode0:
+          return lak::as_u8string("No MODE0: ").to_string() + trace;
+        case no_mode1:
+          return lak::as_u8string("No MODE1: ").to_string() + trace;
+        case no_mode2:
+          return lak::as_u8string("No MODE2: ").to_string() + trace;
+        case no_mode3:
+          return lak::as_u8string("No MODE3: ").to_string() + trace;
+        case out_of_data:
+          return lak::as_u8string("Out Of Data: ").to_string() + trace;
+        default:
+          return lak::as_u8string("Invalid Error Code: ").to_string() + trace;
+      }
+    }
+
+    inline friend std::ostream &operator<<(std::ostream &strm,
+                                           const error &err)
+    {
+      return strm << lak::streamify<std::ostream::char_type>(err.to_string());
+    }
+  };
+
+#define MAP_TRACE(...)                                                        \
+  [&](const auto &err) {                                                      \
+    return SourceExplorer::error(lak::streamify<char8_t>(                     \
+      err, "\nAt " LINE_TRACE_STR ": ", __VA_ARGS__));                        \
+  }
+
+#define APPEND_TRACE(...)                                                     \
+  [&](const SourceExplorer::error &err) {                                     \
+    return SourceExplorer::error(                                             \
+      err.value,                                                              \
+      lak::streamify<char8_t>(                                                \
+        err.trace, "\nAt " LINE_TRACE_STR ": ", __VA_ARGS__));                \
+  }
+
+  template<typename T>
+  using result_t = lak::result<T, error>;
+  using error_t  = result_t<lak::monostate>;
+
   extern bool forceCompat;
   extern m128i_t _xmmword;
   extern std::vector<uint8_t> _magic_key;
@@ -964,11 +1076,11 @@ namespace SourceExplorer
     std::vector<uint8_t> buffer;
   };
 
-  error_t LoadGame(source_explorer_t &srcexp);
+  [[nodiscard]] error_t LoadGame(source_explorer_t &srcexp);
 
   void GetEncryptionKey(game_t &gameState);
 
-  error_t ParsePEHeader(lak::memory &strm, game_t &gameState);
+  [[nodiscard]] error_t ParsePEHeader(lak::memory &strm, game_t &gameState);
 
   uint64_t ParsePackData(lak::memory &strm, game_t &gameState);
 
@@ -1012,8 +1124,10 @@ namespace SourceExplorer
   std::pair<bool, std::vector<uint8_t>> Decrypt(
     const std::vector<uint8_t> &encrypted, chunk_t ID, encoding_t mode);
 
-  object::item_t *GetObject(game_t &game, uint16_t handle);
+  result_t<frame::item_t &> GetFrame(game_t &game, uint16_t handle);
 
-  image::item_t *GetImage(game_t &game, uint32_t handle);
+  result_t<object::item_t &> GetObject(game_t &game, uint16_t handle);
+
+  result_t<image::item_t &> GetImage(game_t &game, uint32_t handle);
 }
 #endif

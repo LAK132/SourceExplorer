@@ -22,6 +22,14 @@
 #include "explorer.h"
 #include "tostring.hpp"
 
+#ifdef GetObject
+#  undef GetObject
+#endif
+
+#define TRACE_EXPECTED(EXPECTED, GOT)                                         \
+  lak::streamify<char8_t>(                                                    \
+    LINE_TRACE_STR ": expected '", EXPECTED, "', got '", GOT, "'")
+
 namespace SourceExplorer
 {
   bool forceCompat = false;
@@ -43,24 +51,21 @@ namespace SourceExplorer
 
   error_t LoadGame(source_explorer_t &srcexp)
   {
+    HANDLE_RESULT_ERR(error);
+
     DEBUG("Loading Game");
 
     srcexp.state        = game_t{};
     srcexp.state.compat = forceCompat;
 
-    srcexp.state.file = lak::read_file(srcexp.exe.path);
+    RES_TRY(srcexp.state.file =,
+            lak::read_file(srcexp.exe.path).map_err(MAP_TRACE()));
 
     DEBUG("File Size: ", srcexp.state.file.size());
 
-    error_t err = ParsePEHeader(srcexp.state.file, srcexp.state);
-    if (err != error_t::ok)
-    {
-      ERROR("Error '",
-            error_name(err),
-            "' While Parsing PE Header, At: ",
-            srcexp.state.file.position);
-      return err;
-    }
+    RES_TRY_ERR(ParsePEHeader(srcexp.state.file, srcexp.state)
+                  .map_err(APPEND_TRACE("while parsing PE header at: ",
+                                        srcexp.state.file.position)));
 
     DEBUG("Successfully Parsed PE Header");
 
@@ -84,18 +89,11 @@ namespace SourceExplorer
     else
       _magic_char = 54; // 'c';
 
-    err = srcexp.state.game.read(srcexp.state, srcexp.state.file);
-    if (err != error_t::ok)
-    {
-      ERROR("Error '",
-            error_name(err),
-            "' While Parsing PE Header, At: ",
-            srcexp.state.file.position);
-    }
-    else
-    {
-      DEBUG("Successfully Read Game Entry");
-    }
+    RES_TRY_ERR(srcexp.state.game.read(srcexp.state, srcexp.state.file)
+                  .map_err(APPEND_TRACE("while parsing PE header at: ",
+                                        srcexp.state.file.position)));
+
+    DEBUG("Successfully Read Game Entry");
 
     DEBUG("Unicode: ", (srcexp.state.unicode ? "true" : "false"));
 
@@ -130,7 +128,7 @@ namespace SourceExplorer
       }
     }
 
-    return err;
+    return lak::ok_t{};
   }
 
   void GetEncryptionKey(game_t &gameState)
@@ -192,11 +190,10 @@ namespace SourceExplorer
     DEBUG("EXE Signature: ", exeSig);
     if (exeSig != WIN_EXE_SIG)
     {
-      ERROR("Invalid EXE Signature, Expected: ",
-            WIN_EXE_SIG,
-            ", At: ",
-            (strm.position - 2));
-      return error_t::invalid_exe_signature;
+      return lak::err_t{error(error::invalid_exe_signature,
+                              TRACE_EXPECTED(WIN_EXE_SIG, exeSig),
+                              ", at ",
+                              (strm.position - 2))};
     }
 
     strm.position = WIN_EXE_PNT;
@@ -207,11 +204,10 @@ namespace SourceExplorer
     DEBUG("PE Signature: ", peSig);
     if (peSig != WIN_PE_SIG)
     {
-      ERROR("Invalid PE Signature, Expected: ",
-            WIN_PE_SIG,
-            ", At: ",
-            (strm.position - 4));
-      return error_t::invalid_pe_signature;
+      return lak::err_t{error(error::invalid_pe_signature,
+                              TRACE_EXPECTED(WIN_PE_SIG, peSig),
+                              ", at ",
+                              (strm.position - 4))};
     }
 
     strm.position += 2;
@@ -295,18 +291,17 @@ namespace SourceExplorer
       }
       else
       {
-        ERROR("Invalid Game Header");
-        return error_t::invalid_game_signature;
+        return lak::err_t{error(error::invalid_game_signature)};
       }
 
       if (pos > strm.size())
       {
-        ERROR("Invalid Game Header: pos (",
-              pos,
-              ") > strm.size (",
-              strm.size(),
-              ")");
-        return error_t::invalid_game_signature;
+        return lak::err_t{error(error::invalid_game_signature,
+                                LINE_TRACE_STR ": pos (",
+                                pos,
+                                ") > strm.size (",
+                                strm.size(),
+                                ")")};
       }
     }
 
@@ -321,13 +316,10 @@ namespace SourceExplorer
     }
     else if (header != HEADER_GAME)
     {
-      ERROR("Invalid Game Header: ",
-            header,
-            ", Expected: ",
-            HEADER_GAME,
-            ", At: ",
-            (strm.position - 4));
-      return error_t::invalid_game_signature;
+      return lak::err_t{error(error::invalid_game_signature,
+                              TRACE_EXPECTED(HEADER_GAME, header),
+                              ", at ",
+                              (strm.position - 4))};
     }
 
     gameState.runtimeVersion = (product_code_t)strm.read_u16();
@@ -348,7 +340,7 @@ namespace SourceExplorer
       DEBUG("Product Build: ", gameState.productBuild);
     }
 
-    return error_t::ok;
+    return lak::ok_t{};
   }
 
   uint64_t ParsePackData(lak::memory &strm, game_t &gameState)
@@ -1090,38 +1082,51 @@ namespace SourceExplorer
     }
   }
 
-  frame::item_t *GetFrame(game_t &game, uint16_t handle)
+  result_t<frame::item_t &> GetFrame(game_t &game, uint16_t handle)
   {
-    if (game.game.frameBank && game.game.frameHandles)
-    {
-      if (handle >= game.game.frameHandles->handles.size()) return nullptr;
-      handle = game.game.frameHandles->handles[handle];
-      if (handle >= game.game.frameBank->items.size()) return nullptr;
-      return &game.game.frameBank->items[handle];
-    }
-    return nullptr;
+    if (!game.game.frameBank) return lak::err_t{error("No frame bank")};
+
+    if (!game.game.frameHandles) return lak::err_t{error("No frame handles")};
+
+    if (handle >= game.game.frameHandles->handles.size())
+      return lak::err_t{error("Frame handle out of range")};
+
+    handle = game.game.frameHandles->handles[handle];
+
+    if (handle >= game.game.frameBank->items.size())
+      lak::err_t{error("Frame bank handle out of range")};
+
+    return lak::ok_t{game.game.frameBank->items[handle]};
   }
 
-  object::item_t *GetObject(game_t &game, uint16_t handle)
+  result_t<object::item_t &> GetObject(game_t &game, uint16_t handle)
   {
-    if (game.game.objectBank &&
-        game.objectHandles.find(handle) != game.objectHandles.end() &&
-        game.objectHandles[handle] < game.game.objectBank->items.size())
-    {
-      return &game.game.objectBank->items[game.objectHandles[handle]];
-    }
-    return nullptr;
+    if (!game.game.objectBank) return lak::err_t{error("No object bank")};
+
+    auto iter = game.objectHandles.find(handle);
+
+    if (iter == game.objectHandles.end())
+      return lak::err_t{error("Invalid object handle")};
+
+    if (iter->second >= game.game.objectBank->items.size())
+      return lak::err_t{error("Object bank handle out of range")};
+
+    return lak::ok_t{game.game.objectBank->items[iter->second]};
   }
 
-  image::item_t *GetImage(game_t &game, uint32_t handle)
+  result_t<image::item_t &> GetImage(game_t &game, uint32_t handle)
   {
-    if (game.game.imageBank &&
-        game.imageHandles.find(handle) != game.imageHandles.end() &&
-        game.imageHandles[handle] < game.game.imageBank->items.size())
-    {
-      return &game.game.imageBank->items[game.imageHandles[handle]];
-    }
-    return nullptr;
+    if (!game.game.imageBank) return lak::err_t{error("No image bank")};
+
+    auto iter = game.imageHandles.find(handle);
+
+    if (iter == game.imageHandles.end())
+      return lak::err_t{error("Invalid image handle")};
+
+    if (iter->second >= game.game.imageBank->items.size())
+      return lak::err_t{error("Image bank handle out of range")};
+
+    return lak::ok_t{game.game.imageBank->items[iter->second]};
   }
 
   lak::memory data_point_t::decode(const chunk_t ID,
@@ -1134,7 +1139,8 @@ namespace SourceExplorer
 
   error_t chunk_entry_t::read(game_t &game, lak::memory &strm)
   {
-    if (!strm.remaining()) return error_t::out_of_data;
+    if (!strm.remaining())
+      return lak::err_t{error(error::out_of_data, LINE_TRACE_STR)};
 
     position = strm.position;
     old      = game.oldGame;
@@ -1184,7 +1190,7 @@ namespace SourceExplorer
     }
     end = strm.position;
 
-    return error_t::ok;
+    return lak::ok_t{};
   }
 
   void chunk_entry_t::view(source_explorer_t &srcexp) const
@@ -1221,7 +1227,8 @@ namespace SourceExplorer
                              bool compressed,
                              size_t headersize)
   {
-    if (!strm.remaining()) return error_t::out_of_data;
+    if (!strm.remaining())
+      return lak::err_t{error(error::out_of_data, LINE_TRACE_STR)};
 
     position = strm.position;
     old      = game.oldGame;
@@ -1279,7 +1286,7 @@ namespace SourceExplorer
 
     end = strm.position;
 
-    return error_t::ok;
+    return lak::ok_t{};
   }
 
   void item_entry_t::view(source_explorer_t &srcexp) const
@@ -1477,8 +1484,6 @@ namespace SourceExplorer
   error_t basic_chunk_t::basic_view(source_explorer_t &srcexp,
                                     const char *name) const
   {
-    error_t result = error_t::ok;
-
     if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
     {
       ImGui::Separator();
@@ -1489,7 +1494,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return result;
+    return lak::ok_t{};
   }
 
   error_t basic_item_t::read(game_t &game, lak::memory &strm)
@@ -1502,8 +1507,6 @@ namespace SourceExplorer
   error_t basic_item_t::basic_view(source_explorer_t &srcexp,
                                    const char *name) const
   {
-    error_t result = error_t::ok;
-
     if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
     {
       ImGui::Separator();
@@ -1514,25 +1517,24 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return result;
+    return lak::ok_t{};
   }
 
   error_t string_chunk_t::read(game_t &game, lak::memory &strm)
   {
     DEBUG("Reading String Chunk");
-    error_t result = entry.read(game, strm);
-    if (result == error_t::ok)
-      value = ReadStringEntry(game, entry);
-    else
-      ERROR("Failed To Read String Chunk (", error_name(result), ")");
-    return result;
+
+    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
+
+    value = ReadStringEntry(game, entry);
+
+    return lak::ok_t{};
   }
 
   error_t string_chunk_t::view(source_explorer_t &srcexp,
                                const char *name,
                                const bool preview) const
   {
-    error_t result   = error_t::ok;
     lak::astring str = astring();
     bool open        = false;
 
@@ -1558,7 +1560,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return result;
+    return lak::ok_t{};
   }
 
   lak::u16string string_chunk_t::u16string() const { return value; }
@@ -1576,31 +1578,25 @@ namespace SourceExplorer
   error_t strings_chunk_t::read(game_t &game, lak::memory &strm)
   {
     DEBUG("Reading Strings Chunk");
-    error_t result = entry.read(game, strm);
-    if (result == error_t::ok)
-    {
-      auto sstrm = entry.decode();
 
-      while (sstrm.remaining())
-      {
-        auto str = sstrm.read_u16string(sstrm.remaining());
-        DEBUG("    Read String (Len ", str.length(), ")");
-        if (!str.length()) break;
-        values.emplace_back(str);
-      }
-    }
-    else
+    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
+
+    auto sstrm = entry.decode();
+
+    while (sstrm.remaining())
     {
-      ERROR("Failed To Read Strings Chunk (", error_name(result), ")");
+      auto str = sstrm.read_u16string(sstrm.remaining());
+      DEBUG("    Read String (Len ", str.length(), ")");
+      if (!str.length()) break;
+      values.emplace_back(str);
     }
-    return result;
+
+    return lak::ok_t{};
   }
 
   error_t strings_chunk_t::basic_view(source_explorer_t &srcexp,
                                       const char *name) const
   {
-    error_t result = error_t::ok;
-
     if (lak::TreeNode("0x%zX %s (%zu Items)##%zX",
                       (size_t)entry.ID,
                       name,
@@ -1617,7 +1613,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return result;
+    return lak::ok_t{};
   }
 
   error_t strings_chunk_t::view(source_explorer_t &srcexp) const
@@ -1627,8 +1623,6 @@ namespace SourceExplorer
 
   error_t compressed_chunk_t::view(source_explorer_t &srcexp) const
   {
-    error_t result = error_t::ok;
-
     if (lak::TreeNode(
           "0x%zX Unknown Compressed##%zX", (size_t)entry.ID, entry.position))
     {
@@ -1653,7 +1647,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return result;
+    return lak::ok_t{};
   }
 
   error_t vitalise_preview_t::view(source_explorer_t &srcexp) const
@@ -1719,7 +1713,8 @@ namespace SourceExplorer
   error_t icon_t::read(game_t &game, lak::memory &strm)
   {
     DEBUG("Reading Icon");
-    error_t result = entry.read(game, strm);
+
+    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
     auto dstrm     = entry.decode();
     dstrm.position = dstrm.peek_u32();
@@ -1763,13 +1758,11 @@ namespace SourceExplorer
       }
     }
 
-    return result;
+    return lak::ok_t{};
   }
 
   error_t icon_t::view(source_explorer_t &srcexp) const
   {
-    error_t result = error_t::ok;
-
     if (lak::TreeNode("0x%zX Icon##%zX", (size_t)entry.ID, entry.position))
     {
       ImGui::Separator();
@@ -1788,7 +1781,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return result;
+    return lak::ok_t{};
   }
 
   error_t demo_version_t::view(source_explorer_t &srcexp) const
@@ -1812,7 +1805,7 @@ namespace SourceExplorer
 
     data = strm.read(strm.read_u32());
 
-    return error_t::ok;
+    return lak::ok_t{};
   }
 
   error_t binary_file_t::view(source_explorer_t &srcexp) const
@@ -1828,22 +1821,21 @@ namespace SourceExplorer
       ImGui::Separator();
       ImGui::TreePop();
     }
-    return error_t::ok;
+
+    return lak::ok_t{};
   }
 
   error_t binary_files_t::read(game_t &game, lak::memory &strm)
   {
     DEBUG("Reading Binary Files");
-    error_t result = entry.read(game, strm);
 
-    if (result == error_t::ok)
-    {
-      lak::memory bstrm = entry.decode();
-      items.resize(bstrm.read_u32());
-      for (auto &item : items) item.read(game, bstrm);
-    }
+    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
-    return result;
+    lak::memory bstrm = entry.decode();
+    items.resize(bstrm.read_u32());
+    for (auto &item : items) item.read(game, bstrm);
+
+    return lak::ok_t{};
   }
 
   error_t binary_files_t::view(source_explorer_t &srcexp) const
@@ -1866,7 +1858,8 @@ namespace SourceExplorer
       ImGui::Separator();
       ImGui::TreePop();
     }
-    return error_t::ok;
+
+    return lak::ok_t{};
   }
 
   error_t menu_images_t::view(source_explorer_t &srcexp) const
@@ -1945,7 +1938,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return error_t::ok;
+    return lak::ok_t{};
   }
 
   error_t spacer_t::view(source_explorer_t &srcexp) const
@@ -1970,22 +1963,23 @@ namespace SourceExplorer
 
   error_t object_properties_t::read(game_t &game, lak::memory &strm)
   {
-    error_t result = entry.read(game, strm);
+    DEFER_RESET(strm.position);
 
-    if (result != error_t::ok) return result;
+    HANDLE_RESULT_ERR(error);
+
+    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
     const auto end = strm.position;
     strm.position  = entry.data.position;
 
-    while (strm.position < end && result == error_t::ok)
+    while (strm.position < end)
     {
       items.emplace_back();
-      result = items.back().read(game, strm, false);
+      RES_TRY_ERR(
+        items.back().read(game, strm, false).map_err(APPEND_TRACE()));
     }
 
-    strm.position = end;
-
-    return result;
+    return lak::ok_t{};
   }
 
   error_t object_properties_t::view(source_explorer_t &srcexp) const
@@ -2017,7 +2011,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return error_t::ok;
+    return lak::ok_t{};
   }
 
   error_t truetype_fonts_meta_t::view(source_explorer_t &srcexp) const
@@ -2027,22 +2021,23 @@ namespace SourceExplorer
 
   error_t truetype_fonts_t::read(game_t &game, lak::memory &strm)
   {
-    error_t result = entry.read(game, strm);
+    DEFER_RESET(strm.position);
 
-    if (result != error_t::ok) return result;
+    HANDLE_RESULT_ERR(error);
+
+    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
     const auto end = strm.position;
     strm.position  = entry.data.position;
 
-    while (strm.position < end && result == error_t::ok)
+    while (strm.position < end)
     {
       items.emplace_back();
-      result = items.back().read(game, strm, false);
+      RES_TRY_ERR(
+        items.back().read(game, strm, false).map_err(APPEND_TRACE()));
     }
 
-    strm.position = end;
-
-    return result;
+    return lak::ok_t{};
   }
 
   error_t truetype_fonts_t::view(source_explorer_t &srcexp) const
@@ -2073,7 +2068,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return error_t::ok;
+    return lak::ok_t{};
   }
 
   namespace object
@@ -2127,7 +2122,7 @@ namespace SourceExplorer
         handle = strm.read_u16();
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t shape_t::view(source_explorer_t &srcexp) const
@@ -2167,26 +2162,25 @@ namespace SourceExplorer
         ImGui::Separator();
         ImGui::TreePop();
       }
-      return error_t::ok;
+
+      return lak::ok_t{};
     }
 
     error_t quick_backdrop_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Quick Backdrop");
-      error_t result = entry.read(game, strm);
 
-      if (result == error_t::ok)
-      {
-        lak::memory qstrm = entry.decode();
-        size              = qstrm.read_u32();
-        obstacle          = qstrm.read_u16();
-        collision         = qstrm.read_u16();
-        dimension.x       = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
-        dimension.y       = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
-        shape.read(game, qstrm);
-      }
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
-      return result;
+      lak::memory qstrm = entry.decode();
+      size              = qstrm.read_u32();
+      obstacle          = qstrm.read_u16();
+      collision         = qstrm.read_u16();
+      dimension.x       = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
+      dimension.y       = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
+      shape.read(game, qstrm);
+
+      return lak::ok_t{};
     }
 
     error_t quick_backdrop_t::view(source_explorer_t &srcexp) const
@@ -2210,35 +2204,33 @@ namespace SourceExplorer
         ImGui::Text("Handle: 0x%zX", (size_t)shape.handle);
         if (shape.handle < 0xFFFF)
         {
-          auto *img = GetImage(srcexp.state, shape.handle);
-          if (img) img->view(srcexp);
+          if (auto img = GetImage(srcexp.state, shape.handle); img.is_ok())
+            img.unwrap().view(srcexp);
         }
 
         ImGui::Separator();
         ImGui::TreePop();
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t backdrop_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Backdrop");
-      error_t result = entry.read(game, strm);
 
-      if (result == error_t::ok)
-      {
-        lak::memory bstrm = entry.decode();
-        size              = bstrm.read_u32();
-        obstacle          = bstrm.read_u16();
-        collision         = bstrm.read_u16();
-        dimension.x       = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
-        dimension.y       = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
-        // if (!game.oldGame) bstrm.skip(2);
-        handle = bstrm.read_u16();
-      }
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
-      return result;
+      lak::memory bstrm = entry.decode();
+      size              = bstrm.read_u32();
+      obstacle          = bstrm.read_u16();
+      collision         = bstrm.read_u16();
+      dimension.x       = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
+      dimension.y       = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
+      // if (!game.oldGame) bstrm.skip(2);
+      handle = bstrm.read_u16();
+
+      return lak::ok_t{};
     }
 
     error_t backdrop_t::view(source_explorer_t &srcexp) const
@@ -2259,15 +2251,15 @@ namespace SourceExplorer
         ImGui::Text("Handle: 0x%zX", (size_t)handle);
         if (handle < 0xFFFF)
         {
-          auto *img = GetImage(srcexp.state, handle);
-          if (img) img->view(srcexp);
+          if (auto img = GetImage(srcexp.state, handle); img.is_ok())
+            img.unwrap().view(srcexp);
         }
 
         ImGui::Separator();
         ImGui::TreePop();
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t animation_direction_t::read(game_t &game, lak::memory &strm)
@@ -2281,7 +2273,7 @@ namespace SourceExplorer
       handles.resize(strm.read_u16());
       for (auto &handle : handles) handle = strm.read_u16();
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t animation_direction_t::view(source_explorer_t &srcexp) const
@@ -2296,12 +2288,12 @@ namespace SourceExplorer
       for (const auto &handle : handles)
       {
         ImGui::PushID(index++);
-        auto *img = GetImage(srcexp.state, handle);
-        if (img) img->view(srcexp);
+        if (auto img = GetImage(srcexp.state, handle); img.is_ok())
+          img.unwrap().view(srcexp);
         ImGui::PopID();
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t animation_t::read(game_t &game, lak::memory &strm)
@@ -2324,7 +2316,7 @@ namespace SourceExplorer
         ++index;
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t animation_t::view(source_explorer_t &srcexp) const
@@ -2343,7 +2335,7 @@ namespace SourceExplorer
         ++index;
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t animation_header_t::read(game_t &game, lak::memory &strm)
@@ -2370,7 +2362,7 @@ namespace SourceExplorer
         ++index;
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t animation_header_t::view(source_explorer_t &srcexp) const
@@ -2397,98 +2389,96 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t common_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Common Object");
-      error_t result = entry.read(game, strm);
 
-      if (result == error_t::ok)
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
+
+      lak::memory cstrm = entry.decode();
+
+      // if (game.productBuild >= 288 && !game.oldGame)
+      //     mode = game_mode_t::_288;
+      // if (game.productBuild >= 284 && !game.oldGame && !game.compat)
+      //     mode = game_mode_t::_284;
+      // else
+      //     mode = game_mode_t::_OLD;
+      mode = _mode;
+
+      const size_t begin = cstrm.position;
+
+      size = cstrm.read_u32();
+
+      if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
       {
-        lak::memory cstrm = entry.decode();
-
-        // if (game.productBuild >= 288 && !game.oldGame)
-        //     mode = game_mode_t::_288;
-        // if (game.productBuild >= 284 && !game.oldGame && !game.compat)
-        //     mode = game_mode_t::_284;
-        // else
-        //     mode = game_mode_t::_OLD;
-        mode = _mode;
-
-        const size_t begin = cstrm.position;
-
-        size = cstrm.read_u32();
-
-        if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
-        {
-          animationsOffset = cstrm.read_u16();
-          movementsOffset  = cstrm.read_u16(); // are these in the right order?
-          version          = cstrm.read_u16(); // are these in the right order?
-          counterOffset    = cstrm.read_u16(); // are these in the right order?
-          systemOffset     = cstrm.read_u16(); // are these in the right order?
-        }
-        // else if (mode == game_mode_t::_284)
-        // {
-        //     counterOffset = cstrm.read_u16();
-        //     version = cstrm.read_u16();
-        //     cstrm.position += 2;
-        //     movementsOffset = cstrm.read_u16();
-        //     extensionOffset = cstrm.read_u16();
-        //     animationsOffset = cstrm.read_u16();
-        // }
-        else
-        {
-          movementsOffset  = cstrm.read_u16();
-          animationsOffset = cstrm.read_u16();
-          version          = cstrm.read_u16();
-          counterOffset    = cstrm.read_u16();
-          systemOffset     = cstrm.read_u16();
-        }
-
-        flags = cstrm.read_u32();
-
-        const size_t end = cstrm.position + 16;
-
-        // qualifiers.clear();
-        // qualifiers.reserve(8);
-        // for (size_t i = 0; i < 8; ++i)
-        // {
-        //     int16_t qualifier = cstrm.read_s16();
-        //     if (qualifier == -1)
-        //         break;
-        //     qualifiers.push_back(qualifier);
-        // }
-
-        cstrm.position = end;
-
-        if (mode == game_mode_t::_284)
-          systemOffset = cstrm.read_u16();
-        else
-          extensionOffset = cstrm.read_u16();
-
-        valuesOffset  = cstrm.read_u16();
-        stringsOffset = cstrm.read_u16();
-        newFlags      = cstrm.read_u32();
-        preferences   = cstrm.read_u32();
-        identifier    = cstrm.read_u32();
-        backColor.r   = cstrm.read_u8();
-        backColor.g   = cstrm.read_u8();
-        backColor.b   = cstrm.read_u8();
-        backColor.a   = cstrm.read_u8();
-        fadeInOffset  = cstrm.read_u32();
-        fadeOutOffset = cstrm.read_u32();
-
-        if (animationsOffset > 0)
-        {
-          cstrm.position = begin + animationsOffset;
-          animations     = std::make_unique<animation_header_t>();
-          animations->read(game, cstrm);
-        }
+        animationsOffset = cstrm.read_u16();
+        movementsOffset  = cstrm.read_u16(); // are these in the right order?
+        version          = cstrm.read_u16(); // are these in the right order?
+        counterOffset    = cstrm.read_u16(); // are these in the right order?
+        systemOffset     = cstrm.read_u16(); // are these in the right order?
+      }
+      // else if (mode == game_mode_t::_284)
+      // {
+      //     counterOffset = cstrm.read_u16();
+      //     version = cstrm.read_u16();
+      //     cstrm.position += 2;
+      //     movementsOffset = cstrm.read_u16();
+      //     extensionOffset = cstrm.read_u16();
+      //     animationsOffset = cstrm.read_u16();
+      // }
+      else
+      {
+        movementsOffset  = cstrm.read_u16();
+        animationsOffset = cstrm.read_u16();
+        version          = cstrm.read_u16();
+        counterOffset    = cstrm.read_u16();
+        systemOffset     = cstrm.read_u16();
       }
 
-      return result;
+      flags = cstrm.read_u32();
+
+      const size_t end = cstrm.position + 16;
+
+      // qualifiers.clear();
+      // qualifiers.reserve(8);
+      // for (size_t i = 0; i < 8; ++i)
+      // {
+      //     int16_t qualifier = cstrm.read_s16();
+      //     if (qualifier == -1)
+      //         break;
+      //     qualifiers.push_back(qualifier);
+      // }
+
+      cstrm.position = end;
+
+      if (mode == game_mode_t::_284)
+        systemOffset = cstrm.read_u16();
+      else
+        extensionOffset = cstrm.read_u16();
+
+      valuesOffset  = cstrm.read_u16();
+      stringsOffset = cstrm.read_u16();
+      newFlags      = cstrm.read_u32();
+      preferences   = cstrm.read_u32();
+      identifier    = cstrm.read_u32();
+      backColor.r   = cstrm.read_u8();
+      backColor.g   = cstrm.read_u8();
+      backColor.b   = cstrm.read_u8();
+      backColor.a   = cstrm.read_u8();
+      fadeInOffset  = cstrm.read_u32();
+      fadeOutOffset = cstrm.read_u32();
+
+      if (animationsOffset > 0)
+      {
+        cstrm.position = begin + animationsOffset;
+        animations     = std::make_unique<animation_header_t>();
+        animations->read(game, cstrm);
+      }
+
+      return lak::ok_t{};
     }
 
     error_t common_t::view(source_explorer_t &srcexp) const
@@ -2548,13 +2538,15 @@ namespace SourceExplorer
         ImGui::Separator();
         ImGui::TreePop();
       }
-      return error_t::ok;
+
+      return lak::ok_t{};
     }
 
     error_t item_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Object");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       auto dstrm = entry.decode();
       handle     = dstrm.read_u16();
@@ -2564,13 +2556,13 @@ namespace SourceExplorer
       inkEffect      = dstrm.read_u32();
       inkEffectParam = dstrm.read_u32();
 
-      while (result == error_t::ok)
+      for (bool not_finished = true; not_finished;)
       {
         switch ((chunk_t)strm.peek_u16())
         {
           case chunk_t::object_name:
-            name   = std::make_unique<string_chunk_t>();
-            result = name->read(game, strm);
+            name = std::make_unique<string_chunk_t>();
+            RES_TRY_ERR(name->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::object_properties:
@@ -2578,39 +2570,42 @@ namespace SourceExplorer
             {
               case object_type_t::quick_backdrop:
                 quickBackdrop = std::make_unique<quick_backdrop_t>();
-                quickBackdrop->read(game, strm);
+                RES_TRY_ERR(
+                  quickBackdrop->read(game, strm).map_err(APPEND_TRACE()));
                 break;
+
               case object_type_t::backdrop:
                 backdrop = std::make_unique<backdrop_t>();
-                backdrop->read(game, strm);
+                RES_TRY_ERR(
+                  backdrop->read(game, strm).map_err(APPEND_TRACE()));
                 break;
+
               default:
                 common = std::make_unique<common_t>();
-                common->read(game, strm);
+                RES_TRY_ERR(common->read(game, strm).map_err(APPEND_TRACE()));
                 break;
             }
             break;
 
           case chunk_t::object_effect:
             effect = std::make_unique<effect_t>();
-            result = effect->read(game, strm);
+            RES_TRY_ERR(effect->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::last:
-            end    = std::make_unique<last_t>();
-            result = end->read(game, strm);
-          default: goto finished;
+            end = std::make_unique<last_t>();
+            RES_TRY_ERR(end->read(game, strm).map_err(APPEND_TRACE()));
+            [[fallthrough]];
+
+          default: not_finished = false; break;
         }
       }
-    finished:
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX %s '%s'##%zX",
                         (size_t)entry.ID,
                         GetObjectTypeString(type),
@@ -2639,7 +2634,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     std::unordered_map<uint32_t, std::vector<std::u16string>>
@@ -2682,16 +2677,18 @@ namespace SourceExplorer
     error_t bank_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Object Bank");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       strm.position = entry.data.position;
 
       items.resize(strm.read_u32());
 
+      error_t result = lak::ok_t{};
+
       for (auto &item : items)
       {
-        if (result != error_t::ok) break;
-        result         = item.read(game, strm);
+        if (result = item.read(game, strm); result.is_err()) break;
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
 
@@ -2715,8 +2712,6 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX Object Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
                         items.size(),
@@ -2733,7 +2728,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
   }
 
@@ -2752,29 +2747,25 @@ namespace SourceExplorer
     error_t palette_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Frame Palette");
-      error_t result = entry.read(game, strm);
 
-      if (result == error_t::ok)
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
+
+      auto pstrm = entry.decode();
+      unknown    = pstrm.read_u32();
+      for (auto &color : colors)
       {
-        auto pstrm = entry.decode();
-        unknown    = pstrm.read_u32();
-        for (auto &color : colors)
-        {
-          color.r = pstrm.read_u8();
-          color.g = pstrm.read_u8();
-          color.b = pstrm.read_u8();
-          /* color.a = */ pstrm.read_u8();
-          color.a = 255u;
-        }
+        color.r = pstrm.read_u8();
+        color.g = pstrm.read_u8();
+        color.b = pstrm.read_u8();
+        /* color.a = */ pstrm.read_u8();
+        color.a = 255u;
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t palette_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode(
             "0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position))
       {
@@ -2796,7 +2787,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     lak::image4_t palette_t::image() const
@@ -2825,14 +2816,15 @@ namespace SourceExplorer
         unknown = strm.read_u16();
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t object_instance_t::view(source_explorer_t &srcexp) const
     {
-      auto *obj = GetObject(srcexp.state, handle);
       lak::u8string str;
-      if (obj && obj->name) str += lak::to_u8string(obj->name->value);
+      auto obj = GetObject(srcexp.state, handle);
+      if (obj.is_ok() && obj.unwrap().name)
+        str += lak::to_u8string(obj.unwrap().name->value);
 
       if (lak::TreeNode(
             "0x%zX %s##%zX", (size_t)handle, str.c_str(), (size_t)info))
@@ -2850,19 +2842,19 @@ namespace SourceExplorer
         ImGui::Text("Layer: 0x%zX", (size_t)layer);
         ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
 
-        if (obj) obj->view(srcexp);
+        if (obj.is_ok()) obj.unwrap().view(srcexp);
 
         switch (parentType)
         {
           case object_parent_type_t::frame_item:
-            if (auto *parentObj = GetObject(srcexp.state, parentHandle);
-                parentObj)
-              parentObj->view(srcexp);
+            if (auto parentObj = GetObject(srcexp.state, parentHandle);
+                parentObj.is_ok())
+              parentObj.unwrap().view(srcexp);
             break;
           case object_parent_type_t::frame:
-            if (auto *parentObj = GetFrame(srcexp.state, parentHandle);
-                parentObj)
-              parentObj->view(srcexp);
+            if (auto parentObj = GetFrame(srcexp.state, parentHandle);
+                parentObj.is_ok())
+              parentObj.unwrap().view(srcexp);
             break;
           case object_parent_type_t::none:
           case object_parent_type_t::qualifier:
@@ -2873,30 +2865,26 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return error_t::ok;
+      return lak::ok_t{};
     }
 
     error_t object_instances_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Object Instances");
-      error_t result = entry.read(game, strm);
 
-      if (result == error_t::ok)
-      {
-        auto hstrm = entry.decode();
-        objects.clear();
-        objects.resize(hstrm.read_u32());
-        DEBUG("Objects: ", objects.size());
-        for (auto &object : objects) object.read(game, hstrm);
-      }
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
-      return result;
+      auto hstrm = entry.decode();
+      objects.clear();
+      objects.resize(hstrm.read_u32());
+      DEBUG("Objects: ", objects.size());
+      for (auto &object : objects) object.read(game, hstrm);
+
+      return lak::ok_t{};
     }
 
     error_t object_instances_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode(
             "0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position))
       {
@@ -2911,7 +2899,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t fade_in_frame_t::view(source_explorer_t &srcexp) const
@@ -2981,8 +2969,6 @@ namespace SourceExplorer
 
     error_t random_seed_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode(
             "0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position))
       {
@@ -2995,7 +2981,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t layer_effect_t::view(source_explorer_t &srcexp) const
@@ -3036,153 +3022,161 @@ namespace SourceExplorer
     error_t item_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Frame");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       strm.position = entry.position + 0x8;
 
-      while (result == error_t::ok)
+      for (bool not_finished = true; not_finished;)
       {
         game.completed = (float)((double)strm.position / (double)strm.size());
         switch ((chunk_t)strm.peek_u16())
         {
           case chunk_t::frame_name:
-            name   = std::make_unique<string_chunk_t>();
-            result = name->read(game, strm);
+            name = std::make_unique<string_chunk_t>();
+            RES_TRY_ERR(name->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_header:
             header = std::make_unique<header_t>();
-            result = header->read(game, strm);
+            RES_TRY_ERR(header->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_password:
             password = std::make_unique<password_t>();
-            result   = password->read(game, strm);
+            RES_TRY_ERR(password->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_palette:
             palette = std::make_unique<palette_t>();
-            result  = palette->read(game, strm);
+            RES_TRY_ERR(palette->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_object_instances:
             objectInstances = std::make_unique<object_instances_t>();
-            result          = objectInstances->read(game, strm);
+            RES_TRY_ERR(
+              objectInstances->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_fade_in_frame:
             fadeInFrame = std::make_unique<fade_in_frame_t>();
-            result      = fadeInFrame->read(game, strm);
+            RES_TRY_ERR(fadeInFrame->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_fade_out_frame:
             fadeOutFrame = std::make_unique<fade_out_frame_t>();
-            result       = fadeOutFrame->read(game, strm);
+            RES_TRY_ERR(
+              fadeOutFrame->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_fade_in:
             fadeIn = std::make_unique<fade_in_t>();
-            result = fadeIn->read(game, strm);
+            RES_TRY_ERR(fadeIn->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_fade_out:
             fadeOut = std::make_unique<fade_out_t>();
-            result  = fadeOut->read(game, strm);
+            RES_TRY_ERR(fadeOut->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_events:
             events = std::make_unique<events_t>();
-            result = events->read(game, strm);
+            RES_TRY_ERR(events->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_play_header:
             playHead = std::make_unique<play_header_r>();
-            result   = playHead->read(game, strm);
+            RES_TRY_ERR(playHead->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_additional_items:
             additionalItem = std::make_unique<additional_item_t>();
-            result         = additionalItem->read(game, strm);
+            RES_TRY_ERR(
+              additionalItem->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_additional_items_instances:
             additionalItemInstance =
               std::make_unique<additional_item_instance_t>();
-            result = additionalItemInstance->read(game, strm);
+            RES_TRY_ERR(additionalItemInstance->read(game, strm)
+                          .map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_layers:
             layers = std::make_unique<layers_t>();
-            result = layers->read(game, strm);
+            RES_TRY_ERR(layers->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_virtual_size:
             virtualSize = std::make_unique<virtual_size_t>();
-            result      = virtualSize->read(game, strm);
+            RES_TRY_ERR(virtualSize->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::demo_file_path:
             demoFilePath = std::make_unique<demo_file_path_t>();
-            result       = demoFilePath->read(game, strm);
+            RES_TRY_ERR(
+              demoFilePath->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::random_seed:
             randomSeed = std::make_unique<random_seed_t>();
-            result     = randomSeed->read(game, strm);
+            RES_TRY_ERR(randomSeed->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_layer_effect:
             layerEffect = std::make_unique<layer_effect_t>();
-            result      = layerEffect->read(game, strm);
+            RES_TRY_ERR(layerEffect->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_bluray:
             blueray = std::make_unique<blueray_t>();
-            result  = blueray->read(game, strm);
+            RES_TRY_ERR(blueray->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::movement_timer_base:
             movementTimeBase = std::make_unique<movement_time_base_t>();
-            result           = movementTimeBase->read(game, strm);
+            RES_TRY_ERR(
+              movementTimeBase->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::mosaic_image_table:
             mosaicImageTable = std::make_unique<mosaic_image_table_t>();
-            result           = mosaicImageTable->read(game, strm);
+            RES_TRY_ERR(
+              mosaicImageTable->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_effects:
             effects = std::make_unique<effects_t>();
-            result  = effects->read(game, strm);
+            RES_TRY_ERR(effects->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_iphone_options:
             iphoneOptions = std::make_unique<iphone_options_t>();
-            result        = iphoneOptions->read(game, strm);
+            RES_TRY_ERR(
+              iphoneOptions->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::frame_chunk334C:
             chunk334C = std::make_unique<chunk_334C_t>();
-            result    = chunk334C->read(game, strm);
+            RES_TRY_ERR(chunk334C->read(game, strm).map_err(APPEND_TRACE()));
             break;
 
           case chunk_t::last:
-            end    = std::make_unique<last_t>();
-            result = end->read(game, strm);
-          default: goto finished;
+            end = std::make_unique<last_t>();
+            RES_TRY_ERR(end->read(game, strm).map_err(APPEND_TRACE()));
+            [[falthrough]];
+
+          default: not_finished = false; break;
         }
       }
 
       strm.position = entry.end;
 
-    finished:
-      return result;
+      return lak::ok_t{};
     }
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX '%s'##%zX",
                         (size_t)entry.ID,
                         (name ? lak::strconv<char>(name->value).c_str() : ""),
@@ -3221,22 +3215,20 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t handles_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Frame Handles");
-      error_t result = entry.read(game, strm);
 
-      if (result == error_t::ok)
-      {
-        auto hstrm = entry.decode();
-        handles.resize(hstrm.size() / 2);
-        for (auto &handle : handles) handle = hstrm.read_u16();
-      }
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
-      return result;
+      auto hstrm = entry.decode();
+      handles.resize(hstrm.size() / 2);
+      for (auto &handle : handles) handle = hstrm.read_u16();
+
+      return lak::ok_t{};
     }
 
     error_t handles_t::view(source_explorer_t &srcexp) const
@@ -3247,14 +3239,15 @@ namespace SourceExplorer
     error_t bank_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Frame Bank");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       items.clear();
-      while (result == error_t::ok &&
-             (chunk_t)strm.peek_u16() == chunk_t::frame)
+      error_t result = lak::ok_t{};
+      while ((chunk_t)strm.peek_u16() == chunk_t::frame)
       {
         items.emplace_back();
-        result         = items.back().read(game, strm);
+        if (result = items.back().read(game, strm); result.is_err()) break;
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
 
@@ -3278,8 +3271,6 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX Frame Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
                         items.size(),
@@ -3296,7 +3287,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
   }
 
@@ -3304,53 +3295,46 @@ namespace SourceExplorer
   {
     error_t item_t::read(game_t &game, lak::memory &strm)
     {
-      error_t result = entry.read(game, strm, true);
+      RES_TRY_ERR(entry.read(game, strm, true).map_err(APPEND_TRACE()));
 
       if (!game.oldGame && game.productBuild >= 284) --entry.handle;
 
       DEBUG("Reading Image (Handle: ", entry.handle, ")");
 
-      if (result == error_t::ok)
-      {
-        lak::memory istrm = entry.decode(176 + (game.oldGame ? 16 : 80));
-        if (game.oldGame)
-          checksum = istrm.read_u16();
-        else
-          checksum = istrm.read_u32();
-        reference    = istrm.read_u32();
-        dataSize     = istrm.read_u32();
-        size.x       = istrm.read_u16();
-        size.y       = istrm.read_u16();
-        graphicsMode = (graphics_mode_t)istrm.read_u8();
-        flags        = (image_flag_t)istrm.read_u8();
-#if 0
-        if (graphicsMode <= graphics_mode_t::graphics3)
-        {
-          paletteEntries = istrm.read_u8();
-          for (size_t i = 0; i < palette.size();
-               ++i) // where is this size coming from???
-            palette[i] = ColorFrom32bitRGBA(strm); // not sure if RGBA or BGRA
-          count = strm.read_u32();
-        }
-#endif
-        if (!game.oldGame) unknown = istrm.read_u16();
-        hotspot.x = istrm.read_u16();
-        hotspot.y = istrm.read_u16();
-        action.x  = istrm.read_u16();
-        action.y  = istrm.read_u16();
-        if (!game.oldGame) transparent = ColorFrom32bitRGBA(istrm);
-        dataPosition = istrm.position;
-      }
+      lak::memory istrm = entry.decode(176 + (game.oldGame ? 16 : 80));
+      if (game.oldGame)
+        checksum = istrm.read_u16();
       else
-        ERROR("Error Reading Image (Handle: ", entry.handle, ")");
+        checksum = istrm.read_u32();
+      reference    = istrm.read_u32();
+      dataSize     = istrm.read_u32();
+      size.x       = istrm.read_u16();
+      size.y       = istrm.read_u16();
+      graphicsMode = (graphics_mode_t)istrm.read_u8();
+      flags        = (image_flag_t)istrm.read_u8();
+#if 0
+      if (graphicsMode <= graphics_mode_t::graphics3)
+      {
+        paletteEntries = istrm.read_u8();
+        for (size_t i = 0; i < palette.size();
+              ++i) // where is this size coming from???
+          palette[i] = ColorFrom32bitRGBA(strm); // not sure if RGBA or BGRA
+        count = strm.read_u32();
+      }
+#endif
+      if (!game.oldGame) unknown = istrm.read_u16();
+      hotspot.x = istrm.read_u16();
+      hotspot.y = istrm.read_u16();
+      action.x  = istrm.read_u16();
+      action.y  = istrm.read_u16();
+      if (!game.oldGame) transparent = ColorFrom32bitRGBA(istrm);
+      dataPosition = istrm.position;
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode(
             "0x%zX Image##%zX", (size_t)entry.handle, entry.position))
       {
@@ -3384,7 +3368,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     lak::memory item_t::image_data() const
@@ -3446,7 +3430,8 @@ namespace SourceExplorer
     error_t bank_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Image Bank");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       strm.position = entry.data.position;
 
@@ -3454,10 +3439,10 @@ namespace SourceExplorer
 
       DEBUG("Image Bank Size: ", items.size());
 
+      error_t result = lak::ok_t{};
       for (auto &item : items)
       {
-        if (result != error_t::ok) break;
-        result         = item.read(game, strm);
+        if (result = item.read(game, strm); result.is_err()) break;
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
 
@@ -3487,8 +3472,6 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX Image Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
                         items.size(),
@@ -3507,7 +3490,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
   }
 
@@ -3526,16 +3509,17 @@ namespace SourceExplorer
     error_t bank_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Font Bank");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       strm.position = entry.data.position;
 
       items.resize(strm.read_u32());
 
+      error_t result = lak::ok_t{};
       for (auto &item : items)
       {
-        if (result != error_t::ok) break;
-        result         = item.read(game, strm);
+        if (result = item.read(game, strm); result.is_err()) break;
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
 
@@ -3564,8 +3548,6 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX Font Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
                         items.size(),
@@ -3584,7 +3566,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
   }
 
@@ -3610,16 +3592,17 @@ namespace SourceExplorer
     error_t bank_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Sound Bank");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       strm.position = entry.data.position;
 
       items.resize(strm.read_u32());
 
+      error_t result = lak::ok_t{};
       for (auto &item : items)
       {
-        if (result != error_t::ok) break;
-        result         = item.read(game, strm);
+        if (result = item.read(game, strm); result.is_err()) break;
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
 
@@ -3649,8 +3632,6 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX Sound Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
                         items.size(),
@@ -3669,7 +3650,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
   }
 
@@ -3688,16 +3669,17 @@ namespace SourceExplorer
     error_t bank_t::read(game_t &game, lak::memory &strm)
     {
       DEBUG("Reading Music Bank");
-      error_t result = entry.read(game, strm);
+
+      RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
       strm.position = entry.data.position;
 
       items.resize(strm.read_u32());
 
+      error_t result = lak::ok_t{};
       for (auto &item : items)
       {
-        if (result != error_t::ok) break;
-        result         = item.read(game, strm);
+        if (result = item.read(game, strm); result.is_err()) break;
         game.completed = (float)((double)strm.position / (double)strm.size());
       }
 
@@ -3727,8 +3709,6 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      error_t result = error_t::ok;
-
       if (lak::TreeNode("0x%zX Music Bank (%zu Items)##%zX",
                         (size_t)entry.ID,
                         items.size(),
@@ -3747,7 +3727,7 @@ namespace SourceExplorer
         ImGui::TreePop();
       }
 
-      return result;
+      return lak::ok_t{};
     }
   }
 
@@ -3759,7 +3739,8 @@ namespace SourceExplorer
   error_t header_t::read(game_t &game, lak::memory &strm)
   {
     DEBUG("Reading Header");
-    error_t result = entry.read(game, strm);
+
+    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE()));
 
     auto init_chunk = [&](auto &chunk) {
       chunk = std::make_unique<
@@ -3767,7 +3748,7 @@ namespace SourceExplorer
       return chunk->read(game, strm);
     };
 
-    while (result == error_t::ok)
+    for (bool not_finished = true; not_finished;)
     {
       if (strm.size() > 0)
         game.completed = (float)((double)strm.position / (double)strm.size());
@@ -3776,197 +3757,198 @@ namespace SourceExplorer
       {
         case chunk_t::title:
           DEBUG("Reading Title");
-          result = init_chunk(title);
+          RES_TRY_ERR(init_chunk(title).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::author:
           DEBUG("Reading Author");
-          result = init_chunk(author);
+          RES_TRY_ERR(init_chunk(author).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::copyright:
           DEBUG("Reading Copyright");
-          result = init_chunk(copyright);
+          RES_TRY_ERR(init_chunk(copyright).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::project_path:
           DEBUG("Reading Project Path");
-          result = init_chunk(projectPath);
+          RES_TRY_ERR(init_chunk(projectPath).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::output_path:
           DEBUG("Reading Project Output Path");
-          result = init_chunk(outputPath);
+          RES_TRY_ERR(init_chunk(outputPath).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::about:
           DEBUG("Reading About");
-          result = init_chunk(about);
+          RES_TRY_ERR(init_chunk(about).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::vitalise_preview:
           DEBUG("Reading Project Vitalise Preview");
-          result = init_chunk(vitalisePreview);
+          RES_TRY_ERR(init_chunk(vitalisePreview).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::menu:
           DEBUG("Reading Project Menu");
-          result = init_chunk(menu);
+          RES_TRY_ERR(init_chunk(menu).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::extra_path:
           DEBUG("Reading Extension Path");
-          result = init_chunk(extensionPath);
+          RES_TRY_ERR(init_chunk(extensionPath).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::extensions:
           DEBUG("Reading Extensions");
-          result = init_chunk(extensions);
+          RES_TRY_ERR(init_chunk(extensions).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::extra_data:
           DEBUG("Reading Extension Data");
-          result = init_chunk(extensionData);
+          RES_TRY_ERR(init_chunk(extensionData).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::additional_extensions:
           DEBUG("Reading Additional Extensions");
-          result = init_chunk(additionalExtensions);
+          RES_TRY_ERR(
+            init_chunk(additionalExtensions).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::app_doc:
           DEBUG("Reading Application Doc");
-          result = init_chunk(appDoc);
+          RES_TRY_ERR(init_chunk(appDoc).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::other_extension:
           DEBUG("Reading Other Extension");
-          result = init_chunk(otherExtension);
+          RES_TRY_ERR(init_chunk(otherExtension).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::extensions_list:
           DEBUG("Reading Extension List");
-          result = init_chunk(extensionList);
+          RES_TRY_ERR(init_chunk(extensionList).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::icon:
           DEBUG("Reading Icon");
-          result = init_chunk(icon);
+          RES_TRY_ERR(init_chunk(icon).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::demo_version:
           DEBUG("Reading Demo Version");
-          result = init_chunk(demoVersion);
+          RES_TRY_ERR(init_chunk(demoVersion).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::security_number:
           DEBUG("Reading Security Number");
-          result = init_chunk(security);
+          RES_TRY_ERR(init_chunk(security).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::binary_files:
           DEBUG("Reading Binary Files");
-          result = init_chunk(binaryFiles);
+          RES_TRY_ERR(init_chunk(binaryFiles).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::menu_images:
           DEBUG("Reading Menu Images");
-          result = init_chunk(menuImages);
+          RES_TRY_ERR(init_chunk(menuImages).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::movement_extensions:
           DEBUG("Reading Movement Extensions");
-          result = init_chunk(movementExtensions);
+          RES_TRY_ERR(init_chunk(movementExtensions).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::exe_only:
           DEBUG("Reading EXE Only");
-          result = init_chunk(exe);
+          RES_TRY_ERR(init_chunk(exe).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::protection:
           DEBUG("Reading Protection");
-          result = init_chunk(protection);
+          RES_TRY_ERR(init_chunk(protection).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::shaders:
           DEBUG("Reading Shaders");
-          result = init_chunk(shaders);
+          RES_TRY_ERR(init_chunk(shaders).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::extended_header:
           DEBUG("Reading Extended Header");
-          result = init_chunk(extendedHeader);
+          RES_TRY_ERR(init_chunk(extendedHeader).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::spacer:
           DEBUG("Reading Spacer");
-          result = init_chunk(spacer);
+          RES_TRY_ERR(init_chunk(spacer).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::chunk224F:
           DEBUG("Reading Chunk 224F");
-          result = init_chunk(chunk224F);
+          RES_TRY_ERR(init_chunk(chunk224F).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::title2:
           DEBUG("Reading Title 2");
-          result = init_chunk(title2);
+          RES_TRY_ERR(init_chunk(title2).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::object_names:
           DEBUG("Reading Object Names");
-          result = init_chunk(objectNames);
+          RES_TRY_ERR(init_chunk(objectNames).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::object_properties:
           DEBUG("Reading Object Properties");
-          result = init_chunk(objectProperties);
+          RES_TRY_ERR(init_chunk(objectProperties).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::font_meta:
           DEBUG("Reading TrueType Fonts Meta");
-          result = init_chunk(truetypeFontsMeta);
+          RES_TRY_ERR(init_chunk(truetypeFontsMeta).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::font_chunk:
           DEBUG("Reading TrueType Fonts");
-          result = init_chunk(truetypeFonts);
+          RES_TRY_ERR(init_chunk(truetypeFonts).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::global_events:
           DEBUG("Reading Global Events");
-          result = init_chunk(globalEvents);
+          RES_TRY_ERR(init_chunk(globalEvents).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::global_strings:
           DEBUG("Reading Global Strings");
-          result = init_chunk(globalStrings);
+          RES_TRY_ERR(init_chunk(globalStrings).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::global_string_names:
           DEBUG("Reading Global String Names");
-          result = init_chunk(globalStringNames);
+          RES_TRY_ERR(init_chunk(globalStringNames).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::global_values:
           DEBUG("Reading Global Values");
-          result = init_chunk(globalValues);
+          RES_TRY_ERR(init_chunk(globalValues).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::global_value_names:
           DEBUG("Reading Global Value Names");
-          result = init_chunk(globalValueNames);
+          RES_TRY_ERR(init_chunk(globalValueNames).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::frame_handles:
           DEBUG("Reading Frame Handles");
-          result = init_chunk(frameHandles);
+          RES_TRY_ERR(init_chunk(frameHandles).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::frame_bank:
           DEBUG("Reading Fame Bank");
-          result = init_chunk(frameBank);
+          RES_TRY_ERR(init_chunk(frameBank).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::frame:
@@ -3974,66 +3956,64 @@ namespace SourceExplorer
           if (frameBank) ERROR("Frame Bank Already Exists");
           frameBank = std::make_unique<frame::bank_t>();
           frameBank->items.clear();
-          while (result == error_t::ok &&
-                 (chunk_t)strm.peek_u16() == chunk_t::frame)
+          while ((chunk_t)strm.peek_u16() == chunk_t::frame)
           {
             frameBank->items.emplace_back();
-            result = frameBank->items.back().read(game, strm);
+            if (frameBank->items.back().read(game, strm).is_err()) break;
           }
           break;
 
           // case chunk_t::object_bank2:
           //     DEBUG("Reading Object Bank 2");
-          //     result = init_chunk(objectBank2);
+          //     RES_TRY_ERR(init_chunk(objectBank2).map_err(APPEND_TRACE()));
           //     break;
 
         case chunk_t::object_bank:
         case chunk_t::object_bank2:
           DEBUG("Reading Object Bank");
-          result = init_chunk(objectBank);
+          RES_TRY_ERR(init_chunk(objectBank).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::image_bank:
           DEBUG("Reading Image Bank");
-          result = init_chunk(imageBank);
+          RES_TRY_ERR(init_chunk(imageBank).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::sound_bank:
           DEBUG("Reading Sound Bank");
-          result = init_chunk(soundBank);
+          RES_TRY_ERR(init_chunk(soundBank).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::music_bank:
           DEBUG("Reading Music Bank");
-          result = init_chunk(musicBank);
+          RES_TRY_ERR(init_chunk(musicBank).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::font_bank:
           DEBUG("Reading Font Bank");
-          result = init_chunk(fontBank);
+          RES_TRY_ERR(init_chunk(fontBank).map_err(APPEND_TRACE()));
           break;
 
         case chunk_t::last:
           DEBUG("Reading Last");
-          result = init_chunk(last);
-          goto finished;
+          RES_TRY_ERR(init_chunk(last).map_err(APPEND_TRACE()));
+          not_finished = false;
+          break;
 
         default:
           DEBUG("Invalid Chunk: ", (size_t)childID);
           unknownChunks.emplace_back();
-          result = unknownChunks.back().read(game, strm);
+          RES_TRY_ERR(
+            unknownChunks.back().read(game, strm).map_err(APPEND_TRACE()));
           break;
       }
     }
 
-  finished:
-    return result;
+    return lak::ok_t{};
   }
 
   error_t header_t::view(source_explorer_t &srcexp) const
   {
-    error_t result = error_t::ok;
-
     if (lak::TreeNode(
           "0x%zX Game Header##%zX", (size_t)entry.ID, entry.position))
     {
@@ -4108,7 +4088,7 @@ namespace SourceExplorer
       ImGui::TreePop();
     }
 
-    return result;
+    return lak::ok_t{};
   }
 }
 

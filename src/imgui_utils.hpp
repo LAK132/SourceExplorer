@@ -67,20 +67,18 @@ namespace lak
     VALID
   };
 
-  file_open_error open_file(fs::path &path,
-                            bool save,
-                            std::error_code &ec,
-                            ImVec2 size = {0, 0});
+  lak::result<file_open_error, std::error_code> open_file(
+    fs::path &path, bool save, ImVec2 size = {0, 0});
 
-  file_open_error open_folder(fs::path &path,
-                              std::error_code &ec,
-                              ImVec2 size = {0, 0});
+  lak::result<file_open_error, std::error_code> open_folder(fs::path &path,
+                                                            ImVec2 size = {0,
+                                                                           0});
 
-  file_open_error open_file_modal(fs::path &path,
-                                  bool save,
-                                  std::error_code &ec);
+  lak::result<file_open_error, std::error_code> open_file_modal(fs::path &path,
+                                                                bool save);
 
-  file_open_error open_folder_modal(fs::path &path, std::error_code &ec);
+  lak::result<file_open_error, std::error_code> open_folder_modal(
+    fs::path &path);
 
   template<typename R, typename... T, typename... D>
   bool await_popup(const char *str_id,

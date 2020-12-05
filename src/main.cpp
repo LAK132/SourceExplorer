@@ -934,14 +934,15 @@ void SourceBytePairsMain(float FrameTime)
   auto load = [](se::file_state_t &FileState) {
     lak::debugger.clear();
     std::error_code ec;
-    auto code = lak::open_file_modal(FileState.path, false, ec);
-    if (code == lak::file_open_error::VALID)
+    auto code = lak::open_file_modal(FileState.path, false);
+    if (code.is_ok() && code.unwrap() == lak::file_open_error::VALID)
     {
-      SrcExp.state      = se::game_t{};
-      SrcExp.state.file = lak::read_file(FileState.path);
+      SrcExp.state = se::game_t{};
+      SrcExp.state.file =
+        lak::read_file(FileState.path).EXPECT("failed to load file");
       return true;
     }
-    return code != lak::file_open_error::INCOMPLETE;
+    return code.is_err() || code.unwrap() != lak::file_open_error::INCOMPLETE;
   };
 
   auto manip = [] {
@@ -1028,9 +1029,11 @@ void basic_window_init(lak::window &window)
   lak::debugger.crash_path = SrcExp.errorLog.path =
     fs::current_path() / "SEND-THIS-CRASH-LOG-TO-LAK132.txt";
 
-  SrcExp.exe.path = SrcExp.images.path = SrcExp.sortedImages.path =
-    SrcExp.sounds.path = SrcExp.music.path = SrcExp.shaders.path =
-      SrcExp.binaryFiles.path = SrcExp.appicon.path = fs::current_path();
+  SrcExp.images.path = SrcExp.sortedImages.path = SrcExp.sounds.path =
+    SrcExp.music.path = SrcExp.shaders.path = SrcExp.binaryFiles.path =
+      SrcExp.appicon.path                   = fs::current_path();
+
+  if (!SrcExp.exe.attempt) SrcExp.exe.path = fs::current_path();
 
   imgui_context       = ImGui::ImplCreateContext(window.graphics());
   SrcExp.graphicsMode = window.graphics();

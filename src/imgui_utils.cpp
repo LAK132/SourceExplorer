@@ -78,29 +78,29 @@ namespace lak
     fs::path folder_parent;
     fs::path file;
 
-    bool refresh(const fs::path &path, std::error_code &ec)
+    lak::result<bool, std::error_code> refresh(const fs::path &path)
     {
-      auto norm = normalised(path);
-      if (norm != full())
+      if (auto norm = lak::normalised(path); norm != full())
       {
-        const auto [_folder, _file] = deepest_folder(norm, ec);
-        if (ec) return false;
+        auto deepest = lak::deepest_folder(norm);
+        if (deepest.is_err()) return lak::err_t{deepest.unwrap_err()};
+        const auto [_folder, _file] = deepest.unwrap();
 
         file = _file;
 
         if (_folder != folder)
         {
           folder            = _folder;
-          folder_has_parent = has_parent(folder);
-          folder_parent     = parent(folder);
-          return true;
+          folder_has_parent = lak::has_parent(folder);
+          folder_parent     = lak::parent(folder);
+          return lak::ok_t{true};
         }
       }
 
-      return false;
+      return lak::ok_t{false};
     }
 
-    fs::path full() { return normalised(folder / file); }
+    fs::path full() { return lak::normalised(folder / file); }
   };
 
   bool path_navigator(fs::path &path, std::error_code &ec, ImVec2 size)
@@ -110,7 +110,12 @@ namespace lak
     static std::vector<fs::path> files;
 
     if (path.empty()) path = fs::current_path();
-    if (cache.refresh(path, ec))
+    if (auto refreshed = cache.refresh(path); refreshed.is_err())
+    {
+      ec = refreshed.unwrap_err();
+      return false;
+    }
+    else if (refreshed.unwrap())
     {
       // Folder path changed
 
@@ -131,14 +136,13 @@ namespace lak
       std::sort(folders.begin(), folders.end());
       std::sort(files.begin(), files.end());
     }
-    if (ec) return false;
 
     if (ImGui::BeginChild(
           "##path_navigator", size, false, ImGuiWindowFlags_NoSavedSettings))
     {
       if (ImGui::Selectable("../"))
       {
-        path = parent(cache.folder) / cache.file;
+        path = lak::normalised(lak::parent(cache.folder) / cache.file);
       }
 
       ImGui::Separator();
@@ -169,24 +173,26 @@ namespace lak
     return path != cache.full();
   }
 
-  file_open_error open_file(fs::path &path,
-                            bool save,
-                            std::error_code &ec,
-                            ImVec2 size)
+  lak::result<file_open_error, std::error_code> open_file(fs::path &path,
+                                                          bool save,
+                                                          ImVec2 size)
   {
     static path_cache cache;
     static lak::astring file_str;
     static lak::astring folder_str;
     if (path.empty()) path = fs::current_path();
-    if (cache.refresh(path, ec))
+
+    if (auto refreshed = cache.refresh(path); refreshed.is_err())
+    {
+      return lak::err_t{refreshed.unwrap_err()};
+    }
+    else if (refreshed.unwrap())
     {
       file_str   = cache.file.u8string();
       folder_str = cache.folder.u8string();
     }
-    if (ec) return file_open_error::INVALID;
-    file_open_error code = file_open_error::INCOMPLETE;
 
-    if (ImGui::BeginChild(
+    if (DEFER(ImGui::EndChild()); ImGui::BeginChild(
           "##open_file", size, true, ImGuiWindowFlags_NoSavedSettings))
     {
       lak::input_text("Directory", &folder_str);
@@ -198,14 +204,17 @@ namespace lak
                                      -((ImGui::GetStyle().ItemSpacing.y +
                                         ImGui::GetFrameHeightWithSpacing()) *
                                        2));
+
+      std::error_code ec;
       if (auto full = cache.full(); path_navigator(full, ec, viewSize))
       {
-        cache.refresh(full, ec);
+        if (auto result = cache.refresh(full); result.is_err())
+          ec = result.unwrap_err();
         path       = cache.full();
         file_str   = cache.file.u8string();
         folder_str = cache.folder.u8string();
       }
-      if (ec) code = file_open_error::INVALID;
+      if (ec) return lak::err_t{ec};
 
       ImGui::Separator();
 
@@ -221,7 +230,7 @@ namespace lak
           if (ImGui::Button("Save"))
           {
             path = cache.full();
-            code = file_open_error::VALID;
+            return lak::ok_t{file_open_error::VALID};
           }
 
           ImGui::SameLine();
@@ -231,7 +240,7 @@ namespace lak
           if (ImGui::Button("Open"))
           {
             path = cache.full();
-            code = file_open_error::VALID;
+            return lak::ok_t{file_open_error::VALID};
           }
 
           ImGui::SameLine();
@@ -240,27 +249,29 @@ namespace lak
 
       if (ImGui::Button("Cancel"))
       {
-        code = file_open_error::CANCELED;
+        return lak::ok_t{file_open_error::CANCELED};
       }
     }
-    ImGui::EndChild();
 
-    return code;
+    return lak::ok_t{file_open_error::INCOMPLETE};
   }
 
-  file_open_error open_folder(fs::path &path, std::error_code &ec, ImVec2 size)
+  lak::result<file_open_error, std::error_code> open_folder(fs::path &path,
+                                                            ImVec2 size)
   {
     static path_cache cache;
     static lak::astring folder_str;
     if (path.empty()) path = fs::current_path();
-    if (cache.refresh(path, ec))
+    if (auto refreshed = cache.refresh(path); refreshed.is_err())
+    {
+      return lak::err_t{refreshed.unwrap_err()};
+    }
+    else if (refreshed.unwrap())
     {
       folder_str = cache.folder.u8string();
     }
-    if (ec) return file_open_error::INVALID;
-    file_open_error code = file_open_error::INCOMPLETE;
 
-    if (ImGui::BeginChild(
+    if (DEFER(ImGui::EndChild()); ImGui::BeginChild(
           "##open_folder", size, true, ImGuiWindowFlags_NoSavedSettings))
     {
       lak::input_text("Directory", &folder_str);
@@ -272,13 +283,15 @@ namespace lak
                                      -((ImGui::GetStyle().ItemSpacing.y +
                                         ImGui::GetFrameHeightWithSpacing()) *
                                        2));
+      std::error_code ec;
       if (auto full = cache.full(); path_navigator(full, ec, viewSize))
       {
-        cache.refresh(full, ec);
+        if (auto result = cache.refresh(full); result.is_err())
+          ec = result.unwrap_err();
         path       = cache.full();
         folder_str = cache.folder.u8string();
       }
-      if (ec) code = file_open_error::INVALID;
+      if (ec) return lak::err_t{ec};
 
       ImGui::Separator();
 
@@ -287,7 +300,7 @@ namespace lak
         if (ImGui::Button("Open"))
         {
           path = cache.full();
-          code = file_open_error::VALID;
+          return lak::ok_t{file_open_error::VALID};
         }
 
         ImGui::SameLine();
@@ -295,57 +308,56 @@ namespace lak
 
       if (ImGui::Button("Cancel"))
       {
-        code = file_open_error::CANCELED;
+        return lak::ok_t{file_open_error::CANCELED};
       }
     }
-    ImGui::EndChild();
 
-    return code;
+    return lak::ok_t{file_open_error::INCOMPLETE};
   }
 
-  file_open_error open_file_modal(fs::path &path,
-                                  bool save,
-                                  std::error_code &ec)
+  lak::result<file_open_error, std::error_code> open_file_modal(fs::path &path,
+                                                                bool save)
   {
-    file_open_error code = file_open_error::INCOMPLETE;
-    bool open            = true;
-    const char *name     = save ? "Save File" : "Open File";
+    const char *name = save ? "Save File" : "Open File";
 
     ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
-    if (ImGui::BeginPopupModal(name, &open, ImGuiWindowFlags_NoSavedSettings))
+    if (ImGui::BeginPopupModal(
+          name, nullptr, ImGuiWindowFlags_NoSavedSettings))
     {
-      code = open_file(path, save, ec);
-      if (code != file_open_error::INCOMPLETE)
+      DEFER(ImGui::EndPopup());
+      auto result = open_file(path, save);
+      if (!(result.is_ok() && result.unwrap() == file_open_error::INCOMPLETE))
       {
-        open = false;
         ImGui::CloseCurrentPopup();
+        return result;
       }
-      ImGui::EndPopup();
     }
 
-    if (open && !ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
-    return code;
+    if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
+
+    return lak::ok_t{file_open_error::INCOMPLETE};
   }
 
-  file_open_error open_folder_modal(fs::path &path, std::error_code &ec)
+  lak::result<file_open_error, std::error_code> open_folder_modal(
+    fs::path &path)
   {
-    file_open_error code = file_open_error::INCOMPLETE;
-    bool open            = true;
-    const char name[]    = "Open Folder";
+    const char name[] = "Open Folder";
 
     ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
-    if (ImGui::BeginPopupModal(name, &open, ImGuiWindowFlags_NoSavedSettings))
+    if (ImGui::BeginPopupModal(
+          name, nullptr, ImGuiWindowFlags_NoSavedSettings))
     {
-      code = open_folder(path, ec);
-      if (code != file_open_error::INCOMPLETE)
+      DEFER(ImGui::EndPopup());
+      auto result = open_folder(path);
+      if (!(result.is_ok() && result.unwrap() == file_open_error::INCOMPLETE))
       {
-        open = false;
         ImGui::CloseCurrentPopup();
+        return result;
       }
-      ImGui::EndPopup();
     }
 
-    if (open && !ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
-    return code;
+    if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
+
+    return lak::ok_t{file_open_error::INCOMPLETE};
   }
 }

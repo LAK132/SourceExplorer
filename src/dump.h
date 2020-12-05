@@ -31,14 +31,15 @@ SOFTWARE.
 
 namespace SourceExplorer
 {
-  bool SaveImage(const lak::image4_t &image, const fs::path &filename);
+  [[nodiscard]] error_t SaveImage(const lak::image4_t &image,
+                                  const fs::path &filename);
 
-  bool SaveImage(source_explorer_t &srcexp,
-                 uint16_t handle,
-                 const fs::path &filename,
-                 const frame::item_t *frame);
+  [[nodiscard]] error_t SaveImage(source_explorer_t &srcexp,
+                                  uint16_t handle,
+                                  const fs::path &filename,
+                                  const frame::item_t *frame);
 
-  bool OpenGame(source_explorer_t &srcexp);
+  [[nodiscard]] lak::await_result<error_t> OpenGame(source_explorer_t &srcexp);
 
   using dump_data_t = std::tuple<source_explorer_t &, std::atomic<float> &>;
 

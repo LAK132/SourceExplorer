@@ -90,11 +90,13 @@ SOFTWARE.)");
     ImGui::Text("https://github.com/skaslev/gl3w");
     ImGui::TreePop();
   }
+#  ifdef LAK_USE_SDL
   if (ImGui::TreeNode("SDL2"))
   {
     ImGui::Text("https://www.libsdl.org/");
     ImGui::TreePop();
   }
+#  endif
   if (ImGui::TreeNode("tinflate"))
   {
     ImGui::Text("http://achurch.org/tinflate.c");

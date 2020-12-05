@@ -917,8 +917,10 @@ namespace ImGui
     // appear here.
     DEFER(gl_context->vertex_array = 0);
     DEFER_CALL(glDeleteVertexArrays, 1, &gl_context->vertex_array);
-    auto old_scissor     = lak::opengl::get_int<4>(GL_SCISSOR_BOX);
+    auto old_scissor = lak::opengl::get_int<4>(GL_SCISSOR_BOX);
+#ifdef GL_CLIP_ORIGIN
     auto old_clip_origin = lak::opengl::get_enum(GL_CLIP_ORIGIN);
+#endif
     DEFER_CALL(glScissor,
                old_scissor[0],
                old_scissor[1],
@@ -953,7 +955,7 @@ namespace ImGui
 
     glGenVertexArrays(1, &gl_context->vertex_array);
 
-    const bool using_scissor_test = false;
+    const bool using_scissor_test = true;
 
     glUseProgram(gl_context->shader.get());
     glBindTexture(GL_TEXTURE_2D, gl_context->font.get());

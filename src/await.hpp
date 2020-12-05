@@ -25,48 +25,95 @@ SOFTWARE.
 #ifndef LAK_AWAIT_HPP
 #define LAK_AWAIT_HPP
 
+#include <lak/debug.hpp>
+#include <lak/result.hpp>
+
 #include <atomic>
+#include <ostream>
 #include <thread>
 #include <tuple>
 #include <vector>
 
 namespace lak
 {
-  template<typename R, typename... T, typename... D>
-  bool await(std::unique_ptr<std::thread> &thread,
-             std::atomic<bool> &finished,
-             R (*func)(T...),
-             const std::tuple<D...> &data)
+  enum struct await_error
   {
-    if (!thread)
-    {
-      finished.store(false);
-      void (*functor)(
-        std::atomic<bool> *, R(*)(T...), const std::tuple<D...> *) =
-        [](std::atomic<bool> *finished,
-           R (*f)(T...),
-           const std::tuple<D...> *data) {
-          try
-          {
-            std::apply(f, *data);
-          }
-          catch (...)
-          {
-          }
-          finished->store(true);
-        };
+    running = 0,
+    failed  = 1
+  };
 
-      thread = std::make_unique<std::thread>(
-        std::thread(functor, &finished, func, &data));
-    }
-    else if (finished.load())
+  template<typename T>
+  using await_result = lak::result<T, await_error>;
+
+  template<typename T>
+  struct await
+  {
+  private:
+    std::thread _thread;
+    std::atomic_bool _finished   = false;
+    lak::await_result<T> _result = lak::err_t{await_error::failed};
+
+  public:
+    await() = default;
+
+    await(const await &) = delete;
+    await(await &&)      = delete;
+
+    await &operator=(const await &) = delete;
+    await &operator=(await &&) = delete;
+
+    template<typename FUNCTOR, typename... ARGS>
+    lak::await_result<T> operator()(FUNCTOR &&functor, ARGS &&... args)
     {
-      thread->join();
-      thread.reset();
-      return true;
+      if (!_thread.joinable())
+      {
+        _finished = false;
+        _thread   = std::thread(
+          [](auto functor,
+             std::atomic_bool &finished,
+             lak::await_result<T> &result,
+             auto... arg) {
+            try
+            {
+              result = lak::ok_t{functor(arg...)};
+            }
+            catch (...)
+            {
+              result = lak::err_t{await_error::failed};
+            }
+            finished = true;
+          },
+          functor,
+          std::ref(_finished),
+          std::ref(_result),
+          lak::forward<ARGS>(args)...);
+      }
+      if (_finished)
+      {
+        _thread.join();
+        _finished = false;
+        if (_result.is_err())
+          ASSERT_EQUAL(_result.unwrap_err(), await_error::failed);
+        return _result;
+      }
+      else
+      {
+        return lak::err_t{await_error::running};
+      }
     }
-    return false;
+  };
+}
+
+static std::ostream &operator<<(std::ostream &strm,
+                                const lak::await_error &err)
+{
+  switch (err)
+  {
+    case lak::await_error::running: strm << "await running"; break;
+    case lak::await_error::failed: strm << "await failed"; break;
+    default: ASSERT_NYI(); break;
   }
+  return strm;
 }
 
 #endif
