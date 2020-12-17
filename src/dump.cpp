@@ -129,7 +129,7 @@ bool se::DumpStuff(source_explorer_t &srcexp,
   static lak::await<se::error_t> awaiter;
   static std::atomic<float> completed = 0.0f;
 
-  auto functor = [&]() -> se::error_t {
+  auto functor = [&, func]() -> se::error_t {
     func(srcexp, completed);
     return lak::ok_t{};
   };
