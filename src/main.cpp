@@ -96,8 +96,15 @@ void MenuBar(float FrameTime)
   if (ImGui::BeginMenu("About"))
   {
     ImGui::Text(APP_NAME " by LAK132");
-    if (SrcExp.graphicsMode == lak::graphics_mode::OpenGL)
-      ImGui::Text("OpenGL %d.%d", openglMajor, openglMinor);
+    switch (SrcExp.graphicsMode)
+    {
+      case lak::graphics_mode::OpenGL:
+        ImGui::Text("Using OpenGL %d.%d", openglMajor, openglMinor);
+        break;
+      case lak::graphics_mode::Software:
+        ImGui::Text("Using Softraster");
+        break;
+    }
     ImGui::Text("Frame rate %f", std::round(1.0f / FrameTime));
     credits();
     ImGui::Checkbox("Byte Pairs", &bytePairsMode);
