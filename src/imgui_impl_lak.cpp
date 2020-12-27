@@ -863,9 +863,6 @@ namespace ImGui
       sr_context->screen_texture.w * sr_context->screen_texture.h *
         sr_context->screen_texture.size);
     {
-      SCOPED_TIMER([](uint64_t diff) {
-        DEBUG("blit time: ", diff / (double)lak::performance_frequency())
-      });
       lak::blit(
         lak::image_subview(*sr_context->screen_surface),
         lak::image_subview(lak::image_view(
