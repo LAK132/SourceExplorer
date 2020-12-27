@@ -293,7 +293,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
     fs::create_directories(framePath / "[unsorted]", err);
     if (err)
     {
-      ERROR("File System Error: ", err.message());
+      ERROR("File System Error: (", err.value(), ")", err.message());
       continue;
     }
 
@@ -319,7 +319,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
           fs::create_directories(objectPath, err);
           if (err)
           {
-            ERROR("File System Error: ", err.message());
+            ERROR("File System Error: (", err.value(), ")", err.message());
             continue;
           }
 
@@ -349,7 +349,8 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                     if constexpr (lak::is_same_v<decltype(err),
                                                  std::error_code>)
                     {
-                      ERROR("Linking Failed: ", err.message());
+                      ERROR(
+                        "Linking Failed: (", err.value(), ")", err.message());
                     }
                     else
                     {
@@ -374,7 +375,10 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                       if constexpr (lak::is_same_v<decltype(err),
                                                    std::error_code>)
                       {
-                        ERROR("Linking Failed: ", err.message());
+                        ERROR("Linking Failed: (",
+                              err.value(),
+                              ")",
+                              err.message());
                       }
                       else
                       {
@@ -774,7 +778,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
           if (fs::create_directories(srcexp.sortedImages.path, er); er)
           {
             ERROR("Failed To Dump Images");
-            ERROR("File System Error: ", er.message());
+            ERROR("File System Error: (", er.value(), ")", er.message());
           }
           else
           {

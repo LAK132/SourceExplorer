@@ -940,7 +940,6 @@ void SourceBytePairsMain(float FrameTime)
 
   auto load = [](se::file_state_t &FileState) {
     lak::debugger.clear();
-    std::error_code ec;
     auto code = lak::open_file_modal(FileState.path, false);
     if (code.is_ok() && code.unwrap() == lak::file_open_error::VALID)
     {
