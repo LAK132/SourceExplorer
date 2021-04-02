@@ -23,7 +23,7 @@ bool encryption_table::init(lak::span<const uint8_t, 0x100> magic_key,
   {
     hash = rotate(hash);
 
-    if (never_reset_key) accum += ((hash & 1 == 0) ? 2 : 3) * *key;
+    if (never_reset_key) accum += (((hash & 1) == 0) ? 2 : 3) * *key;
 
     if (hash == *key)
     {
@@ -62,7 +62,7 @@ bool encryption_table::decode(lak::span<uint8_t> chunk) const
     ++i;
     i2 += (uint8_t)buffer.u32[i];
     std::swap(buffer.u32[i], buffer.u32[i2]);
-    elem ^= buffer.u8[(uint8_t)(buffer.u32[i] + buffer.u32[i2]) * 4];
+    elem ^= buffer.u8[4 * uint8_t(buffer.u32[i] + buffer.u32[i2])];
   }
   return true;
 }
