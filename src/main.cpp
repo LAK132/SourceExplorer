@@ -35,13 +35,13 @@
 #include <lak/window.hpp>
 
 se::source_explorer_t SrcExp;
-int openglMajor, openglMinor;
+int opengl_major, opengl_minor;
 
 #ifndef MAXDIRLEN
 #  define MAXDIRLEN 512
 #endif
 
-bool bytePairsMode = false;
+bool byte_pairs_mode = false;
 
 void ViewImage(const lak::opengl::texture &texture, const float scale)
 {
@@ -67,39 +67,39 @@ void HelpText()
   ImGui::PopStyleVar();
 }
 
-void MenuBar(float FrameTime)
+void MenuBar(float frame_time)
 {
   if (ImGui::BeginMenu("File"))
   {
-    ImGui::Checkbox("Auto-dump Mode", &SrcExp.babyMode);
+    ImGui::Checkbox("Auto-dump Mode", &SrcExp.baby_mode);
     SrcExp.exe.attempt |= ImGui::MenuItem(
-      SrcExp.babyMode ? "Open And Dump..." : "Open...", nullptr);
-    SrcExp.sortedImages.attempt |= ImGui::MenuItem(
-      "Dump Sorted Images...", nullptr, false, !SrcExp.babyMode);
+      SrcExp.baby_mode ? "Open And Dump..." : "Open...", nullptr);
+    SrcExp.sorted_images.attempt |= ImGui::MenuItem(
+      "Dump Sorted Images...", nullptr, false, !SrcExp.baby_mode);
     SrcExp.images.attempt |=
-      ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.babyMode);
+      ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.baby_mode);
     SrcExp.sounds.attempt |=
-      ImGui::MenuItem("Dump Sounds...", nullptr, false, !SrcExp.babyMode);
+      ImGui::MenuItem("Dump Sounds...", nullptr, false, !SrcExp.baby_mode);
     SrcExp.music.attempt |=
-      ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp.babyMode);
+      ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp.baby_mode);
     SrcExp.shaders.attempt |=
-      ImGui::MenuItem("Dump Shaders...", nullptr, false, !SrcExp.babyMode);
-    SrcExp.binaryFiles.attempt |= ImGui::MenuItem(
-      "Dump Binary Files...", nullptr, false, !SrcExp.babyMode);
+      ImGui::MenuItem("Dump Shaders...", nullptr, false, !SrcExp.baby_mode);
+    SrcExp.binary_files.attempt |= ImGui::MenuItem(
+      "Dump Binary Files...", nullptr, false, !SrcExp.baby_mode);
     SrcExp.appicon.attempt |=
-      ImGui::MenuItem("Dump App Icon...", nullptr, false, !SrcExp.babyMode);
+      ImGui::MenuItem("Dump App Icon...", nullptr, false, !SrcExp.baby_mode);
     ImGui::Separator();
-    SrcExp.errorLog.attempt |= ImGui::MenuItem("Save Error Log...");
+    SrcExp.error_log.attempt |= ImGui::MenuItem("Save Error Log...");
     ImGui::EndMenu();
   }
 
   if (ImGui::BeginMenu("About"))
   {
     ImGui::Text(APP_NAME " by LAK132");
-    switch (SrcExp.graphicsMode)
+    switch (SrcExp.graphics_mode)
     {
       case lak::graphics_mode::OpenGL:
-        ImGui::Text("Using OpenGL %d.%d", openglMajor, openglMinor);
+        ImGui::Text("Using OpenGL %d.%d", opengl_major, opengl_minor);
         break;
 
       case lak::graphics_mode::Software:
@@ -108,9 +108,9 @@ void MenuBar(float FrameTime)
 
       default: break;
     }
-    ImGui::Text("Frame rate %f", std::round(1.0f / FrameTime));
+    ImGui::Text("Frame rate %f", std::round(1.0f / frame_time));
     credits();
-    ImGui::Checkbox("Byte Pairs", &bytePairsMode);
+    ImGui::Checkbox("Byte Pairs", &byte_pairs_mode);
     ImGui::EndMenu();
   }
 
@@ -120,8 +120,8 @@ void MenuBar(float FrameTime)
     ImGui::EndMenu();
   }
 
-  ImGui::Checkbox("Color transparency?", &SrcExp.dumpColorTrans);
-  ImGui::Checkbox("Force compat mode?", &se::forceCompat);
+  ImGui::Checkbox("Color transparency?", &SrcExp.dump_color_transparent);
+  ImGui::Checkbox("Force compat mode?", &se::force_compat);
   ImGui::Checkbox("Debug console? (May make SE slow)",
                   &lak::debugger.live_output_enabled);
 
@@ -146,14 +146,14 @@ void Navigator()
       ImGui::Text(
         "Copyright: %s",
         lak::strconv<char>(SrcExp.state.game.copyright->value).c_str());
-    if (SrcExp.state.game.outputPath)
+    if (SrcExp.state.game.output_path)
       ImGui::Text(
         "Output: %s",
-        lak::strconv<char>(SrcExp.state.game.outputPath->value).c_str());
-    if (SrcExp.state.game.projectPath)
+        lak::strconv<char>(SrcExp.state.game.output_path->value).c_str());
+    if (SrcExp.state.game.project_path)
       ImGui::Text(
         "Project: %s",
-        lak::strconv<char>(SrcExp.state.game.projectPath->value).c_str());
+        lak::strconv<char>(SrcExp.state.game.project_path->value).c_str());
 
     ImGui::Separator();
 
@@ -166,14 +166,14 @@ void Navigator()
       ImGui::PopStyleColor();
     }
 
-    ImGui::Text("New Game: %s", SrcExp.state.oldGame ? "No" : "Yes");
+    ImGui::Text("New Game: %s", SrcExp.state.old_game ? "No" : "Yes");
     ImGui::Text("Unicode Game: %s", SrcExp.state.unicode ? "Yes" : "No");
     ImGui::Text("Compat Game: %s", SrcExp.state.compat ? "Yes" : "No");
-    ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.productBuild);
-    ImGui::Text("Product Version: %zu", (size_t)SrcExp.state.productVersion);
-    ImGui::Text("Runtime Version: %zu", (size_t)SrcExp.state.runtimeVersion);
+    ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.product_build);
+    ImGui::Text("Product Version: %zu", (size_t)SrcExp.state.product_version);
+    ImGui::Text("Runtime Version: %zu", (size_t)SrcExp.state.runtime_version);
     ImGui::Text("Runtime Sub-Version: %zu",
-                (size_t)SrcExp.state.runtimeSubVersion);
+                (size_t)SrcExp.state.runtime_sub_version);
 
     ImGui::Separator();
 
@@ -199,26 +199,26 @@ bool Crypto()
   return updated;
 }
 
-void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
+void BytePairsMemoryExplorer(const uint8_t *data, size_t size, bool update)
 {
   static lak::image<GLfloat> image(lak::vec2s_t(256, 256));
   static lak::opengl::texture texture(GL_TEXTURE_2D);
   static float scale             = 1.0f;
   static uint64_t from           = 0;
   static uint64_t to             = SIZE_MAX;
-  static const uint8_t *old_data = Data;
+  static const uint8_t *old_data = data;
 
-  if (Data == nullptr && old_data == nullptr) return;
+  if (data == nullptr && old_data == nullptr) return;
 
-  if (Data != nullptr && Data != old_data)
+  if (data != nullptr && data != old_data)
   {
-    old_data = Data;
-    Update   = true;
+    old_data = data;
+    update   = true;
   }
 
-  if (Update)
+  if (update)
   {
-    if (SrcExp.view != nullptr && Data == SrcExp.state.file.data())
+    if (SrcExp.view != nullptr && data == SrcExp.state.file.data())
     {
       from = SrcExp.view->position;
       to   = SrcExp.view->end;
@@ -230,7 +230,7 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
     }
   }
 
-  Update |= !texture.get();
+  update |= !texture.get();
 
   {
     static bool count_mode = true;
@@ -243,22 +243,22 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
         to = from + count;
       else if (from > to)
         to = from;
-      Update = true;
+      update = true;
     }
     if (ImGui::DragScalar("To", ImGuiDataType_U64, &to, 1.0f))
     {
       if (from > to) from = to;
-      Update = true;
+      update = true;
     }
   }
 
   ImGui::Separator();
 
   if (from > to) from = to;
-  if (from > Size) from = Size;
-  if (to > Size) to = Size;
+  if (from > size) from = size;
+  if (to > size) to = size;
 
-  if (Update)
+  if (update)
   {
     image.fill(0.0f);
 
@@ -292,37 +292,37 @@ void BytePairsMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
   }
 }
 
-void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
+void RawImageMemoryExplorer(const uint8_t *data, size_t size, bool update)
 {
-  static bool resetOnUpdate       = true;
-  static lak::vec2u64_t imageSize = {256, 256};
-  static lak::vec2u64_t blockSkip = {0, 0};
-  static lak::image4_t image{lak::vec2s_t(imageSize)};
+  static bool reset_on_update      = true;
+  static lak::vec2u64_t image_size = {256, 256};
+  static lak::vec2u64_t block_skip = {0, 0};
+  static lak::image4_t image{lak::vec2s_t(image_size)};
   static lak::opengl::texture texture(GL_TEXTURE_2D);
   static float scale             = 1.0f;
   static uint64_t from           = 0;
   static uint64_t to             = SIZE_MAX;
-  static int colourSize          = 3;
-  static const uint8_t *old_data = Data;
+  static int colour_size         = 3;
+  static const uint8_t *old_data = data;
 
-  if (Data == nullptr && old_data == nullptr) return;
+  if (data == nullptr && old_data == nullptr) return;
 
-  if (Data != nullptr && Data != old_data)
+  if (data != nullptr && data != old_data)
   {
-    old_data = Data;
-    Update   = true;
+    old_data = data;
+    update   = true;
   }
 
-  if (Update)
+  if (update)
   {
-    if (resetOnUpdate)
+    if (reset_on_update)
     {
-      imageSize = {256, 256};
-      blockSkip = {0, 0};
-      image.resize(lak::vec2s_t(imageSize));
+      image_size = {256, 256};
+      block_skip = {0, 0};
+      image.resize(lak::vec2s_t(image_size));
     }
 
-    if (SrcExp.view != nullptr && Data == SrcExp.state.file.data())
+    if (SrcExp.view != nullptr && data == SrcExp.state.file.data())
     {
       from = SrcExp.view->position;
       to   = SrcExp.view->end;
@@ -334,10 +334,10 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
     }
   }
 
-  Update |= !texture.get();
+  update |= !texture.get();
 
   {
-    ImGui::Checkbox("Reset Configuration On Update", &resetOnUpdate);
+    ImGui::Checkbox("Reset Configuration On Update", &reset_on_update);
 
     static bool count_mode = true;
     ImGui::Checkbox("Fixed Size", &count_mode);
@@ -349,49 +349,49 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
         to = from + count;
       else if (from > to)
         to = from;
-      Update = true;
+      update = true;
     }
     if (ImGui::DragScalar("To", ImGuiDataType_U64, &to, 1.0f))
     {
       if (from > to) from = to;
-      Update = true;
+      update = true;
     }
     const static uint64_t sizeMin = 0;
     const static uint64_t sizeMax = 10000;
     if (ImGui::DragScalarN("Image Size (Width/Height)",
                            ImGuiDataType_U64,
-                           &imageSize,
+                           &image_size,
                            2,
                            1.0f,
                            &sizeMin,
                            &sizeMax))
     {
-      image.resize(lak::vec2s_t(imageSize));
-      Update = true;
+      image.resize(lak::vec2s_t(image_size));
+      update = true;
     }
     if (ImGui::DragScalarN("For Every/Skip",
                            ImGuiDataType_U64,
-                           &blockSkip,
+                           &block_skip,
                            2,
                            0.1f,
                            &sizeMin,
                            &sizeMax))
     {
-      Update = true;
+      update = true;
     }
-    if (ImGui::SliderInt("Colour Size", &colourSize, 1, 4))
+    if (ImGui::SliderInt("Colour Size", &colour_size, 1, 4))
     {
-      Update = true;
+      update = true;
     }
   }
 
   ImGui::Separator();
 
   if (from > to) from = to;
-  if (from > Size) from = Size;
-  if (to > Size) to = Size;
+  if (from > size) from = size;
+  if (to > size) to = size;
 
-  if (Update)
+  if (update)
   {
     image.fill({0, 0, 0, 255});
 
@@ -399,16 +399,16 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
     const auto end   = begin + to;
     auto it          = begin + from;
 
-    auto img          = (uint8_t *)image.data();
-    const auto imgEnd = img + (image.contig_size() * sizeof(image[0]));
+    auto img           = (uint8_t *)image.data();
+    const auto img_end = img + (image.contig_size() * sizeof(image[0]));
 
-    for (uint64_t i = 0; img < imgEnd && it < end;)
+    for (uint64_t i = 0; img < img_end && it < end;)
     {
       *img = *it;
       ++it;
       ++i;
-      if (blockSkip.x > 0 && (i % blockSkip.x) == 0) it += blockSkip.y;
-      img += (5 - colourSize);
+      if (block_skip.x > 0 && (i % block_skip.x) == 0) it += block_skip.y;
+      img += (5 - colour_size);
     }
 
     texture.bind()
@@ -433,181 +433,181 @@ void RawImageMemoryExplorer(const uint8_t *Data, size_t Size, bool Update)
   }
 }
 
-void MemoryExplorer(bool &Update)
+void MemoryExplorer(bool &update)
 {
   static const se::basic_entry_t *last = nullptr;
-  static int dataMode                  = 0;
-  static int contentMode               = 0;
+  static int data_mode                 = 0;
+  static int content_mode              = 0;
   static bool raw                      = true;
-  Update |= last != SrcExp.view;
+  update |= last != SrcExp.view;
 
-  Update |= ImGui::RadioButton("EXE", &dataMode, 0);
+  update |= ImGui::RadioButton("EXE", &data_mode, 0);
   ImGui::SameLine();
-  Update |= ImGui::RadioButton("Header", &dataMode, 1);
+  update |= ImGui::RadioButton("Header", &data_mode, 1);
   ImGui::SameLine();
-  Update |= ImGui::RadioButton("Data", &dataMode, 2);
+  update |= ImGui::RadioButton("Data", &data_mode, 2);
   ImGui::SameLine();
-  Update |= ImGui::RadioButton("Magic Key", &dataMode, 3);
+  update |= ImGui::RadioButton("Magic Key", &data_mode, 3);
   ImGui::Separator();
 
-  if (dataMode != 3)
+  if (data_mode != 3)
   {
-    if (dataMode != 0)
+    if (data_mode != 0)
     {
-      Update |= ImGui::Checkbox("Raw", &raw);
+      update |= ImGui::Checkbox("Raw", &raw);
       ImGui::SameLine();
     }
-    Update |= ImGui::RadioButton("Binary", &contentMode, 0);
+    update |= ImGui::RadioButton("Binary", &content_mode, 0);
     ImGui::SameLine();
-    Update |= ImGui::RadioButton("Byte Pairs", &contentMode, 1);
+    update |= ImGui::RadioButton("Byte Pairs", &content_mode, 1);
     ImGui::SameLine();
-    Update |= ImGui::RadioButton("Data Image", &contentMode, 2);
+    update |= ImGui::RadioButton("Data Image", &content_mode, 2);
     ImGui::Separator();
   }
 
-  if (dataMode == 0) // EXE
+  if (data_mode == 0) // EXE
   {
-    if (contentMode == 1)
+    if (content_mode == 1)
     {
       BytePairsMemoryExplorer(
-        SrcExp.state.file.data(), SrcExp.state.file.size(), Update);
+        SrcExp.state.file.data(), SrcExp.state.file.size(), update);
     }
-    else if (contentMode == 2)
+    else if (content_mode == 2)
     {
       RawImageMemoryExplorer(
-        SrcExp.state.file.data(), SrcExp.state.file.size(), Update);
+        SrcExp.state.file.data(), SrcExp.state.file.size(), update);
     }
     else
     {
-      if (contentMode != 0) contentMode = 0;
+      if (content_mode != 0) content_mode = 0;
       SrcExp.editor.DrawContents(SrcExp.state.file.data(),
                                  SrcExp.state.file.size());
-      if (Update && SrcExp.view != nullptr)
+      if (update && SrcExp.view != nullptr)
         SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position,
                                            SrcExp.view->end);
     }
   }
-  else if (dataMode == 1) // Header
+  else if (data_mode == 1) // Header
   {
-    if (Update && SrcExp.view != nullptr)
+    if (update && SrcExp.view != nullptr)
       SrcExp.buffer = raw ? SrcExp.view->header.data.get()
                           : SrcExp.view->decodeHeader().UNWRAP().get();
 
-    if (contentMode == 1)
+    if (content_mode == 1)
     {
       BytePairsMemoryExplorer(
-        SrcExp.buffer.data(), SrcExp.buffer.size(), Update);
+        SrcExp.buffer.data(), SrcExp.buffer.size(), update);
     }
-    else if (contentMode == 2)
+    else if (content_mode == 2)
     {
       RawImageMemoryExplorer(
-        SrcExp.buffer.data(), SrcExp.buffer.size(), Update);
+        SrcExp.buffer.data(), SrcExp.buffer.size(), update);
     }
     else
     {
-      if (contentMode != 0) contentMode = 0;
+      if (content_mode != 0) content_mode = 0;
       SrcExp.editor.DrawContents(SrcExp.buffer.data(), SrcExp.buffer.size());
-      if (Update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
+      if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
     }
   }
-  else if (dataMode == 2) // Data
+  else if (data_mode == 2) // Data
   {
-    if (Update && SrcExp.view != nullptr)
+    if (update && SrcExp.view != nullptr)
       SrcExp.buffer = raw ? SrcExp.view->data.data.get()
                           : SrcExp.view->decode().UNWRAP().get();
 
-    if (contentMode == 1)
+    if (content_mode == 1)
     {
       BytePairsMemoryExplorer(
-        SrcExp.buffer.data(), SrcExp.buffer.size(), Update);
+        SrcExp.buffer.data(), SrcExp.buffer.size(), update);
     }
-    else if (contentMode == 2)
+    else if (content_mode == 2)
     {
       RawImageMemoryExplorer(
-        SrcExp.buffer.data(), SrcExp.buffer.size(), Update);
+        SrcExp.buffer.data(), SrcExp.buffer.size(), update);
     }
     else
     {
-      if (contentMode != 0) contentMode = 0;
+      if (content_mode != 0) content_mode = 0;
       SrcExp.editor.DrawContents(SrcExp.buffer.data(), SrcExp.buffer.size());
-      if (Update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
+      if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
     }
   }
-  else if (dataMode == 3) // _magic_key
+  else if (data_mode == 3) // _magic_key
   {
     SrcExp.editor.DrawContents(&(se::_magic_key[0]), se::_magic_key.size());
-    if (Update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
+    if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
   }
   else
-    dataMode = 0;
+    data_mode = 0;
 
   last   = SrcExp.view;
-  Update = false;
+  update = false;
 }
 
-void ImageExplorer(bool &Update)
+void ImageExplorer(bool &update)
 {
   static float scale = 1.0f;
   ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
   ImGui::Separator();
   se::ViewImage(SrcExp, scale);
-  Update = false;
+  update = false;
 }
 
-void AudioExplorer(bool &Update)
+void AudioExplorer(bool &update)
 {
   struct audio_data_t
   {
     lak::u8string name;
     lak::u16string u16name;
-    se::sound_mode_t type  = (se::sound_mode_t)0;
-    uint32_t checksum      = 0;
-    uint32_t references    = 0;
-    uint32_t decompLen     = 0;
-    uint32_t reserved      = 0;
-    uint32_t nameLen       = 0;
-    uint16_t format        = 0;
-    uint16_t channelCount  = 0;
-    uint32_t sampleRate    = 0;
-    uint32_t byteRate      = 0;
-    uint16_t blockAlign    = 0;
-    uint16_t bitsPerSample = 0;
-    uint16_t unknown       = 0;
-    uint32_t chunkSize     = 0;
+    se::sound_mode_t type    = (se::sound_mode_t)0;
+    uint32_t checksum        = 0;
+    uint32_t references      = 0;
+    uint32_t decomp_len      = 0;
+    uint32_t reserved        = 0;
+    uint32_t name_len        = 0;
+    uint16_t format          = 0;
+    uint16_t channel_count   = 0;
+    uint32_t sample_rate     = 0;
+    uint32_t byte_rate       = 0;
+    uint16_t block_align     = 0;
+    uint16_t bits_per_sample = 0;
+    uint16_t unknown         = 0;
+    uint32_t chunk_size      = 0;
     std::vector<uint8_t> data;
   };
 
   static const se::basic_entry_t *last = nullptr;
-  Update |= last != SrcExp.view;
+  update |= last != SrcExp.view;
 
-  static audio_data_t audioData;
-  if (Update && SrcExp.view != nullptr)
+  static audio_data_t audio_data;
+  if (update && SrcExp.view != nullptr)
   {
     lak::memory audio = SrcExp.view->decode().UNWRAP();
-    audioData         = audio_data_t{};
-    if (SrcExp.state.oldGame)
+    audio_data        = audio_data_t{};
+    if (SrcExp.state.old_game)
     {
-      audioData.checksum   = audio.read_u16();
-      audioData.references = audio.read_u32();
-      audioData.decompLen  = audio.read_u32();
-      audioData.type       = (se::sound_mode_t)audio.read_u32();
-      audioData.reserved   = audio.read_u32();
-      audioData.nameLen    = audio.read_u32();
+      audio_data.checksum   = audio.read_u16();
+      audio_data.references = audio.read_u32();
+      audio_data.decomp_len = audio.read_u32();
+      audio_data.type       = (se::sound_mode_t)audio.read_u32();
+      audio_data.reserved   = audio.read_u32();
+      audio_data.name_len   = audio.read_u32();
 
-      audioData.name =
-        audio.read_u8string_exact(audioData.nameLen).to_string();
+      audio_data.name =
+        audio.read_u8string_exact(audio_data.name_len).to_string();
 
-      if (audioData.type == se::sound_mode_t::wave)
+      if (audio_data.type == se::sound_mode_t::wave)
       {
-        audioData.format        = audio.read_u16();
-        audioData.channelCount  = audio.read_u16();
-        audioData.sampleRate    = audio.read_u32();
-        audioData.byteRate      = audio.read_u32();
-        audioData.blockAlign    = audio.read_u16();
-        audioData.bitsPerSample = audio.read_u16();
-        audioData.unknown       = audio.read_u16();
-        audioData.chunkSize     = audio.read_u32();
-        audioData.data          = audio.read(audioData.chunkSize);
+        audio_data.format          = audio.read_u16();
+        audio_data.channel_count   = audio.read_u16();
+        audio_data.sample_rate     = audio.read_u32();
+        audio_data.byte_rate       = audio.read_u32();
+        audio_data.block_align     = audio.read_u16();
+        audio_data.bits_per_sample = audio.read_u16();
+        audio_data.unknown         = audio.read_u16();
+        audio_data.chunk_size      = audio.read_u32();
+        audio_data.data            = audio.read(audio_data.chunk_size);
       }
     }
     else
@@ -623,47 +623,47 @@ void AudioExplorer(bool &Update)
         header_ptr = &audio;
       lak::memory &header = *header_ptr;
 
-      audioData.checksum   = header.read_u32();
-      audioData.references = header.read_u32();
-      audioData.decompLen  = header.read_u32();
-      audioData.type       = (se::sound_mode_t)audio.read_u32();
-      audioData.reserved   = header.read_u32();
-      audioData.nameLen    = header.read_u32();
+      audio_data.checksum   = header.read_u32();
+      audio_data.references = header.read_u32();
+      audio_data.decomp_len = header.read_u32();
+      audio_data.type       = (se::sound_mode_t)audio.read_u32();
+      audio_data.reserved   = header.read_u32();
+      audio_data.name_len   = header.read_u32();
 
       if (SrcExp.state.unicode)
       {
-        audioData.name =
-          lak::strconv<char8_t>(audio.read_u16string_exact(audioData.nameLen));
+        audio_data.name = lak::strconv<char8_t>(
+          audio.read_u16string_exact(audio_data.name_len));
       }
       else
-        audioData.name =
-          audio.read_u8string_exact(audioData.nameLen).to_string();
+        audio_data.name =
+          audio.read_u8string_exact(audio_data.name_len).to_string();
 
       if (audio.peek_astring(4) == lak::string_view("OggS"))
-        audioData.type = se::sound_mode_t::oggs;
+        audio_data.type = se::sound_mode_t::oggs;
 
-      if (audioData.type == se::sound_mode_t::wave)
+      if (audio_data.type == se::sound_mode_t::wave)
       {
         audio.skip(4); // "RIFF"
         uint32_t size = audio.read_s32() + 4;
         audio.skip(8); // "WAVEfmt "
         // audio.position += 4; // 0x00000010
         // 16, 18 or 40
-        uint32_t chunkSize = audio.read_u32();
-        DEBUG("Chunk Size ", chunkSize);
-        const size_t pos        = audio.position() + chunkSize;
-        audioData.format        = audio.read_u16(); // 2
-        audioData.channelCount  = audio.read_u16(); // 4
-        audioData.sampleRate    = audio.read_u32(); // 8
-        audioData.byteRate      = audio.read_u32(); // 12
-        audioData.blockAlign    = audio.read_u16(); // 14
-        audioData.bitsPerSample = audio.read_u16(); // 16
-        if (chunkSize >= 18)
+        uint32_t chunk_size = audio.read_u32();
+        DEBUG("Chunk Size ", chunk_size);
+        const size_t pos           = audio.position() + chunk_size;
+        audio_data.format          = audio.read_u16(); // 2
+        audio_data.channel_count   = audio.read_u16(); // 4
+        audio_data.sample_rate     = audio.read_u32(); // 8
+        audio_data.byte_rate       = audio.read_u32(); // 12
+        audio_data.block_align     = audio.read_u16(); // 14
+        audio_data.bits_per_sample = audio.read_u16(); // 16
+        if (chunk_size >= 18)
         {
           [[maybe_unused]] uint16_t extensionSize = audio.read_u16(); // 18
           DEBUG("Extension Size ", extensionSize);
         }
-        if (chunkSize >= 40)
+        if (chunk_size >= 40)
         {
           [[maybe_unused]] uint16_t validPerSample = audio.read_u16(); // 20
           DEBUG("Valid Bits Per Sample ", validPerSample);
@@ -672,25 +672,25 @@ void AudioExplorer(bool &Update)
           // SubFormat // 40
         }
         audio.seek(pos + 4); // "data"
-        audioData.chunkSize = audio.read_u32();
-        audioData.data      = audio.read(size);
+        audio_data.chunk_size = audio.read_u32();
+        audio_data.data       = audio.read(size);
       }
     }
   }
 
 #if defined(LAK_USE_SDL)
-  static size_t audioSize = 0;
-  static bool playing     = false;
-  static SDL_AudioSpec audioSpec;
-  static SDL_AudioDeviceID audioDevice = 0;
-  static SDL_AudioSpec audioSpecGot;
+  static size_t audio_size = 0;
+  static bool playing      = false;
+  static SDL_AudioSpec audio_spec;
+  static SDL_AudioDeviceID audio_device = 0;
+  static SDL_AudioSpec audio_specGot;
 
   if (!playing && ImGui::Button("Play"))
   {
     SDL_AudioSpec spec;
-    spec.freq = audioData.sampleRate;
-    // spec.freq = audioData.byteRate;
-    switch (audioData.format)
+    spec.freq = audio_data.sample_rate;
+    // spec.freq = audio_data.byte_rate;
+    switch (audio_data.format)
     {
       case 0x0001: spec.format = AUDIO_S16; break;
       case 0x0003: spec.format = AUDIO_F32; break;
@@ -703,67 +703,67 @@ void AudioExplorer(bool &Update)
       case 0xFFFE: /*subformat*/ break;
       default: break;
     }
-    spec.channels = audioData.channelCount;
+    spec.channels = audio_data.channel_count;
     spec.samples  = 2048;
     spec.callback = nullptr;
 
-    if (std::memcmp(&audioSpec, &spec, sizeof(SDL_AudioSpec)) != 0)
+    if (std::memcmp(&audio_spec, &spec, sizeof(SDL_AudioSpec)) != 0)
     {
-      std::memcpy(&audioSpec, &spec, sizeof(SDL_AudioSpec));
-      if (audioDevice != 0)
+      std::memcpy(&audio_spec, &spec, sizeof(SDL_AudioSpec));
+      if (audio_device != 0)
       {
-        SDL_CloseAudioDevice(audioDevice);
-        audioDevice = 0;
+        SDL_CloseAudioDevice(audio_device);
+        audio_device = 0;
       }
     }
 
-    if (audioDevice == 0)
-      audioDevice =
-        SDL_OpenAudioDevice(nullptr, false, &audioSpec, &audioSpecGot, 0);
+    if (audio_device == 0)
+      audio_device =
+        SDL_OpenAudioDevice(nullptr, false, &audio_spec, &audio_specGot, 0);
 
-    audioSize = audioData.data.size();
-    SDL_QueueAudio(audioDevice, audioData.data.data(), audioSize);
-    SDL_PauseAudioDevice(audioDevice, 0);
+    audio_size = audio_data.data.size();
+    SDL_QueueAudio(audio_device, audio_data.data.data(), audio_size);
+    SDL_PauseAudioDevice(audio_device, 0);
     playing = true;
   }
 
   if (playing &&
-      (ImGui::Button("Stop") || (SDL_GetQueuedAudioSize(audioDevice) == 0)))
+      (ImGui::Button("Stop") || (SDL_GetQueuedAudioSize(audio_device) == 0)))
   {
-    SDL_PauseAudioDevice(audioDevice, 1);
-    SDL_ClearQueuedAudio(audioDevice);
-    audioSize = 0;
-    playing   = false;
+    SDL_PauseAudioDevice(audio_device, 1);
+    SDL_ClearQueuedAudio(audio_device);
+    audio_size = 0;
+    playing    = false;
   }
 
-  if (audioSize > 0)
+  if (audio_size > 0)
     ImGui::ProgressBar(
-      1.0 - (SDL_GetQueuedAudioSize(audioDevice) / (double)audioSize));
+      1.0 - (SDL_GetQueuedAudioSize(audio_device) / (double)audio_size));
   else
     ImGui::ProgressBar(0);
 #endif
 
-  ImGui::Text("Name: %s", audioData.name.c_str());
+  ImGui::Text("Name: %s", audio_data.name.c_str());
   ImGui::Text("Type: ");
   ImGui::SameLine();
-  switch (audioData.type)
+  switch (audio_data.type)
   {
     case se::sound_mode_t::wave: ImGui::Text("WAV"); break;
     case se::sound_mode_t::midi: ImGui::Text("MIDI"); break;
     case se::sound_mode_t::oggs: ImGui::Text("OGG"); break;
     default: ImGui::Text("Unknown"); break;
   }
-  ImGui::Text("Data Size: 0x%zX", (size_t)audioData.data.size());
-  ImGui::Text("Format: 0x%zX", (size_t)audioData.format);
-  ImGui::Text("Channel Count: %zu", (size_t)audioData.channelCount);
-  ImGui::Text("Sample Rate: %zu", (size_t)audioData.sampleRate);
-  ImGui::Text("Byte Rate: %zu", (size_t)audioData.byteRate);
-  ImGui::Text("Block Align: 0x%zX", (size_t)audioData.blockAlign);
-  ImGui::Text("Bits Per Sample: %zu", (size_t)audioData.bitsPerSample);
-  ImGui::Text("Chunk Size: 0x%zX", (size_t)audioData.chunkSize);
+  ImGui::Text("Data Size: 0x%zX", (size_t)audio_data.data.size());
+  ImGui::Text("Format: 0x%zX", (size_t)audio_data.format);
+  ImGui::Text("Channel Count: %zu", (size_t)audio_data.channel_count);
+  ImGui::Text("Sample Rate: %zu", (size_t)audio_data.sample_rate);
+  ImGui::Text("Byte Rate: %zu", (size_t)audio_data.byte_rate);
+  ImGui::Text("Block Align: 0x%zX", (size_t)audio_data.block_align);
+  ImGui::Text("Bits Per Sample: %zu", (size_t)audio_data.bits_per_sample);
+  ImGui::Text("Chunk Size: 0x%zX", (size_t)audio_data.chunk_size);
 
   last   = SrcExp.view;
-  Update = false;
+  update = false;
 }
 
 lisk::string lisk_init_script;
@@ -860,53 +860,53 @@ void Explorer()
     ImGui::Checkbox("Crypto", &crypto);
     ImGui::Separator();
 
-    static bool memUpdate   = false;
-    static bool imageUpdate = false;
-    static bool audioUpdate = false;
+    static bool mem_update   = false;
+    static bool image_update = false;
+    static bool audio_update = false;
     if (crypto)
     {
-      if (Crypto()) memUpdate = imageUpdate = audioUpdate = true;
+      if (Crypto()) mem_update = image_update = audio_update = true;
       ImGui::Separator();
     }
 
     switch (selected)
     {
-      case MEMORY: MemoryExplorer(memUpdate); break;
-      case IMAGE: ImageExplorer(imageUpdate); break;
-      case AUDIO: AudioExplorer(audioUpdate); break;
+      case MEMORY: MemoryExplorer(mem_update); break;
+      case IMAGE: ImageExplorer(image_update); break;
+      case AUDIO: AudioExplorer(audio_update); break;
       case LISK: LiskEditor(); break;
       default: selected = 0; break;
     }
   }
 }
 
-void SourceExplorerMain(float FrameTime)
+void SourceExplorerMain(float frame_time)
 {
   if (ImGui::BeginMenuBar())
   {
-    MenuBar(FrameTime);
+    MenuBar(frame_time);
     ImGui::EndMenuBar();
   }
 
-  if (!SrcExp.babyMode && SrcExp.loaded)
+  if (!SrcExp.baby_mode && SrcExp.loaded)
   {
-    ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
-    contentSize.x      = ImGui::GetWindowContentRegionWidth();
+    ImVec2 content_size = ImGui::GetWindowContentRegionMax();
+    content_size.x      = ImGui::GetWindowContentRegionWidth();
 
-    static float leftSize  = contentSize.x / 2;
-    static float rightSize = contentSize.x / 2;
+    static float left_size  = content_size.x / 2;
+    static float right_size = content_size.x / 2;
 
-    lak::HoriSplitter(leftSize, rightSize, contentSize.x);
+    lak::HoriSplitter(left_size, right_size, content_size.x);
 
     ImGui::BeginChild(
-      "Left", {leftSize, -1}, true, ImGuiWindowFlags_NoSavedSettings);
+      "Left", {left_size, -1}, true, ImGuiWindowFlags_NoSavedSettings);
     Navigator();
     ImGui::EndChild();
 
     ImGui::SameLine();
 
     ImGui::BeginChild(
-      "Right", {rightSize, -1}, true, ImGuiWindowFlags_NoSavedSettings);
+      "Right", {right_size, -1}, true, ImGuiWindowFlags_NoSavedSettings);
     Explorer();
     ImGui::EndChild();
   }
@@ -919,7 +919,7 @@ void SourceExplorerMain(float FrameTime)
     se::AttemptExe(SrcExp);
   else if (SrcExp.images.attempt)
     se::AttemptImages(SrcExp);
-  else if (SrcExp.sortedImages.attempt)
+  else if (SrcExp.sorted_images.attempt)
     se::AttemptSortedImages(SrcExp);
   else if (SrcExp.appicon.attempt)
     se::AttemptAppIcon(SrcExp);
@@ -929,28 +929,28 @@ void SourceExplorerMain(float FrameTime)
     se::AttemptMusic(SrcExp);
   else if (SrcExp.shaders.attempt)
     se::AttemptShaders(SrcExp);
-  else if (SrcExp.binaryFiles.attempt)
+  else if (SrcExp.binary_files.attempt)
     se::AttemptBinaryFiles(SrcExp);
-  else if (SrcExp.errorLog.attempt)
+  else if (SrcExp.error_log.attempt)
     se::AttemptErrorLog(SrcExp);
 }
 
-void SourceBytePairsMain(float FrameTime)
+void SourceBytePairsMain(float frame_time)
 {
   if (ImGui::BeginMenuBar())
   {
-    ImGui::Checkbox("Byte Pairs", &bytePairsMode);
+    ImGui::Checkbox("Byte Pairs", &byte_pairs_mode);
     ImGui::EndMenuBar();
   }
 
-  auto load = [](se::file_state_t &FileState) {
+  auto load = [](se::file_state_t &file_state) {
     lak::debugger.clear();
-    auto code = lak::open_file_modal(FileState.path, false);
+    auto code = lak::open_file_modal(file_state.path, false);
     if (code.is_ok() && code.unwrap() == lak::file_open_error::VALID)
     {
       SrcExp.state      = se::game_t{};
       SrcExp.state.file = lak::memory(
-        lak::read_file(FileState.path).EXPECT("failed to load file"));
+        lak::read_file(file_state.path).EXPECT("failed to load file"));
       return true;
     }
     return code.is_err() || code.unwrap() != lak::file_open_error::INCOMPLETE;
@@ -966,7 +966,7 @@ void SourceBytePairsMain(float FrameTime)
   {
     SrcExp.exe.attempt = true;
     se::Attempt(SrcExp.exe, load, manip);
-    if (!SrcExp.exe.attempt) bytePairsMode = false; // User cancelled
+    if (!SrcExp.exe.attempt) byte_pairs_mode = false; // User cancelled
   }
 
   if (SrcExp.loaded)
@@ -975,24 +975,24 @@ void SourceBytePairsMain(float FrameTime)
 }
 
 #if 1
-void MainScreen(float FrameTime)
+void MainScreen(float frame_time)
 {
-  if (bytePairsMode)
-    SourceBytePairsMain(FrameTime);
+  if (byte_pairs_mode)
+    SourceBytePairsMain(frame_time);
   else
-    SourceExplorerMain(FrameTime);
+    SourceExplorerMain(frame_time);
 }
 
 #else
-void FloatThing(lak::memory &Block)
+void FloatThing(lak::memory &block)
 {
-  if (auto *ptr = Block.read_type<float>(); ptr)
+  if (auto *ptr = block.read_type<float>(); ptr)
     ImGui::DragFloat("FloatThing", ptr);
 }
 
-std::vector<void (*)(lak::memory &Block)> funcs = {&FloatThing};
+std::vector<void (*)(lak::memory &block)> funcs = {&FloatThing};
 
-void MainScreen(float FrameTime)
+void MainScreen(float frame_time)
 {
   if (ImGui::BeginMenuBar())
   {
@@ -1023,7 +1023,7 @@ void basic_window_preinit(int argc, char **argv)
     }
     else
     {
-      SrcExp.babyMode    = false;
+      SrcExp.baby_mode   = false;
       SrcExp.exe.path    = argv[argc];
       SrcExp.exe.valid   = true;
       SrcExp.exe.attempt = true;
@@ -1037,17 +1037,17 @@ void basic_window_preinit(int argc, char **argv)
 
 void basic_window_init(lak::window &window)
 {
-  lak::debugger.crash_path = SrcExp.errorLog.path =
+  lak::debugger.crash_path = SrcExp.error_log.path =
     fs::current_path() / "SEND-THIS-CRASH-LOG-TO-LAK132.txt";
 
-  SrcExp.images.path = SrcExp.sortedImages.path = SrcExp.sounds.path =
-    SrcExp.music.path = SrcExp.shaders.path = SrcExp.binaryFiles.path =
+  SrcExp.images.path = SrcExp.sorted_images.path = SrcExp.sounds.path =
+    SrcExp.music.path = SrcExp.shaders.path = SrcExp.binary_files.path =
       SrcExp.appicon.path                   = fs::current_path();
 
   if (!SrcExp.exe.attempt) SrcExp.exe.path = fs::current_path();
 
-  imgui_context       = ImGui::ImplCreateContext(window.graphics());
-  SrcExp.graphicsMode = window.graphics();
+  imgui_context        = ImGui::ImplCreateContext(window.graphics());
+  SrcExp.graphics_mode = window.graphics();
   ImGui::ImplInit();
   ImGui::ImplInitContext(imgui_context, window);
 
@@ -1055,8 +1055,8 @@ void basic_window_init(lak::window &window)
   {
     case lak::graphics_mode::OpenGL:
     {
-      openglMajor = lak::opengl::get_uint(GL_MAJOR_VERSION);
-      openglMinor = lak::opengl::get_uint(GL_MINOR_VERSION);
+      opengl_major = lak::opengl::get_uint(GL_MAJOR_VERSION);
+      opengl_minor = lak::opengl::get_uint(GL_MINOR_VERSION);
     }
     break;
 

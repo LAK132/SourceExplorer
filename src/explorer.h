@@ -268,7 +268,7 @@ namespace SourceExplorer
   using result_t = lak::result<T, error>;
   using error_t  = result_t<lak::monostate>;
 
-  extern bool forceCompat;
+  extern bool force_compat;
   extern std::vector<uint8_t> _magic_key;
   extern uint8_t _magic_char;
 
@@ -297,7 +297,7 @@ namespace SourceExplorer
   struct data_point_t
   {
     size_t position = 0;
-    size_t expectedSize;
+    size_t expected_size;
     lak::memory data;
     result_t<lak::memory> decode(const chunk_t ID,
                                  const encoding_t mode) const;
@@ -521,10 +521,10 @@ namespace SourceExplorer
   struct extended_header_t : public basic_chunk_t
   {
     uint32_t flags;
-    uint32_t buildType;
-    uint32_t buildFlags;
-    uint16_t screenRatioTolerance;
-    uint16_t screenAngle;
+    uint32_t build_type;
+    uint32_t build_flags;
+    uint16_t screen_ratio_tolerance;
+    uint16_t screen_angle;
 
     error_t read(game_t &game, lak::memory &strm);
     error_t view(source_explorer_t &srcexp) const;
@@ -589,8 +589,8 @@ namespace SourceExplorer
       shape_type_t shape;
       line_flags_t line;
       gradient_flags_t gradient;
-      uint16_t borderSize;
-      lak::color4_t borderColor;
+      uint16_t border_size;
+      lak::color4_t border_color;
       lak::color4_t color1, color2;
       uint16_t handle;
 
@@ -624,10 +624,10 @@ namespace SourceExplorer
 
     struct animation_direction_t
     {
-      uint8_t minSpeed;
-      uint8_t maxSpeed;
+      uint8_t min_speed;
+      uint8_t max_speed;
       uint16_t repeat;
-      uint16_t backTo;
+      uint16_t back_to;
       std::vector<uint16_t> handles;
 
       error_t read(game_t &game, lak::memory &strm);
@@ -657,24 +657,24 @@ namespace SourceExplorer
     {
       uint32_t size;
 
-      uint16_t movementsOffset;
-      uint16_t animationsOffset;
-      uint16_t counterOffset;
-      uint16_t systemOffset;
-      uint32_t fadeInOffset;
-      uint32_t fadeOutOffset;
-      uint16_t valuesOffset;
-      uint16_t stringsOffset;
-      uint16_t extensionOffset;
+      uint16_t movements_offset;
+      uint16_t animations_offset;
+      uint16_t counter_offset;
+      uint16_t system_offset;
+      uint32_t fade_in_offset;
+      uint32_t fade_out_offset;
+      uint16_t values_offset;
+      uint16_t strings_offset;
+      uint16_t extension_offset;
 
       std::unique_ptr<animation_header_t> animations;
 
       uint16_t version;
       uint32_t flags;
-      uint32_t newFlags;
+      uint32_t new_flags;
       uint32_t preferences;
       uint32_t identifier;
-      lak::color4_t backColor;
+      lak::color4_t back_color;
 
       game_mode_t mode;
 
@@ -691,10 +691,10 @@ namespace SourceExplorer
 
       uint16_t handle;
       object_type_t type;
-      uint32_t inkEffect;
-      uint32_t inkEffectParam;
+      uint32_t ink_effect;
+      uint32_t ink_effect_param;
 
-      std::unique_ptr<quick_backdrop_t> quickBackdrop;
+      std::unique_ptr<quick_backdrop_t> quick_backdrop;
       std::unique_ptr<backdrop_t> backdrop;
       std::unique_ptr<common_t> common;
 
@@ -743,8 +743,8 @@ namespace SourceExplorer
       uint16_t handle;
       uint16_t info;
       lak::vec2i32_t position;
-      object_parent_type_t parentType;
-      uint16_t parentHandle;
+      object_parent_type_t parent_type;
+      uint16_t parent_handle;
       uint16_t layer;
       uint16_t unknown;
 
@@ -864,25 +864,25 @@ namespace SourceExplorer
       std::unique_ptr<header_t> header;
       std::unique_ptr<password_t> password;
       std::unique_ptr<palette_t> palette;
-      std::unique_ptr<object_instances_t> objectInstances;
-      std::unique_ptr<fade_in_frame_t> fadeInFrame;
-      std::unique_ptr<fade_out_frame_t> fadeOutFrame;
-      std::unique_ptr<fade_in_t> fadeIn;
-      std::unique_ptr<fade_out_t> fadeOut;
+      std::unique_ptr<object_instances_t> object_instances;
+      std::unique_ptr<fade_in_frame_t> fade_in_frame;
+      std::unique_ptr<fade_out_frame_t> fade_out_frame;
+      std::unique_ptr<fade_in_t> fade_in;
+      std::unique_ptr<fade_out_t> fade_out;
       std::unique_ptr<events_t> events;
-      std::unique_ptr<play_header_r> playHead;
-      std::unique_ptr<additional_item_t> additionalItem;
-      std::unique_ptr<additional_item_instance_t> additionalItemInstance;
+      std::unique_ptr<play_header_r> play_head;
+      std::unique_ptr<additional_item_t> additional_item;
+      std::unique_ptr<additional_item_instance_t> additional_item_instance;
       std::unique_ptr<layers_t> layers;
-      std::unique_ptr<virtual_size_t> virtualSize;
-      std::unique_ptr<demo_file_path_t> demoFilePath;
-      std::unique_ptr<random_seed_t> randomSeed;
-      std::unique_ptr<layer_effect_t> layerEffect;
+      std::unique_ptr<virtual_size_t> virtual_size;
+      std::unique_ptr<demo_file_path_t> demo_file_path;
+      std::unique_ptr<random_seed_t> random_seed;
+      std::unique_ptr<layer_effect_t> layer_effect;
       std::unique_ptr<blueray_t> blueray;
-      std::unique_ptr<movement_time_base_t> movementTimeBase;
-      std::unique_ptr<mosaic_image_table_t> mosaicImageTable;
+      std::unique_ptr<movement_time_base_t> movement_time_base;
+      std::unique_ptr<mosaic_image_table_t> mosaic_image_table;
       std::unique_ptr<effects_t> effects;
-      std::unique_ptr<iphone_options_t> iphoneOptions;
+      std::unique_ptr<iphone_options_t> iphone_options;
       std::unique_ptr<chunk_334C_t> chunk334C;
       std::unique_ptr<last_t> end;
 
@@ -913,15 +913,15 @@ namespace SourceExplorer
     {
       uint32_t checksum; // uint16_t for old
       uint32_t reference;
-      uint32_t dataSize;
+      uint32_t data_size;
       lak::vec2u16_t size;
-      graphics_mode_t graphicsMode; // uint8_t
-      image_flag_t flags;           // uint8_t
-      uint16_t unknown;             // not for old
+      graphics_mode_t graphics_mode; // uint8_t
+      image_flag_t flags;            // uint8_t
+      uint16_t unknown;              // not for old
       lak::vec2u16_t hotspot;
       lak::vec2u16_t action;
       lak::color4_t transparent; // not for old
-      size_t dataPosition;
+      size_t data_position;
 
       error_t read(game_t &game, lak::memory &strm);
       error_t view(source_explorer_t &srcexp) const;
@@ -929,7 +929,7 @@ namespace SourceExplorer
       result_t<lak::memory> image_data() const;
       bool need_palette() const;
       result_t<lak::image4_t> image(
-        const bool colorTrans,
+        const bool color_transparent,
         const lak::color4_t palette[256] = nullptr) const;
     };
 
@@ -1052,58 +1052,58 @@ namespace SourceExplorer
     chunk_ptr<string_chunk_t> title;
     chunk_ptr<string_chunk_t> author;
     chunk_ptr<string_chunk_t> copyright;
-    chunk_ptr<string_chunk_t> outputPath;
-    chunk_ptr<string_chunk_t> projectPath;
+    chunk_ptr<string_chunk_t> output_path;
+    chunk_ptr<string_chunk_t> project_path;
 
-    chunk_ptr<vitalise_preview_t> vitalisePreview;
+    chunk_ptr<vitalise_preview_t> vitalise_preview;
     chunk_ptr<menu_t> menu;
-    chunk_ptr<extension_path_t> extensionPath;
+    chunk_ptr<extension_path_t> extension_path;
     chunk_ptr<extensions_t> extensions; // deprecated
-    chunk_ptr<extension_data_t> extensionData;
-    chunk_ptr<additional_extensions_t> additionalExtensions;
-    chunk_ptr<application_doc_t> appDoc;
-    chunk_ptr<other_extension_t> otherExtension;
-    chunk_ptr<extension_list_t> extensionList;
+    chunk_ptr<extension_data_t> extension_data;
+    chunk_ptr<additional_extensions_t> additional_extensions;
+    chunk_ptr<application_doc_t> app_doc;
+    chunk_ptr<other_extension_t> other_extension;
+    chunk_ptr<extension_list_t> extension_list;
     chunk_ptr<icon_t> icon;
-    chunk_ptr<demo_version_t> demoVersion;
+    chunk_ptr<demo_version_t> demo_version;
     chunk_ptr<security_number_t> security;
-    chunk_ptr<binary_files_t> binaryFiles;
-    chunk_ptr<menu_images_t> menuImages;
+    chunk_ptr<binary_files_t> binary_files;
+    chunk_ptr<menu_images_t> menu_images;
     chunk_ptr<string_chunk_t> about;
-    chunk_ptr<movement_extensions_t> movementExtensions;
-    chunk_ptr<object_bank2_t> objectBank2;
+    chunk_ptr<movement_extensions_t> movement_extensions;
+    chunk_ptr<object_bank2_t> object_bank_2;
     chunk_ptr<exe_t> exe;
     chunk_ptr<protection_t> protection;
     chunk_ptr<shaders_t> shaders;
-    chunk_ptr<extended_header_t> extendedHeader;
+    chunk_ptr<extended_header_t> extended_header;
     chunk_ptr<spacer_t> spacer;
     chunk_ptr<chunk_224F_t> chunk224F;
     chunk_ptr<title2_t> title2;
 
-    chunk_ptr<global_events_t> globalEvents;
-    chunk_ptr<global_strings_t> globalStrings;
-    chunk_ptr<global_string_names_t> globalStringNames;
-    chunk_ptr<global_values_t> globalValues;
-    chunk_ptr<global_value_names_t> globalValueNames;
+    chunk_ptr<global_events_t> global_events;
+    chunk_ptr<global_strings_t> global_strings;
+    chunk_ptr<global_string_names_t> global_string_names;
+    chunk_ptr<global_values_t> global_values;
+    chunk_ptr<global_value_names_t> global_value_names;
 
-    chunk_ptr<frame::handles_t> frameHandles;
-    chunk_ptr<frame::bank_t> frameBank;
-    chunk_ptr<object::bank_t> objectBank;
-    chunk_ptr<image::bank_t> imageBank;
-    chunk_ptr<sound::bank_t> soundBank;
-    chunk_ptr<music::bank_t> musicBank;
-    chunk_ptr<font::bank_t> fontBank;
+    chunk_ptr<frame::handles_t> frame_handles;
+    chunk_ptr<frame::bank_t> frame_bank;
+    chunk_ptr<object::bank_t> object_bank;
+    chunk_ptr<image::bank_t> image_bank;
+    chunk_ptr<sound::bank_t> sound_bank;
+    chunk_ptr<music::bank_t> music_bank;
+    chunk_ptr<font::bank_t> font_bank;
 
     // Recompiled games (?):
-    chunk_ptr<object_names_t> objectNames;
-    chunk_ptr<object_properties_t> objectProperties;
-    chunk_ptr<truetype_fonts_meta_t> truetypeFontsMeta;
-    chunk_ptr<truetype_fonts_t> truetypeFonts;
+    chunk_ptr<object_names_t> object_names;
+    chunk_ptr<object_properties_t> object_properties;
+    chunk_ptr<truetype_fonts_meta_t> truetype_fonts_meta;
+    chunk_ptr<truetype_fonts_t> truetype_fonts;
 
     // Unknown chunks:
-    std::vector<basic_chunk_t> unknownChunks;
-    std::vector<strings_chunk_t> unknownStrings;
-    std::vector<compressed_chunk_t> unknownCompressed;
+    std::vector<basic_chunk_t> unknown_chunks;
+    std::vector<strings_chunk_t> unknown_strings;
+    std::vector<compressed_chunk_t> unknown_compressed;
 
     chunk_ptr<last_t> last;
 
@@ -1115,25 +1115,25 @@ namespace SourceExplorer
   {
     static std::atomic<float> completed;
 
-    lak::astring gamePath;
-    lak::astring gameDir;
+    lak::astring game_path;
+    lak::astring game_dir;
 
     lak::memory file;
 
-    std::vector<pack_file_t> packFiles;
-    uint64_t dataPos;
-    uint16_t numHeaderSections;
-    uint16_t numSections;
+    std::vector<pack_file_t> pack_files;
+    uint64_t data_pos;
+    uint16_t num_header_sections;
+    uint16_t num_sections;
 
-    product_code_t runtimeVersion;
-    uint16_t runtimeSubVersion;
-    uint32_t productVersion;
-    uint32_t productBuild;
+    product_code_t runtime_version;
+    uint16_t runtime_sub_version;
+    uint32_t product_version;
+    uint32_t product_build;
 
     std::stack<chunk_t> state;
 
     bool unicode    = false;
-    bool oldGame    = false;
+    bool old_game   = false;
     bool compat     = false;
     bool cnc        = false;
     bool recompiled = false;
@@ -1145,8 +1145,8 @@ namespace SourceExplorer
     lak::u16string title;
     lak::u16string copyright;
 
-    std::unordered_map<uint32_t, size_t> imageHandles;
-    std::unordered_map<uint16_t, size_t> objectHandles;
+    std::unordered_map<uint32_t, size_t> image_handles;
+    std::unordered_map<uint16_t, size_t> object_handles;
   };
 
   struct file_state_t
@@ -1158,22 +1158,22 @@ namespace SourceExplorer
 
   struct source_explorer_t
   {
-    lak::graphics_mode graphicsMode;
+    lak::graphics_mode graphics_mode;
 
     game_t state;
 
-    bool loaded         = false;
-    bool babyMode       = true;
-    bool dumpColorTrans = true;
+    bool loaded                 = false;
+    bool baby_mode              = true;
+    bool dump_color_transparent = true;
     file_state_t exe;
     file_state_t images;
-    file_state_t sortedImages;
+    file_state_t sorted_images;
     file_state_t sounds;
     file_state_t music;
     file_state_t shaders;
-    file_state_t binaryFiles;
+    file_state_t binary_files;
     file_state_t appicon;
-    file_state_t errorLog;
+    file_state_t error_log;
 
     MemoryEditor editor;
 
@@ -1184,11 +1184,11 @@ namespace SourceExplorer
 
   [[nodiscard]] error_t LoadGame(source_explorer_t &srcexp);
 
-  void GetEncryptionKey(game_t &gameState);
+  void GetEncryptionKey(game_t &game_state);
 
-  [[nodiscard]] error_t ParsePEHeader(lak::memory &strm, game_t &gameState);
+  [[nodiscard]] error_t ParsePEHeader(lak::memory &strm, game_t &game_state);
 
-  uint64_t ParsePackData(lak::memory &strm, game_t &gameState);
+  uint64_t ParsePackData(lak::memory &strm, game_t &game_state);
 
   texture_t CreateTexture(const lak::image4_t &bitmap,
                           const lak::graphics_mode mode);
@@ -1227,10 +1227,10 @@ namespace SourceExplorer
     const std::vector<uint8_t> &compressed);
 
   std::vector<uint8_t> DecompressOrCompressed(
-    const std::vector<uint8_t> &compressed, unsigned int outSize);
+    const std::vector<uint8_t> &compressed, unsigned int out_size);
 
   result_t<std::vector<uint8_t>> StreamDecompress(lak::memory &strm,
-                                                  unsigned int outSize);
+                                                  unsigned int out_size);
 
   result_t<std::vector<uint8_t>> Decrypt(const std::vector<uint8_t> &encrypted,
                                          chunk_t ID,

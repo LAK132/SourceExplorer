@@ -61,18 +61,18 @@ namespace SourceExplorer
   void SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed);
 
   template<typename LOAD, typename MANIP>
-  void Attempt(file_state_t &FileState, LOAD Load, MANIP Manip)
+  void Attempt(file_state_t &file_state, LOAD load, MANIP mamip)
   {
-    if (!FileState.valid)
+    if (!file_state.valid)
     {
-      if (Load(FileState))
-        if (!FileState.valid) // User cancelled
-          FileState.attempt = false;
+      if (load(file_state))
+        if (!file_state.valid) // User cancelled
+          file_state.attempt = false;
     }
-    else if (Manip())
+    else if (mamip())
     {
-      FileState.valid   = false;
-      FileState.attempt = false;
+      file_state.valid   = false;
+      file_state.attempt = false;
     }
   }
 

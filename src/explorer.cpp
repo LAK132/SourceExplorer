@@ -31,7 +31,7 @@
 
 namespace SourceExplorer
 {
-  bool forceCompat = false;
+  bool force_compat = false;
   encryption_table decryptor;
   std::vector<uint8_t> _magic_key;
   game_mode_t _mode = game_mode_t::_OLD;
@@ -52,7 +52,7 @@ namespace SourceExplorer
     DEBUG("Loading Game");
 
     srcexp.state        = game_t{};
-    srcexp.state.compat = forceCompat;
+    srcexp.state.compat = force_compat;
 
     RES_TRY_ASSIGN(srcexp.state.file =,
                    lak::read_file(srcexp.exe.path)
@@ -68,10 +68,10 @@ namespace SourceExplorer
 
     _magic_key.clear();
 
-    if (srcexp.state.productBuild < 284 || srcexp.state.oldGame ||
+    if (srcexp.state.product_build < 284 || srcexp.state.old_game ||
         srcexp.state.compat)
       _mode = game_mode_t::_OLD;
-    else if (srcexp.state.productBuild > 284)
+    else if (srcexp.state.product_build > 284)
       _mode = game_mode_t::_288;
     else
       _mode = game_mode_t::_284;
@@ -89,8 +89,8 @@ namespace SourceExplorer
 
     DEBUG("Unicode: ", (srcexp.state.unicode ? "true" : "false"));
 
-    if (srcexp.state.game.projectPath)
-      srcexp.state.project = srcexp.state.game.projectPath->value;
+    if (srcexp.state.game.project_path)
+      srcexp.state.project = srcexp.state.game.project_path->value;
 
     if (srcexp.state.game.title)
       srcexp.state.title = srcexp.state.game.title->value;
@@ -102,65 +102,65 @@ namespace SourceExplorer
     DEBUG("Title: ", lak::strconv<char>(srcexp.state.title));
     DEBUG("Copyright: ", lak::strconv<char>(srcexp.state.copyright));
 
-    if (srcexp.state.game.imageBank)
+    if (srcexp.state.game.image_bank)
     {
-      const auto &images = srcexp.state.game.imageBank->items;
+      const auto &images = srcexp.state.game.image_bank->items;
       for (size_t i = 0; i < images.size(); ++i)
       {
-        srcexp.state.imageHandles[images[i].entry.handle] = i;
+        srcexp.state.image_handles[images[i].entry.handle] = i;
       }
     }
 
-    if (srcexp.state.game.objectBank)
+    if (srcexp.state.game.object_bank)
     {
-      const auto &objects = srcexp.state.game.objectBank->items;
+      const auto &objects = srcexp.state.game.object_bank->items;
       for (size_t i = 0; i < objects.size(); ++i)
       {
-        srcexp.state.objectHandles[objects[i].handle] = i;
+        srcexp.state.object_handles[objects[i].handle] = i;
       }
     }
 
     return lak::ok_t{};
   }
 
-  void GetEncryptionKey(game_t &gameState)
+  void GetEncryptionKey(game_t &game_state)
   {
     _magic_key.clear();
     _magic_key.reserve(256);
 
     if (_mode == game_mode_t::_284)
     {
-      if (gameState.game.projectPath)
-        _magic_key += KeyString(gameState.game.projectPath->value);
-      if (_magic_key.size() < 0x80 && gameState.game.title)
-        _magic_key += KeyString(gameState.game.title->value);
-      if (_magic_key.size() < 0x80 && gameState.game.copyright)
-        _magic_key += KeyString(gameState.game.copyright->value);
+      if (game_state.game.project_path)
+        _magic_key += KeyString(game_state.game.project_path->value);
+      if (_magic_key.size() < 0x80 && game_state.game.title)
+        _magic_key += KeyString(game_state.game.title->value);
+      if (_magic_key.size() < 0x80 && game_state.game.copyright)
+        _magic_key += KeyString(game_state.game.copyright->value);
     }
     else
     {
-      if (gameState.game.title)
-        _magic_key += KeyString(gameState.game.title->value);
-      if (_magic_key.size() < 0x80 && gameState.game.copyright)
-        _magic_key += KeyString(gameState.game.copyright->value);
-      if (_magic_key.size() < 0x80 && gameState.game.projectPath)
-        _magic_key += KeyString(gameState.game.projectPath->value);
+      if (game_state.game.title)
+        _magic_key += KeyString(game_state.game.title->value);
+      if (_magic_key.size() < 0x80 && game_state.game.copyright)
+        _magic_key += KeyString(game_state.game.copyright->value);
+      if (_magic_key.size() < 0x80 && game_state.game.project_path)
+        _magic_key += KeyString(game_state.game.project_path->value);
     }
     _magic_key.resize(0x100);
     std::memset(_magic_key.data() + 0x80, 0, 0x80);
 
-    uint8_t *keyPtr = _magic_key.data();
-    size_t len      = strlen((char *)keyPtr);
-    uint8_t accum   = _magic_char;
-    uint8_t hash    = _magic_char;
+    uint8_t *key_ptr = _magic_key.data();
+    size_t len       = strlen((char *)key_ptr);
+    uint8_t accum    = _magic_char;
+    uint8_t hash     = _magic_char;
     for (size_t i = 0; i <= len; ++i)
     {
       hash = (hash << 7) + (hash >> 1);
-      *keyPtr ^= hash;
-      accum += *keyPtr * ((hash & 1) + 2);
-      ++keyPtr;
+      *key_ptr ^= hash;
+      accum += *key_ptr * ((hash & 1) + 2);
+      ++key_ptr;
     }
-    *keyPtr = accum;
+    *key_ptr = accum;
 
     decryptor.valid = false;
   }
@@ -176,17 +176,17 @@ namespace SourceExplorer
     return decryptor.decode(chunk);
   }
 
-  error_t ParsePEHeader(lak::memory &strm, game_t &gameState)
+  error_t ParsePEHeader(lak::memory &strm, game_t &game_state)
   {
     DEBUG("Parsing PE header");
 
-    uint16_t exeSig = strm.read_u16();
-    DEBUG("EXE Signature: ", exeSig);
-    if (exeSig != WIN_EXE_SIG)
+    uint16_t exe_sig = strm.read_u16();
+    DEBUG("EXE Signature: ", exe_sig);
+    if (exe_sig != WIN_EXE_SIG)
     {
       return lak::err_t{error(LINE_TRACE,
                               error::invalid_exe_signature,
-                              TRACE_EXPECTED(WIN_EXE_SIG, exeSig),
+                              TRACE_EXPECTED(WIN_EXE_SIG, exe_sig),
                               ", at ",
                               (strm.position() - 2))};
     }
@@ -195,31 +195,31 @@ namespace SourceExplorer
     strm.seek(strm.read_u16());
     DEBUG("EXE Pointer: ", strm.position(), ", At: ", (size_t)WIN_EXE_PNT);
 
-    int32_t peSig = strm.read_s32();
-    DEBUG("PE Signature: ", peSig);
-    if (peSig != WIN_PE_SIG)
+    int32_t pe_sig = strm.read_s32();
+    DEBUG("PE Signature: ", pe_sig);
+    if (pe_sig != WIN_PE_SIG)
     {
       return lak::err_t{error(LINE_TRACE,
                               error::invalid_pe_signature,
-                              TRACE_EXPECTED(WIN_PE_SIG, peSig),
+                              TRACE_EXPECTED(WIN_PE_SIG, pe_sig),
                               ", at ",
                               (strm.position() - 4))};
     }
 
     strm.skip(2);
 
-    uint16_t numHeaderSections = strm.read_u16();
-    DEBUG("Number Of Header Sections: ", numHeaderSections);
+    uint16_t num_header_sections = strm.read_u16();
+    DEBUG("Number Of Header Sections: ", num_header_sections);
 
     strm.skip(16);
 
-    const uint16_t optionalHeader = 0x60;
-    const uint16_t dataDir        = 0x80;
-    strm.skip(optionalHeader + dataDir);
+    const uint16_t optional_header = 0x60;
+    const uint16_t data_dir        = 0x80;
+    strm.skip(optional_header + data_dir);
     DEBUG("Pos: ", strm.position());
 
     uint64_t pos = 0;
-    for (uint16_t i = 0; i < numHeaderSections; ++i)
+    for (uint16_t i = 0; i < num_header_sections; ++i)
     {
       uint64_t start = strm.position();
       auto name      = strm.read_astring();
@@ -230,7 +230,7 @@ namespace SourceExplorer
         pos = strm.read_s32();
         break;
       }
-      else if (i >= numHeaderSections - 1)
+      else if (i >= num_header_sections - 1)
       {
         strm.seek(start + 0x10);
         uint32_t size = strm.read_u32();
@@ -247,41 +247,42 @@ namespace SourceExplorer
     while (true)
     {
       strm.seek(pos);
-      uint16_t firstShort = strm.read_u16();
-      DEBUG("First Short: ", firstShort);
+      uint16_t first_short = strm.read_u16();
+      DEBUG("First Short: ", first_short);
       strm.seek(pos);
-      uint32_t pameMagic = strm.read_u32();
-      DEBUG("PAME Magic: ", pameMagic);
+      uint32_t pame_magic = strm.read_u32();
+      DEBUG("PAME Magic: ", pame_magic);
       strm.seek(pos);
-      uint64_t packMagic = strm.read_u64();
-      DEBUG("Pack Magic: ", packMagic);
+      uint64_t pack_magic = strm.read_u64();
+      DEBUG("Pack Magic: ", pack_magic);
       strm.seek(pos);
       DEBUG("Pos: ", pos);
 
-      if (firstShort == (uint16_t)chunk_t::header || pameMagic == HEADER_GAME)
+      if (first_short == (uint16_t)chunk_t::header ||
+          pame_magic == HEADER_GAME)
       {
         DEBUG("Old Game");
-        gameState.oldGame = true;
-        gameState.state   = {};
-        gameState.state.push(chunk_t::old);
+        game_state.old_game = true;
+        game_state.state    = {};
+        game_state.state.push(chunk_t::old);
         break;
       }
-      else if (packMagic == HEADER_PACK)
+      else if (pack_magic == HEADER_PACK)
       {
         DEBUG("New Game");
-        gameState.oldGame = false;
-        gameState.state   = {};
-        gameState.state.push(chunk_t::_new);
-        pos = ParsePackData(strm, gameState);
+        game_state.old_game = false;
+        game_state.state    = {};
+        game_state.state.push(chunk_t::_new);
+        pos = ParsePackData(strm, game_state);
         break;
       }
-      else if (firstShort == 0x222C)
+      else if (first_short == 0x222C)
       {
         strm.skip(4);
         strm.skip(strm.read_u32());
         pos = strm.position();
       }
-      else if (firstShort == 0x7F7F)
+      else if (first_short == 0x7F7F)
       {
         pos += 8;
       }
@@ -306,11 +307,11 @@ namespace SourceExplorer
     uint32_t header = strm.read_u32();
     DEBUG("Header: ", header);
 
-    gameState.unicode = false;
+    game_state.unicode = false;
     if (header == HEADER_UNIC)
     {
-      gameState.unicode = true;
-      gameState.oldGame = false;
+      game_state.unicode  = true;
+      game_state.old_game = false;
     }
     else if (header != HEADER_GAME)
     {
@@ -321,9 +322,9 @@ namespace SourceExplorer
                               (strm.position() - 4))};
     }
 
-    gameState.runtimeVersion = (product_code_t)strm.read_u16();
-    DEBUG("Runtime Version: ", (int)gameState.runtimeVersion);
-    if (gameState.runtimeVersion == product_code_t::CNCV1VER)
+    game_state.runtime_version = (product_code_t)strm.read_u16();
+    DEBUG("Runtime Version: ", (int)game_state.runtime_version);
+    if (game_state.runtime_version == product_code_t::CNCV1VER)
     {
       DEBUG("CNCV1VER");
       // cnc = true;
@@ -331,31 +332,31 @@ namespace SourceExplorer
     }
     else
     {
-      gameState.runtimeSubVersion = strm.read_u16();
-      DEBUG("Runtime Sub-Version: ", gameState.runtimeSubVersion);
-      gameState.productVersion = strm.read_u32();
-      DEBUG("Product Version: ", gameState.productVersion);
-      gameState.productBuild = strm.read_u32();
-      DEBUG("Product Build: ", gameState.productBuild);
+      game_state.runtime_sub_version = strm.read_u16();
+      DEBUG("Runtime Sub-Version: ", game_state.runtime_sub_version);
+      game_state.product_version = strm.read_u32();
+      DEBUG("Product Version: ", game_state.product_version);
+      game_state.product_build = strm.read_u32();
+      DEBUG("Product Build: ", game_state.product_build);
     }
 
     return lak::ok_t{};
   }
 
-  uint64_t ParsePackData(lak::memory &strm, game_t &gameState)
+  uint64_t ParsePackData(lak::memory &strm, game_t &game_state)
   {
     DEBUG("Parsing pack data");
 
     uint64_t start  = strm.position();
     uint64_t header = strm.read_u64();
     DEBUG("Header: ", header);
-    uint32_t headerSize = strm.read_u32();
-    (void)headerSize;
-    DEBUG("Header Size: ", headerSize);
-    uint32_t dataSize = strm.read_u32();
-    DEBUG("Data Size: ", dataSize);
+    uint32_t header_size = strm.read_u32();
+    (void)header_size;
+    DEBUG("Header Size: ", header_size);
+    uint32_t data_size = strm.read_u32();
+    DEBUG("Data Size: ", data_size);
 
-    strm.seek(start + dataSize - 0x20);
+    strm.seek(start + data_size - 0x20);
 
     header = strm.read_u32();
     DEBUG("Head: ", header);
@@ -371,9 +372,9 @@ namespace SourceExplorer
 
     strm.seek(start + 0x10);
 
-    uint32_t formatVersion = strm.read_u32();
-    (void)formatVersion;
-    DEBUG("Format Version: ", formatVersion);
+    uint32_t format_version = strm.read_u32();
+    (void)format_version;
+    DEBUG("Format Version: ", format_version);
 
     strm.skip(0x8);
 
@@ -402,12 +403,12 @@ namespace SourceExplorer
     header = strm.read_u32();
     DEBUG("Header: ", header);
 
-    bool hasBingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
-    DEBUG("Has Bingo: ", (hasBingo ? "true" : "false"));
+    bool has_bingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
+    DEBUG("Has Bingo: ", (has_bingo ? "true" : "false"));
 
     strm.seek(off);
 
-    gameState.packFiles.resize(count);
+    game_state.pack_files.resize(count);
 
     for (int32_t i = 0; i < count; ++i)
     {
@@ -424,23 +425,23 @@ namespace SourceExplorer
             strm.position());
 
       if (unicode)
-        gameState.packFiles[i].filename =
+        game_state.pack_files[i].filename =
           strm.read_u16string_exact(read).to_string();
       else
-        gameState.packFiles[i].filename =
+        game_state.pack_files[i].filename =
           lak::to_u16string(strm.read_astring_exact(read));
 
       // strm.seek(strstart + (unicode ? read * 2 : read));
 
       // DEBUG("String Start: ", strstart);
-      DEBUG("Packfile '", gameState.packFiles[i].filename, "'");
+      DEBUG("Packfile '", game_state.pack_files[i].filename, "'");
 
-      if (hasBingo)
-        gameState.packFiles[i].bingo = strm.read_u32();
+      if (has_bingo)
+        game_state.pack_files[i].bingo = strm.read_u32();
       else
-        gameState.packFiles[i].bingo = 0;
+        game_state.pack_files[i].bingo = 0;
 
-      DEBUG("Bingo: ", gameState.packFiles[i].bingo);
+      DEBUG("Bingo: ", game_state.pack_files[i].bingo);
 
       // if (unicode)
       //     read = strm.read_u32();
@@ -449,7 +450,7 @@ namespace SourceExplorer
       read = strm.read_u32();
 
       DEBUG("Pack File Data Size: ", read, ", Pos: ", strm.position());
-      gameState.packFiles[i].data = strm.read(read);
+      game_state.pack_files[i].data = strm.read(read);
     }
 
     header = strm.read_u32(); // PAMU sometimes
@@ -579,12 +580,12 @@ namespace SourceExplorer
   }
 
   uint16_t BitmapPaddingSize(uint16_t width,
-                             uint8_t colSize,
+                             uint8_t col_size,
                              uint8_t bytes = 2)
   {
-    uint16_t num = bytes - ((width * colSize) % bytes);
+    uint16_t num = bytes - ((width * col_size) % bytes);
     return (uint16_t)std::ceil((double)(num == bytes ? 0 : num) /
-                               (double)colSize);
+                               (double)col_size);
   }
 
   size_t ReadRLE(lak::memory &strm,
@@ -592,10 +593,10 @@ namespace SourceExplorer
                  graphics_mode_t mode,
                  const lak::color4_t palette[256] = nullptr)
   {
-    const size_t pointSize = ColorModeSize(mode);
-    const uint16_t pad     = BitmapPaddingSize(bitmap.size().x, pointSize);
-    size_t pos             = 0;
-    size_t i               = 0;
+    const size_t point_size = ColorModeSize(mode);
+    const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
+    size_t pos              = 0;
+    size_t i                = 0;
 
     size_t start = strm.position();
 
@@ -613,7 +614,7 @@ namespace SourceExplorer
           if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
             bitmap[i++] = ColorFromMode(strm, mode, palette);
           else
-            strm.skip(pointSize);
+            strm.skip(point_size);
         }
       }
       else
@@ -635,9 +636,9 @@ namespace SourceExplorer
                  graphics_mode_t mode,
                  const lak::color4_t palette[256] = nullptr)
   {
-    const size_t pointSize = ColorModeSize(mode);
-    const uint16_t pad     = BitmapPaddingSize(bitmap.size().x, pointSize);
-    size_t i               = 0;
+    const size_t point_size = ColorModeSize(mode);
+    const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
+    size_t i                = 0;
 
     size_t start = strm.position();
 
@@ -647,7 +648,7 @@ namespace SourceExplorer
       {
         bitmap[i++] = ColorFromMode(strm, mode, palette);
       }
-      strm.skip(pad * pointSize);
+      strm.skip(pad * point_size);
     }
 
     return strm.position() - start;
@@ -722,7 +723,7 @@ namespace SourceExplorer
     if (std::holds_alternative<lak::opengl::texture>(srcexp.image))
     {
       const auto &img = std::get<lak::opengl::texture>(srcexp.image);
-      if (!img.get() || srcexp.graphicsMode != lak::graphics_mode::OpenGL)
+      if (!img.get() || srcexp.graphics_mode != lak::graphics_mode::OpenGL)
       {
         ImGui::Text("No image selected.");
       }
@@ -736,7 +737,7 @@ namespace SourceExplorer
     else if (std::holds_alternative<texture_color32_t>(srcexp.image))
     {
       const auto &img = std::get<texture_color32_t>(srcexp.image);
-      if (!img.pixels || srcexp.graphicsMode != lak::graphics_mode::Software)
+      if (!img.pixels || srcexp.graphics_mode != lak::graphics_mode::Software)
       {
         ImGui::Text("No image selected.");
       }
@@ -1016,7 +1017,7 @@ namespace SourceExplorer
   }
 
   std::vector<uint8_t> DecompressOrCompressed(
-    const std::vector<uint8_t> &compressed, unsigned int outSize)
+    const std::vector<uint8_t> &compressed, unsigned int out_size)
   {
     if (auto result = Inflate(compressed, true, true); result.is_ok())
       return lak::move(result).unsafe_unwrap();
@@ -1025,7 +1026,7 @@ namespace SourceExplorer
   }
 
   result_t<std::vector<uint8_t>> StreamDecompress(lak::memory &strm,
-                                                  unsigned int outSize)
+                                                  unsigned int out_size)
   {
     lak::array<uint8_t> buffer;
     tinf::decompression_state_t state;
@@ -1109,53 +1110,53 @@ namespace SourceExplorer
 
   result_t<frame::item_t &> GetFrame(game_t &game, uint16_t handle)
   {
-    if (!game.game.frameBank)
+    if (!game.game.frame_bank)
       return lak::err_t{error(LINE_TRACE, "No Frame Bank")};
 
-    if (!game.game.frameHandles)
+    if (!game.game.frame_handles)
       return lak::err_t{error(LINE_TRACE, "No Frame Handles")};
 
-    if (handle >= game.game.frameHandles->handles.size())
+    if (handle >= game.game.frame_handles->handles.size())
       return lak::err_t{error(LINE_TRACE, "Frame Handle Out Of Range")};
 
-    handle = game.game.frameHandles->handles[handle];
+    handle = game.game.frame_handles->handles[handle];
 
-    if (handle >= game.game.frameBank->items.size())
+    if (handle >= game.game.frame_bank->items.size())
       lak::err_t{error(LINE_TRACE, "Frame Bank Handle Out Of Range")};
 
-    return lak::ok_t{game.game.frameBank->items[handle]};
+    return lak::ok_t{game.game.frame_bank->items[handle]};
   }
 
   result_t<object::item_t &> GetObject(game_t &game, uint16_t handle)
   {
-    if (!game.game.objectBank)
+    if (!game.game.object_bank)
       return lak::err_t{error(LINE_TRACE, "No Object Bank")};
 
-    auto iter = game.objectHandles.find(handle);
+    auto iter = game.object_handles.find(handle);
 
-    if (iter == game.objectHandles.end())
+    if (iter == game.object_handles.end())
       return lak::err_t{error(LINE_TRACE, "Invalid Object Handle")};
 
-    if (iter->second >= game.game.objectBank->items.size())
+    if (iter->second >= game.game.object_bank->items.size())
       return lak::err_t{error(LINE_TRACE, "Object Bank Handle Out Of Range")};
 
-    return lak::ok_t{game.game.objectBank->items[iter->second]};
+    return lak::ok_t{game.game.object_bank->items[iter->second]};
   }
 
   result_t<image::item_t &> GetImage(game_t &game, uint32_t handle)
   {
-    if (!game.game.imageBank)
+    if (!game.game.image_bank)
       return lak::err_t{error(LINE_TRACE, "No Image Bank")};
 
-    auto iter = game.imageHandles.find(handle);
+    auto iter = game.image_handles.find(handle);
 
-    if (iter == game.imageHandles.end())
+    if (iter == game.image_handles.end())
       return lak::err_t{error(LINE_TRACE, "Invalid Image Handle")};
 
-    if (iter->second >= game.game.imageBank->items.size())
+    if (iter->second >= game.game.image_bank->items.size())
       return lak::err_t{error(LINE_TRACE, "Image Bank Handle Out Of Range")};
 
-    return lak::ok_t{game.game.imageBank->items[iter->second]};
+    return lak::ok_t{game.game.image_bank->items[iter->second]};
   }
 
   result_t<lak::memory> data_point_t::decode(const chunk_t ID,
@@ -1173,7 +1174,7 @@ namespace SourceExplorer
     CHECK_REMAINING(strm, 8);
 
     position = strm.position();
-    old      = game.oldGame;
+    old      = game.old_game;
     ID       = (chunk_t)strm.read_u16();
     mode     = (encoding_t)strm.read_u16();
 
@@ -1192,9 +1193,9 @@ namespace SourceExplorer
 
     if (mode == encoding_t::mode1)
     {
-      data.expectedSize = strm.read_u32();
+      data.expected_size = strm.read_u32();
 
-      if (game.oldGame)
+      if (game.old_game)
       {
         data.position = strm.position();
 
@@ -1225,9 +1226,9 @@ namespace SourceExplorer
     }
     else
     {
-      data.expectedSize = 0;
-      data.position     = strm.position();
-      data.data         = strm.read(chunk_size);
+      data.expected_size = 0;
+      data.position      = strm.position();
+      data.data          = strm.read(chunk_size);
     }
     end = strm.position();
 
@@ -1250,11 +1251,11 @@ namespace SourceExplorer
       ImGui::Text("Mode: MODE%zu", (size_t)mode);
 
       ImGui::Text("Header Position: 0x%zX", header.position);
-      ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
+      ImGui::Text("Header Expected Size: 0x%zX", header.expected_size);
       ImGui::Text("Header Size: 0x%zX", header.data.size());
 
       ImGui::Text("Data Position: 0x%zX", data.position);
-      ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
+      ImGui::Text("Data Expected Size: 0x%zX", data.expected_size);
       ImGui::Text("Data Size: 0x%zX", data.data.size());
 
       ImGui::TreePop();
@@ -1266,66 +1267,66 @@ namespace SourceExplorer
   error_t item_entry_t::read(game_t &game,
                              lak::memory &strm,
                              bool compressed,
-                             size_t headersize)
+                             size_t header_size)
   {
     if (!strm.remaining())
       return lak::err_t{error(LINE_TRACE, error::out_of_data)};
 
     position = strm.position();
-    old      = game.oldGame;
+    old      = game.old_game;
     mode     = encoding_t::mode0;
     handle   = strm.read_u32();
 
-    const bool newItem = strm.peek_s32() == -1;
-    if (newItem)
+    const bool new_item = strm.peek_s32() == -1;
+    if (new_item)
     {
       WARNING("New Item");
       game.recompiled |= true;
-      headersize = 12;
-      mode       = encoding_t::mode0;
-      compressed = false;
+      header_size = 12;
+      mode        = encoding_t::mode0;
+      compressed  = false;
     }
 
-    if (!game.oldGame && headersize > 0)
+    if (!game.old_game && header_size > 0)
     {
-      header.position     = strm.position();
-      header.expectedSize = 0;
-      header.data         = strm.read(headersize);
+      header.position      = strm.position();
+      header.expected_size = 0;
+      header.data          = strm.read(header_size);
     }
 
-    data.expectedSize = game.oldGame || compressed ? strm.read_u32() : 0;
+    data.expected_size = game.old_game || compressed ? strm.read_u32() : 0;
 
-    size_t dataSize;
-    if (game.oldGame)
+    size_t data_size;
+    if (game.old_game)
     {
       const size_t start = strm.position();
       // Figure out exactly how long the compressed data is
       // :TODO: It should be possible to figure this out without
       // actually decompressing it... surely...
       RES_TRY_ASSIGN(const auto raw =,
-                     StreamDecompress(strm, data.expectedSize)
+                     StreamDecompress(strm, data.expected_size)
                        .map_err(APPEND_TRACE("item_entry_t::read")));
-      if (raw.size() != data.expectedSize)
+      if (raw.size() != data.expected_size)
       {
         WARNING("Actual decompressed size (",
                 raw.size(),
                 ") was not equal to the expected size (",
-                data.expectedSize,
+                data.expected_size,
                 ").");
       }
-      dataSize = strm.position() - start;
+      data_size = strm.position() - start;
       strm.seek(start);
     }
     else
     {
-      dataSize = strm.read_u32() + (newItem ? 20 : 0);
+      data_size = strm.read_u32() + (new_item ? 20 : 0);
     }
 
     data.position = strm.position();
-    data.data     = strm.read(dataSize);
+    data.data     = strm.read(data_size);
 
     // hack because one of MMF1.5 or tinf_uncompress is a bitch
-    if (game.oldGame) mode = encoding_t::mode1;
+    if (game.old_game) mode = encoding_t::mode1;
 
     end = strm.position();
 
@@ -1347,11 +1348,11 @@ namespace SourceExplorer
       ImGui::Text("Handle: 0x%zX", (size_t)handle);
 
       ImGui::Text("Header Position: 0x%zX", header.position);
-      ImGui::Text("Header Expected Size: 0x%zX", header.expectedSize);
+      ImGui::Text("Header Expected Size: 0x%zX", header.expected_size);
       ImGui::Text("Header Size: 0x%zX", header.data.size());
 
       ImGui::Text("Data Position: 0x%zX", data.position);
-      ImGui::Text("Data Expected Size: 0x%zX", data.expectedSize);
+      ImGui::Text("Data Expected Size: 0x%zX", data.expected_size);
       ImGui::Text("Data Size: 0x%zX", data.data.size());
 
       ImGui::TreePop();
@@ -1378,7 +1379,7 @@ namespace SourceExplorer
           lak::memory result = data.data;
           uint8_t magic      = result.read_u8();
           uint16_t len       = result.read_u16();
-          if (magic == 0x0F && (size_t)len == data.expectedSize)
+          if (magic == 0x0F && (size_t)len == data.expected_size)
           {
             result =
               lak::memory(result.read(std::min(result.remaining(), max_size)));
@@ -1392,7 +1393,7 @@ namespace SourceExplorer
                            result.get(),
                            true,
                            true,
-                           std::min(data.expectedSize, max_size))
+                           std::min(data.expected_size, max_size))
               .map([&](const auto &) { return lak::move(result); })
               .map_err(APPEND_TRACE("MODE1 Failed To Inflate"))
               .if_ok([](const lak::memory &memory) {
@@ -1531,7 +1532,7 @@ namespace SourceExplorer
   {
     std::u16string result;
 
-    if (game.oldGame)
+    if (game.old_game)
     {
       switch (entry.mode)
       {
@@ -1888,7 +1889,7 @@ namespace SourceExplorer
 
       if (ImGui::Button("View Image"))
       {
-        srcexp.image = CreateTexture(bitmap, srcexp.graphicsMode);
+        srcexp.image = CreateTexture(bitmap, srcexp.graphics_mode);
       }
 
       ImGui::TreePop();
@@ -2027,13 +2028,13 @@ namespace SourceExplorer
     RES_TRY_ASSIGN(
       lak::memory estrm =,
       entry.decode().map_err(APPEND_TRACE("extended_header_t::read")));
-    flags                = estrm.read_u32();
-    buildType            = estrm.read_u32();
-    buildFlags           = estrm.read_u32();
-    screenRatioTolerance = estrm.read_u16();
-    screenAngle          = estrm.read_u16();
+    flags                  = estrm.read_u32();
+    build_type             = estrm.read_u32();
+    build_flags            = estrm.read_u32();
+    screen_ratio_tolerance = estrm.read_u16();
+    screen_angle           = estrm.read_u16();
 
-    game.compat |= buildType >= 0x10000000;
+    game.compat |= build_type >= 0x10000000;
 
     return lak::ok_t{};
   }
@@ -2048,11 +2049,11 @@ namespace SourceExplorer
       entry.view(srcexp);
 
       ImGui::Text("Flags: 0x%zX", (size_t)flags);
-      ImGui::Text("Build Type: 0x%zX", (size_t)buildType);
-      ImGui::Text("Build Flags: 0x%zX", (size_t)buildFlags);
+      ImGui::Text("Build Type: 0x%zX", (size_t)build_type);
+      ImGui::Text("Build Flags: 0x%zX", (size_t)build_flags);
       ImGui::Text("Screen Ratio Tolerance: 0x%zX",
-                  (size_t)screenRatioTolerance);
-      ImGui::Text("Screen Angle: 0x%zX", (size_t)screenAngle);
+                  (size_t)screen_ratio_tolerance);
+      ImGui::Text("Screen Angle: 0x%zX", (size_t)screen_angle);
 
       ImGui::Separator();
       ImGui::TreePop();
@@ -2204,13 +2205,13 @@ namespace SourceExplorer
     {
       SCOPED_CHECKPOINT("object::shape_t::read");
 
-      borderSize    = strm.read_u16();
-      borderColor.r = strm.read_u8();
-      borderColor.g = strm.read_u8();
-      borderColor.b = strm.read_u8();
-      borderColor.a = strm.read_u8();
-      shape         = (shape_type_t)strm.read_u16();
-      fill          = (fill_type_t)strm.read_u16();
+      border_size    = strm.read_u16();
+      border_color.r = strm.read_u8();
+      border_color.g = strm.read_u8();
+      border_color.b = strm.read_u8();
+      border_color.a = strm.read_u8();
+      shape          = (shape_type_t)strm.read_u16();
+      fill           = (fill_type_t)strm.read_u16();
 
       line     = line_flags_t::none;
       gradient = gradient_flags_t::horizontal;
@@ -2253,8 +2254,8 @@ namespace SourceExplorer
       {
         ImGui::Separator();
 
-        ImGui::Text("Border Size: 0x%zX", (size_t)borderSize);
-        lak::vec4f_t col = ((lak::vec4f_t)borderColor) / 255.0f;
+        ImGui::Text("Border Size: 0x%zX", (size_t)border_size);
+        lak::vec4f_t col = ((lak::vec4f_t)border_color) / 255.0f;
         ImGui::ColorEdit4("Border Color", &col.x);
         ImGui::Text("Shape: 0x%zX", (size_t)shape);
         ImGui::Text("Fill: 0x%zX", (size_t)fill);
@@ -2301,8 +2302,8 @@ namespace SourceExplorer
       size        = qstrm.read_u32();
       obstacle    = qstrm.read_u16();
       collision   = qstrm.read_u16();
-      dimension.x = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
-      dimension.y = game.oldGame ? qstrm.read_u16() : qstrm.read_u32();
+      dimension.x = game.old_game ? qstrm.read_u16() : qstrm.read_u32();
+      dimension.y = game.old_game ? qstrm.read_u16() : qstrm.read_u32();
       RES_TRY_ERR(shape.read(game, qstrm)
                     .map_err(APPEND_TRACE("object::quick_backdrop_t::read")));
 
@@ -2357,9 +2358,9 @@ namespace SourceExplorer
       size        = bstrm.read_u32();
       obstacle    = bstrm.read_u16();
       collision   = bstrm.read_u16();
-      dimension.x = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
-      dimension.y = game.oldGame ? bstrm.read_u16() : bstrm.read_u32();
-      // if (!game.oldGame) bstrm.skip(2);
+      dimension.x = game.old_game ? bstrm.read_u16() : bstrm.read_u32();
+      dimension.y = game.old_game ? bstrm.read_u16() : bstrm.read_u32();
+      // if (!game.old_game) bstrm.skip(2);
       handle = bstrm.read_u16();
 
       return lak::ok_t{};
@@ -2404,10 +2405,10 @@ namespace SourceExplorer
 
       CHECK_REMAINING(strm, 8);
 
-      minSpeed = strm.read_u8();
-      maxSpeed = strm.read_u8();
-      repeat   = strm.read_u16();
-      backTo   = strm.read_u16();
+      min_speed = strm.read_u8();
+      max_speed = strm.read_u8();
+      repeat    = strm.read_u16();
+      back_to   = strm.read_u16();
       handles.resize(strm.read_u16());
 
       CHECK_REMAINING(strm, handles.size() * 2);
@@ -2419,10 +2420,10 @@ namespace SourceExplorer
 
     error_t animation_direction_t::view(source_explorer_t &srcexp) const
     {
-      ImGui::Text("Min Speed: %d", (int)minSpeed);
-      ImGui::Text("Max Speed: %d", (int)maxSpeed);
+      ImGui::Text("Min Speed: %d", (int)min_speed);
+      ImGui::Text("Max Speed: %d", (int)max_speed);
       ImGui::Text("Repeat: 0x%zX", (size_t)repeat);
-      ImGui::Text("Back To: 0x%zX", (size_t)backTo);
+      ImGui::Text("Back To: 0x%zX", (size_t)back_to);
       ImGui::Text("Frames: 0x%zX", handles.size());
 
       int index = 0;
@@ -2573,9 +2574,9 @@ namespace SourceExplorer
         lak::memory cstrm =,
         entry.decode().map_err(APPEND_TRACE("object::common_t::read")));
 
-      // if (game.productBuild >= 288 && !game.oldGame)
+      // if (game.product_build >= 288 && !game.old_game)
       //     mode = game_mode_t::_288;
-      // if (game.productBuild >= 284 && !game.oldGame && !game.compat)
+      // if (game.product_build >= 284 && !game.old_game && !game.compat)
       //     mode = game_mode_t::_284;
       // else
       //     mode = game_mode_t::_OLD;
@@ -2589,28 +2590,28 @@ namespace SourceExplorer
 
       if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
       {
-        animationsOffset = cstrm.read_u16();
-        movementsOffset  = cstrm.read_u16(); // are these in the right order?
-        version          = cstrm.read_u16(); // are these in the right order?
-        counterOffset    = cstrm.read_u16(); // are these in the right order?
-        systemOffset     = cstrm.read_u16(); // are these in the right order?
+        animations_offset = cstrm.read_u16();
+        movements_offset  = cstrm.read_u16(); // are these in the right order?
+        version           = cstrm.read_u16(); // are these in the right order?
+        counter_offset    = cstrm.read_u16(); // are these in the right order?
+        system_offset     = cstrm.read_u16(); // are these in the right order?
       }
       // else if (mode == game_mode_t::_284)
       // {
-      //     counterOffset = cstrm.read_u16();
+      //     counter_offset = cstrm.read_u16();
       //     version = cstrm.read_u16();
       //     cstrm.skip(2);
-      //     movementsOffset = cstrm.read_u16();
-      //     extensionOffset = cstrm.read_u16();
-      //     animationsOffset = cstrm.read_u16();
+      //     movements_offset = cstrm.read_u16();
+      //     extension_offset = cstrm.read_u16();
+      //     animations_offset = cstrm.read_u16();
       // }
       else
       {
-        movementsOffset  = cstrm.read_u16();
-        animationsOffset = cstrm.read_u16();
-        version          = cstrm.read_u16();
-        counterOffset    = cstrm.read_u16();
-        systemOffset     = cstrm.read_u16();
+        movements_offset  = cstrm.read_u16();
+        animations_offset = cstrm.read_u16();
+        version           = cstrm.read_u16();
+        counter_offset    = cstrm.read_u16();
+        system_offset     = cstrm.read_u16();
       }
 
       flags = cstrm.read_u32();
@@ -2629,26 +2630,26 @@ namespace SourceExplorer
 #endif
 
       if (mode == game_mode_t::_284)
-        systemOffset = cstrm.read_u16();
+        system_offset = cstrm.read_u16();
       else
-        extensionOffset = cstrm.read_u16();
+        extension_offset = cstrm.read_u16();
 
-      valuesOffset  = cstrm.read_u16();
-      stringsOffset = cstrm.read_u16();
-      newFlags      = cstrm.read_u32();
-      preferences   = cstrm.read_u32();
-      identifier    = cstrm.read_u32();
-      backColor.r   = cstrm.read_u8();
-      backColor.g   = cstrm.read_u8();
-      backColor.b   = cstrm.read_u8();
-      backColor.a   = cstrm.read_u8();
-      fadeInOffset  = cstrm.read_u32();
-      fadeOutOffset = cstrm.read_u32();
+      values_offset   = cstrm.read_u16();
+      strings_offset  = cstrm.read_u16();
+      new_flags       = cstrm.read_u32();
+      preferences     = cstrm.read_u32();
+      identifier      = cstrm.read_u32();
+      back_color.r    = cstrm.read_u8();
+      back_color.g    = cstrm.read_u8();
+      back_color.b    = cstrm.read_u8();
+      back_color.a    = cstrm.read_u8();
+      fade_in_offset  = cstrm.read_u32();
+      fade_out_offset = cstrm.read_u32();
 
-      if (animationsOffset > 0)
+      if (animations_offset > 0)
       {
-        DEBUG("Animations Offset: ", animationsOffset);
-        cstrm.seek(begin + animationsOffset);
+        DEBUG("Animations Offset: ", animations_offset);
+        cstrm.seek(begin + animations_offset);
         animations = std::make_unique<animation_header_t>();
         RES_TRY(animations->read(game, cstrm)
                   .map_err(APPEND_TRACE("object::common_t::read")));
@@ -2670,44 +2671,44 @@ namespace SourceExplorer
 
         if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
         {
-          ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
-          ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
+          ImGui::Text("Animations Offset: 0x%zX", (size_t)animations_offset);
+          ImGui::Text("Movements Offset: 0x%zX", (size_t)movements_offset);
           ImGui::Text("Version: 0x%zX", (size_t)version);
-          ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
-          ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
+          ImGui::Text("Counter Offset: 0x%zX", (size_t)counter_offset);
+          ImGui::Text("System Offset: 0x%zX", (size_t)system_offset);
           ImGui::Text("Flags: 0x%zX", (size_t)flags);
-          ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
+          ImGui::Text("Extension Offset: 0x%zX", (size_t)extension_offset);
         }
         // else if (mode == game_mode_t::_284)
         // {
-        //     ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
-        //     ImGui::Text("Version: 0x%zX", (size_t)version);
-        //     ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
-        //     ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
-        //     ImGui::Text("Animations Offset: 0x%zX",
-        //     (size_t)animationsOffset); ImGui::Text("Flags: 0x%zX",
-        //     (size_t)flags); ImGui::Text("System Offset: 0x%zX",
-        //     (size_t)systemOffset);
+        //   ImGui::Text("Counter Offset: 0x%zX", (size_t)counter_offset);
+        //   ImGui::Text("Version: 0x%zX", (size_t)version);
+        //   ImGui::Text("Movements Offset: 0x%zX", (size_t)movements_offset);
+        //   ImGui::Text("Extension Offset: 0x%zX", (size_t)extension_offset);
+        //   ImGui::Text("Animations Offset: 0x%zX",
+        //               (size_t)animations_offset);
+        //   ImGui::Text("Flags: 0x%zX", (size_t)flags);
+        //   ImGui::Text("System Offset: 0x%zX", (size_t)system_offset);
         // }
         else
         {
-          ImGui::Text("Movements Offset: 0x%zX", (size_t)movementsOffset);
-          ImGui::Text("Animations Offset: 0x%zX", (size_t)animationsOffset);
+          ImGui::Text("Movements Offset: 0x%zX", (size_t)movements_offset);
+          ImGui::Text("Animations Offset: 0x%zX", (size_t)animations_offset);
           ImGui::Text("Version: 0x%zX", (size_t)version);
-          ImGui::Text("Counter Offset: 0x%zX", (size_t)counterOffset);
-          ImGui::Text("System Offset: 0x%zX", (size_t)systemOffset);
+          ImGui::Text("Counter Offset: 0x%zX", (size_t)counter_offset);
+          ImGui::Text("System Offset: 0x%zX", (size_t)system_offset);
           ImGui::Text("Flags: 0x%zX", (size_t)flags);
-          ImGui::Text("Extension Offset: 0x%zX", (size_t)extensionOffset);
+          ImGui::Text("Extension Offset: 0x%zX", (size_t)extension_offset);
         }
-        ImGui::Text("Values Offset: 0x%zX", (size_t)valuesOffset);
-        ImGui::Text("Strings Offset: 0x%zX", (size_t)stringsOffset);
-        ImGui::Text("New Flags: 0x%zX", (size_t)newFlags);
+        ImGui::Text("Values Offset: 0x%zX", (size_t)values_offset);
+        ImGui::Text("Strings Offset: 0x%zX", (size_t)strings_offset);
+        ImGui::Text("New Flags: 0x%zX", (size_t)new_flags);
         ImGui::Text("Preferences: 0x%zX", (size_t)preferences);
         ImGui::Text("Identifier: 0x%zX", (size_t)identifier);
-        ImGui::Text("Fade In Offset: 0x%zX", (size_t)fadeInOffset);
-        ImGui::Text("Fade Out Offset: 0x%zX", (size_t)fadeOutOffset);
+        ImGui::Text("Fade In Offset: 0x%zX", (size_t)fade_in_offset);
+        ImGui::Text("Fade Out Offset: 0x%zX", (size_t)fade_out_offset);
 
-        lak::vec3f_t col = ((lak::vec3f_t)backColor) / 256.0f;
+        lak::vec3f_t col = ((lak::vec3f_t)back_color) / 256.0f;
         ImGui::ColorEdit3("Background Color", &col.x);
 
         if (animations)
@@ -2735,8 +2736,8 @@ namespace SourceExplorer
       type   = (object_type_t)dstrm.read_s16();
       dstrm.read_u16(); // flags
       dstrm.read_u16(); // "no longer used"
-      inkEffect      = dstrm.read_u32();
-      inkEffectParam = dstrm.read_u32();
+      ink_effect       = dstrm.read_u32();
+      ink_effect_param = dstrm.read_u32();
 
       [&, this]() -> error_t {
         for (bool not_finished = true; not_finished;)
@@ -2753,9 +2754,9 @@ namespace SourceExplorer
               switch (type)
               {
                 case object_type_t::quick_backdrop:
-                  quickBackdrop = std::make_unique<quick_backdrop_t>();
+                  quick_backdrop = std::make_unique<quick_backdrop_t>();
                   RES_TRY_ERR(
-                    quickBackdrop->read(game, strm)
+                    quick_backdrop->read(game, strm)
                       .map_err(APPEND_TRACE("object::item_t::read")));
                   break;
 
@@ -2814,8 +2815,8 @@ namespace SourceExplorer
 
         ImGui::Text("Handle: 0x%zX", (size_t)handle);
         ImGui::Text("Type: 0x%zX", (size_t)type);
-        ImGui::Text("Ink Effect: 0x%zX", (size_t)inkEffect);
-        ImGui::Text("Ink Effect Parameter: 0x%zX", (size_t)inkEffectParam);
+        ImGui::Text("Ink Effect: 0x%zX", (size_t)ink_effect);
+        ImGui::Text("Ink Effect Parameter: 0x%zX", (size_t)ink_effect_param);
 
         if (name)
         {
@@ -2823,9 +2824,9 @@ namespace SourceExplorer
                     .map_err(APPEND_TRACE("object::item_t::view")));
         }
 
-        if (quickBackdrop)
+        if (quick_backdrop)
         {
-          RES_TRY(quickBackdrop->view(srcexp).map_err(
+          RES_TRY(quick_backdrop->view(srcexp).map_err(
             APPEND_TRACE("object::item_t::view")));
         }
         if (backdrop)
@@ -2859,8 +2860,8 @@ namespace SourceExplorer
     {
       std::unordered_map<uint32_t, std::vector<std::u16string>> result;
 
-      if (quickBackdrop)
-        result[quickBackdrop->shape.handle].emplace_back(u"Backdrop");
+      if (quick_backdrop)
+        result[quick_backdrop->shape.handle].emplace_back(u"Backdrop");
       if (backdrop) result[backdrop->handle].emplace_back(u"Quick Backdrop");
       if (common && common->animations)
       {
@@ -3038,13 +3039,13 @@ namespace SourceExplorer
     {
       SCOPED_CHECKPOINT("frame::object_instance_t::read");
 
-      info         = strm.read_u16();
-      handle       = strm.read_u16();
-      position.x   = game.oldGame ? strm.read_s16() : strm.read_s32();
-      position.y   = game.oldGame ? strm.read_s16() : strm.read_s32();
-      parentType   = (object_parent_type_t)strm.read_u16();
-      parentHandle = strm.read_u16(); // object info (?)
-      if (!game.oldGame)
+      info          = strm.read_u16();
+      handle        = strm.read_u16();
+      position.x    = game.old_game ? strm.read_s16() : strm.read_s32();
+      position.y    = game.old_game ? strm.read_s16() : strm.read_s32();
+      parent_type   = (object_parent_type_t)strm.read_u16();
+      parent_handle = strm.read_u16(); // object info (?)
+      if (!game.old_game)
       {
         layer   = strm.read_u16();
         unknown = strm.read_u16();
@@ -3071,9 +3072,9 @@ namespace SourceExplorer
         ImGui::Text(
           "Position: (%li, %li)", (long)position.x, (long)position.y);
         ImGui::Text("Parent Type: %s (0x%zX)",
-                    GetObjectParentTypeString(parentType),
-                    (size_t)parentType);
-        ImGui::Text("Parent Handle: 0x%zX", (size_t)parentHandle);
+                    GetObjectParentTypeString(parent_type),
+                    (size_t)parent_type);
+        ImGui::Text("Parent Handle: 0x%zX", (size_t)parent_handle);
         ImGui::Text("Layer: 0x%zX", (size_t)layer);
         ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
 
@@ -3083,21 +3084,21 @@ namespace SourceExplorer
             APPEND_TRACE("frame::object_instance_t::view")));
         }
 
-        switch (parentType)
+        switch (parent_type)
         {
           case object_parent_type_t::frame_item:
-            if (auto parentObj = GetObject(srcexp.state, parentHandle);
-                parentObj.is_ok())
+            if (auto parent_obj = GetObject(srcexp.state, parent_handle);
+                parent_obj.is_ok())
             {
-              RES_TRY(parentObj.unwrap().view(srcexp).map_err(
+              RES_TRY(parent_obj.unwrap().view(srcexp).map_err(
                 APPEND_TRACE("frame::object_instance_t::view")));
             }
             break;
           case object_parent_type_t::frame:
-            if (auto parentObj = GetFrame(srcexp.state, parentHandle);
-                parentObj.is_ok())
+            if (auto parent_obj = GetFrame(srcexp.state, parent_handle);
+                parent_obj.is_ok())
             {
-              RES_TRY(parentObj.unwrap().view(srcexp).map_err(
+              RES_TRY(parent_obj.unwrap().view(srcexp).map_err(
                 APPEND_TRACE("frame::object_instance_t::view")));
             }
             break;
@@ -3310,32 +3311,32 @@ namespace SourceExplorer
             break;
 
           case chunk_t::frame_object_instances:
-            objectInstances = std::make_unique<object_instances_t>();
-            RES_TRY_ERR(objectInstances->read(game, strm)
+            object_instances = std::make_unique<object_instances_t>();
+            RES_TRY_ERR(object_instances->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::frame_fade_in_frame:
-            fadeInFrame = std::make_unique<fade_in_frame_t>();
-            RES_TRY_ERR(fadeInFrame->read(game, strm)
+            fade_in_frame = std::make_unique<fade_in_frame_t>();
+            RES_TRY_ERR(fade_in_frame->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::frame_fade_out_frame:
-            fadeOutFrame = std::make_unique<fade_out_frame_t>();
-            RES_TRY_ERR(fadeOutFrame->read(game, strm)
+            fade_out_frame = std::make_unique<fade_out_frame_t>();
+            RES_TRY_ERR(fade_out_frame->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::frame_fade_in:
-            fadeIn = std::make_unique<fade_in_t>();
-            RES_TRY_ERR(fadeIn->read(game, strm)
+            fade_in = std::make_unique<fade_in_t>();
+            RES_TRY_ERR(fade_in->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::frame_fade_out:
-            fadeOut = std::make_unique<fade_out_t>();
-            RES_TRY_ERR(fadeOut->read(game, strm)
+            fade_out = std::make_unique<fade_out_t>();
+            RES_TRY_ERR(fade_out->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
@@ -3346,21 +3347,21 @@ namespace SourceExplorer
             break;
 
           case chunk_t::frame_play_header:
-            playHead = std::make_unique<play_header_r>();
-            RES_TRY_ERR(playHead->read(game, strm)
+            play_head = std::make_unique<play_header_r>();
+            RES_TRY_ERR(play_head->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::frame_additional_items:
-            additionalItem = std::make_unique<additional_item_t>();
-            RES_TRY_ERR(additionalItem->read(game, strm)
+            additional_item = std::make_unique<additional_item_t>();
+            RES_TRY_ERR(additional_item->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::frame_additional_items_instances:
-            additionalItemInstance =
+            additional_item_instance =
               std::make_unique<additional_item_instance_t>();
-            RES_TRY_ERR(additionalItemInstance->read(game, strm)
+            RES_TRY_ERR(additional_item_instance->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
@@ -3371,26 +3372,26 @@ namespace SourceExplorer
             break;
 
           case chunk_t::frame_virtual_size:
-            virtualSize = std::make_unique<virtual_size_t>();
-            RES_TRY_ERR(virtualSize->read(game, strm)
+            virtual_size = std::make_unique<virtual_size_t>();
+            RES_TRY_ERR(virtual_size->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::demo_file_path:
-            demoFilePath = std::make_unique<demo_file_path_t>();
-            RES_TRY_ERR(demoFilePath->read(game, strm)
+            demo_file_path = std::make_unique<demo_file_path_t>();
+            RES_TRY_ERR(demo_file_path->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::random_seed:
-            randomSeed = std::make_unique<random_seed_t>();
-            RES_TRY_ERR(randomSeed->read(game, strm)
+            random_seed = std::make_unique<random_seed_t>();
+            RES_TRY_ERR(random_seed->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::frame_layer_effect:
-            layerEffect = std::make_unique<layer_effect_t>();
-            RES_TRY_ERR(layerEffect->read(game, strm)
+            layer_effect = std::make_unique<layer_effect_t>();
+            RES_TRY_ERR(layer_effect->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
@@ -3401,14 +3402,14 @@ namespace SourceExplorer
             break;
 
           case chunk_t::movement_timer_base:
-            movementTimeBase = std::make_unique<movement_time_base_t>();
-            RES_TRY_ERR(movementTimeBase->read(game, strm)
+            movement_time_base = std::make_unique<movement_time_base_t>();
+            RES_TRY_ERR(movement_time_base->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
           case chunk_t::mosaic_image_table:
-            mosaicImageTable = std::make_unique<mosaic_image_table_t>();
-            RES_TRY_ERR(mosaicImageTable->read(game, strm)
+            mosaic_image_table = std::make_unique<mosaic_image_table_t>();
+            RES_TRY_ERR(mosaic_image_table->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
@@ -3419,8 +3420,8 @@ namespace SourceExplorer
             break;
 
           case chunk_t::frame_iphone_options:
-            iphoneOptions = std::make_unique<iphone_options_t>();
-            RES_TRY_ERR(iphoneOptions->read(game, strm)
+            iphone_options = std::make_unique<iphone_options_t>();
+            RES_TRY_ERR(iphone_options->read(game, strm)
                           .map_err(APPEND_TRACE("frame::item_t::read")));
             break;
 
@@ -3475,29 +3476,29 @@ namespace SourceExplorer
           RES_TRY(palette->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (objectInstances)
+        if (object_instances)
         {
-          RES_TRY(objectInstances->view(srcexp).map_err(
+          RES_TRY(object_instances->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (fadeInFrame)
+        if (fade_in_frame)
         {
-          RES_TRY(fadeInFrame->view(srcexp).map_err(
+          RES_TRY(fade_in_frame->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (fadeOutFrame)
+        if (fade_out_frame)
         {
-          RES_TRY(fadeOutFrame->view(srcexp).map_err(
+          RES_TRY(fade_out_frame->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (fadeIn)
+        if (fade_in)
         {
-          RES_TRY(
-            fadeIn->view(srcexp).map_err(APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(fade_in->view(srcexp).map_err(
+            APPEND_TRACE("frame::item_t::view")));
         }
-        if (fadeOut)
+        if (fade_out)
         {
-          RES_TRY(fadeOut->view(srcexp).map_err(
+          RES_TRY(fade_out->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
         if (events)
@@ -3505,14 +3506,14 @@ namespace SourceExplorer
           RES_TRY(
             events->view(srcexp).map_err(APPEND_TRACE("frame::item_t::view")));
         }
-        if (playHead)
+        if (play_head)
         {
-          RES_TRY(playHead->view(srcexp).map_err(
+          RES_TRY(play_head->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (additionalItem)
+        if (additional_item)
         {
-          RES_TRY(additionalItem->view(srcexp).map_err(
+          RES_TRY(additional_item->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
         if (layers)
@@ -3520,24 +3521,24 @@ namespace SourceExplorer
           RES_TRY(
             layers->view(srcexp).map_err(APPEND_TRACE("frame::item_t::view")));
         }
-        if (layerEffect)
+        if (layer_effect)
         {
-          RES_TRY(layerEffect->view(srcexp).map_err(
+          RES_TRY(layer_effect->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (virtualSize)
+        if (virtual_size)
         {
-          RES_TRY(virtualSize->view(srcexp).map_err(
+          RES_TRY(virtual_size->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (demoFilePath)
+        if (demo_file_path)
         {
-          RES_TRY(demoFilePath->view(srcexp).map_err(
+          RES_TRY(demo_file_path->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (randomSeed)
+        if (random_seed)
         {
-          RES_TRY(randomSeed->view(srcexp).map_err(
+          RES_TRY(random_seed->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
         if (blueray)
@@ -3545,14 +3546,14 @@ namespace SourceExplorer
           RES_TRY(blueray->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (movementTimeBase)
+        if (movement_time_base)
         {
-          RES_TRY(movementTimeBase->view(srcexp).map_err(
+          RES_TRY(movement_time_base->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (mosaicImageTable)
+        if (mosaic_image_table)
         {
-          RES_TRY(mosaicImageTable->view(srcexp).map_err(
+          RES_TRY(mosaic_image_table->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
         if (effects)
@@ -3560,9 +3561,9 @@ namespace SourceExplorer
           RES_TRY(effects->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
-        if (iphoneOptions)
+        if (iphone_options)
         {
-          RES_TRY(iphoneOptions->view(srcexp).map_err(
+          RES_TRY(iphone_options->view(srcexp).map_err(
             APPEND_TRACE("frame::item_t::view")));
         }
         if (chunk334C)
@@ -3668,40 +3669,40 @@ namespace SourceExplorer
       RES_TRY_ERR(entry.read(game, strm, true)
                     .map_err(APPEND_TRACE("image::item_t::read")));
 
-      if (!game.oldGame && game.productBuild >= 284) --entry.handle;
+      if (!game.old_game && game.product_build >= 284) --entry.handle;
 
       DEBUG("Handle: ", entry.handle);
 
       RES_TRY_ASSIGN(lak::memory istrm =,
-                     entry.decode(176 + (game.oldGame ? 16 : 80))
+                     entry.decode(176 + (game.old_game ? 16 : 80))
                        .map_err(APPEND_TRACE("image::item_t::read")));
-      if (game.oldGame)
+      if (game.old_game)
         checksum = istrm.read_u16();
       else
         checksum = istrm.read_u32();
-      reference    = istrm.read_u32();
-      dataSize     = istrm.read_u32();
-      size.x       = istrm.read_u16();
-      size.y       = istrm.read_u16();
-      graphicsMode = (graphics_mode_t)istrm.read_u8();
-      flags        = (image_flag_t)istrm.read_u8();
+      reference     = istrm.read_u32();
+      data_size     = istrm.read_u32();
+      size.x        = istrm.read_u16();
+      size.y        = istrm.read_u16();
+      graphics_mode = (graphics_mode_t)istrm.read_u8();
+      flags         = (image_flag_t)istrm.read_u8();
 #if 0
-      if (graphicsMode <= graphics_mode_t::graphics3)
+      if (graphics_mode <= graphics_mode_t::graphics3)
       {
-        paletteEntries = istrm.read_u8();
+        palette_entries = istrm.read_u8();
         for (size_t i = 0; i < palette.size();
               ++i) // where is this size coming from???
           palette[i] = ColorFrom32bitRGBA(strm); // not sure if RGBA or BGRA
         count = strm.read_u32();
       }
 #endif
-      if (!game.oldGame) unknown = istrm.read_u16();
+      if (!game.old_game) unknown = istrm.read_u16();
       hotspot.x = istrm.read_u16();
       hotspot.y = istrm.read_u16();
       action.x  = istrm.read_u16();
       action.y  = istrm.read_u16();
-      if (!game.oldGame) transparent = ColorFrom32bitRGBA(istrm);
-      dataPosition = istrm.position();
+      if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm);
+      data_position = istrm.position();
 
       return lak::ok_t{};
     }
@@ -3718,9 +3719,9 @@ namespace SourceExplorer
 
         ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
         ImGui::Text("Reference: 0x%zX", (size_t)reference);
-        ImGui::Text("Data Size: 0x%zX", (size_t)dataSize);
+        ImGui::Text("Data Size: 0x%zX", (size_t)data_size);
         ImGui::Text("Image Size: %zu * %zu", (size_t)size.x, (size_t)size.y);
-        ImGui::Text("Graphics Mode: 0x%zX", (size_t)graphicsMode);
+        ImGui::Text("Graphics Mode: 0x%zX", (size_t)graphics_mode);
         ImGui::Text("Image Flags: 0x%zX", (size_t)flags);
         ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
         ImGui::Text(
@@ -3730,12 +3731,13 @@ namespace SourceExplorer
           lak::vec4f_t col = ((lak::vec4f_t)transparent) / 255.0f;
           ImGui::ColorEdit4("Transparent", &col.x);
         }
-        ImGui::Text("Data Position: 0x%zX", dataPosition);
+        ImGui::Text("Data Position: 0x%zX", data_position);
 
         if (ImGui::Button("View Image"))
         {
-          srcexp.image = lak::move(CreateTexture(
-            image(srcexp.dumpColorTrans).UNWRAP(), srcexp.graphicsMode));
+          srcexp.image = lak::move(
+            CreateTexture(image(srcexp.dump_color_transparent).UNWRAP(),
+                          srcexp.graphics_mode));
         }
       }
 
@@ -3747,7 +3749,7 @@ namespace SourceExplorer
       RES_TRY_ASSIGN(
         lak::memory strm =,
         entry.decode().map_err(APPEND_TRACE("image::item_t::image_data")))
-        .seek(dataPosition);
+        .seek(data_position);
       if ((flags & image_flag_t::LZX) != image_flag_t::none)
       {
         [[maybe_unused]] const uint32_t decomplen = strm.read_u32();
@@ -3762,12 +3764,12 @@ namespace SourceExplorer
 
     bool item_t::need_palette() const
     {
-      return graphicsMode == graphics_mode_t::graphics2 ||
-             graphicsMode == graphics_mode_t::graphics3;
+      return graphics_mode == graphics_mode_t::graphics2 ||
+             graphics_mode == graphics_mode_t::graphics3;
     }
 
     result_t<lak::image4_t> item_t::image(
-      const bool colorTrans, const lak::color4_t palette[256]) const
+      const bool color_transparent, const lak::color4_t palette[256]) const
     {
       lak::image4_t result;
       result.resize((lak::vec2s_t)size);
@@ -3776,22 +3778,22 @@ namespace SourceExplorer
         lak::memory strm =,
         image_data().map_err(APPEND_TRACE("image::item_t::image")));
 
-      [[maybe_unused]] size_t bytesRead;
+      [[maybe_unused]] size_t bytes_read;
       if ((flags & (image_flag_t::RLE | image_flag_t::RLEW |
                     image_flag_t::RLET)) != image_flag_t::none)
       {
-        bytesRead = ReadRLE(strm, result, graphicsMode, palette);
+        bytes_read = ReadRLE(strm, result, graphics_mode, palette);
       }
       else
       {
-        bytesRead = ReadRGB(strm, result, graphicsMode, palette);
+        bytes_read = ReadRGB(strm, result, graphics_mode, palette);
       }
 
       if ((flags & image_flag_t::alpha) != image_flag_t::none)
       {
         ReadAlpha(strm, result);
       }
-      else if (colorTrans)
+      else if (color_transparent)
       {
         ReadTransparent(transparent, result);
       }
@@ -4179,12 +4181,12 @@ namespace SourceExplorer
 
         case chunk_t::project_path:
           RES_TRY_ERR(
-            init_chunk(projectPath).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(project_path).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::output_path:
           RES_TRY_ERR(
-            init_chunk(outputPath).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(output_path).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::about:
@@ -4193,7 +4195,7 @@ namespace SourceExplorer
           break;
 
         case chunk_t::vitalise_preview:
-          RES_TRY_ERR(init_chunk(vitalisePreview)
+          RES_TRY_ERR(init_chunk(vitalise_preview)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
@@ -4203,8 +4205,8 @@ namespace SourceExplorer
           break;
 
         case chunk_t::extra_path:
-          RES_TRY_ERR(
-            init_chunk(extensionPath).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY_ERR(init_chunk(extension_path)
+                        .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::extensions:
@@ -4213,28 +4215,28 @@ namespace SourceExplorer
           break;
 
         case chunk_t::extra_data:
-          RES_TRY_ERR(
-            init_chunk(extensionData).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY_ERR(init_chunk(extension_data)
+                        .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::additional_extensions:
-          RES_TRY_ERR(init_chunk(additionalExtensions)
+          RES_TRY_ERR(init_chunk(additional_extensions)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::app_doc:
           RES_TRY_ERR(
-            init_chunk(appDoc).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(app_doc).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::other_extension:
-          RES_TRY_ERR(init_chunk(otherExtension)
+          RES_TRY_ERR(init_chunk(other_extension)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::extensions_list:
-          RES_TRY_ERR(
-            init_chunk(extensionList).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY_ERR(init_chunk(extension_list)
+                        .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::icon:
@@ -4244,7 +4246,7 @@ namespace SourceExplorer
 
         case chunk_t::demo_version:
           RES_TRY_ERR(
-            init_chunk(demoVersion).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(demo_version).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::security_number:
@@ -4254,16 +4256,16 @@ namespace SourceExplorer
 
         case chunk_t::binary_files:
           RES_TRY_ERR(
-            init_chunk(binaryFiles).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(binary_files).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::menu_images:
           RES_TRY_ERR(
-            init_chunk(menuImages).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(menu_images).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::movement_extensions:
-          RES_TRY_ERR(init_chunk(movementExtensions)
+          RES_TRY_ERR(init_chunk(movement_extensions)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
@@ -4282,7 +4284,7 @@ namespace SourceExplorer
           break;
 
         case chunk_t::extended_header:
-          RES_TRY_ERR(init_chunk(extendedHeader)
+          RES_TRY_ERR(init_chunk(extended_header)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
@@ -4303,98 +4305,98 @@ namespace SourceExplorer
 
         case chunk_t::object_names:
           RES_TRY_ERR(
-            init_chunk(objectNames).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(object_names).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::object_properties:
-          RES_TRY_ERR(init_chunk(objectProperties)
+          RES_TRY_ERR(init_chunk(object_properties)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::font_meta:
-          RES_TRY_ERR(init_chunk(truetypeFontsMeta)
+          RES_TRY_ERR(init_chunk(truetype_fonts_meta)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::font_chunk:
-          RES_TRY_ERR(
-            init_chunk(truetypeFonts).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY_ERR(init_chunk(truetype_fonts)
+                        .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::global_events:
           RES_TRY_ERR(
-            init_chunk(globalEvents).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(global_events).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::global_strings:
-          RES_TRY_ERR(
-            init_chunk(globalStrings).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY_ERR(init_chunk(global_strings)
+                        .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::global_string_names:
-          RES_TRY_ERR(init_chunk(globalStringNames)
+          RES_TRY_ERR(init_chunk(global_string_names)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::global_values:
           RES_TRY_ERR(
-            init_chunk(globalValues).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(global_values).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::global_value_names:
-          RES_TRY_ERR(init_chunk(globalValueNames)
+          RES_TRY_ERR(init_chunk(global_value_names)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::frame_handles:
           RES_TRY_ERR(
-            init_chunk(frameHandles).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(frame_handles).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::frame_bank:
           RES_TRY_ERR(
-            init_chunk(frameBank).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(frame_bank).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::frame:
-          if (frameBank) ERROR("Frame Bank Already Exists");
-          frameBank = std::make_unique<frame::bank_t>();
-          frameBank->items.clear();
+          if (frame_bank) ERROR("Frame Bank Already Exists");
+          frame_bank = std::make_unique<frame::bank_t>();
+          frame_bank->items.clear();
           while ((chunk_t)strm.peek_u16() == chunk_t::frame)
           {
-            frameBank->items.emplace_back();
-            if (frameBank->items.back().read(game, strm).is_err()) break;
+            frame_bank->items.emplace_back();
+            if (frame_bank->items.back().read(game, strm).is_err()) break;
           }
           break;
 
           // case chunk_t::object_bank2:
-          //     RES_TRY_ERR(init_chunk(objectBank2).map_err(APPEND_TRACE("header_t::read")));
+          //     RES_TRY_ERR(init_chunk(object_bank_2).map_err(APPEND_TRACE("header_t::read")));
           //     break;
 
         case chunk_t::object_bank:
         case chunk_t::object_bank2:
           RES_TRY_ERR(
-            init_chunk(objectBank).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(object_bank).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::image_bank:
           RES_TRY_ERR(
-            init_chunk(imageBank).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(image_bank).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::sound_bank:
           RES_TRY_ERR(
-            init_chunk(soundBank).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(sound_bank).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::music_bank:
           RES_TRY_ERR(
-            init_chunk(musicBank).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(music_bank).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::font_bank:
           RES_TRY_ERR(
-            init_chunk(fontBank).map_err(APPEND_TRACE("header_t::read")));
+            init_chunk(font_bank).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::last:
@@ -4405,8 +4407,8 @@ namespace SourceExplorer
 
         default:
           DEBUG("Invalid Chunk: ", (size_t)childID);
-          unknownChunks.emplace_back();
-          RES_TRY_ERR(unknownChunks.back()
+          unknown_chunks.emplace_back();
+          RES_TRY_ERR(unknown_chunks.back()
                         .read(game, strm)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
@@ -4432,88 +4434,90 @@ namespace SourceExplorer
                 .map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(copyright.view(srcexp, "Copyright", true)
                 .map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(outputPath.view(srcexp, "Output Path")
+      RES_TRY(output_path.view(srcexp, "Output Path")
                 .map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(projectPath.view(srcexp, "Project Path")
+      RES_TRY(project_path.view(srcexp, "Project Path")
                 .map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
         about.view(srcexp, "About").map_err(APPEND_TRACE("header_t::view")));
 
       RES_TRY(
-        vitalisePreview.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        vitalise_preview.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(menu.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        extensionPath.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        extension_path.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(extensions.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        extensionData.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(additionalExtensions.view(srcexp).map_err(
+        extension_data.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(additional_extensions.view(srcexp).map_err(
         APPEND_TRACE("header_t::view")));
-      RES_TRY(appDoc.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(app_doc.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        otherExtension.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        other_extension.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        extensionList.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        extension_list.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(icon.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        demoVersion.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        demo_version.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(security.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        binaryFiles.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(menuImages.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(movementExtensions.view(srcexp).map_err(
+        binary_files.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(
+        menu_images.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(movement_extensions.view(srcexp).map_err(
         APPEND_TRACE("header_t::view")));
       RES_TRY(
-        objectBank2.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        object_bank_2.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(exe.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(protection.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(shaders.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        extendedHeader.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        extended_header.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(spacer.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(chunk224F.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(title2.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
 
       RES_TRY(
-        globalEvents.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        global_events.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
-        globalStrings.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(globalStringNames.view(srcexp).map_err(
+        global_strings.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(global_string_names.view(srcexp).map_err(
         APPEND_TRACE("header_t::view")));
       RES_TRY(
-        globalValues.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(
-        globalValueNames.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        global_values.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(global_value_names.view(srcexp).map_err(
+        APPEND_TRACE("header_t::view")));
 
       RES_TRY(
-        frameHandles.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(frameBank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(objectBank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(imageBank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(soundBank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(musicBank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(fontBank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        frame_handles.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(frame_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(
+        object_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(image_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(sound_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(music_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(font_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
 
       RES_TRY(
-        objectNames.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(
-        objectProperties.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(truetypeFontsMeta.view(srcexp).map_err(
+        object_names.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(object_properties.view(srcexp).map_err(
+        APPEND_TRACE("header_t::view")));
+      RES_TRY(truetype_fonts_meta.view(srcexp).map_err(
         APPEND_TRACE("header_t::view")));
       RES_TRY(
-        truetypeFonts.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        truetype_fonts.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
 
-      for (auto &unk : unknownStrings)
+      for (auto &unk : unknown_strings)
       {
         RES_TRY(unk.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       }
 
-      for (auto &unk : unknownCompressed)
+      for (auto &unk : unknown_compressed)
       {
         RES_TRY(unk.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       }
 
-      for (auto &unk : unknownChunks)
+      for (auto &unk : unknown_chunks)
       {
         RES_TRY(unk
                   .basic_view(srcexp,

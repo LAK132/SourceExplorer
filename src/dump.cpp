@@ -72,7 +72,7 @@ se::error_t se::SaveImage(source_explorer_t &srcexp,
   RES_TRY_ASSIGN(
     lak::image4_t image =,
     item
-      .image(srcexp.dumpColorTrans,
+      .image(srcexp.dump_color_transparent,
              (frame && frame->palette) ? frame->palette->colors : nullptr)
       .map_err(APPEND_TRACE("failed to read image data")));
 
@@ -186,17 +186,17 @@ bool se::DumpStuff(source_explorer_t &srcexp,
 
 void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
 {
-  if (!srcexp.state.game.imageBank)
+  if (!srcexp.state.game.image_bank)
   {
     ERROR("No Image Bank");
     return;
   }
 
-  const size_t count = srcexp.state.game.imageBank->items.size();
+  const size_t count = srcexp.state.game.image_bank->items.size();
   size_t index       = 0;
-  for (const auto &item : srcexp.state.game.imageBank->items)
+  for (const auto &item : srcexp.state.game.image_bank->items)
   {
-    lak::image4_t image = item.image(srcexp.dumpColorTrans).UNWRAP();
+    lak::image4_t image = item.image(srcexp.dump_color_transparent).UNWRAP();
     fs::path filename =
       srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
     (void)SaveImage(image, filename);
@@ -207,19 +207,19 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
 void se::DumpSortedImages(se::source_explorer_t &srcexp,
                           std::atomic<float> &completed)
 {
-  if (!srcexp.state.game.imageBank)
+  if (!srcexp.state.game.image_bank)
   {
     ERROR("No Image Bank");
     return;
   }
 
-  if (!srcexp.state.game.frameBank)
+  if (!srcexp.state.game.frame_bank)
   {
     ERROR("No Frame Bank");
     return;
   }
 
-  if (!srcexp.state.game.objectBank)
+  if (!srcexp.state.game.object_bank)
   {
     ERROR("No Object Bank");
     return;
@@ -275,54 +275,55 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
            result;
   };
 
-  fs::path rootPath     = srcexp.sortedImages.path;
-  fs::path unsortedPath = rootPath / "[unsorted]";
-  fs::create_directories(unsortedPath);
+  fs::path root_path     = srcexp.sorted_images.path;
+  fs::path unsorted_path = root_path / "[unsorted]";
+  fs::create_directories(unsorted_path);
   std::error_code err;
 
-  size_t imageIndex       = 0;
-  const size_t imageCount = srcexp.state.game.imageBank->items.size();
-  for (const auto &image : srcexp.state.game.imageBank->items)
+  size_t image_index       = 0;
+  const size_t image_count = srcexp.state.game.image_bank->items.size();
+  for (const auto &image : srcexp.state.game.image_bank->items)
   {
-    std::u16string imageName = se::to_u16string(image.entry.handle) + u".png";
-    fs::path imagePath       = unsortedPath / imageName;
-    (void)SaveImage(image.image(srcexp.dumpColorTrans).UNWRAP(), imagePath);
-    completed = (float)((double)imageIndex++ / imageCount);
+    std::u16string image_name = se::to_u16string(image.entry.handle) + u".png";
+    fs::path image_path       = unsorted_path / image_name;
+    (void)SaveImage(image.image(srcexp.dump_color_transparent).UNWRAP(),
+                    image_path);
+    completed = (float)((double)image_index++ / image_count);
   }
 
-  size_t frameIndex       = 0;
-  const size_t frameCount = srcexp.state.game.frameBank->items.size();
-  for (const auto &frame : srcexp.state.game.frameBank->items)
+  size_t frame_index       = 0;
+  const size_t frame_count = srcexp.state.game.frame_bank->items.size();
+  for (const auto &frame : srcexp.state.game.frame_bank->items)
   {
-    std::u16string frameName = HandleName(frame.name, frameIndex);
-    fs::path framePath       = rootPath / frameName;
-    fs::create_directories(framePath / "[unsorted]", err);
+    std::u16string frame_name = HandleName(frame.name, frame_index);
+    fs::path frame_path       = root_path / frame_name;
+    fs::create_directories(frame_path / "[unsorted]", err);
     if (err)
     {
       ERROR("File System Error: (", err.value(), ")", err.message());
       continue;
     }
 
-    if (frame.objectInstances)
+    if (frame.object_instances)
     {
-      std::unordered_set<uint32_t> usedImages;
-      std::unordered_set<uint16_t> usedObjects;
-      for (const auto &object : frame.objectInstances->objects)
+      std::unordered_set<uint32_t> used_images;
+      std::unordered_set<uint16_t> used_objects;
+      for (const auto &object : frame.object_instances->objects)
       {
-        if (usedObjects.find(object.handle) != usedObjects.end()) continue;
-        usedObjects.insert(object.handle);
+        if (used_objects.find(object.handle) != used_objects.end()) continue;
+        used_objects.insert(object.handle);
         if (const auto *obj =
               lak::as_ptr(se::GetObject(srcexp.state, object.handle).ok());
             obj)
         {
-          std::u16string objectName = HandleName(
+          std::u16string object_name = HandleName(
             obj->name,
             obj->handle,
             u"[" +
               lak::to_u16string(lak::astring(GetObjectTypeString(obj->type))) +
               u"]");
-          fs::path objectPath = framePath / objectName;
-          fs::create_directories(objectPath, err);
+          fs::path object_path = frame_path / object_name;
+          fs::create_directories(object_path, err);
           if (err)
           {
             ERROR("File System Error: (", err.value(), ")", err.message());
@@ -336,21 +337,22 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                   lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
                 img)
             {
-              if (usedImages.find(imghandle) == usedImages.end())
+              if (used_images.find(imghandle) == used_images.end())
               {
-                usedImages.insert(imghandle);
-                std::u16string imageName =
+                used_images.insert(imghandle);
+                std::u16string image_name =
                   se::to_u16string(imghandle) + u".png";
-                fs::path imagePath = framePath / "[unsorted]" / imageName;
+                fs::path image_path = frame_path / "[unsorted]" / image_name;
 
                 // check if 8bit image
                 if (img->need_palette() && frame.palette)
-                  (void)SaveImage(
-                    img->image(srcexp.dumpColorTrans, frame.palette->colors)
-                      .UNWRAP(),
-                    imagePath);
+                  (void)SaveImage(img
+                                    ->image(srcexp.dump_color_transparent,
+                                            frame.palette->colors)
+                                    .UNWRAP(),
+                                  image_path);
                 else if (auto res =
-                           LinkImages(unsortedPath / imageName, imagePath);
+                           LinkImages(unsorted_path / image_name, image_path);
                          res.is_err())
                   lak::visit(res.unwrap_err(), [](const auto &err) {
                     if constexpr (lak::is_same_v<decltype(err),
@@ -367,16 +369,16 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
               }
               for (const auto &imgname : imgnames)
               {
-                std::u16string unsortedImageName =
+                std::u16string unsorted_image_name =
                   se::to_u16string(imghandle) + u".png";
-                fs::path unsortedImagePath =
-                  framePath / "[unsorted]" / unsortedImageName;
-                std::u16string imageName = imgname + u".png";
-                fs::path imagePath       = objectPath / imageName;
+                fs::path unsorted_image_path =
+                  frame_path / "[unsorted]" / unsorted_image_name;
+                std::u16string image_name = imgname + u".png";
+                fs::path image_path       = object_path / image_name;
                 if (const auto *img =
                       lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
                     img)
-                  if (auto res = LinkImages(unsortedImagePath, imagePath);
+                  if (auto res = LinkImages(unsorted_image_path, image_path);
                       res.is_err())
                     lak::visit(res.unwrap_err(), [](const auto &err) {
                       if constexpr (lak::is_same_v<decltype(err),
@@ -398,7 +400,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
         }
       }
     }
-    completed = (float)((double)frameIndex++ / frameCount);
+    completed = (float)((double)frame_index++ / frame_count);
   }
 }
 
@@ -450,44 +452,44 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed)
 
 void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 {
-  if (!srcexp.state.game.soundBank)
+  if (!srcexp.state.game.sound_bank)
   {
     ERROR("No Sound Bank");
     return;
   }
 
-  const size_t count = srcexp.state.game.soundBank->items.size();
+  const size_t count = srcexp.state.game.sound_bank->items.size();
   size_t index       = 0;
-  for (const auto &item : srcexp.state.game.soundBank->items)
+  for (const auto &item : srcexp.state.game.sound_bank->items)
   {
     lak::memory sound = item.entry.decode().UNWRAP();
 
     std::u16string name;
     sound_mode_t type;
-    if (srcexp.state.oldGame)
+    if (srcexp.state.old_game)
     {
       uint16_t checksum = sound.read_u16();
       (void)checksum;
       uint32_t references = sound.read_u32();
       (void)references;
-      uint32_t decompLen = sound.read_u32();
-      (void)decompLen;
+      uint32_t decomp_len = sound.read_u32();
+      (void)decomp_len;
       type              = (sound_mode_t)sound.read_u32();
       uint32_t reserved = sound.read_u32();
       (void)reserved;
-      uint32_t nameLen = sound.read_u32();
+      uint32_t name_len = sound.read_u32();
 
-      name = lak::to_u16string(sound.read_astring_exact(nameLen));
+      name = lak::to_u16string(sound.read_astring_exact(name_len));
 
       [[maybe_unused]] uint16_t format           = sound.read_u16();
-      [[maybe_unused]] uint16_t channelCount     = sound.read_u16();
-      [[maybe_unused]] uint32_t sampleRate       = sound.read_u32();
-      [[maybe_unused]] uint32_t byteRate         = sound.read_u32();
-      [[maybe_unused]] uint16_t blockAlign       = sound.read_u16();
-      [[maybe_unused]] uint16_t bitsPerSample    = sound.read_u16();
+      [[maybe_unused]] uint16_t channel_count    = sound.read_u16();
+      [[maybe_unused]] uint32_t sample_rate      = sound.read_u32();
+      [[maybe_unused]] uint32_t byte_rate        = sound.read_u32();
+      [[maybe_unused]] uint16_t block_align      = sound.read_u16();
+      [[maybe_unused]] uint16_t bits_per_sample  = sound.read_u16();
       [[maybe_unused]] uint16_t unknown          = sound.read_u16();
-      uint32_t chunkSize                         = sound.read_u32();
-      [[maybe_unused]] std::vector<uint8_t> data = sound.read(chunkSize);
+      uint32_t chunk_size                        = sound.read_u32();
+      [[maybe_unused]] std::vector<uint8_t> data = sound.read(chunk_size);
 
       lak::memory output;
       output.write(lak::string_view("RIFF"));
@@ -495,13 +497,13 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       output.write(lak::string_view("WAVEfmt "));
       output.write_u32(0x10);
       output.write_u16(format);
-      output.write_u16(channelCount);
-      output.write_u32(sampleRate);
-      output.write_u32(byteRate);
-      output.write_u16(blockAlign);
-      output.write_u16(bitsPerSample);
+      output.write_u16(channel_count);
+      output.write_u32(sample_rate);
+      output.write_u32(byte_rate);
+      output.write_u16(block_align);
+      output.write_u16(bits_per_sample);
       output.write(lak::string_view("data"));
-      output.write_u32(chunkSize);
+      output.write_u32(chunk_size);
       output.write(data);
       output.seek(0);
       sound = lak::move(output);
@@ -511,19 +513,19 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       lak::memory header                 = item.entry.decodeHeader().UNWRAP();
       [[maybe_unused]] uint32_t checksum = header.read_u32();
       [[maybe_unused]] uint32_t references = header.read_u32();
-      [[maybe_unused]] uint32_t decompLen  = header.read_u32();
+      [[maybe_unused]] uint32_t decomp_len = header.read_u32();
       type                                 = (sound_mode_t)header.read_u32();
       [[maybe_unused]] uint32_t reserved   = header.read_u32();
-      uint32_t nameLen                     = header.read_u32();
+      uint32_t name_len                    = header.read_u32();
 
       if (srcexp.state.unicode)
       {
-        name = sound.read_u16string_exact(nameLen).to_string();
+        name = sound.read_u16string_exact(name_len).to_string();
         DEBUG("u16string name: ", name);
       }
       else
       {
-        name = lak::to_u16string(sound.read_astring_exact(nameLen));
+        name = lak::to_u16string(sound.read_astring_exact(name_len));
         DEBUG("u8string name: ", name);
       }
 
@@ -557,47 +559,47 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 
 void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 {
-  if (!srcexp.state.game.musicBank)
+  if (!srcexp.state.game.music_bank)
   {
     ERROR("No Music Bank");
     return;
   }
 
-  const size_t count = srcexp.state.game.musicBank->items.size();
+  const size_t count = srcexp.state.game.music_bank->items.size();
   size_t index       = 0;
-  for (const auto &item : srcexp.state.game.musicBank->items)
+  for (const auto &item : srcexp.state.game.music_bank->items)
   {
     lak::memory sound = item.entry.decode().UNWRAP();
 
     std::u16string name;
     sound_mode_t type;
-    if (srcexp.state.oldGame)
+    if (srcexp.state.old_game)
     {
       [[maybe_unused]] uint16_t checksum   = sound.read_u16();
       [[maybe_unused]] uint32_t references = sound.read_u32();
-      [[maybe_unused]] uint32_t decompLen  = sound.read_u32();
+      [[maybe_unused]] uint32_t decomp_len = sound.read_u32();
       type                                 = (sound_mode_t)sound.read_u32();
       [[maybe_unused]] uint32_t reserved   = sound.read_u32();
-      uint32_t nameLen                     = sound.read_u32();
+      uint32_t name_len                    = sound.read_u32();
 
-      name = lak::to_u16string(sound.read_astring_exact(nameLen));
+      name = lak::to_u16string(sound.read_astring_exact(name_len));
     }
     else
     {
       [[maybe_unused]] uint32_t checksum   = sound.read_u32();
       [[maybe_unused]] uint32_t references = sound.read_u32();
-      [[maybe_unused]] uint32_t decompLen  = sound.read_u32();
+      [[maybe_unused]] uint32_t decomp_len = sound.read_u32();
       type                                 = (sound_mode_t)sound.read_u32();
       [[maybe_unused]] uint32_t reserved   = sound.read_u32();
-      uint32_t nameLen                     = sound.read_u32();
+      uint32_t name_len                    = sound.read_u32();
 
       if (srcexp.state.unicode)
       {
-        name = sound.read_u16string_exact(nameLen).to_string();
+        name = sound.read_u16string_exact(name_len).to_string();
       }
       else
       {
-        name = lak::to_u16string(sound.read_astring_exact(nameLen));
+        name = lak::to_u16string(sound.read_astring_exact(name_len));
       }
     }
 
@@ -639,15 +641,15 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
   for (auto offset : offsets)
   {
     strm.seek(offset);
-    uint32_t nameOffset                   = strm.read_u32();
-    uint32_t dataOffset                   = strm.read_u32();
-    [[maybe_unused]] uint32_t paramOffset = strm.read_u32();
-    [[maybe_unused]] uint32_t backTex     = strm.read_u32();
+    uint32_t name_offset                   = strm.read_u32();
+    uint32_t data_offset                   = strm.read_u32();
+    [[maybe_unused]] uint32_t param_offset = strm.read_u32();
+    [[maybe_unused]] uint32_t bank_tex     = strm.read_u32();
 
-    strm.seek(offset + nameOffset);
+    strm.seek(offset + name_offset);
     fs::path filename = srcexp.shaders.path / strm.read_astring().to_string();
 
-    strm.seek(offset + dataOffset);
+    strm.seek(offset + data_offset);
     lak::astring file = strm.read_astring().to_string();
 
     DEBUG(filename);
@@ -664,20 +666,20 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
 void se::DumpBinaryFiles(source_explorer_t &srcexp,
                          std::atomic<float> &completed)
 {
-  if (!srcexp.state.game.binaryFiles)
+  if (!srcexp.state.game.binary_files)
   {
     ERROR("No Binary Files");
     return;
   }
 
-  lak::memory strm = srcexp.state.game.binaryFiles->entry.decode().UNWRAP();
+  lak::memory strm = srcexp.state.game.binary_files->entry.decode().UNWRAP();
 
-  const size_t count = srcexp.state.game.binaryFiles->items.size();
+  const size_t count = srcexp.state.game.binary_files->items.size();
   size_t index       = 0;
-  for (const auto &file : srcexp.state.game.binaryFiles->items)
+  for (const auto &file : srcexp.state.game.binary_files->items)
   {
     fs::path filename = file.name;
-    filename          = srcexp.binaryFiles.path / filename.filename();
+    filename          = srcexp.binary_files.path / filename.filename();
     DEBUG(filename);
     if (!lak::save_file(filename, file.data.get()))
     {
@@ -689,21 +691,21 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
 
 void se::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed)
 {
-  if (!lak::save_file(srcexp.errorLog.path, lak::debugger.str()))
+  if (!lak::save_file(srcexp.error_log.path, lak::debugger.str()))
   {
-    ERROR("Failed To Save File '", srcexp.errorLog.path, "'");
+    ERROR("Failed To Save File '", srcexp.error_log.path, "'");
   }
 }
 
 template<typename FUNCTOR>
-void AttemptFile(se::file_state_t &FileState,
-                 FUNCTOR Functor,
+void AttemptFile(se::file_state_t &file_state,
+                 FUNCTOR functor,
                  bool save = false)
 {
   se::Attempt(
-    FileState,
-    [save](se::file_state_t &FileState) {
-      if (auto result = lak::open_file_modal(FileState.path, save);
+    file_state,
+    [save](se::file_state_t &file_state) {
+      if (auto result = lak::open_file_modal(file_state.path, save);
           result.is_ok())
       {
         if (auto code = result.unwrap();
@@ -714,25 +716,25 @@ void AttemptFile(se::file_state_t &FileState,
         }
         else
         {
-          FileState.valid = code == lak::file_open_error::VALID;
+          file_state.valid = code == lak::file_open_error::VALID;
           return true;
         }
       }
       else
       {
-        FileState.valid = false;
+        file_state.valid = false;
         return true;
       }
     },
-    Functor);
+    functor);
 }
 
 template<typename FUNCTOR>
-void AttemptFolder(se::file_state_t &FileState, FUNCTOR Functor)
+void AttemptFolder(se::file_state_t &file_state, FUNCTOR functor)
 {
-  auto load = [](se::file_state_t &FileState) {
+  auto load = [](se::file_state_t &file_state) {
     std::error_code ec;
-    if (auto result = lak::open_folder_modal(FileState.path); result.is_ok())
+    if (auto result = lak::open_folder_modal(file_state.path); result.is_ok())
     {
       if (auto code = result.unwrap();
           code == lak::file_open_error::INCOMPLETE)
@@ -742,17 +744,17 @@ void AttemptFolder(se::file_state_t &FileState, FUNCTOR Functor)
       }
       else
       {
-        FileState.valid = code == lak::file_open_error::VALID;
+        file_state.valid = code == lak::file_open_error::VALID;
         return true;
       }
     }
     else
     {
-      FileState.valid = false;
+      file_state.valid = false;
       return true;
     }
   };
-  se::Attempt(FileState, load, Functor);
+  se::Attempt(file_state, load, functor);
 }
 
 void se::AttemptExe(source_explorer_t &srcexp)
@@ -768,38 +770,41 @@ void se::AttemptExe(source_explorer_t &srcexp)
     else if (result.unwrap().is_err())
     {
       result.unwrap().IF_ERR("AttemptExe failed").discard();
+      // ERROR(result.unwrap()
+      //         .map_err(APPEND_TRACE("AttemptExe failed"))
+      //         .unwrap_err());
       srcexp.loaded = true;
       return true;
     }
     else
     {
       srcexp.loaded = true;
-      if (srcexp.babyMode)
+      if (srcexp.baby_mode)
       {
         // Autotragically dump everything
 
-        fs::path dumpDir =
+        fs::path dump_dir =
           srcexp.exe.path.parent_path() / srcexp.exe.path.stem();
 
         std::error_code er;
-        if (srcexp.state.game.imageBank)
+        if (srcexp.state.game.image_bank)
         {
-          srcexp.sortedImages.path = dumpDir / "images";
-          if (fs::create_directories(srcexp.sortedImages.path, er); er)
+          srcexp.sorted_images.path = dump_dir / "images";
+          if (fs::create_directories(srcexp.sorted_images.path, er); er)
           {
             ERROR("Failed To Dump Images");
             ERROR("File System Error: (", er.value(), ")", er.message());
           }
           else
           {
-            srcexp.sortedImages.attempt = true;
-            srcexp.sortedImages.valid   = true;
+            srcexp.sorted_images.attempt = true;
+            srcexp.sorted_images.valid   = true;
           }
         }
 
         if (srcexp.state.game.icon)
         {
-          srcexp.appicon.path = dumpDir / "icon";
+          srcexp.appicon.path = dump_dir / "icon";
           if (fs::create_directories(srcexp.appicon.path, er); er)
           {
             ERROR("Failed To Dump Icon");
@@ -812,9 +817,9 @@ void se::AttemptExe(source_explorer_t &srcexp)
           }
         }
 
-        if (srcexp.state.game.soundBank)
+        if (srcexp.state.game.sound_bank)
         {
-          srcexp.sounds.path = dumpDir / "sounds";
+          srcexp.sounds.path = dump_dir / "sounds";
           if (fs::create_directories(srcexp.sounds.path, er); er)
           {
             ERROR("Failed To Dump Audio");
@@ -827,9 +832,9 @@ void se::AttemptExe(source_explorer_t &srcexp)
           }
         }
 
-        if (srcexp.state.game.musicBank)
+        if (srcexp.state.game.music_bank)
         {
-          srcexp.music.path = dumpDir / "music";
+          srcexp.music.path = dump_dir / "music";
           if (fs::create_directories(srcexp.sounds.path, er); er)
           {
             ERROR("Failed To Dump Audio");
@@ -844,7 +849,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
 
         if (srcexp.state.game.shaders)
         {
-          srcexp.shaders.path = dumpDir / "shaders";
+          srcexp.shaders.path = dump_dir / "shaders";
           if (fs::create_directories(srcexp.shaders.path, er); er)
           {
             ERROR("Failed To Dump Shaders");
@@ -857,18 +862,18 @@ void se::AttemptExe(source_explorer_t &srcexp)
           }
         }
 
-        if (srcexp.state.game.binaryFiles)
+        if (srcexp.state.game.binary_files)
         {
-          srcexp.binaryFiles.path = dumpDir / "binary_files";
-          if (fs::create_directories(srcexp.binaryFiles.path, er); er)
+          srcexp.binary_files.path = dump_dir / "binary_files";
+          if (fs::create_directories(srcexp.binary_files.path, er); er)
           {
             ERROR("Failed To Dump Binary Files");
             ERROR("File System Error: ", er.message());
           }
           else
           {
-            srcexp.binaryFiles.attempt = true;
-            srcexp.binaryFiles.valid   = true;
+            srcexp.binary_files.attempt = true;
+            srcexp.binary_files.valid   = true;
           }
         }
       }
@@ -886,7 +891,7 @@ void se::AttemptImages(source_explorer_t &srcexp)
 
 void se::AttemptSortedImages(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.sortedImages, [&srcexp] {
+  AttemptFolder(srcexp.sorted_images, [&srcexp] {
     return DumpStuff(srcexp, "Dump Sorted Images", &DumpSortedImages);
   });
 }
@@ -921,7 +926,7 @@ void se::AttemptShaders(source_explorer_t &srcexp)
 
 void se::AttemptBinaryFiles(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.binaryFiles, [&srcexp] {
+  AttemptFolder(srcexp.binary_files, [&srcexp] {
     return DumpStuff(srcexp, "Dump Binary Files", &DumpBinaryFiles);
   });
 }
@@ -929,7 +934,7 @@ void se::AttemptBinaryFiles(source_explorer_t &srcexp)
 void se::AttemptErrorLog(source_explorer_t &srcexp)
 {
   AttemptFile(
-    srcexp.errorLog,
+    srcexp.error_log,
     [&srcexp] { return DumpStuff(srcexp, "Save Error Log", &SaveErrorLog); },
     true);
 }
