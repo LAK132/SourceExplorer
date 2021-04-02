@@ -790,7 +790,7 @@ namespace ImGui
         return true;
       }
 
-      case lak::event_type::key_down:
+      case lak::event_type::key_down: [[fallthrough]];
       case lak::event_type::key_up:
       {
         const int key = event.key().scancode;
@@ -807,6 +807,8 @@ namespace ImGui
           (event.key().mod & lak::mod_key::super) != lak::mod_key::none;
         return true;
       }
+
+      default: break;
     }
 
 #if defined(LAK_USE_WINAPI)

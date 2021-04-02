@@ -208,9 +208,9 @@ namespace SourceExplorer
     mode2 = 2, // Uncompressed / Encrypted
     mode3 = 3, // Compressed / Encrypted
 
-    default    = mode0,
-    compressed = mode1,
-    encrypted  = mode2,
+    default_mode    = mode0,
+    compressed_mode = mode1,
+    encrypted_mode  = mode2,
   };
 
   //

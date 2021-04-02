@@ -17,7 +17,7 @@ release: explorer.elf
 debug: OPTIMISATION := -g3 -O0
 debug: explorer.elf
 
-CXXFLAGS = $(OPTIMISATION) -no-pie -Wall -Werror -Wfatal-errors -pthread -std=c++17 `sdl2-config --cflags`
+CXXFLAGS = $(OPTIMISATION) -no-pie -Wall -Werror -Wfatal-errors -pthread -std=c++17 `sdl2-config --cflags` -DLAK_USE_SDL
 CCFLAGS  = $(OPTIMISATION) -no-pie -Wall -Werror -Wfatal-errors -pthread -std=c99 -Wno-unused-variable -Wno-unused-result -Wno-unused-function -ldl
 ARFLAGS  = rcs
 

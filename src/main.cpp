@@ -101,9 +101,12 @@ void MenuBar(float FrameTime)
       case lak::graphics_mode::OpenGL:
         ImGui::Text("Using OpenGL %d.%d", openglMajor, openglMinor);
         break;
+
       case lak::graphics_mode::Software:
         ImGui::Text("Using Softraster");
         break;
+
+      default: break;
     }
     ImGui::Text("Frame rate %f", std::round(1.0f / FrameTime));
     credits();
@@ -1063,6 +1066,8 @@ void basic_window_init(lak::window &window)
       style.WindowRounding   = 0.0f;
     }
     break;
+
+    default: break;
   }
 
 #ifdef LAK_USE_SDL
