@@ -1044,7 +1044,17 @@ void basic_window_init(lak::window &window)
     SrcExp.music.path = SrcExp.shaders.path = SrcExp.binary_files.path =
       SrcExp.appicon.path                   = fs::current_path();
 
-  if (!SrcExp.exe.attempt) SrcExp.exe.path = fs::current_path();
+  lak::debugger.live_output_enabled = true;
+
+  if (!SrcExp.exe.attempt)
+  {
+    lak::debugger.live_errors_only = true;
+    SrcExp.exe.path                = fs::current_path();
+  }
+  else
+  {
+    lak::debugger.live_errors_only = false;
+  }
 
   imgui_context        = ImGui::ImplCreateContext(window.graphics());
   SrcExp.graphics_mode = window.graphics();
