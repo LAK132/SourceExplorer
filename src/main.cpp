@@ -177,7 +177,7 @@ void Navigator()
 
     ImGui::Separator();
 
-    SrcExp.state.game.view(SrcExp);
+    SrcExp.state.game.view(SrcExp).UNWRAP();
   }
 }
 
@@ -490,8 +490,8 @@ void MemoryExplorer(bool &Update)
   else if (dataMode == 1) // Header
   {
     if (Update && SrcExp.view != nullptr)
-      SrcExp.buffer =
-        raw ? SrcExp.view->header.data : SrcExp.view->decodeHeader();
+      SrcExp.buffer = raw ? SrcExp.view->header.data.get()
+                          : SrcExp.view->decodeHeader().UNWRAP().get();
 
     if (contentMode == 1)
     {
@@ -513,7 +513,8 @@ void MemoryExplorer(bool &Update)
   else if (dataMode == 2) // Data
   {
     if (Update && SrcExp.view != nullptr)
-      SrcExp.buffer = raw ? SrcExp.view->data.data : SrcExp.view->decode();
+      SrcExp.buffer = raw ? SrcExp.view->data.data.get()
+                          : SrcExp.view->decode().UNWRAP().get();
 
     if (contentMode == 1)
     {
@@ -582,7 +583,7 @@ void AudioExplorer(bool &Update)
   static audio_data_t audioData;
   if (Update && SrcExp.view != nullptr)
   {
-    lak::memory audio = SrcExp.view->decode();
+    lak::memory audio = SrcExp.view->decode().UNWRAP();
     audioData         = audio_data_t{};
     if (SrcExp.state.oldGame)
     {
@@ -593,7 +594,8 @@ void AudioExplorer(bool &Update)
       audioData.reserved   = audio.read_u32();
       audioData.nameLen    = audio.read_u32();
 
-      audioData.name = audio.read_u8string_exact(audioData.nameLen);
+      audioData.name =
+        audio.read_u8string_exact(audioData.nameLen).to_string();
 
       if (audioData.type == se::sound_mode_t::wave)
       {
@@ -614,7 +616,7 @@ void AudioExplorer(bool &Update)
       lak::memory *header_ptr;
       if (SrcExp.view->header.data.size() > 0)
       {
-        header_temp = SrcExp.view->decodeHeader();
+        header_temp = SrcExp.view->decodeHeader().UNWRAP();
         header_ptr  = &header_temp;
       }
       else
@@ -634,21 +636,22 @@ void AudioExplorer(bool &Update)
           lak::strconv<char8_t>(audio.read_u16string_exact(audioData.nameLen));
       }
       else
-        audioData.name = audio.read_u8string_exact(audioData.nameLen);
+        audioData.name =
+          audio.read_u8string_exact(audioData.nameLen).to_string();
 
-      if (audio.peek_astring(4) == lak::astring("OggS"))
+      if (audio.peek_astring(4) == lak::string_view("OggS"))
         audioData.type = se::sound_mode_t::oggs;
 
       if (audioData.type == se::sound_mode_t::wave)
       {
-        audio.position += 4; // "RIFF"
+        audio.skip(4); // "RIFF"
         uint32_t size = audio.read_s32() + 4;
-        audio.position += 8; // "WAVEfmt "
+        audio.skip(8); // "WAVEfmt "
         // audio.position += 4; // 0x00000010
         // 16, 18 or 40
         uint32_t chunkSize = audio.read_u32();
         DEBUG("Chunk Size ", chunkSize);
-        const size_t pos        = audio.position + chunkSize;
+        const size_t pos        = audio.position() + chunkSize;
         audioData.format        = audio.read_u16(); // 2
         audioData.channelCount  = audio.read_u16(); // 4
         audioData.sampleRate    = audio.read_u32(); // 8
@@ -668,8 +671,7 @@ void AudioExplorer(bool &Update)
           DEBUG("Channel Mask ", channelMask);
           // SubFormat // 40
         }
-        audio.position = pos;
-        audio.position += 4; // "data"
+        audio.seek(pos + 4); // "data"
         audioData.chunkSize = audio.read_u32();
         audioData.data      = audio.read(size);
       }
@@ -946,9 +948,9 @@ void SourceBytePairsMain(float FrameTime)
     auto code = lak::open_file_modal(FileState.path, false);
     if (code.is_ok() && code.unwrap() == lak::file_open_error::VALID)
     {
-      SrcExp.state = se::game_t{};
-      SrcExp.state.file =
-        lak::read_file(FileState.path).EXPECT("failed to load file");
+      SrcExp.state      = se::game_t{};
+      SrcExp.state.file = lak::memory(
+        lak::read_file(FileState.path).EXPECT("failed to load file"));
       return true;
     }
     return code.is_err() || code.unwrap() != lak::file_open_error::INCOMPLETE;

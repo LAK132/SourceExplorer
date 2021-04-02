@@ -1,15 +1,20 @@
 [submodule "include/imgui"]
 	path = include/imgui
 	url = https://github.com/LAK132/ImSoft.git
+	ignore = dirty
 [submodule "include/cql"]
 	path = include/cql
 	url = https://github.com/LAK132/cql
+	ignore = dirty
 [submodule "glm"]
 	path = include/glm
 	url = https://github.com/g-truc/glm
+	ignore = dirty
 [submodule "include/lisk"]
 	path = include/lisk
 	url = https://github.com/LAK132/lisk
+	ignore = dirty
 [submodule "include/lak"]
 	path = include/lak
 	url = https://github.com/LAK132/lak
+	ignore = dirty
