@@ -483,81 +483,97 @@ namespace SourceExplorer
             255};
   }
 
-  lak::color4_t ColorFrom8bit(lak::memory &strm,
-                              const lak::color4_t palette[256])
+  result_t<lak::color4_t> ColorFrom8bit(lak::memory &strm,
+                                        const lak::color4_t palette[256])
   {
-    if (palette) return palette[strm.read_u8()];
-    return ColorFrom8bit(strm.read_u8());
+    CHECK_REMAINING(strm, 1);
+
+    if (palette) return lak::ok_t{palette[strm.read_u8()]};
+    return lak::ok_t{ColorFrom8bit(strm.read_u8())};
   }
 
-  lak::color4_t ColorFrom15bit(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom15bit(lak::memory &strm)
   {
+    CHECK_REMAINING(strm, 2);
+
     uint16_t val = strm.read_u8();
     val |= (uint16_t)strm.read_u8() << 8;
-    return ColorFrom15bit(val);
+    return lak::ok_t{ColorFrom15bit(val)};
   }
 
-  lak::color4_t ColorFrom16bit(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom16bit(lak::memory &strm)
   {
+    CHECK_REMAINING(strm, 2);
+
     uint16_t val = strm.read_u8();
     val |= (uint16_t)strm.read_u8() << 8;
-    return ColorFrom16bit(val);
+    return lak::ok_t{ColorFrom16bit(val)};
   }
 
-  lak::color4_t ColorFrom24bitBGR(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom24bitBGR(lak::memory &strm)
   {
+    CHECK_REMAINING(strm, 3);
     lak::color4_t rtn;
     rtn.b = strm.read_u8();
     rtn.g = strm.read_u8();
     rtn.r = strm.read_u8();
     rtn.a = 255;
-    return rtn;
+    return lak::ok_t{rtn};
   }
 
-  lak::color4_t ColorFrom32bitBGRA(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom32bitBGRA(lak::memory &strm)
   {
+    CHECK_REMAINING(strm, 4);
+
     lak::color4_t rtn;
     rtn.b = strm.read_u8();
     rtn.g = strm.read_u8();
     rtn.r = strm.read_u8();
     rtn.a = strm.read_u8();
-    return rtn;
+    return lak::ok_t{rtn};
   }
 
-  lak::color4_t ColorFrom24bitRGB(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom24bitRGB(lak::memory &strm)
   {
+    CHECK_REMAINING(strm, 3);
+
     lak::color4_t rtn;
     rtn.r = strm.read_u8();
     rtn.g = strm.read_u8();
     rtn.b = strm.read_u8();
     rtn.a = 255;
-    return rtn;
+    return lak::ok_t{rtn};
   }
 
   template<typename STRM>
-  lak::color4_t ColorFrom32bitRGBA(STRM &strm)
+  result_t<lak::color4_t> ColorFrom32bitRGBA(STRM &strm)
   {
+    CHECK_REMAINING(strm, 4);
+
     lak::color4_t rtn;
     rtn.r = strm.read_u8();
     rtn.g = strm.read_u8();
     rtn.b = strm.read_u8();
     rtn.a = strm.read_u8();
-    return rtn;
+    return lak::ok_t{rtn};
   }
 
-  lak::color4_t ColorFromMode(lak::memory &strm,
-                              const graphics_mode_t mode,
-                              const lak::color4_t palette[256])
+  result_t<lak::color4_t> ColorFromMode(lak::memory &strm,
+                                        const graphics_mode_t mode,
+                                        const lak::color4_t palette[256])
   {
     switch (mode)
     {
-      case graphics_mode_t::graphics2:
+      case graphics_mode_t::graphics2: [[fallthrough]];
       case graphics_mode_t::graphics3: return ColorFrom8bit(strm, palette);
+
       case graphics_mode_t::graphics6: return ColorFrom15bit(strm);
+
       case graphics_mode_t::graphics7:
         return ColorFrom16bit(strm);
         // return ColorFrom15bit(strm);
-      case graphics_mode_t::graphics4:
+
+      case graphics_mode_t::graphics4: [[fallthrough]];
       default:
         // return ColorFrom32bitBGRA(strm);
         return ColorFrom24bitBGR(strm);
@@ -568,11 +584,14 @@ namespace SourceExplorer
   {
     switch (mode)
     {
-      case graphics_mode_t::graphics2:
+      case graphics_mode_t::graphics2: [[fallthrough]];
       case graphics_mode_t::graphics3: return 1;
+
       case graphics_mode_t::graphics6: return 2;
+
       case graphics_mode_t::graphics7: return 2;
-      case graphics_mode_t::graphics4:
+
+      case graphics_mode_t::graphics4: [[fallthrough]];
       default:
         // return 4;
         return 3;
@@ -588,10 +607,10 @@ namespace SourceExplorer
                                (double)col_size);
   }
 
-  size_t ReadRLE(lak::memory &strm,
-                 lak::image4_t &bitmap,
-                 graphics_mode_t mode,
-                 const lak::color4_t palette[256] = nullptr)
+  result_t<size_t> ReadRLE(lak::memory &strm,
+                           lak::image4_t &bitmap,
+                           graphics_mode_t mode,
+                           const lak::color4_t palette[256] = nullptr)
   {
     const size_t point_size = ColorModeSize(mode);
     const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
@@ -602,6 +621,8 @@ namespace SourceExplorer
 
     while (true)
     {
+      CHECK_REMAINING(strm, 1);
+
       uint8_t command = strm.read_u8();
 
       if (command == 0) break;
@@ -612,14 +633,20 @@ namespace SourceExplorer
         for (uint8_t n = 0; n < command; ++n)
         {
           if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
-            bitmap[i++] = ColorFromMode(strm, mode, palette);
+          {
+            RES_TRY_ASSIGN(bitmap[i++] =, ColorFromMode(strm, mode, palette));
+          }
           else
+          {
+            CHECK_REMAINING(strm, point_size);
             strm.skip(point_size);
+          }
         }
       }
       else
       {
-        lak::color4_t col = ColorFromMode(strm, mode, palette);
+        RES_TRY_ASSIGN(lak::color4_t col =,
+                       ColorFromMode(strm, mode, palette));
         for (uint8_t n = 0; n < command; ++n)
         {
           if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
@@ -628,13 +655,13 @@ namespace SourceExplorer
       }
     }
 
-    return strm.position() - start;
+    return lak::ok_t{strm.position() - start};
   }
 
-  size_t ReadRGB(lak::memory &strm,
-                 lak::image4_t &bitmap,
-                 graphics_mode_t mode,
-                 const lak::color4_t palette[256] = nullptr)
+  result_t<size_t> ReadRGB(lak::memory &strm,
+                           lak::image4_t &bitmap,
+                           graphics_mode_t mode,
+                           const lak::color4_t palette[256] = nullptr)
   {
     const size_t point_size = ColorModeSize(mode);
     const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
@@ -642,22 +669,29 @@ namespace SourceExplorer
 
     size_t start = strm.position();
 
+    CHECK_REMAINING(strm,
+                    point_size * bitmap.size().y * (bitmap.size().x + pad));
+
     for (size_t y = 0; y < bitmap.size().y; ++y)
     {
       for (size_t x = 0; x < bitmap.size().x; ++x)
       {
-        bitmap[i++] = ColorFromMode(strm, mode, palette);
+        bitmap[i++] = ColorFromMode(strm, mode, palette).UNWRAP();
       }
       strm.skip(pad * point_size);
     }
 
-    return strm.position() - start;
+    return lak::ok_t{strm.position() - start};
   }
 
-  void ReadAlpha(lak::memory &strm, lak::image4_t &bitmap)
+  result_t<size_t> ReadAlpha(lak::memory &strm, lak::image4_t &bitmap)
   {
     const uint16_t pad = BitmapPaddingSize(bitmap.size().x, 1, 4);
     size_t i           = 0;
+
+    size_t start = strm.position();
+
+    CHECK_REMAINING(strm, bitmap.size().y * (bitmap.size().x + pad));
 
     for (size_t y = 0; y < bitmap.size().y; ++y)
     {
@@ -667,6 +701,8 @@ namespace SourceExplorer
       }
       strm.skip(pad);
     }
+
+    return lak::ok_t{strm.position() - start};
   }
 
   void ReadTransparent(const lak::color4_t &transparent, lak::image4_t &bitmap)
@@ -3710,7 +3746,7 @@ namespace SourceExplorer
       hotspot.y = istrm.read_u16();
       action.x  = istrm.read_u16();
       action.y  = istrm.read_u16();
-      if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm);
+      if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
       data_position = istrm.position();
 
       return lak::ok_t{};
@@ -3744,9 +3780,10 @@ namespace SourceExplorer
 
         if (ImGui::Button("View Image"))
         {
-          srcexp.image = lak::move(
-            CreateTexture(image(srcexp.dump_color_transparent).UNWRAP(),
-                          srcexp.graphics_mode));
+          auto img = image(srcexp.dump_color_transparent)
+                       .IF_ERR("Failed To Read Image Data");
+          if (img.is_ok())
+            srcexp.image = CreateTexture(img.unwrap(), srcexp.graphics_mode);
         }
       }
 
@@ -3759,13 +3796,23 @@ namespace SourceExplorer
 
       RES_TRY_ASSIGN(
         lak::memory strm =,
-        entry.decode().map_err(APPEND_TRACE("image::item_t::image_data")))
-        .seek(data_position);
+        entry.decode().map_err(APPEND_TRACE("image::item_t::image_data")));
+
+      CHECK_POSITION(strm, data_position);
+
+      strm.seek(data_position);
+
       if ((flags & image_flag_t::LZX) != image_flag_t::none)
       {
-        [[maybe_unused]] const uint32_t decomplen = strm.read_u32();
+        CHECK_REMAINING(strm, 8);
+
+        [[maybe_unused]] const uint32_t decompressed_length = strm.read_u32();
+        const uint32_t compressed_length                    = strm.read_u32();
+
+        CHECK_REMAINING(strm, compressed_length);
+
         return lak::ok_t{
-          lak::memory(InflateOrCompressed(strm.read(strm.read_u32())))};
+          lak::memory(InflateOrCompressed(strm.read(compressed_length)))};
       }
       else
       {
@@ -3795,16 +3842,18 @@ namespace SourceExplorer
       if ((flags & (image_flag_t::RLE | image_flag_t::RLEW |
                     image_flag_t::RLET)) != image_flag_t::none)
       {
-        bytes_read = ReadRLE(strm, result, graphics_mode, palette);
+        RES_TRY_ASSIGN(bytes_read =,
+                       ReadRLE(strm, result, graphics_mode, palette));
       }
       else
       {
-        bytes_read = ReadRGB(strm, result, graphics_mode, palette);
+        RES_TRY_ASSIGN(bytes_read =,
+                       ReadRGB(strm, result, graphics_mode, palette));
       }
 
       if ((flags & image_flag_t::alpha) != image_flag_t::none)
       {
-        ReadAlpha(strm, result);
+        RES_TRY(ReadAlpha(strm, result));
       }
       else if (color_transparent)
       {
