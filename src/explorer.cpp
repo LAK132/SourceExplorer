@@ -2150,12 +2150,12 @@ namespace SourceExplorer
     SCOPED_CHECKPOINT("truetype_fonts_t::read");
 
     const size_t pos = strm.position();
-    DEFER(strm.seek(pos));
 
     RES_TRY_ERR(
       entry.read(game, strm).map_err(APPEND_TRACE("truetype_fonts_t::read")));
 
     const auto end = strm.position();
+    DEFER(strm.seek(end));
     strm.seek(entry.data.position);
 
     while (strm.position() < end)
