@@ -102,6 +102,9 @@ namespace SourceExplorer
     DEBUG("Title: ", lak::strconv<char>(srcexp.state.title));
     DEBUG("Copyright: ", lak::strconv<char>(srcexp.state.copyright));
 
+    if (srcexp.state.recompiled)
+      WARNING("This Game May Have Been Recompiled!");
+
     if (srcexp.state.game.image_bank)
     {
       const auto &images = srcexp.state.game.image_bank->items;
