@@ -49,7 +49,7 @@ namespace SourceExplorer
 
   error_t LoadGame(source_explorer_t &srcexp)
   {
-    DEBUG("Loading Game");
+    SCOPED_CHECKPOINT("LoadGame");
 
     srcexp.state        = game_t{};
     srcexp.state.compat = force_compat;
@@ -178,7 +178,7 @@ namespace SourceExplorer
 
   error_t ParsePEHeader(lak::memory &strm, game_t &game_state)
   {
-    DEBUG("Parsing PE header");
+    SCOPED_CHECKPOINT("ParsePEHeader");
 
     uint16_t exe_sig = strm.read_u16();
     DEBUG("EXE Signature: ", exe_sig);
@@ -221,6 +221,7 @@ namespace SourceExplorer
     uint64_t pos = 0;
     for (uint16_t i = 0; i < num_header_sections; ++i)
     {
+      SCOPED_CHECKPOINT("Section ", i + 1, "/", num_header_sections);
       uint64_t start = strm.position();
       auto name      = strm.read_astring();
       DEBUG("Name: ", name);
@@ -412,17 +413,13 @@ namespace SourceExplorer
 
     for (int32_t i = 0; i < count; ++i)
     {
+      SCOPED_CHECKPOINT("Pack ", i + 1, "/", count);
+
       uint32_t read = strm.read_u16();
       // size_t strstart = strm.position();
 
-      DEBUG("Pack ",
-            i + 1,
-            " of ",
-            count,
-            ", filename length: ",
-            read,
-            ", pos: ",
-            strm.position());
+      DEBUG("Filename Length: ", read);
+      DEBUG("Position: ", strm.position());
 
       if (unicode)
         game_state.pack_files[i].filename =
@@ -1231,6 +1228,7 @@ namespace SourceExplorer
       data.data          = strm.read(chunk_size);
     }
     end = strm.position();
+    DEBUG("Size: ", end - position);
 
     return lak::ok_t{};
   }
@@ -1269,6 +1267,8 @@ namespace SourceExplorer
                              bool compressed,
                              size_t header_size)
   {
+    SCOPED_CHECKPOINT("item_entry_t::read");
+
     if (!strm.remaining())
       return lak::err_t{error(LINE_TRACE, error::out_of_data)};
 
@@ -2022,6 +2022,8 @@ namespace SourceExplorer
 
   error_t extended_header_t::read(game_t &game, lak::memory &strm)
   {
+    SCOPED_CHECKPOINT("extended_header_t::read");
+
     RES_TRY_ERR(
       entry.read(game, strm).map_err(APPEND_TRACE("extended_header_t::read")));
 
@@ -2084,6 +2086,8 @@ namespace SourceExplorer
 
   error_t object_properties_t::read(game_t &game, lak::memory &strm)
   {
+    SCOPED_CHECKPOINT("object_properties_t::read");
+
     const size_t pos = strm.position();
     DEFER(strm.seek(pos));
 
@@ -2143,6 +2147,8 @@ namespace SourceExplorer
 
   error_t truetype_fonts_t::read(game_t &game, lak::memory &strm)
   {
+    SCOPED_CHECKPOINT("truetype_fonts_t::read");
+
     const size_t pos = strm.position();
     DEFER(strm.seek(pos));
 
@@ -3746,6 +3752,8 @@ namespace SourceExplorer
 
     result_t<lak::memory> item_t::image_data() const
     {
+      SCOPED_CHECKPOINT("image::image_t::image_data");
+
       RES_TRY_ASSIGN(
         lak::memory strm =,
         entry.decode().map_err(APPEND_TRACE("image::item_t::image_data")))
@@ -3771,6 +3779,8 @@ namespace SourceExplorer
     result_t<lak::image4_t> item_t::image(
       const bool color_transparent, const lak::color4_t palette[256]) const
     {
+      SCOPED_CHECKPOINT("image::image_t::image");
+
       lak::image4_t result;
       result.resize((lak::vec2s_t)size);
 
