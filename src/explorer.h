@@ -231,7 +231,6 @@ namespace SourceExplorer
   {                                                                           \
     if (STRM.remaining() < (EXPECTED))                                        \
     {                                                                         \
-      DEBUG_BREAK();                                                          \
       ERROR("Out Of Data: ",                                                  \
             STRM.remaining(),                                                 \
             " Bytes Remaining, Expected ",                                    \
@@ -250,7 +249,6 @@ namespace SourceExplorer
   {                                                                           \
     if (STRM.size() < (EXPECTED))                                             \
     {                                                                         \
-      DEBUG_BREAK();                                                          \
       ERROR("Out Of Data: ",                                                  \
             STRM.remaining(),                                                 \
             " Bytes Availible, Expected ",                                    \
