@@ -2454,7 +2454,10 @@ namespace SourceExplorer
       max_speed = strm.read_u8();
       repeat    = strm.read_u16();
       back_to   = strm.read_u16();
-      handles.resize(strm.read_u16());
+      // handles.resize(strm.read_u16()); // :TODO: what's going on here? how
+      // did anaconda do this?
+      handles.resize(strm.read_u8());
+      strm.skip(1);
 
       CHECK_REMAINING(strm, handles.size() * 2);
 
