@@ -1413,6 +1413,7 @@ namespace SourceExplorer
       switch (mode)
       {
         case encoding_t::mode0: return lak::ok_t{lak::memory(data.data)};
+
         case encoding_t::mode1:
         {
           lak::memory result = data.data;
@@ -1443,8 +1444,10 @@ namespace SourceExplorer
 
         case encoding_t::mode2:
           return lak::err_t{error(LINE_TRACE, error::no_mode2_decoder)};
+
         case encoding_t::mode3:
           return lak::err_t{error(LINE_TRACE, error::no_mode3_decoder)};
+
         default:
           ASSERT_NYI();
           return lak::err_t{error(LINE_TRACE, "Invalid Mode")};
@@ -1454,7 +1457,7 @@ namespace SourceExplorer
     {
       switch (mode)
       {
-        case encoding_t::mode3:
+        case encoding_t::mode3: [[fallthrough]];
         case encoding_t::mode2:
           return Decrypt(data.data.get(), ID, mode)
             .map(array_to_memory)
@@ -1471,6 +1474,7 @@ namespace SourceExplorer
               DEBUG("Size: ", memory.size());
             });
 
+        case encoding_t::mode0: [[fallthrough]];
         default:
           if (data.data.size() > 0 && data.data.get()[0] == 0x78)
           {
@@ -2127,13 +2131,12 @@ namespace SourceExplorer
   {
     SCOPED_CHECKPOINT("object_properties_t::read");
 
-    const size_t pos = strm.position();
-    DEFER(strm.seek(pos));
-
     RES_TRY_ERR(entry.read(game, strm)
                   .map_err(APPEND_TRACE("object_properties_t::read")));
 
     const auto end = strm.position();
+    DEFER(strm.seek(end));
+
     strm.seek(entry.data.position);
 
     while (strm.position() < end)
@@ -2154,6 +2157,7 @@ namespace SourceExplorer
                       items.size(),
                       entry.position))
     {
+      DEFER(ImGui::Separator(); ImGui::TreePop(););
       ImGui::Separator();
 
       entry.view(srcexp);
@@ -2163,17 +2167,12 @@ namespace SourceExplorer
         if (lak::TreeNode(
               "0x%zX Properties##%zX", (size_t)item.ID, item.position))
         {
+          DEFER(ImGui::Separator(); ImGui::TreePop(););
           ImGui::Separator();
 
           item.view(srcexp);
-
-          ImGui::Separator();
-          ImGui::TreePop();
         }
       }
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -2197,8 +2196,9 @@ namespace SourceExplorer
     DEFER(strm.seek(end));
     strm.seek(entry.data.position);
 
-    while (strm.position() < end)
+    for (size_t i = 0; strm.position() < end; ++i)
     {
+      DEBUG("Font ", i);
       items.emplace_back();
       RES_TRY_ERR(items.back()
                     .read(game, strm, false)
@@ -2215,6 +2215,7 @@ namespace SourceExplorer
                       items.size(),
                       entry.position))
     {
+      DEFER(ImGui::Separator(); ImGui::TreePop(););
       ImGui::Separator();
 
       entry.view(srcexp);
@@ -2223,17 +2224,12 @@ namespace SourceExplorer
       {
         if (lak::TreeNode("0x%zX Font##%zX", (size_t)item.ID, item.position))
         {
+          DEFER(ImGui::Separator(); ImGui::TreePop(););
           ImGui::Separator();
 
           item.view(srcexp);
-
-          ImGui::Separator();
-          ImGui::TreePop();
         }
       }
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -2297,6 +2293,7 @@ namespace SourceExplorer
     {
       if (lak::TreeNode("Shape"))
       {
+        DEFER(ImGui::Separator(); ImGui::TreePop(););
         ImGui::Separator();
 
         ImGui::Text("Border Size: 0x%zX", (size_t)border_size);
@@ -2326,9 +2323,6 @@ namespace SourceExplorer
         {
           ImGui::Text("Handle: 0x%zX", (size_t)handle);
         }
-
-        ImGui::Separator();
-        ImGui::TreePop();
       }
 
       return lak::ok_t{};
@@ -2480,12 +2474,21 @@ namespace SourceExplorer
         ImGui::PushID(index++);
         DEFER(ImGui::PopID());
 
-        RES_TRY_ASSIGN(auto img =,
-                       GetImage(srcexp.state, handle)
-                         .map_err(APPEND_TRACE(
-                           "object::animation_direction_t::view: bad image")));
-        RES_TRY(img.view(srcexp).map_err(
-          APPEND_TRACE("object::animation_direction_t::view")));
+        [&, this]() -> error_t {
+          RES_TRY_ASSIGN(
+            auto &img =,
+            GetImage(srcexp.state, handle)
+              .map_err(APPEND_TRACE(
+                "object::animation_direction_t::view: bad image")));
+          RES_TRY(img.view(srcexp).map_err(
+            APPEND_TRACE("object::animation_direction_t::view")));
+          return lak::ok_t{};
+        }()
+                         .if_err([](const auto &err) {
+                           ImGui::Text("Invalid Image Handle");
+                           ImGui::Text(lak::streamify<char>(err).c_str());
+                         })
+                         .discard();
       }
 
       return lak::ok_t{};
@@ -3037,7 +3040,9 @@ namespace SourceExplorer
       RES_TRY_ASSIGN(
         auto pstrm =,
         entry.decode().map_err(APPEND_TRACE("frame::palette_t::read")));
+
       unknown = pstrm.read_u32();
+
       for (auto &color : colors)
       {
         color.r = pstrm.read_u8();
@@ -3142,6 +3147,7 @@ namespace SourceExplorer
                 APPEND_TRACE("frame::object_instance_t::view")));
             }
             break;
+
           case object_parent_type_t::frame:
             if (auto parent_obj = GetFrame(srcexp.state, parent_handle);
                 parent_obj.is_ok())
@@ -3150,8 +3156,9 @@ namespace SourceExplorer
                 APPEND_TRACE("frame::object_instance_t::view")));
             }
             break;
-          case object_parent_type_t::none:
-          case object_parent_type_t::qualifier:
+
+          case object_parent_type_t::none: [[fallthrough]];
+          case object_parent_type_t::qualifier: [[fallthrough]];
           default: break;
         }
       }
@@ -4221,12 +4228,24 @@ namespace SourceExplorer
       return chunk->read(game, strm);
     };
 
+    chunk_t childID  = (chunk_t)-1;
+    size_t start_pos = -1;
     for (bool not_finished = true; not_finished;)
     {
       if (strm.size() > 0)
         game.completed =
           (float)((double)strm.position() / (double)strm.size());
-      chunk_t childID = (chunk_t)strm.peek_u16();
+
+      if (strm.position() == start_pos)
+        return lak::err_t{error(LINE_TRACE,
+                                error::str_err,
+                                "last read chunk (",
+                                GetTypeString(childID),
+                                ") didn't move stream head")};
+
+      start_pos = strm.position();
+      childID   = (chunk_t)strm.peek_u16();
+
       switch (childID)
       {
         case chunk_t::title:
