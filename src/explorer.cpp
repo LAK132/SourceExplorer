@@ -4619,4 +4619,3 @@ namespace SourceExplorer
 }
 
 #include "encryption.cpp"
-#include "image.cpp"

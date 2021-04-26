@@ -27,7 +27,6 @@ SOFTWARE.
 #include <imgui_stdlib.h>
 
 #include "explorer.h"
-#include "image.h"
 #include "tostring.hpp"
 
 namespace se = SourceExplorer;
