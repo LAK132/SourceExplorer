@@ -7,6 +7,7 @@
 
 #include "await.hpp"
 
+#include <lak/macro_utils.hpp>
 #include <lak/span.hpp>
 #include <lak/window.hpp>
 
@@ -107,6 +108,32 @@ namespace lak
                     float length    = -1.0f);
 
   bool TreeNode(const char *fmt, ...);
+
+  struct tree_node
+  {
+    bool _result;
+
+    template<typename... ARGS>
+    tree_node(const char *fmt, ARGS &&... args)
+    : _result(lak::TreeNode(fmt, lak::forward<ARGS>(args)...))
+    {
+      ImGui::Separator();
+    }
+
+    ~tree_node()
+    {
+      if (_result)
+      {
+        ImGui::Separator();
+        ImGui::TreePop();
+      }
+    }
+
+    operator bool() const { return _result; }
+  };
+
+#define LAK_TREE_NODE(...)                                                    \
+  if (lak::tree_node UNIQUIFY(TREE_NODE_)(__VA_ARGS__); UNIQUIFY(TREE_NODE_))
 }
 
 #endif
