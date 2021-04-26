@@ -27,8 +27,13 @@ LIBS    = SDL2 GL dl stdc++fs
 
 # explorer.elf: $(TINYCC) | $(BINDIR) $(OBJDIR)
 # 	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/all.cpp $(TINYCC) $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
+ifeq ($(shell grep -a -h -i microsoft /proc/version),)
 explorer.elf: | $(BINDIR) $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -o $(BINDIR)/explorer.elf src/all.cpp $(foreach D,$(INCDIRS),-I$D ) $(foreach D,$(LIBDIRS),-L$D ) $(foreach L,$(LIBS),-l$L )
+else
+explorer.elf:
+	cmd.exe /c make.bat debug
+endif
 
 .PHONY: explorer.elf
 

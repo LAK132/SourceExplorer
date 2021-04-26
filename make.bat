@@ -56,7 +56,7 @@ for %%L in (%LIBS%) do (set _LIBS_=!_LIBS_! %LIBDIR%\%%L)
 set _INC_=
 for %%I in (%INCDIRS%) do (set _INC_=!_INC_! /I%%I)
 
-call %CXX% %COMPFLAGS% /Fo:%OBJDIR%\ /Fe:%BINDIR%\%BINARY% %SOURCE% !_LIBS_! !_INC_! /link %LINKFLAGS%
+call %CXX% %COMPFLAGS% /Fo:%OBJDIR%\ /Fe:%BINDIR%\%BINARY% %SOURCE% !_LIBS_! !_INC_! /link %LINKFLAGS% || exit 1
 
 for /f %%F in ('dir /b %LIBDIR%') do (if "%%~xF"==".dll" echo f | xcopy /y %LIBDIR%\%%F %BINDIR%\%%F)
 goto :eof
