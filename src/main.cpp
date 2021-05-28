@@ -32,6 +32,7 @@
 #include <lak/bank_ptr.hpp>
 #include <lak/defer.hpp>
 #include <lak/file.hpp>
+#include <lak/test.hpp>
 #include <lak/window.hpp>
 
 se::source_explorer_t SrcExp;
@@ -1013,18 +1014,40 @@ void MainScreen(float frame_time)
 
 ImGui::ImplContext imgui_context = nullptr;
 
-void basic_window_preinit(int argc, char **argv)
+bool force_only_error = false;
+
+lak::optional<int> basic_window_preinit(int argc, char **argv)
 {
-  while (argc-- > 1)
+  for (int arg = 1; arg < argc; ++arg)
   {
-    if (argv[argc] == lak::astring("-nogl"))
+    if (argv[arg] == lak::astring("-help"))
+    {
+      std::cout << "srcexp.exe [-help] [-nogl] [-onlyerr] "
+                   "[-testall | -tests \"test1;test2\"] [<filepath>]";
+      return lak::optional<int>(0);
+    }
+    else if (argv[arg] == lak::astring("-nogl"))
     {
       basic_window_force_software = true;
+    }
+    else if (argv[arg] == lak::astring("-onlyerr"))
+    {
+      force_only_error = true;
+    }
+    else if (argv[arg] == lak::astring("-testall"))
+    {
+      return lak::optional<int>(lak::run_tests());
+    }
+    else if (argv[arg] == lak::astring("-tests"))
+    {
+      ++arg;
+      if (arg >= argc) FATAL("Missing tests");
+      return lak::optional<int>(lak::run_tests(argv[arg]));
     }
     else
     {
       SrcExp.baby_mode   = false;
-      SrcExp.exe.path    = argv[argc];
+      SrcExp.exe.path    = argv[arg];
       SrcExp.exe.valid   = true;
       SrcExp.exe.attempt = true;
     }
@@ -1033,6 +1056,8 @@ void basic_window_preinit(int argc, char **argv)
   basic_window_target_framerate      = 30;
   basic_window_opengl_settings.major = 3;
   basic_window_opengl_settings.minor = 2;
+
+  return lak::nullopt;
 }
 
 void basic_window_init(lak::window &window)
@@ -1053,7 +1078,7 @@ void basic_window_init(lak::window &window)
   }
   else
   {
-    lak::debugger.live_errors_only = false;
+    lak::debugger.live_errors_only = force_only_error;
   }
 
   imgui_context        = ImGui::ImplCreateContext(window.graphics());

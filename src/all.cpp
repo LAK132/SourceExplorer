@@ -22,10 +22,22 @@
 #include <lak/src/platform.cpp>
 #include <lak/src/profile.cpp>
 #include <lak/src/strconv.cpp>
+#include <lak/src/test.cpp>
 #include <lak/src/tinflate.cpp>
 #include <lak/src/tokeniser.cpp>
 #include <lak/src/unicode.cpp>
 #include <lak/src/window.cpp>
+
+#ifndef NO_TESTS
+// #define LAK_TEST_MAIN lak_test_main
+// #include <lak/src/tests/test_main.cpp>
+#  include <lak/src/tests/array.cpp>
+#  include <lak/src/tests/bitflag.cpp>
+#  include <lak/src/tests/bitset.cpp>
+#  include <lak/src/tests/test.cpp>
+#  include <lak/src/tests/trie.cpp>
+#  include <lak/src/tests/type_pack.cpp>
+#endif
 
 #include <examples/imgui_impl_softraster.cpp>
 
