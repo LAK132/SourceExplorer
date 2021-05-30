@@ -1393,7 +1393,8 @@ namespace SourceExplorer
     }
 
     data.position = strm.position();
-    data.data     = strm.read(data_size);
+    CHECK_REMAINING(strm, data_size);
+    data.data = strm.read(data_size);
 
     // hack because one of MMF1.5 or tinf_uncompress is a bitch
     if (game.old_game) mode = encoding_t::mode1;
