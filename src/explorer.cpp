@@ -3953,7 +3953,7 @@ namespace SourceExplorer
 
       strm.seek(data_position);
 
-      if ((flags & image_flag_t::LZX) != image_flag_t::none)
+      if ((flags & image_flag_t::LZX) == image_flag_t::LZX)
       {
         if (entry.mode == encoding_t::mode4)
         {
