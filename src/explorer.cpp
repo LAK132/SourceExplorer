@@ -1521,7 +1521,8 @@ namespace SourceExplorer
             else
             {
               DEBUG("Size: ", data.data.size());
-              WARNING("Guessed MODE1 Failed To Inflate");
+              WARNING("Guessed MODE1 Failed To Inflate: ",
+                      result.unsafe_unwrap_err());
               return lak::ok_t{data.data};
             }
           }
