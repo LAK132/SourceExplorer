@@ -601,7 +601,7 @@ namespace SourceExplorer
 
       case graphics_mode_t::graphics7: return ColorFrom16bit(strm);
 
-      case graphics_mode_t::graphics8: return ColorFrom32bitBGR(strm);
+      case graphics_mode_t::graphics8: return ColorFrom32bitBGRA(strm);
 
       case graphics_mode_t::graphics4: [[fallthrough]];
       default: return ColorFrom24bitBGR(strm);
@@ -737,8 +737,9 @@ namespace SourceExplorer
   {
     for (size_t i = 0; i < bitmap.contig_size(); ++i)
     {
-      if (lak::color3_t(bitmap[i]) == lak::color3_t(transparent))
-        bitmap[i].a = transparent.a;
+      bitmap[i].a = lak::color3_t(bitmap[i]) == lak::color3_t(transparent)
+                      ? transparent.a
+                      : 255;
     }
   }
 
@@ -4009,13 +4010,20 @@ namespace SourceExplorer
                        ReadRGB(strm, result, graphics_mode, palette));
       }
 
-      if ((flags & image_flag_t::alpha) != image_flag_t::none)
+      if ((flags & image_flag_t::alpha) == image_flag_t::alpha)
+      {
+        if (entry.mode != encoding_t::mode4)
       {
         RES_TRY(ReadAlpha(strm, result));
+      }
       }
       else if (color_transparent)
       {
         ReadTransparent(transparent, result);
+      }
+      else if (entry.mode == encoding_t::mode4)
+      {
+        for (size_t i = 0; i < result.contig_size(); ++i) result[i].a = 255;
       }
 
       if (strm.remaining() != 0)
