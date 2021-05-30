@@ -536,6 +536,19 @@ namespace SourceExplorer
     return lak::ok_t{rtn};
   }
 
+  result_t<lak::color4_t> ColorFrom32bitBGR(lak::memory &strm)
+  {
+    CHECK_REMAINING(strm, 4);
+
+    lak::color4_t rtn;
+    rtn.b = strm.read_u8();
+    rtn.g = strm.read_u8();
+    rtn.r = strm.read_u8();
+    rtn.a = 255;
+    strm.skip(1);
+    return lak::ok_t{rtn};
+  }
+
   result_t<lak::color4_t> ColorFrom24bitRGB(lak::memory &strm)
   {
     CHECK_REMAINING(strm, 3);
@@ -561,6 +574,20 @@ namespace SourceExplorer
     return lak::ok_t{rtn};
   }
 
+  template<typename STRM>
+  result_t<lak::color4_t> ColorFrom32bitRGB(STRM &strm)
+  {
+    CHECK_REMAINING(strm, 4);
+
+    lak::color4_t rtn;
+    rtn.r = strm.read_u8();
+    rtn.g = strm.read_u8();
+    rtn.b = strm.read_u8();
+    rtn.a = 255;
+    strm.skip(1);
+    return lak::ok_t{rtn};
+  }
+
   result_t<lak::color4_t> ColorFromMode(lak::memory &strm,
                                         const graphics_mode_t mode,
                                         const lak::color4_t palette[256])
@@ -574,7 +601,7 @@ namespace SourceExplorer
 
       case graphics_mode_t::graphics7: return ColorFrom16bit(strm);
 
-      case graphics_mode_t::graphics8: return ColorFrom32bitBGRA(strm);
+      case graphics_mode_t::graphics8: return ColorFrom32bitBGR(strm);
 
       case graphics_mode_t::graphics4: [[fallthrough]];
       default: return ColorFrom24bitBGR(strm);
@@ -1063,18 +1090,26 @@ namespace SourceExplorer
     return compressed;
   }
 
-  result_t<std::vector<uint8_t>> LZ4Decode(
-    const std::vector<uint8_t> &compressed, unsigned int out_size)
+  result_t<std::vector<uint8_t>> LZ4Decode(lak::span_memory strm,
+                                           unsigned int out_size)
   {
     SCOPED_CHECKPOINT("LZ4Decode");
 
-    if (auto result = lak::decode_lz4_block(lak::memory(compressed), out_size);
-        result.is_ok())
+    if (auto result = lak::decode_lz4_block(strm, out_size); result.is_ok())
       return lak::ok_t{lak::move(result).unsafe_unwrap().release()};
 
     ERROR("Failed To Decompress");
     return lak::err_t{
       error(LINE_TRACE, error::inflate_failed, "Failed To Decompress")};
+  }
+
+  result_t<std::vector<uint8_t>> LZ4DecodeReadSize(lak::span_memory strm)
+  {
+    CHECK_REMAINING(strm, 4);
+    // intentionally doing this outside of the LZ4Decode call incase strm
+    // copies first (?)
+    const uint32_t out_size = strm.read_u32();
+    return LZ4Decode(strm, out_size);
   }
 
   result_t<std::vector<uint8_t>> StreamDecompress(lak::memory &strm,
@@ -1348,11 +1383,8 @@ namespace SourceExplorer
     const bool new_item     = peekaboo == 0xFF'FF'FF'FF;
     if (new_item)
     {
-      WARNING("New Item");
-      game.recompiled |= true;
-      mode                           = encoding_t::mode0;
-      compressed                     = false;
-      lak::debugger.live_errors_only = false;
+      mode       = encoding_t::mode4;
+      compressed = false;
     }
 
     if (!game.old_game && header_size > 0)
@@ -1485,6 +1517,16 @@ namespace SourceExplorer
     {
       switch (mode)
       {
+        case encoding_t::mode4:
+          return LZ4DecodeReadSize(
+                   lak::span_memory(lak::span<uint8_t>(
+                     (uint8_t *)data.data.data(), data.data.size())))
+            .map(array_to_memory)
+            .map_err(APPEND_TRACE("LZ4 Decode Failed"))
+            .if_ok([](const lak::memory &memory) {
+              DEBUG("Size: ", memory.size())
+            });
+
         case encoding_t::mode3: [[fallthrough]];
         case encoding_t::mode2:
           return Decrypt(data.data.get(), ID, mode)
@@ -1572,6 +1614,8 @@ namespace SourceExplorer
             .map(array_to_memory)
             .map_err(APPEND_TRACE("MODE1 Failed To Inflate"));
 
+        case encoding_t::mode4: [[fallthrough]];
+        case encoding_t::mode0: [[fallthrough]];
         default:
           if (header.data.size() > 0 && header.data.get()[0] == 0x78)
           {
@@ -3910,17 +3954,9 @@ namespace SourceExplorer
 
       if ((flags & image_flag_t::LZX) != image_flag_t::none)
       {
-        if (data_position == 0) // :TODO: temp hack
+        if (entry.mode == encoding_t::mode4)
         {
-          CHECK_REMAINING(strm, 4);
-
-          const uint32_t decompressed_length = strm.read_u32();
-
-          return LZ4Decode(strm.read(strm.remaining()), decompressed_length)
-            .map_err(APPEND_TRACE("image::item_t::image_data"))
-            .map([](std::vector<uint8_t> &&decompressed) -> lak::memory {
-              return lak::memory(lak::move(decompressed));
-            });
+          return lak::ok_t{lak::move(strm)};
         }
         else
         {

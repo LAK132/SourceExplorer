@@ -207,6 +207,7 @@ namespace SourceExplorer
     mode1 = 1, // Compressed / Unencrypted
     mode2 = 2, // Uncompressed / Encrypted
     mode3 = 3, // Compressed / Encrypted
+    mode4 = 4, // LZ4 Compressed (not actually a value read from the binary)
 
     default_mode    = mode0,
     compressed_mode = mode1,
