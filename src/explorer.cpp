@@ -1280,7 +1280,7 @@ namespace SourceExplorer
 
     DEBUG("Type: ", GetTypeString(ID), " (", uintmax_t(ID), ")");
     if (GetTypeString(ID) == lak::astring("INVALID"))
-      WARNING("Invalid Type Detected");
+      WARNING("Invalid Type Detected (", uintmax_t(ID), ")");
     DEBUG("Mode: ", (uint16_t)mode);
     DEBUG("Position: ", position);
 
