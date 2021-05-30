@@ -32,7 +32,6 @@
 #include <lak/bank_ptr.hpp>
 #include <lak/defer.hpp>
 #include <lak/file.hpp>
-#include <lak/string_utils.hpp>
 #include <lak/test.hpp>
 #include <lak/window.hpp>
 
