@@ -19,6 +19,9 @@
 #  define NOMINMAX
 #endif
 
+#include "lak/compression/deflate.hpp"
+#include "lak/compression/lz4.hpp"
+
 #include "explorer.h"
 #include "tostring.hpp"
 
@@ -569,14 +572,12 @@ namespace SourceExplorer
 
       case graphics_mode_t::graphics6: return ColorFrom15bit(strm);
 
-      case graphics_mode_t::graphics7:
-        return ColorFrom16bit(strm);
-        // return ColorFrom15bit(strm);
+      case graphics_mode_t::graphics7: return ColorFrom16bit(strm);
+
+      case graphics_mode_t::graphics8: return ColorFrom32bitBGRA(strm);
 
       case graphics_mode_t::graphics4: [[fallthrough]];
-      default:
-        // return ColorFrom32bitBGRA(strm);
-        return ColorFrom24bitBGR(strm);
+      default: return ColorFrom24bitBGR(strm);
     }
   }
 
@@ -591,10 +592,10 @@ namespace SourceExplorer
 
       case graphics_mode_t::graphics7: return 2;
 
+      case graphics_mode_t::graphics8: return 4;
+
       case graphics_mode_t::graphics4: [[fallthrough]];
-      default:
-        // return 4;
-        return 3;
+      default: return 3;
     }
   }
 
@@ -839,15 +840,14 @@ namespace SourceExplorer
       case chunk_t::extended_header: return "Extended Header";
       case chunk_t::spacer: return "Spacer";
       case chunk_t::frame_bank: return "Frame Bank";
-      case chunk_t::chunk224F: return "CHUNK 224F";
+      case chunk_t::chunk224F: return "Chunk 224F";
       case chunk_t::title2: return "Title2";
 
-      case chunk_t::chunk2253: return "CHUNK 2253 (16 bytes?)";
+      case chunk_t::chunk2253: return "Chunk 2253";
       case chunk_t::object_names: return "Object Names";
-      case chunk_t::chunk2255: return "CHUNK 2255 (Empty?)";
-      case chunk_t::recompiled_object_properties:
-        return "Recompiled Object Properties";
-      case chunk_t::chunk2257: return "CHUNK 2257 (4 bytes?)";
+      case chunk_t::chunk2255: return "Chunk 2255 (Empty?)";
+      case chunk_t::recompiled_object_properties: return "Object Properties 2";
+      case chunk_t::chunk2257: return "Chunk 2257 (4 bytes?)";
       case chunk_t::font_meta: return "TrueType Fonts Meta";
       case chunk_t::font_chunk: return "TrueType Fonts Chunk";
 
@@ -955,6 +955,8 @@ namespace SourceExplorer
                                         chunk_t id,
                                         encoding_t mode)
   {
+    SCOPED_CHECKPOINT("Decode");
+
     switch (mode)
     {
       case encoding_t::mode3:
@@ -974,49 +976,43 @@ namespace SourceExplorer
     bool anaconda,
     size_t max_size)
   {
-    auto buffer =
-      std::vector<uint8_t>(std::min(max_size, size_t(0x1000)), uint8_t(0));
-    tinf::decompression_state_t state;
+    SCOPED_CHECKPOINT("Inflate");
 
-    state.data     = lak::span(compressed);
-    state.anaconda = anaconda;
+    lak::array<uint8_t, 0x8000> buffer;
+    auto inflater =
+      lak::deflate_iterator(compressed, buffer, !skip_header, anaconda);
 
-    tinf::error_t error = tinf::error_t::OK;
-    if (skip_header)
+    std::vector<uint8_t> output;
+    if (auto err = inflater.read([&](uint8_t v) {
+          if (output.size() > max_size) return false;
+          output.push_back(v);
+          return true;
+        });
+        err.is_ok())
     {
-      state.state = tinf::state_t::HEADER;
+      return lak::ok_t{lak::move(output)};
+    }
+    else if (err.unsafe_unwrap_err() == lak::deflate_iterator::error_t::ok)
+    {
+      DEBUG("Buffer Size: ", buffer.size());
+      DEBUG("Max Size: ", max_size);
+      DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
+      return lak::err_t{error(LINE_TRACE,
+                              error::inflate_failed,
+                              "Failed To Inflate (Max Size Reached)")};
     }
     else
     {
-      error = tinf::tinflate_header(state);
-    }
-
-    uint8_t *head = buffer.data();
-    while (error == tinf::error_t::OK && !state.final &&
-           size_t(head - buffer.data()) < max_size)
-    {
-      error = tinf::tinflate_block(buffer, &head, state);
-      while (error == tinf::error_t::OUTPUT_FULL)
-      {
-        size_t offset = head - buffer.data();
-        buffer.resize(buffer.size() * 2);
-        head  = buffer.data() + offset;
-        error = tinf::tinflate_block(buffer, &head, state);
-      }
-    }
-    ASSERT_GREATER_OR_EQUAL(head, buffer.data());
-    buffer.resize(head - buffer.data());
-
-    if (error != tinf::error_t::OK)
-    {
-      ERROR("Failed To Inflate: ", tinf::error_name(error));
       DEBUG("Buffer Size: ", buffer.size());
       DEBUG("Max Size: ", max_size);
-      DEBUG("Final? ", (state.final ? "True" : "False"));
-      return lak::err_t{se::error(LINE_TRACE, se::error::inflate_failed)};
+      DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
+      return lak::err_t{
+        error(LINE_TRACE,
+              error::inflate_failed,
+              "Failed To Inflate (",
+              lak::deflate_iterator::error_name(err.unsafe_unwrap_err()),
+              ")")};
     }
-
-    return lak::ok_t{lak::move(buffer)};
   }
 
   error_t Inflate(std::vector<uint8_t> &out,
@@ -1025,6 +1021,8 @@ namespace SourceExplorer
                   bool anaconda,
                   size_t max_size)
   {
+    SCOPED_CHECKPOINT("Inflate");
+
     RES_TRY_ASSIGN(out =,
                    Inflate(compressed, skip_header, anaconda, max_size)
                      .map_err(APPEND_TRACE("Inflate")));
@@ -1037,6 +1035,8 @@ namespace SourceExplorer
                   bool anaconda,
                   size_t max_size)
   {
+    SCOPED_CHECKPOINT("Inflate");
+
     RES_TRY_ASSIGN(out =,
                    Inflate(compressed, skip_header, anaconda, max_size)
                      .map_err(APPEND_TRACE("Inflate")));
@@ -1046,6 +1046,8 @@ namespace SourceExplorer
   std::vector<uint8_t> InflateOrCompressed(
     const std::vector<uint8_t> &compressed)
   {
+    SCOPED_CHECKPOINT("InflateOrCompressed");
+
     if (auto result = Inflate(compressed, false, false); result.is_ok())
       return lak::move(result).unsafe_unwrap();
     ERROR("Failed To Inflate");
@@ -1055,40 +1057,68 @@ namespace SourceExplorer
   std::vector<uint8_t> DecompressOrCompressed(
     const std::vector<uint8_t> &compressed, unsigned int out_size)
   {
+    SCOPED_CHECKPOINT("DecompressOrCompressed");
+
     if (auto result = Inflate(compressed, true, true); result.is_ok())
       return lak::move(result).unsafe_unwrap();
     ERROR("Failed To Decompress");
     return compressed;
   }
 
+  result_t<std::vector<uint8_t>> LZ4Decode(
+    const std::vector<uint8_t> &compressed, unsigned int out_size)
+  {
+    SCOPED_CHECKPOINT("LZ4Decode");
+
+    if (auto result = lak::decode_lz4_block(lak::memory(compressed), out_size);
+        result.is_ok())
+      return lak::ok_t{lak::move(result).unsafe_unwrap().release()};
+
+    ERROR("Failed To Decompress");
+    return lak::err_t{
+      error(LINE_TRACE, error::inflate_failed, "Failed To Decompress")};
+  }
+
   result_t<std::vector<uint8_t>> StreamDecompress(lak::memory &strm,
                                                   unsigned int out_size)
   {
-    lak::array<uint8_t> buffer;
-    tinf::decompression_state_t state;
-    state.state    = tinf::state_t::HEADER;
-    state.anaconda = true;
+    SCOPED_CHECKPOINT("StreamDecompress");
 
-    tinf::error_t err =
-      tinf::tinflate(lak::span(strm.cursor(), strm.end()), &buffer, state);
+    lak::array<uint8_t, 0x8000> buffer;
+    auto inflater = lak::deflate_iterator(lak::span(strm.cursor(), strm.end()),
+                                          buffer,
+                                          /* parse_header */ false,
+                                          /* anaconda */ true);
 
-    if (state.data.begin() > strm.cursor())
-      strm.skip(state.data.begin() - strm.cursor());
-
-    if (err == tinf::error_t::OK)
-      return lak::ok_t{std::vector<uint8_t>(buffer.begin(), buffer.end())};
+    std::vector<uint8_t> output;
+    if (auto err = inflater.read([&](uint8_t v) {
+          output.push_back(v);
+          return true;
+        });
+        err.is_ok())
+    {
+      if (inflater.compressed().begin() > strm.cursor())
+        strm.skip(inflater.compressed().begin() - strm.cursor());
+      return lak::ok_t{lak::move(output)};
+    }
     else
-      return lak::err_t{error(LINE_TRACE,
-                              error::inflate_failed,
-                              "Failed To Decompress (",
-                              tinf::error_name(err),
-                              ")")};
+    {
+      DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
+      return lak::err_t{
+        error(LINE_TRACE,
+              error::inflate_failed,
+              "Failed To Inflate (",
+              lak::deflate_iterator::error_name(err.unsafe_unwrap_err()),
+              ")")};
+    }
   }
 
   result_t<std::vector<uint8_t>> Decrypt(const std::vector<uint8_t> &encrypted,
                                          chunk_t ID,
                                          encoding_t mode)
   {
+    SCOPED_CHECKPOINT("Decrypt");
+
     if (mode == encoding_t::mode3)
     {
       if (encrypted.size() <= 4)
@@ -1214,7 +1244,9 @@ namespace SourceExplorer
     ID       = (chunk_t)strm.read_u16();
     mode     = (encoding_t)strm.read_u16();
 
-    DEBUG("Type: ", GetTypeString(ID));
+    DEBUG("Type: ", GetTypeString(ID), " (", uintmax_t(ID), ")");
+    if (GetTypeString(ID) == lak::astring("INVALID"))
+      WARNING("Invalid Type Detected");
     DEBUG("Mode: ", (uint16_t)mode);
     DEBUG("Position: ", position);
 
@@ -1274,7 +1306,7 @@ namespace SourceExplorer
 
   void chunk_entry_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode("Entry Information##%zX", position))
+    LAK_TREE_NODE("Entry Information##%zX", position)
     {
       if (old)
         ImGui::Text("Old Entry");
@@ -1294,8 +1326,6 @@ namespace SourceExplorer
       ImGui::Text("Data Position: 0x%zX", data.position);
       ImGui::Text("Data Expected Size: 0x%zX", data.expected_size);
       ImGui::Text("Data Size: 0x%zX", data.data.size());
-
-      ImGui::TreePop();
     }
 
     if (ImGui::Button("View Memory")) srcexp.view = this;
@@ -1316,14 +1346,15 @@ namespace SourceExplorer
     mode     = encoding_t::mode0;
     handle   = strm.read_u32();
 
-    const bool new_item = strm.peek_s32() == -1;
+    const uint32_t peekaboo = strm.peek_u32();
+    const bool new_item     = peekaboo == 0xFF'FF'FF'FF;
     if (new_item)
     {
       WARNING("New Item");
       game.recompiled |= true;
-      header_size = 12;
-      mode        = encoding_t::mode0;
-      compressed  = false;
+      mode                           = encoding_t::mode0;
+      compressed                     = false;
+      lak::debugger.live_errors_only = false;
     }
 
     if (!game.old_game && header_size > 0)
@@ -1335,7 +1366,7 @@ namespace SourceExplorer
 
     data.expected_size = game.old_game || compressed ? strm.read_u32() : 0;
 
-    size_t data_size;
+    size_t data_size = 0;
     if (game.old_game)
     {
       const size_t start = strm.position();
@@ -1356,9 +1387,9 @@ namespace SourceExplorer
       data_size = strm.position() - start;
       strm.seek(start);
     }
-    else
+    else if (!new_item)
     {
-      data_size = strm.read_u32() + (new_item ? 20 : 0);
+      data_size = strm.read_u32();
     }
 
     data.position = strm.position();
@@ -1374,7 +1405,7 @@ namespace SourceExplorer
 
   void item_entry_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode("Entry Information##%zX", position))
+    LAK_TREE_NODE("Entry Information##%zX", position)
     {
       if (old)
         ImGui::Text("Old Entry");
@@ -1393,8 +1424,6 @@ namespace SourceExplorer
       ImGui::Text("Data Position: 0x%zX", data.position);
       ImGui::Text("Data Expected Size: 0x%zX", data.expected_size);
       ImGui::Text("Data Size: 0x%zX", data.data.size());
-
-      ImGui::TreePop();
     }
 
     if (ImGui::Button("View Memory")) srcexp.view = this;
@@ -1562,7 +1591,7 @@ namespace SourceExplorer
             }
           }
           else
-            return lak::ok_t{data.data};
+            return lak::ok_t{header.data};
       }
     }
   }
@@ -1634,14 +1663,9 @@ namespace SourceExplorer
   error_t basic_chunk_t::basic_view(source_explorer_t &srcexp,
                                     const char *name) const
   {
-    if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
+    LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position)
     {
-      ImGui::Separator();
-
       entry.view(srcexp);
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -1657,14 +1681,9 @@ namespace SourceExplorer
   error_t basic_item_t::basic_view(source_explorer_t &srcexp,
                                    const char *name) const
   {
-    if (lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position))
+    LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position)
     {
-      ImGui::Separator();
-
       entry.view(srcexp);
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -1689,28 +1708,16 @@ namespace SourceExplorer
                                const bool preview) const
   {
     lak::astring str = astring();
-    bool open        = false;
 
-    if (preview)
-      open = lak::TreeNode("0x%zX %s '%s'##%zX",
-                           (size_t)entry.ID,
-                           name,
-                           str.c_str(),
-                           entry.position);
-    else
-      open =
-        lak::TreeNode("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position);
-
-    if (open)
+    LAK_TREE_NODE("0x%zX %s '%s'##%zX",
+                  (size_t)entry.ID,
+                  name,
+                  preview ? str.c_str() : "",
+                  entry.position)
     {
-      ImGui::Separator();
-
       entry.view(srcexp);
       ImGui::Text("String: '%s'", str.c_str());
       ImGui::Text("String Length: 0x%zX", value.size());
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -1753,20 +1760,15 @@ namespace SourceExplorer
   error_t strings_chunk_t::basic_view(source_explorer_t &srcexp,
                                       const char *name) const
   {
-    if (lak::TreeNode("0x%zX %s (%zu Items)##%zX",
-                      (size_t)entry.ID,
-                      name,
-                      values.size(),
-                      entry.position))
+    LAK_TREE_NODE("0x%zX %s (%zu Items)##%zX",
+                  (size_t)entry.ID,
+                  name,
+                  values.size(),
+                  entry.position)
     {
-      ImGui::Separator();
-
       entry.view(srcexp);
       for (const auto &s : values)
         ImGui::Text("%s", (const char *)lak::to_u8string(s).c_str());
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -1779,12 +1781,9 @@ namespace SourceExplorer
 
   error_t compressed_chunk_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode(
-          "0x%zX Unknown Compressed##%zX", (size_t)entry.ID, entry.position))
+    LAK_TREE_NODE(
+      "0x%zX Unknown Compressed##%zX", (size_t)entry.ID, entry.position)
     {
-      DEFER(ImGui::Separator(); ImGui::TreePop(););
-      ImGui::Separator();
-
       entry.view(srcexp);
 
       if (ImGui::Button("View Compressed"))
@@ -1920,10 +1919,8 @@ namespace SourceExplorer
 
   error_t icon_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode("0x%zX Icon##%zX", (size_t)entry.ID, entry.position))
+    LAK_TREE_NODE("0x%zX Icon##%zX", (size_t)entry.ID, entry.position)
     {
-      ImGui::Separator();
-
       entry.view(srcexp);
 
       ImGui::Text("Image Size: %zu * %zu",
@@ -1934,8 +1931,6 @@ namespace SourceExplorer
       {
         srcexp.image = CreateTexture(bitmap, srcexp.graphics_mode);
       }
-
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -1967,16 +1962,12 @@ namespace SourceExplorer
 
   error_t binary_file_t::view(source_explorer_t &srcexp) const
   {
-    lak::u8string str = lak::to_u8string(name);
-    if (lak::TreeNode("%s", str.c_str()))
-    {
-      ImGui::Separator();
+    lak::astring str = lak::to_astring(name);
 
+    LAK_TREE_NODE("%s", str.c_str())
+    {
       ImGui::Text("Name: %s", str.c_str());
       ImGui::Text("Data Size: 0x%zX", data.size());
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -2002,12 +1993,8 @@ namespace SourceExplorer
 
   error_t binary_files_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode(
-          "0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position))
+    LAK_TREE_NODE("0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position)
     {
-      DEFER(ImGui::Separator(); ImGui::TreePop());
-      ImGui::Separator();
-
       entry.view(srcexp);
 
       int index = 0;
@@ -2086,11 +2073,9 @@ namespace SourceExplorer
 
   error_t extended_header_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode(
-          "0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position))
+    LAK_TREE_NODE(
+      "0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position)
     {
-      ImGui::Separator();
-
       entry.view(srcexp);
 
       ImGui::Text("Flags: 0x%zX", (size_t)flags);
@@ -2099,9 +2084,6 @@ namespace SourceExplorer
       ImGui::Text("Screen Ratio Tolerance: 0x%zX",
                   (size_t)screen_ratio_tolerance);
       ImGui::Text("Screen Angle: 0x%zX", (size_t)screen_angle);
-
-      ImGui::Separator();
-      ImGui::TreePop();
     }
 
     return lak::ok_t{};
@@ -2122,9 +2104,133 @@ namespace SourceExplorer
     return basic_view(srcexp, "Title 2");
   }
 
+  error_t chunk_2253_item_t::read(game_t &game, lak::memory &strm)
+  {
+    SCOPED_CHECKPOINT("chunk2253_t::read");
+
+    CHECK_REMAINING(strm, 16);
+
+    position = strm.position();
+    DEFER(strm.seek(position + 16));
+
+    ID = strm.read_u16();
+
+    return lak::ok_t{};
+  }
+
+  error_t chunk_2253_item_t::view(source_explorer_t &srcexp) const
+  {
+    ImGui::Text("ID: 0x%zX", ID);
+
+    return lak::ok_t{};
+  }
+
+  error_t chunk_2253_t::read(game_t &game, lak::memory &strm)
+  {
+    SCOPED_CHECKPOINT("chunk2253_t::read");
+
+    RES_TRY_ERR(
+      entry.read(game, strm).map_err(APPEND_TRACE("chunk_2253_t::read")));
+
+    RES_TRY_ASSIGN(lak::memory cstrm =,
+                   entry.decode().map_err(APPEND_TRACE("chunk_2253_t::read")));
+
+    while (cstrm.remaining() >= 16)
+    {
+      const size_t pos = cstrm.position();
+      items.emplace_back();
+      RES_TRY_ERR(items.back()
+                    .read(game, cstrm)
+                    .map_err(APPEND_TRACE("chunk_2253_t::read")));
+      if (cstrm.position() == pos) break;
+    }
+
+    if (cstrm.remaining()) WARNING("Data Left Over");
+
+    return lak::ok_t{};
+  }
+
+  error_t chunk_2253_t::view(source_explorer_t &srcexp) const
+  {
+    LAK_TREE_NODE("0x%zX Chunk 2253 (%zu Items)##%zX",
+                  (size_t)entry.ID,
+                  items.size(),
+                  entry.position)
+    {
+      entry.view(srcexp);
+
+      size_t i = 0;
+      for (const auto &item : items)
+      {
+        LAK_TREE_NODE("0x%zX Item##%zX", (size_t)item.ID, i++)
+        {
+          RES_TRY(
+            item.view(srcexp).map_err(APPEND_TRACE("chunk_2253_t::view")));
+        }
+      }
+    }
+
+    return lak::ok_t{};
+  }
+
   error_t object_names_t::view(source_explorer_t &srcexp) const
   {
     return basic_view(srcexp, "Object Names");
+  }
+
+  error_t chunk_2255_t::view(source_explorer_t &srcexp) const
+  {
+    return basic_view(srcexp, "Chunk 2255");
+  }
+
+  error_t recompiled_object_properties_t::read(game_t &game, lak::memory &strm)
+  {
+    SCOPED_CHECKPOINT("recompiled_object_properties_t::read");
+
+    RES_TRY_ERR(
+      entry.read(game, strm)
+        .map_err(APPEND_TRACE("recompiled_object_properties_t::read")));
+
+    const auto end = strm.position();
+    DEFER(strm.seek(end));
+
+    strm.seek(entry.data.position);
+
+    while (strm.position() < end)
+    {
+      items.emplace_back();
+      RES_TRY_ERR(
+        items.back()
+          .read(game, strm)
+          .map_err(APPEND_TRACE("recompiled_object_properties_t::read")));
+    }
+
+    return lak::ok_t{};
+  }
+
+  error_t recompiled_object_properties_t::view(source_explorer_t &srcexp) const
+  {
+    LAK_TREE_NODE("0x%zX Object Properties 2 (%zu Items)##%zX",
+                  (size_t)entry.ID,
+                  items.size(),
+                  entry.position)
+    {
+      entry.view(srcexp);
+
+      for (const auto &item : items)
+      {
+        RES_TRY(
+          item.basic_view(srcexp, "Properties")
+            .map_err(APPEND_TRACE("recompiled_object_properties_t::view")));
+      }
+    }
+
+    return lak::ok_t{};
+  }
+
+  error_t chunk_2257_t::view(source_explorer_t &srcexp) const
+  {
+    return basic_view(srcexp, "Chunk 2257");
   }
 
   error_t object_properties_t::read(game_t &game, lak::memory &strm)
@@ -2152,24 +2258,17 @@ namespace SourceExplorer
 
   error_t object_properties_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode("0x%zX Object Properties (%zu Items)##%zX",
-                      (size_t)entry.ID,
-                      items.size(),
-                      entry.position))
+    LAK_TREE_NODE("0x%zX Object Properties (%zu Items)##%zX",
+                  (size_t)entry.ID,
+                  items.size(),
+                  entry.position)
     {
-      DEFER(ImGui::Separator(); ImGui::TreePop(););
-      ImGui::Separator();
-
       entry.view(srcexp);
 
       for (const auto &item : items)
       {
-        if (lak::TreeNode(
-              "0x%zX Properties##%zX", (size_t)item.ID, item.position))
+        LAK_TREE_NODE("0x%zX Properties##%zX", (size_t)item.ID, item.position)
         {
-          DEFER(ImGui::Separator(); ImGui::TreePop(););
-          ImGui::Separator();
-
           item.view(srcexp);
         }
       }
@@ -2210,23 +2309,17 @@ namespace SourceExplorer
 
   error_t truetype_fonts_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode("0x%zX TrueType Fonts (%zu Items)##%zX",
-                      (size_t)entry.ID,
-                      items.size(),
-                      entry.position))
+    LAK_TREE_NODE("0x%zX TrueType Fonts (%zu Items)##%zX",
+                  (size_t)entry.ID,
+                  items.size(),
+                  entry.position)
     {
-      DEFER(ImGui::Separator(); ImGui::TreePop(););
-      ImGui::Separator();
-
       entry.view(srcexp);
 
       for (const auto &item : items)
       {
-        if (lak::TreeNode("0x%zX Font##%zX", (size_t)item.ID, item.position))
+        LAK_TREE_NODE("0x%zX Font##%zX", (size_t)item.ID, item.position)
         {
-          DEFER(ImGui::Separator(); ImGui::TreePop(););
-          ImGui::Separator();
-
           item.view(srcexp);
         }
       }
@@ -2291,11 +2384,8 @@ namespace SourceExplorer
 
     error_t shape_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("Shape"))
+      LAK_TREE_NODE("Shape")
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         ImGui::Text("Border Size: 0x%zX", (size_t)border_size);
         lak::vec4f_t col = ((lak::vec4f_t)border_color) / 255.0f;
         ImGui::ColorEdit4("Border Color", &col.x);
@@ -2351,13 +2441,10 @@ namespace SourceExplorer
 
     error_t quick_backdrop_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Properties (Quick Backdrop)##%zX",
-                        (size_t)entry.ID,
-                        entry.position))
+      LAK_TREE_NODE("0x%zX Properties (Quick Backdrop)##%zX",
+                    (size_t)entry.ID,
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         ImGui::Text("Size: 0x%zX", (size_t)size);
@@ -2407,13 +2494,9 @@ namespace SourceExplorer
 
     error_t backdrop_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Properties (Backdrop)##%zX",
-                        (size_t)entry.ID,
-                        entry.position))
+      LAK_TREE_NODE(
+        "0x%zX Properties (Backdrop)##%zX", (size_t)entry.ID, entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         ImGui::Text("Size: 0x%zX", (size_t)size);
@@ -2532,13 +2615,13 @@ namespace SourceExplorer
       size_t index = 0;
       for (const auto &direction : directions)
       {
-        if (direction.handles.size() > 0 &&
-            lak::TreeNode("Animation Direction 0x%zX", index))
+        if (direction.handles.size() > 0)
         {
-          DEFER(ImGui::Separator(); ImGui::TreePop(););
-          ImGui::Separator();
-          RES_TRY(direction.view(srcexp).map_err(
-            APPEND_TRACE("object::animation_t::view")));
+          LAK_TREE_NODE("Animation Direction 0x%zX", index)
+          {
+            RES_TRY(direction.view(srcexp).map_err(
+              APPEND_TRACE("object::animation_t::view")));
+          }
         }
         ++index;
       }
@@ -2589,9 +2672,8 @@ namespace SourceExplorer
 
     error_t animation_header_t::view(source_explorer_t &srcexp) const
     {
-      if (ImGui::TreeNode("Animations"))
+      LAK_TREE_NODE("Animations")
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
         ImGui::Separator();
         ImGui::Text("Size: 0x%zX", (size_t)size);
         ImGui::Text("Animations: %zu", animations.size());
@@ -2599,13 +2681,14 @@ namespace SourceExplorer
         for (const auto &animation : animations)
         {
           // TODO: figure out what this was meant to be checking
-          if (/*animation.offsets[index] > 0 &&*/ lak::TreeNode(
-            "Animation 0x%zX", index))
+          if (/*animation.offsets[index] > 0 */ true)
           {
-            DEFER(ImGui::TreePop(););
-            ImGui::Separator();
-            RES_TRY(animation.view(srcexp).map_err(
-              APPEND_TRACE("object::animation_header_t::view")));
+            LAK_TREE_NODE("Animation 0x%zX", index)
+            {
+              ImGui::Separator();
+              RES_TRY(animation.view(srcexp).map_err(
+                APPEND_TRACE("object::animation_header_t::view")));
+            }
           }
           ++index;
         }
@@ -2641,11 +2724,16 @@ namespace SourceExplorer
 
       if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
       {
+        if (!cstrm.remaining()) return lak::ok_t{};
         animations_offset = cstrm.read_u16();
-        movements_offset  = cstrm.read_u16(); // are these in the right order?
-        version           = cstrm.read_u16(); // are these in the right order?
-        counter_offset    = cstrm.read_u16(); // are these in the right order?
-        system_offset     = cstrm.read_u16(); // are these in the right order?
+        if (!cstrm.remaining()) return lak::ok_t{};
+        movements_offset = cstrm.read_u16(); // are these in the right order?
+        if (!cstrm.remaining()) return lak::ok_t{};
+        version = cstrm.read_u16(); // are these in the right order?
+        if (!cstrm.remaining()) return lak::ok_t{};
+        counter_offset = cstrm.read_u16(); // are these in the right order?
+        if (!cstrm.remaining()) return lak::ok_t{};
+        system_offset = cstrm.read_u16(); // are these in the right order?
       }
       // else if (mode == game_mode_t::_284)
       // {
@@ -2658,13 +2746,19 @@ namespace SourceExplorer
       // }
       else
       {
-        movements_offset  = cstrm.read_u16();
+        if (!cstrm.remaining()) return lak::ok_t{};
+        movements_offset = cstrm.read_u16();
+        if (!cstrm.remaining()) return lak::ok_t{};
         animations_offset = cstrm.read_u16();
-        version           = cstrm.read_u16();
-        counter_offset    = cstrm.read_u16();
-        system_offset     = cstrm.read_u16();
+        if (!cstrm.remaining()) return lak::ok_t{};
+        version = cstrm.read_u16();
+        if (!cstrm.remaining()) return lak::ok_t{};
+        counter_offset = cstrm.read_u16();
+        if (!cstrm.remaining()) return lak::ok_t{};
+        system_offset = cstrm.read_u16();
       }
 
+      if (!cstrm.remaining()) return lak::ok_t{};
       flags = cstrm.read_u32();
 
 #if 1
@@ -2685,16 +2779,27 @@ namespace SourceExplorer
       else
         extension_offset = cstrm.read_u16();
 
-      values_offset   = cstrm.read_u16();
-      strings_offset  = cstrm.read_u16();
-      new_flags       = cstrm.read_u32();
-      preferences     = cstrm.read_u32();
-      identifier      = cstrm.read_u32();
-      back_color.r    = cstrm.read_u8();
-      back_color.g    = cstrm.read_u8();
-      back_color.b    = cstrm.read_u8();
-      back_color.a    = cstrm.read_u8();
-      fade_in_offset  = cstrm.read_u32();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      values_offset = cstrm.read_u16();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      strings_offset = cstrm.read_u16();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      new_flags = cstrm.read_u32();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      preferences = cstrm.read_u32();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      identifier = cstrm.read_u32();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      back_color.r = cstrm.read_u8();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      back_color.g = cstrm.read_u8();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      back_color.b = cstrm.read_u8();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      back_color.a = cstrm.read_u8();
+      if (!cstrm.remaining()) return lak::ok_t{};
+      fade_in_offset = cstrm.read_u32();
+      if (!cstrm.remaining()) return lak::ok_t{};
       fade_out_offset = cstrm.read_u32();
 
       if (animations_offset > 0)
@@ -2711,13 +2816,9 @@ namespace SourceExplorer
 
     error_t common_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Properties (Common)##%zX",
-                        (size_t)entry.ID,
-                        entry.position))
+      LAK_TREE_NODE(
+        "0x%zX Properties (Common)##%zX", (size_t)entry.ID, entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
@@ -2853,15 +2954,12 @@ namespace SourceExplorer
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX %s '%s'##%zX",
-                        (size_t)entry.ID,
-                        GetObjectTypeString(type),
-                        (name ? lak::strconv<char>(name->value).c_str() : ""),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX %s '%s'##%zX",
+                    (size_t)entry.ID,
+                    GetObjectTypeString(type),
+                    (name ? lak::strconv<char>(name->value).c_str() : ""),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         ImGui::Text("Handle: 0x%zX", (size_t)handle);
@@ -2997,14 +3095,11 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Object Bank (%zu Items)##%zX",
-                        (size_t)entry.ID,
-                        items.size(),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX Object Bank (%zu Items)##%zX",
+                    (size_t)entry.ID,
+                    items.size(),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         for (const item_t &item : items)
@@ -3057,12 +3152,9 @@ namespace SourceExplorer
 
     error_t palette_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode(
-            "0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position))
+      LAK_TREE_NODE(
+        "0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         uint8_t index = 0;
@@ -3114,12 +3206,8 @@ namespace SourceExplorer
       if (obj.is_ok() && obj.unwrap().name)
         str += lak::to_u8string(obj.unwrap().name->value);
 
-      if (lak::TreeNode(
-            "0x%zX %s##%zX", (size_t)handle, str.c_str(), (size_t)info))
+      LAK_TREE_NODE("0x%zX %s##%zX", (size_t)handle, str.c_str(), (size_t)info)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         ImGui::Text("Handle: 0x%zX", (size_t)handle);
         ImGui::Text("Info: 0x%zX", (size_t)info);
         ImGui::Text(
@@ -3190,12 +3278,9 @@ namespace SourceExplorer
 
     error_t object_instances_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode(
-            "0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position))
+      LAK_TREE_NODE(
+        "0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         for (const auto &object : objects)
@@ -3277,12 +3362,8 @@ namespace SourceExplorer
 
     error_t random_seed_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode(
-            "0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position))
+      LAK_TREE_NODE("0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
         ImGui::Text("Value: %i", (int)value);
       }
@@ -3501,14 +3582,11 @@ namespace SourceExplorer
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX '%s'##%zX",
-                        (size_t)entry.ID,
-                        (name ? lak::strconv<char>(name->value).c_str() : ""),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX '%s'##%zX",
+                    (size_t)entry.ID,
+                    (name ? lak::strconv<char>(name->value).c_str() : ""),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         if (name)
@@ -3694,14 +3772,11 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Frame Bank (%zu Items)##%zX",
-                        (size_t)entry.ID,
-                        items.size(),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX Frame Bank (%zu Items)##%zX",
+                    (size_t)entry.ID,
+                    items.size(),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         for (const item_t &item : items)
@@ -3721,21 +3796,36 @@ namespace SourceExplorer
     {
       SCOPED_CHECKPOINT("image::item_t::read");
 
-      RES_TRY_ERR(entry.read(game, strm, true)
-                    .map_err(APPEND_TRACE("image::item_t::read")));
+      lak::memory istrm;
+      if (game.product_build >= 288)
+      {
+        const size_t header_size = 36;
+        RES_TRY_ERR(entry.read(game, strm, false, header_size)
+                      .map_err(APPEND_TRACE("image::item_t::read")));
 
-      if (!game.old_game && game.product_build >= 284) --entry.handle;
+        RES_TRY_ASSIGN(istrm =,
+                       entry.decodeHeader(header_size)
+                         .map_err(APPEND_TRACE("image::item_t::read")));
+        CHECK_REMAINING(istrm, header_size);
+      }
+      else
+      {
+        RES_TRY_ERR(entry.read(game, strm, true)
+                      .map_err(APPEND_TRACE("image::item_t::read")));
 
-      DEBUG("Handle: ", entry.handle);
+        if (!game.old_game && game.product_build >= 284) --entry.handle;
 
-      RES_TRY_ASSIGN(lak::memory istrm =,
-                     entry.decode(176 + (game.old_game ? 16 : 80))
-                       .map_err(APPEND_TRACE("image::item_t::read")));
+        RES_TRY_ASSIGN(istrm =,
+                       entry.decode(176 + (game.old_game ? 16 : 80))
+                         .map_err(APPEND_TRACE("image::item_t::read")));
+      }
+
       if (game.old_game)
         checksum = istrm.read_u16();
       else
         checksum = istrm.read_u32();
-      reference     = istrm.read_u32();
+      reference = istrm.read_u32();
+      if (game.product_build >= 288) istrm.skip(4);
       data_size     = istrm.read_u32();
       size.x        = istrm.read_u16();
       size.y        = istrm.read_u16();
@@ -3757,19 +3847,25 @@ namespace SourceExplorer
       action.x  = istrm.read_u16();
       action.y  = istrm.read_u16();
       if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
-      data_position = istrm.position();
+      if (game.product_build >= 288)
+      {
+        data_position = 0;
+        strm.seek(entry.data.position);
+        entry.data.data = strm.read(data_size);
+        entry.end       = strm.position();
+      }
+      else
+      {
+        data_position = istrm.position();
+      }
 
       return lak::ok_t{};
     }
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode(
-            "0x%zX Image##%zX", (size_t)entry.handle, entry.position))
+      LAK_TREE_NODE("0x%zX Image##%zX", (size_t)entry.handle, entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
@@ -3814,15 +3910,31 @@ namespace SourceExplorer
 
       if ((flags & image_flag_t::LZX) != image_flag_t::none)
       {
-        CHECK_REMAINING(strm, 8);
+        if (data_position == 0) // :TODO: temp hack
+        {
+          CHECK_REMAINING(strm, 4);
 
-        [[maybe_unused]] const uint32_t decompressed_length = strm.read_u32();
-        const uint32_t compressed_length                    = strm.read_u32();
+          const uint32_t decompressed_length = strm.read_u32();
 
-        CHECK_REMAINING(strm, compressed_length);
+          return LZ4Decode(strm.read(strm.remaining()), decompressed_length)
+            .map_err(APPEND_TRACE("image::item_t::image_data"))
+            .map([](std::vector<uint8_t> &&decompressed) -> lak::memory {
+              return lak::memory(lak::move(decompressed));
+            });
+        }
+        else
+        {
+          CHECK_REMAINING(strm, 8);
 
-        return lak::ok_t{
-          lak::memory(InflateOrCompressed(strm.read(compressed_length)))};
+          [[maybe_unused]] const uint32_t decompressed_length =
+            strm.read_u32();
+          const uint32_t compressed_length = strm.read_u32();
+
+          CHECK_REMAINING(strm, compressed_length);
+
+          return lak::ok_t{
+            lak::memory(InflateOrCompressed(strm.read(compressed_length)))};
+        }
       }
       else
       {
@@ -3869,6 +3981,9 @@ namespace SourceExplorer
       {
         ReadTransparent(transparent, result);
       }
+
+      if (strm.remaining() != 0)
+        WARNING(strm.remaining(), " Bytes Left Over In Image Data");
 
       return lak::ok_t{result};
     }
@@ -3925,14 +4040,11 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Image Bank (%zu Items)##%zX",
-                        (size_t)entry.ID,
-                        items.size(),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX Image Bank (%zu Items)##%zX",
+                    (size_t)entry.ID,
+                    items.size(),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         for (const item_t &item : items)
@@ -4009,14 +4121,11 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Font Bank (%zu Items)##%zX",
-                        (size_t)entry.ID,
-                        items.size(),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX Font Bank (%zu Items)##%zX",
+                    (size_t)entry.ID,
+                    items.size(),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         for (const item_t &item : items)
@@ -4099,14 +4208,11 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Sound Bank (%zu Items)##%zX",
-                        (size_t)entry.ID,
-                        items.size(),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX Sound Bank (%zu Items)##%zX",
+                    (size_t)entry.ID,
+                    items.size(),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         for (const item_t &item : items)
@@ -4183,14 +4289,11 @@ namespace SourceExplorer
 
     error_t bank_t::view(source_explorer_t &srcexp) const
     {
-      if (lak::TreeNode("0x%zX Music Bank (%zu Items)##%zX",
-                        (size_t)entry.ID,
-                        items.size(),
-                        entry.position))
+      LAK_TREE_NODE("0x%zX Music Bank (%zu Items)##%zX",
+                    (size_t)entry.ID,
+                    items.size(),
+                    entry.position)
       {
-        DEFER(ImGui::Separator(); ImGui::TreePop(););
-        ImGui::Separator();
-
         entry.view(srcexp);
 
         for (const item_t &item : items)
@@ -4387,9 +4490,32 @@ namespace SourceExplorer
             init_chunk(title2).map_err(APPEND_TRACE("header_t::read")));
           break;
 
+        case chunk_t::chunk2253:
+          // 16-bytes
+          RES_TRY_ERR(
+            init_chunk(chunk2253).map_err(APPEND_TRACE("header_t::read")));
+          break;
+
         case chunk_t::object_names:
           RES_TRY_ERR(
             init_chunk(object_names).map_err(APPEND_TRACE("header_t::read")));
+          break;
+
+        case chunk_t::chunk2255:
+          // blank???
+          RES_TRY_ERR(
+            init_chunk(chunk2255).map_err(APPEND_TRACE("header_t::read")));
+          break;
+
+        case chunk_t::recompiled_object_properties:
+          // Appears to have sub chunks
+          RES_TRY_ERR(init_chunk(recompiled_object_properties)
+                        .map_err(APPEND_TRACE("header_t::read")));
+          break;
+
+        case chunk_t::chunk2257:
+          RES_TRY_ERR(
+            init_chunk(chunk2257).map_err(APPEND_TRACE("header_t::read")));
           break;
 
         case chunk_t::object_properties:
@@ -4504,12 +4630,8 @@ namespace SourceExplorer
 
   error_t header_t::view(source_explorer_t &srcexp) const
   {
-    if (lak::TreeNode(
-          "0x%zX Game Header##%zX", (size_t)entry.ID, entry.position))
+    LAK_TREE_NODE("0x%zX Game Header##%zX", (size_t)entry.ID, entry.position)
     {
-      DEFER(ImGui::Separator(); ImGui::TreePop(););
-      ImGui::Separator();
-
       entry.view(srcexp);
 
       RES_TRY(title.view(srcexp, "Title", true)
@@ -4582,8 +4704,13 @@ namespace SourceExplorer
       RES_TRY(music_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(font_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
 
+      RES_TRY(chunk2253.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
         object_names.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(chunk2255.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(recompiled_object_properties.view(srcexp).map_err(
+        APPEND_TRACE("header_t::view")));
+      RES_TRY(chunk2257.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(object_properties.view(srcexp).map_err(
         APPEND_TRACE("header_t::view")));
       RES_TRY(truetype_fonts_meta.view(srcexp).map_err(

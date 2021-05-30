@@ -331,7 +331,8 @@ namespace SourceExplorer
     graphics3 = 3,
     graphics4 = 4,
     graphics6 = 6,
-    graphics7 = 7
+    graphics7 = 7,
+    graphics8 = 8
   };
 
   enum class image_flag_t : uint8_t

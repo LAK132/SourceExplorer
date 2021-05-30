@@ -28,11 +28,15 @@
 #include <lak/src/unicode.cpp>
 #include <lak/src/window.cpp>
 
+#include <lak/src/compression/deflate.cpp>
+#include <lak/src/compression/lz4.cpp>
+
 #ifndef NO_TESTS
 // #define LAK_TEST_MAIN lak_test_main
 // #include <lak/src/tests/test_main.cpp>
 #  include <lak/src/tests/array.cpp>
 #  include <lak/src/tests/bitflag.cpp>
+#  include <lak/src/tests/bitreader.cpp>
 #  include <lak/src/tests/bitset.cpp>
 #  include <lak/src/tests/test.cpp>
 #  include <lak/src/tests/trie.cpp>

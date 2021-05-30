@@ -274,7 +274,8 @@ namespace SourceExplorer
   {
     _OLD,
     _284,
-    _288
+    _288,
+    _290 // might be 292?
   };
   extern game_mode_t _mode;
 
@@ -543,7 +544,44 @@ namespace SourceExplorer
     error_t view(source_explorer_t &srcexp) const;
   };
 
+  struct chunk_2253_item_t
+  {
+    size_t position;
+
+    uint16_t ID;
+
+    error_t read(game_t &game, lak::memory &strm);
+    error_t view(source_explorer_t &srcexp) const;
+  };
+
+  struct chunk_2253_t : public basic_chunk_t
+  {
+    std::vector<chunk_2253_item_t> items;
+
+    error_t read(game_t &game, lak::memory &strm);
+    error_t view(source_explorer_t &srcexp) const;
+  };
+
   struct object_names_t : public strings_chunk_t
+  {
+    error_t view(source_explorer_t &srcexp) const;
+  };
+
+  struct chunk_2255_t : public basic_chunk_t
+  {
+    error_t view(source_explorer_t &srcexp) const;
+  };
+
+  struct recompiled_object_properties_t : public basic_chunk_t
+  {
+    // std::vector<object::common_t> items;
+    std::vector<basic_chunk_t> items;
+
+    error_t read(game_t &game, lak::memory &strm);
+    error_t view(source_explorer_t &srcexp) const;
+  };
+
+  struct chunk_2257_t : public basic_chunk_t
   {
     error_t view(source_explorer_t &srcexp) const;
   };
@@ -1093,7 +1131,11 @@ namespace SourceExplorer
     chunk_ptr<font::bank_t> font_bank;
 
     // Recompiled games (?):
+    chunk_ptr<chunk_2253_t> chunk2253;
     chunk_ptr<object_names_t> object_names;
+    chunk_ptr<chunk_2255_t> chunk2255;
+    chunk_ptr<recompiled_object_properties_t> recompiled_object_properties;
+    chunk_ptr<chunk_2257_t> chunk2257;
     chunk_ptr<object_properties_t> object_properties;
     chunk_ptr<truetype_fonts_meta_t> truetype_fonts_meta;
     chunk_ptr<truetype_fonts_t> truetype_fonts;
