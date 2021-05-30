@@ -3797,7 +3797,7 @@ namespace SourceExplorer
       SCOPED_CHECKPOINT("image::item_t::read");
 
       lak::memory istrm;
-      if (game.product_build >= 288)
+      if (game.product_build > 288)
       {
         const size_t header_size = 36;
         RES_TRY_ERR(entry.read(game, strm, false, header_size)
@@ -3825,7 +3825,7 @@ namespace SourceExplorer
       else
         checksum = istrm.read_u32();
       reference = istrm.read_u32();
-      if (game.product_build >= 288) istrm.skip(4);
+      if (game.product_build > 288) istrm.skip(4);
       data_size     = istrm.read_u32();
       size.x        = istrm.read_u16();
       size.y        = istrm.read_u16();
@@ -3847,7 +3847,7 @@ namespace SourceExplorer
       action.x  = istrm.read_u16();
       action.y  = istrm.read_u16();
       if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
-      if (game.product_build >= 288)
+      if (game.product_build > 288)
       {
         data_position = 0;
         strm.seek(entry.data.position);
