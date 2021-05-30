@@ -4010,20 +4010,32 @@ namespace SourceExplorer
                        ReadRGB(strm, result, graphics_mode, palette));
       }
 
-      if ((flags & image_flag_t::alpha) == image_flag_t::alpha)
+      if (entry.mode == encoding_t::mode4)
       {
-        if (entry.mode != encoding_t::mode4)
-      {
-        RES_TRY(ReadAlpha(strm, result));
+        if (!((flags & image_flag_t::alpha) == image_flag_t::alpha ||
+              (flags & image_flag_t::alpha2) == image_flag_t::alpha2))
+        {
+          if (color_transparent)
+          {
+            ReadTransparent(transparent, result);
+          }
+          else
+          {
+            for (size_t i = 0; i < result.contig_size(); ++i)
+              result[i].a = 255;
+          }
+        }
       }
-      }
-      else if (color_transparent)
+      else
       {
-        ReadTransparent(transparent, result);
-      }
-      else if (entry.mode == encoding_t::mode4)
-      {
-        for (size_t i = 0; i < result.contig_size(); ++i) result[i].a = 255;
+        if ((flags & image_flag_t::alpha) == image_flag_t::alpha)
+        {
+          RES_TRY(ReadAlpha(strm, result));
+        }
+        else if (color_transparent)
+        {
+          ReadTransparent(transparent, result);
+        }
       }
 
       if (strm.remaining() != 0)
