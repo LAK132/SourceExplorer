@@ -338,14 +338,15 @@ namespace SourceExplorer
 
   enum class image_flag_t : uint8_t
   {
-    none  = 0,
-    RLE   = 1 << 0, // 0x1
-    RLEW  = 1 << 1, // 0x2
-    RLET  = 1 << 2, // 0x4
-    LZX   = 1 << 3, // 0x8
-    alpha = 1 << 4, // 0x10
-    ace   = 1 << 5, // 0x20
-    mac   = 1 << 6  // 0x30
+    none    = 0,
+    RLE     = 1 << 0, // 0x1
+    RLEW    = 1 << 1, // 0x2
+    RLET    = 1 << 2, // 0x4
+    LZX     = 1 << 3, // 0x8
+    alpha   = 1 << 4, // 0x10
+    ace     = 1 << 5, // 0x20
+    mac     = 1 << 6, // 0x40
+    unknown = 1 << 7, // 0x80
   };
 
   inline image_flag_t operator|(const image_flag_t A, const image_flag_t B)
