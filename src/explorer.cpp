@@ -994,12 +994,10 @@ namespace SourceExplorer
     }
     else if (err.unsafe_unwrap_err() == lak::deflate_iterator::error_t::ok)
     {
-      DEBUG("Buffer Size: ", buffer.size());
-      DEBUG("Max Size: ", max_size);
-      DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
-      return lak::err_t{error(LINE_TRACE,
-                              error::inflate_failed,
-                              "Failed To Inflate (Max Size Reached)")};
+      // This is not (always) an error, we may intentionally stop the decode
+      // early to not waste time and memory.
+
+      return lak::ok_t{lak::move(output)};
     }
     else
     {
