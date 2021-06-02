@@ -3989,7 +3989,7 @@ namespace SourceExplorer
 
     result_t<lak::memory> item_t::image_data() const
     {
-      SCOPED_CHECKPOINT("image::image_t::image_data");
+      SCOPED_CHECKPOINT("image::item_t::image_data");
 
       RES_TRY_ASSIGN(
         lak::memory strm =,
@@ -4056,32 +4056,21 @@ namespace SourceExplorer
                        ReadRGB(strm, result, graphics_mode, palette));
       }
 
-      if (entry.mode == encoding_t::mode4)
+      if ((flags & image_flag_t::RGBA) != image_flag_t::none)
       {
-        if (!((flags & image_flag_t::alpha) == image_flag_t::alpha ||
-              (flags & image_flag_t::alpha2) == image_flag_t::alpha2))
-        {
-          if (color_transparent)
-          {
-            ReadTransparent(transparent, result);
-          }
-          else
-          {
-            for (size_t i = 0; i < result.contig_size(); ++i)
-              result[i].a = 255;
-          }
-        }
+        // we already read the alpha data with the colour data
+      }
+      else if ((flags & image_flag_t::alpha) != image_flag_t::none)
+      {
+        RES_TRY(ReadAlpha(strm, result));
+      }
+      else if (color_transparent)
+      {
+        ReadTransparent(transparent, result);
       }
       else
       {
-        if ((flags & image_flag_t::alpha) == image_flag_t::alpha)
-        {
-          RES_TRY(ReadAlpha(strm, result));
-        }
-        else if (color_transparent)
-        {
-          ReadTransparent(transparent, result);
-        }
+        for (size_t i = 0; i < result.contig_size(); ++i) result[i].a = 255;
       }
 
       if (strm.remaining() != 0)

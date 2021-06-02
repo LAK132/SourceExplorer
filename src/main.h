@@ -48,7 +48,7 @@ namespace se = SourceExplorer;
 
 namespace fs = std::filesystem;
 
-#define APP_VERSION "v2.0a"
+#define APP_VERSION "v2.0.1"
 #define APP_NAME    "Source Explorer " APP_VERSION
 
 #ifndef MAIN_H
