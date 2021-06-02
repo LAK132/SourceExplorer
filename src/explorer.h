@@ -65,30 +65,31 @@ namespace SourceExplorer
   {
     enum value_t : uint32_t
     {
-      str_err = 0x0,
+      str_err,
 
-      invalid_exe_signature  = 0x1,
-      invalid_pe_signature   = 0x2,
-      invalid_game_signature = 0x3,
+      invalid_exe_signature,
+      invalid_pe_signature,
+      invalid_game_signature,
+      invalid_pack_count,
 
-      invalid_state = 0x4,
-      invalid_mode  = 0x5,
-      invalid_chunk = 0x6,
+      invalid_state,
+      invalid_mode,
+      invalid_chunk,
 
-      no_mode0 = 0x7,
-      no_mode1 = 0x8,
-      no_mode2 = 0x9,
-      no_mode3 = 0xA,
+      no_mode0,
+      no_mode1,
+      no_mode2,
+      no_mode3,
 
-      out_of_data = 0xB,
+      out_of_data,
 
-      inflate_failed = 0xC,
-      decrypt_failed = 0xD,
+      inflate_failed,
+      decrypt_failed,
 
-      no_mode0_decoder = 0xE,
-      no_mode1_decoder = 0xF,
-      no_mode2_decoder = 0x10,
-      no_mode3_decoder = 0x11,
+      no_mode0_decoder,
+      no_mode1_decoder,
+      no_mode2_decoder,
+      no_mode3_decoder,
     } _value = str_err;
 
     std::vector<lak::pair<lak::trace, lak::astring>> _trace;
@@ -1228,7 +1229,7 @@ namespace SourceExplorer
 
   [[nodiscard]] error_t ParsePEHeader(lak::memory &strm, game_t &game_state);
 
-  uint64_t ParsePackData(lak::memory &strm, game_t &game_state);
+  result_t<uint64_t> ParsePackData(lak::memory &strm, game_t &game_state);
 
   texture_t CreateTexture(const lak::image4_t &bitmap,
                           const lak::graphics_mode mode);

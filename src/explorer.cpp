@@ -280,7 +280,10 @@ namespace SourceExplorer
         game_state.old_game = false;
         game_state.state    = {};
         game_state.state.push(chunk_t::_new);
-        pos = ParsePackData(strm, game_state);
+        RES_TRY_ASSIGN(pos =,
+                       ParsePackData(strm, game_state)
+                         .map_err(APPEND_TRACE("while parseing PE header at: ",
+                                               strm.position())));
         break;
       }
       else if (first_short == 0x222C)
@@ -295,8 +298,25 @@ namespace SourceExplorer
       }
       else
       {
-        return lak::err_t{
-          error(LINE_TRACE, error::invalid_game_signature, LINE_TRACE_STR)};
+        return lak::err_t{error(LINE_TRACE,
+                                error::invalid_game_signature,
+                                "Expected ",
+                                (uint16_t)chunk_t::header,
+                                "u16, ",
+                                0x222C,
+                                "u16, ",
+                                0x7F7F,
+                                "u16, ",
+                                HEADER_GAME,
+                                "u32 or ",
+                                HEADER_PACK,
+                                "u64, Found ",
+                                first_short,
+                                "u16/",
+                                pame_magic,
+                                "u32/",
+                                pack_magic,
+                                "u64")};
       }
 
       if (pos > strm.size())
@@ -350,45 +370,62 @@ namespace SourceExplorer
     return lak::ok_t{};
   }
 
-  uint64_t ParsePackData(lak::memory &strm, game_t &game_state)
+  result_t<uint64_t> ParsePackData(lak::memory &strm, game_t &game_state)
   {
     DEBUG("Parsing pack data");
 
-    uint64_t start  = strm.position();
+    uint64_t start = strm.position();
+    CHECK_REMAINING(strm, 8);
     uint64_t header = strm.read_u64();
     DEBUG("Header: ", header);
-    uint32_t header_size = strm.read_u32();
-    (void)header_size;
+
+    CHECK_REMAINING(strm, 4);
+    [[maybe_unused]] uint32_t header_size = strm.read_u32();
     DEBUG("Header Size: ", header_size);
+
+    CHECK_REMAINING(strm, 4);
     uint32_t data_size = strm.read_u32();
     DEBUG("Data Size: ", data_size);
 
-    strm.seek(start + data_size - 0x20);
-
-    header = strm.read_u32();
-    DEBUG("Head: ", header);
-    bool unicode = header == HEADER_UNIC;
-    if (unicode)
+    bool unicode = false;
+    if (start + data_size - 0x20 < strm.remaining())
     {
-      DEBUG("Unicode Game");
+      CHECK_POSITION(strm, start + data_size - 0x20);
+      strm.seek(start + data_size - 0x20);
+
+      CHECK_REMAINING(strm, 4);
+      header = strm.read_u32();
+      DEBUG("Head: ", header);
+      unicode = header == HEADER_UNIC;
+      if (unicode)
+      {
+        DEBUG("Unicode Game");
+      }
+      else
+      {
+        DEBUG("ASCII Game");
+      }
     }
     else
-    {
-      DEBUG("ASCII Game");
-    }
+      WARNING("Data Size Too Large");
 
+    CHECK_POSITION(strm, start + 0x10);
     strm.seek(start + 0x10);
 
-    uint32_t format_version = strm.read_u32();
-    (void)format_version;
+    CHECK_REMAINING(strm, 4);
+    [[maybe_unused]] uint32_t format_version = strm.read_u32();
     DEBUG("Format Version: ", format_version);
 
+    CHECK_REMAINING(strm, 8);
     strm.skip(0x8);
 
+    CHECK_REMAINING(strm, 4);
     int32_t count = strm.read_s32();
-    assert(count >= 0);
+    if (count < 0)
+      return lak::err_t{error(LINE_TRACE, error::invalid_pack_count)};
     DEBUG("Pack Count: ", count);
 
+    CHECK_REMAINING(strm, 4);
     uint64_t off = strm.position();
     DEBUG("Offset: ", off);
 
@@ -407,12 +444,14 @@ namespace SourceExplorer
       strm.skip(val);
     }
 
+    CHECK_REMAINING(strm, 4);
     header = strm.read_u32();
     DEBUG("Header: ", header);
 
     bool has_bingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
     DEBUG("Has Bingo: ", (has_bingo ? "true" : "false"));
 
+    CHECK_POSITION(strm, off);
     strm.seek(off);
 
     game_state.pack_files.resize(count);
@@ -421,6 +460,7 @@ namespace SourceExplorer
     {
       SCOPED_CHECKPOINT("Pack ", i + 1, "/", count);
 
+      CHECK_REMAINING(strm, 2);
       uint32_t read = strm.read_u16();
       // size_t strstart = strm.position();
 
@@ -440,12 +480,16 @@ namespace SourceExplorer
       DEBUG("Packfile '", game_state.pack_files[i].filename, "'");
 
       if (has_bingo)
+      {
+        CHECK_REMAINING(strm, 4);
         game_state.pack_files[i].bingo = strm.read_u32();
+      }
       else
         game_state.pack_files[i].bingo = 0;
 
       DEBUG("Bingo: ", game_state.pack_files[i].bingo);
 
+      CHECK_REMAINING(strm, 4);
       // if (unicode)
       //     read = strm.read_u32();
       // else
@@ -453,9 +497,11 @@ namespace SourceExplorer
       read = strm.read_u32();
 
       DEBUG("Pack File Data Size: ", read, ", Pos: ", strm.position());
+      CHECK_REMAINING(strm, read);
       game_state.pack_files[i].data = strm.read(read);
     }
 
+    CHECK_REMAINING(strm, 4);
     header = strm.read_u32(); // PAMU sometimes
     DEBUG("Header: ", header);
 
@@ -463,9 +509,9 @@ namespace SourceExplorer
     {
       uint32_t pos = (uint32_t)strm.position();
       strm.unread(0x4);
-      return pos;
+      return lak::ok_t{pos};
     }
-    return strm.position();
+    return lak::ok_t{strm.position()};
   }
 
   lak::color4_t ColorFrom8bit(uint8_t RGB) { return {RGB, RGB, RGB, 255}; }
