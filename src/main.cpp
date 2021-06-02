@@ -1056,6 +1056,7 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
   basic_window_target_framerate      = 30;
   basic_window_opengl_settings.major = 3;
   basic_window_opengl_settings.minor = 2;
+  basic_window_clear_colour          = {0.0f, 0.0f, 0.0f, 1.0f};
 
   return lak::nullopt;
 }
