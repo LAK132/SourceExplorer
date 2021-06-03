@@ -686,6 +686,8 @@ namespace SourceExplorer
                            graphics_mode_t mode,
                            const lak::color4_t palette[256] = nullptr)
   {
+    SCOPED_CHECKPOINT("ReadRLE");
+
     const size_t point_size = ColorModeSize(mode);
     const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
     size_t pos              = 0;
@@ -737,6 +739,8 @@ namespace SourceExplorer
                            graphics_mode_t mode,
                            const lak::color4_t palette[256] = nullptr)
   {
+    SCOPED_CHECKPOINT("ReadRGB");
+
     const size_t point_size = ColorModeSize(mode);
     const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
     size_t i                = 0;
@@ -760,6 +764,8 @@ namespace SourceExplorer
 
   result_t<size_t> ReadAlpha(lak::memory &strm, lak::image4_t &bitmap)
   {
+    SCOPED_CHECKPOINT("ReadAlpha");
+
     const uint16_t pad = BitmapPaddingSize(bitmap.size().x, 1, 4);
     size_t i           = 0;
 
@@ -781,6 +787,8 @@ namespace SourceExplorer
 
   void ReadTransparent(const lak::color4_t &transparent, lak::image4_t &bitmap)
   {
+    SCOPED_CHECKPOINT("ReadTransparent");
+
     for (size_t i = 0; i < bitmap.contig_size(); ++i)
     {
       bitmap[i].a = lak::color3_t(bitmap[i]) == lak::color3_t(transparent)
@@ -792,6 +800,8 @@ namespace SourceExplorer
   texture_t CreateTexture(const lak::image4_t &bitmap,
                           const lak::graphics_mode mode)
   {
+    SCOPED_CHECKPOINT("CreateTexture");
+
     if (mode == lak::graphics_mode::OpenGL)
     {
       auto old_texture = lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D);
@@ -920,7 +930,8 @@ namespace SourceExplorer
       case chunk_t::chunk2253: return "Chunk 2253";
       case chunk_t::object_names: return "Object Names";
       case chunk_t::chunk2255: return "Chunk 2255 (Empty?)";
-      case chunk_t::recompiled_object_properties: return "Object Properties 2";
+      case chunk_t::two_five_plus_object_properties:
+        return "Object Properties (2.5+)";
       case chunk_t::chunk2257: return "Chunk 2257 (4 bytes?)";
       case chunk_t::font_meta: return "TrueType Fonts Meta";
       case chunk_t::font_chunk: return "TrueType Fonts Chunk";
@@ -1414,9 +1425,13 @@ namespace SourceExplorer
   error_t item_entry_t::read(game_t &game,
                              lak::memory &strm,
                              bool compressed,
-                             size_t header_size)
+                             size_t header_size,
+                             bool has_handle)
   {
     SCOPED_CHECKPOINT("item_entry_t::read");
+
+    DEBUG("Compressed: ", compressed);
+    DEBUG("Header Size: ", header_size);
 
     if (!strm.remaining())
       return lak::err_t{error(LINE_TRACE, error::out_of_data)};
@@ -1424,12 +1439,14 @@ namespace SourceExplorer
     position = strm.position();
     old      = game.old_game;
     mode     = encoding_t::mode0;
-    handle   = strm.read_u32();
+    handle   = has_handle ? strm.read_u32() : 0xFF'FF'FF'FF;
+    DEBUG("Handle: ", handle);
 
     const uint32_t peekaboo = strm.peek_u32();
     const bool new_item     = peekaboo == 0xFF'FF'FF'FF;
     if (new_item)
     {
+      DEBUG(LAK_BRIGHT_YELLOW "New Item" LAK_SGR_RESET);
       mode       = encoding_t::mode4;
       compressed = false;
     }
@@ -1442,6 +1459,7 @@ namespace SourceExplorer
     }
 
     data.expected_size = game.old_game || compressed ? strm.read_u32() : 0;
+    DEBUG("Data Expected Size: ", data.expected_size);
 
     size_t data_size = 0;
     if (game.old_game)
@@ -1463,10 +1481,12 @@ namespace SourceExplorer
       }
       data_size = strm.position() - start;
       strm.seek(start);
+      DEBUG("Data Size: ", data_size);
     }
     else if (!new_item)
     {
       data_size = strm.read_u32();
+      DEBUG("Data Size: ", data_size);
     }
 
     data.position = strm.position();
@@ -2274,13 +2294,16 @@ namespace SourceExplorer
     return basic_view(srcexp, "Chunk 2255");
   }
 
-  error_t recompiled_object_properties_t::read(game_t &game, lak::memory &strm)
+  error_t two_five_plus_object_properties_t::read(game_t &game,
+                                                  lak::memory &strm)
   {
-    SCOPED_CHECKPOINT("recompiled_object_properties_t::read");
+    SCOPED_CHECKPOINT("two_five_plus_object_properties_t::read");
+
+    game.two_five_plus_game = true;
 
     RES_TRY_ERR(
       entry.read(game, strm)
-        .map_err(APPEND_TRACE("recompiled_object_properties_t::read")));
+        .map_err(APPEND_TRACE("two_five_plus_object_properties_t::read")));
 
     const auto end = strm.position();
     DEFER(strm.seek(end));
@@ -2292,16 +2315,17 @@ namespace SourceExplorer
       items.emplace_back();
       RES_TRY_ERR(
         items.back()
-          .read(game, strm)
-          .map_err(APPEND_TRACE("recompiled_object_properties_t::read")));
+          .read(game, strm, true, 0, false)
+          .map_err(APPEND_TRACE("two_five_plus_object_properties_t::read")));
     }
 
     return lak::ok_t{};
   }
 
-  error_t recompiled_object_properties_t::view(source_explorer_t &srcexp) const
+  error_t two_five_plus_object_properties_t::view(
+    source_explorer_t &srcexp) const
   {
-    LAK_TREE_NODE("0x%zX Object Properties 2 (%zu Items)##%zX",
+    LAK_TREE_NODE("0x%zX Object Properties (2.5+) (%zu Items)##%zX",
                   (size_t)entry.ID,
                   items.size(),
                   entry.position)
@@ -2310,9 +2334,7 @@ namespace SourceExplorer
 
       for (const auto &item : items)
       {
-        RES_TRY(
-          item.basic_view(srcexp, "Properties")
-            .map_err(APPEND_TRACE("recompiled_object_properties_t::view")));
+        LAK_TREE_NODE("Properties##%zX", item.position) { item.view(srcexp); }
       }
     }
 
@@ -3888,7 +3910,7 @@ namespace SourceExplorer
       SCOPED_CHECKPOINT("image::item_t::read");
 
       lak::memory istrm;
-      if (game.product_build > 288)
+      if (game.two_five_plus_game)
       {
         const size_t header_size = 36;
         RES_TRY_ERR(entry.read(game, strm, false, header_size)
@@ -3916,7 +3938,7 @@ namespace SourceExplorer
       else
         checksum = istrm.read_u32();
       reference = istrm.read_u32();
-      if (game.product_build > 288) istrm.skip(4);
+      if (game.two_five_plus_game) istrm.skip(4);
       data_size     = istrm.read_u32();
       size.x        = istrm.read_u16();
       size.y        = istrm.read_u16();
@@ -3938,7 +3960,7 @@ namespace SourceExplorer
       action.x  = istrm.read_u16();
       action.y  = istrm.read_u16();
       if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
-      if (game.product_build > 288)
+      if (game.two_five_plus_game)
       {
         data_position = 0;
         strm.seek(entry.data.position);
@@ -4598,9 +4620,9 @@ namespace SourceExplorer
             init_chunk(chunk2255).map_err(APPEND_TRACE("header_t::read")));
           break;
 
-        case chunk_t::recompiled_object_properties:
+        case chunk_t::two_five_plus_object_properties:
           // Appears to have sub chunks
-          RES_TRY_ERR(init_chunk(recompiled_object_properties)
+          RES_TRY_ERR(init_chunk(two_five_plus_object_properties)
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
@@ -4799,7 +4821,7 @@ namespace SourceExplorer
       RES_TRY(
         object_names.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(chunk2255.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(recompiled_object_properties.view(srcexp).map_err(
+      RES_TRY(two_five_plus_object_properties.view(srcexp).map_err(
         APPEND_TRACE("header_t::view")));
       RES_TRY(chunk2257.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(object_properties.view(srcexp).map_err(

@@ -137,13 +137,13 @@ namespace SourceExplorer
     chunk224F    = 0x224F,
     title2       = 0x2251, // "StringChunk" ?
     chunk2253    = 0x2253, // 16 bytes
-    object_names = 0x2254, // Recompiled games only (?), array of null
+    object_names = 0x2254, // 2.5+ games only (?), array of null
                            // terminated strings. "Empty"
-    chunk2255                    = 0x2255,
-    recompiled_object_properties = 0x2256, // Recompiled games only (?)
-    chunk2257                    = 0x2257, // 4 bytes
-    font_meta                    = 0x2258, // Recompiled games only (?)
-    font_chunk                   = 0x2259, // Recompiled games only (?)
+    chunk2255                       = 0x2255,
+    two_five_plus_object_properties = 0x2256, // 2.5+ games only (?)
+    chunk2257                       = 0x2257, // 4 bytes
+    font_meta                       = 0x2258, // 2.5+ games only (?)
+    font_chunk                      = 0x2259, // 2.5+ games only (?)
 
     // Frame Chunks (0x33XX)
     frame          = 0x3333,

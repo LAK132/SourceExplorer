@@ -335,7 +335,8 @@ namespace SourceExplorer
     error_t read(game_t &game,
                  lak::memory &strm,
                  bool compressed,
-                 size_t headersize = 0);
+                 size_t headersize = 0,
+                 bool has_handle   = true);
     void view(source_explorer_t &srcexp) const;
   };
 
@@ -573,10 +574,9 @@ namespace SourceExplorer
     error_t view(source_explorer_t &srcexp) const;
   };
 
-  struct recompiled_object_properties_t : public basic_chunk_t
+  struct two_five_plus_object_properties_t : public basic_chunk_t
   {
-    // std::vector<object::common_t> items;
-    std::vector<basic_chunk_t> items;
+    std::vector<item_entry_t> items;
 
     error_t read(game_t &game, lak::memory &strm);
     error_t view(source_explorer_t &srcexp) const;
@@ -1135,7 +1135,8 @@ namespace SourceExplorer
     chunk_ptr<chunk_2253_t> chunk2253;
     chunk_ptr<object_names_t> object_names;
     chunk_ptr<chunk_2255_t> chunk2255;
-    chunk_ptr<recompiled_object_properties_t> recompiled_object_properties;
+    chunk_ptr<two_five_plus_object_properties_t>
+      two_five_plus_object_properties;
     chunk_ptr<chunk_2257_t> chunk2257;
     chunk_ptr<object_properties_t> object_properties;
     chunk_ptr<truetype_fonts_meta_t> truetype_fonts_meta;
@@ -1173,11 +1174,12 @@ namespace SourceExplorer
 
     std::stack<chunk_t> state;
 
-    bool unicode    = false;
-    bool old_game   = false;
-    bool compat     = false;
-    bool cnc        = false;
-    bool recompiled = false;
+    bool unicode            = false;
+    bool old_game           = false;
+    bool compat             = false;
+    bool cnc                = false;
+    bool recompiled         = false;
+    bool two_five_plus_game = false;
     std::vector<uint8_t> protection;
 
     header_t game;
