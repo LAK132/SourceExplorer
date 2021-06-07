@@ -19,13 +19,23 @@ goto :eof
 :debug
 set COMPFLAGS=/Zi /bigobj /Od
 set LINKFLAGS=/SUBSYSTEM:CONSOLE /DEBUG
-goto :eof
+goto common
 
 :release
 set COMPFLAGS=/DNDEBUG /bigobj /O2
 set LINKFLAGS=/SUBSYSTEM:CONSOLE
-goto :eof
+goto common
 
 :nolog
 set COMPFLAGS=/DNOLOG /DNDEBUG /bigobj /O2
 set LINKFLAGS=/SUBSYSTEM:CONSOLE
+goto common
+
+:common
+for /f %%f in ('git rev-parse --short HEAD') do (set "git_hash=%%f")
+for /f %%f in ('git describe --tags --abbrev^=0') do (set "git_tag=%%f")
+(
+echo #define GIT_HASH "%git_hash%"
+echo #define GIT_TAG "%git_tag%"
+)>src\git.hpp
+goto :eof
