@@ -1018,6 +1018,8 @@ bool force_only_error = false;
 
 lak::optional<int> basic_window_preinit(int argc, char **argv)
 {
+  lak::debugger.std_out(""_u8, APP_NAME "\n");
+
   for (int arg = 1; arg < argc; ++arg)
   {
     if (argv[arg] == lak::astring("-help"))
