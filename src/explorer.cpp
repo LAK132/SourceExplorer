@@ -921,6 +921,7 @@ namespace SourceExplorer
       case chunk_t::exe_only: return "EXE Only";
       case chunk_t::protection: return "Protection";
       case chunk_t::shaders: return "Shaders";
+      case chunk_t::shaders2: return "Shaders 2";
       case chunk_t::extended_header: return "Extended Header";
       case chunk_t::spacer: return "Spacer";
       case chunk_t::frame_bank: return "Frame Bank";
@@ -4646,6 +4647,11 @@ namespace SourceExplorer
                         .map_err(APPEND_TRACE("header_t::read")));
           break;
 
+        case chunk_t::shaders2:
+          RES_TRY_ERR(
+            init_chunk(shaders).map_err(APPEND_TRACE("header_t::read")));
+          break;
+
         case chunk_t::global_events:
           RES_TRY_ERR(
             init_chunk(global_events).map_err(APPEND_TRACE("header_t::read")));
@@ -4790,6 +4796,7 @@ namespace SourceExplorer
       RES_TRY(exe.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(protection.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(shaders.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(shaders2.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(
         extended_header.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
       RES_TRY(spacer.view(srcexp).map_err(APPEND_TRACE("header_t::view")));

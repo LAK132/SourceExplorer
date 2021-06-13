@@ -144,6 +144,7 @@ namespace SourceExplorer
     chunk2257                       = 0x2257, // 4 bytes
     font_meta                       = 0x2258, // 2.5+ games only (?)
     font_chunk                      = 0x2259, // 2.5+ games only (?)
+    shaders2                        = 0x225A, // 2.5+ games only (?)
 
     // Frame Chunks (0x33XX)
     frame          = 0x3333,
