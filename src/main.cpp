@@ -642,6 +642,8 @@ void AudioExplorer(bool &update)
 
       if (audio.peek_astring(4) == lak::string_view("OggS"))
         audio_data.type = se::sound_mode_t::oggs;
+      else if (audio.peek_astring(4) != lak::string_view("RIFF"))
+        audio_data.type = se::sound_mode_t(-1);
 
       if (audio_data.type == se::sound_mode_t::wave)
       {

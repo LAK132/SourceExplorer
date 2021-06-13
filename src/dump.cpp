@@ -533,6 +533,10 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       {
         type = sound_mode_t::oggs;
       }
+      else if (sound.peek_astring(4) == lak::string_view("Exte"))
+      {
+        type = sound_mode_t::xm;
+      }
     }
 
     switch (type)
@@ -540,6 +544,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       case sound_mode_t::wave: name += u".wav"; break;
       case sound_mode_t::midi: name += u".midi"; break;
       case sound_mode_t::oggs: name += u".ogg"; break;
+      case sound_mode_t::xm: name += u".xm"; break;
       default: name += u".mp3"; break;
     }
 

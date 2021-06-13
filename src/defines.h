@@ -225,7 +225,8 @@ namespace SourceExplorer
     // 1 << 3,
     loc    = 1 << 4,
     pfd    = 1 << 5,
-    loaded = 1 << 6
+    loaded = 1 << 6,
+    xm     = 1 << 30,
   };
 
   // static sound_mode_t operator | (const sound_mode_t A, const sound_mode_t
