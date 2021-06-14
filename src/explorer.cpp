@@ -4696,90 +4696,65 @@ namespace SourceExplorer
     {
       entry.view(srcexp);
 
-      RES_TRY(title.view(srcexp, "Title", true)
-                .MAP_SE_ERR("header_t::view"));
-      RES_TRY(author.view(srcexp, "Author", true)
-                .MAP_SE_ERR("header_t::view"));
+      RES_TRY(title.view(srcexp, "Title", true).MAP_SE_ERR("header_t::view"));
+      RES_TRY(
+        author.view(srcexp, "Author", true).MAP_SE_ERR("header_t::view"));
       RES_TRY(copyright.view(srcexp, "Copyright", true)
                 .MAP_SE_ERR("header_t::view"));
-      RES_TRY(output_path.view(srcexp, "Output Path")
-                .MAP_SE_ERR("header_t::view"));
+      RES_TRY(
+        output_path.view(srcexp, "Output Path").MAP_SE_ERR("header_t::view"));
       RES_TRY(project_path.view(srcexp, "Project Path")
                 .MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        about.view(srcexp, "About").MAP_SE_ERR("header_t::view"));
+      RES_TRY(about.view(srcexp, "About").MAP_SE_ERR("header_t::view"));
 
-      RES_TRY(
-        vitalise_preview.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(vitalise_preview.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(menu.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        extension_path.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(extension_path.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(extensions.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        extension_data.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(additional_extensions.view(srcexp).MAP_SE_ERR(
-        "header_t::view"));
+      RES_TRY(extension_data.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(additional_extensions.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(app_doc.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        other_extension.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        extension_list.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(other_extension.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(extension_list.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(icon.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        demo_version.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(demo_version.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(security.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        binary_files.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        menu_images.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(movement_extensions.view(srcexp).MAP_SE_ERR(
-        "header_t::view"));
-      RES_TRY(
-        object_bank_2.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(binary_files.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(menu_images.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(movement_extensions.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(object_bank_2.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(exe.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(protection.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(shaders.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(shaders2.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        extended_header.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(extended_header.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(spacer.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(chunk224F.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(title2.view(srcexp).MAP_SE_ERR("header_t::view"));
 
-      RES_TRY(
-        global_events.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        global_strings.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(global_string_names.view(srcexp).MAP_SE_ERR(
-        "header_t::view"));
-      RES_TRY(
-        global_values.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(global_value_names.view(srcexp).MAP_SE_ERR(
-        "header_t::view"));
+      RES_TRY(global_events.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(global_strings.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(global_string_names.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(global_values.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(global_value_names.view(srcexp).MAP_SE_ERR("header_t::view"));
 
-      RES_TRY(
-        frame_handles.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(frame_handles.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(frame_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        object_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(object_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(image_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(sound_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(music_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(font_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
 
       RES_TRY(chunk2253.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(
-        object_names.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(object_names.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(chunk2255.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(two_five_plus_object_properties.view(srcexp).MAP_SE_ERR(
         "header_t::view"));
       RES_TRY(chunk2257.view(srcexp).MAP_SE_ERR("header_t::view"));
-      RES_TRY(object_properties.view(srcexp).MAP_SE_ERR(
-        "header_t::view"));
-      RES_TRY(truetype_fonts_meta.view(srcexp).MAP_SE_ERR(
-        "header_t::view"));
-      RES_TRY(
-        truetype_fonts.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(object_properties.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(truetype_fonts_meta.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(truetype_fonts.view(srcexp).MAP_SE_ERR("header_t::view"));
 
       for (auto &unk : unknown_strings)
       {
