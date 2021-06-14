@@ -21,6 +21,8 @@
 
 #include "lak/compression/deflate.hpp"
 #include "lak/compression/lz4.hpp"
+#include "lak/string.hpp"
+#include "lak/string_utils.hpp"
 
 #include "explorer.h"
 #include "tostring.hpp"
@@ -39,7 +41,8 @@ namespace SourceExplorer
   std::vector<uint8_t> _magic_key;
   game_mode_t _mode = game_mode_t::_OLD;
   uint8_t _magic_char;
-  std::atomic<float> game_t::completed = 0.0f;
+  std::atomic<float> game_t::completed      = 0.0f;
+  std::atomic<float> game_t::bank_completed = 0.0f;
 
   using namespace std::string_literals;
 
@@ -52,20 +55,26 @@ namespace SourceExplorer
 
   error_t LoadGame(source_explorer_t &srcexp)
   {
-    SCOPED_CHECKPOINT("LoadGame");
+    FUNCTION_CHECKPOINT();
+
+    srcexp.state.completed      = 0.0f;
+    srcexp.state.bank_completed = 0.0f;
 
     srcexp.state        = game_t{};
     srcexp.state.compat = force_compat;
 
-    RES_TRY_ASSIGN(srcexp.state.file =,
-                   lak::read_file(srcexp.exe.path)
-                     .map_err(MAP_TRACE(error::str_err, "LoadGame")));
+    RES_TRY_ASSIGN(auto bytes =,
+                   lak::read_file(srcexp.exe.path).MAP_ERR("LoadGame"));
 
-    DEBUG("File Size: ", srcexp.state.file.size());
+    srcexp.state.file = make_data_ref_ptr(lak::move(bytes));
 
-    RES_TRY_ERR(ParsePEHeader(srcexp.state.file, srcexp.state)
-                  .map_err(APPEND_TRACE("while parsing PE header at: ",
-                                        srcexp.state.file.position())));
+    data_reader_t strm(srcexp.state.file);
+
+    DEBUG("File Size: ", srcexp.state.file->size());
+
+    RES_TRY(ParsePEHeader(strm, srcexp.state)
+              .MAP_SE_ERR("LoadGame: while parsing PE header at: ",
+                          strm.position()));
 
     DEBUG("Successfully Parsed PE Header");
 
@@ -84,9 +93,9 @@ namespace SourceExplorer
     else
       _magic_char = 54; // 'c';
 
-    RES_TRY_ERR(srcexp.state.game.read(srcexp.state, srcexp.state.file)
-                  .map_err(APPEND_TRACE("while parsing PE header at: ",
-                                        srcexp.state.file.position())));
+    RES_TRY(srcexp.state.game.read(srcexp.state, strm)
+              .MAP_SE_ERR("LoadGame: while parsing PE header at: ",
+                          strm.position()));
 
     DEBUG("Successfully Read Game Entry");
 
@@ -182,11 +191,11 @@ namespace SourceExplorer
     return decryptor.decode(chunk);
   }
 
-  error_t ParsePEHeader(lak::memory &strm, game_t &game_state)
+  error_t ParsePEHeader(data_reader_t &strm, game_t &game_state)
   {
-    SCOPED_CHECKPOINT("ParsePEHeader");
+    FUNCTION_CHECKPOINT();
 
-    uint16_t exe_sig = strm.read_u16();
+    uint16_t exe_sig = strm.read_u16().UNWRAP();
     DEBUG("EXE Signature: ", exe_sig);
     if (exe_sig != WIN_EXE_SIG)
     {
@@ -197,11 +206,11 @@ namespace SourceExplorer
                               (strm.position() - 2))};
     }
 
-    strm.seek(WIN_EXE_PNT);
-    strm.seek(strm.read_u16());
+    strm.seek(WIN_EXE_PNT).UNWRAP();
+    strm.seek(strm.read_u16().UNWRAP()).UNWRAP();
     DEBUG("EXE Pointer: ", strm.position(), ", At: ", (size_t)WIN_EXE_PNT);
 
-    int32_t pe_sig = strm.read_s32();
+    int32_t pe_sig = strm.read_s32().UNWRAP();
     DEBUG("PE Signature: ", pe_sig);
     if (pe_sig != WIN_PE_SIG)
     {
@@ -212,16 +221,16 @@ namespace SourceExplorer
                               (strm.position() - 4))};
     }
 
-    strm.skip(2);
+    strm.skip(2).UNWRAP();
 
-    uint16_t num_header_sections = strm.read_u16();
+    uint16_t num_header_sections = strm.read_u16().UNWRAP();
     DEBUG("Number Of Header Sections: ", num_header_sections);
 
-    strm.skip(16);
+    strm.skip(16).UNWRAP();
 
     const uint16_t optional_header = 0x60;
     const uint16_t data_dir        = 0x80;
-    strm.skip(optional_header + data_dir);
+    strm.skip(optional_header + data_dir).UNWRAP();
     DEBUG("Pos: ", strm.position());
 
     uint64_t pos = 0;
@@ -229,40 +238,40 @@ namespace SourceExplorer
     {
       SCOPED_CHECKPOINT("Section ", i + 1, "/", num_header_sections);
       uint64_t start = strm.position();
-      auto name      = strm.read_astring();
+      auto name      = strm.read_c_str<char>().UNWRAP();
       DEBUG("Name: ", name);
-      if (name == lak::string_view(".extra"))
+      if (name == ".extra")
       {
-        strm.seek(start + 0x14);
-        pos = strm.read_s32();
+        strm.seek(start + 0x14).UNWRAP();
+        pos = strm.read_s32().UNWRAP();
         break;
       }
       else if (i >= num_header_sections - 1)
       {
-        strm.seek(start + 0x10);
-        uint32_t size = strm.read_u32();
-        uint32_t addr = strm.read_u32();
+        strm.seek(start + 0x10).UNWRAP();
+        uint32_t size = strm.read_u32().UNWRAP();
+        uint32_t addr = strm.read_u32().UNWRAP();
         DEBUG("Size: ", size);
         DEBUG("Addr: ", addr);
         pos = size + addr;
         break;
       }
-      strm.seek(start + 0x28);
+      strm.seek(start + 0x28).UNWRAP();
       DEBUG("Pos: ", strm.position());
     }
 
     while (true)
     {
-      strm.seek(pos);
-      uint16_t first_short = strm.read_u16();
+      strm.seek(pos).UNWRAP();
+      uint16_t first_short = strm.read_u16().UNWRAP();
       DEBUG("First Short: ", first_short);
-      strm.seek(pos);
-      uint32_t pame_magic = strm.read_u32();
+      strm.seek(pos).UNWRAP();
+      uint32_t pame_magic = strm.read_u32().UNWRAP();
       DEBUG("PAME Magic: ", pame_magic);
-      strm.seek(pos);
-      uint64_t pack_magic = strm.read_u64();
+      strm.seek(pos).UNWRAP();
+      uint64_t pack_magic = strm.read_u64().UNWRAP();
       DEBUG("Pack Magic: ", pack_magic);
-      strm.seek(pos);
+      strm.seek(pos).UNWRAP();
       DEBUG("Pos: ", pos);
 
       if (first_short == (uint16_t)chunk_t::header ||
@@ -288,8 +297,8 @@ namespace SourceExplorer
       }
       else if (first_short == 0x222C)
       {
-        strm.skip(4);
-        strm.skip(strm.read_u32());
+        strm.skip(4).UNWRAP();
+        strm.skip(strm.read_u32().UNWRAP()).UNWRAP();
         pos = strm.position();
       }
       else if (first_short == 0x7F7F)
@@ -331,7 +340,7 @@ namespace SourceExplorer
       }
     }
 
-    uint32_t header = strm.read_u32();
+    uint32_t header = strm.read_u32().UNWRAP();
     DEBUG("Header: ", header);
 
     game_state.unicode = false;
@@ -349,7 +358,7 @@ namespace SourceExplorer
                               (strm.position() - 4))};
     }
 
-    game_state.runtime_version = (product_code_t)strm.read_u16();
+    game_state.runtime_version = (product_code_t)strm.read_u16().UNWRAP();
     DEBUG("Runtime Version: ", (int)game_state.runtime_version);
     if (game_state.runtime_version == product_code_t::CNCV1VER)
     {
@@ -359,42 +368,37 @@ namespace SourceExplorer
     }
     else
     {
-      game_state.runtime_sub_version = strm.read_u16();
+      game_state.runtime_sub_version = strm.read_u16().UNWRAP();
       DEBUG("Runtime Sub-Version: ", game_state.runtime_sub_version);
-      game_state.product_version = strm.read_u32();
+      game_state.product_version = strm.read_u32().UNWRAP();
       DEBUG("Product Version: ", game_state.product_version);
-      game_state.product_build = strm.read_u32();
+      game_state.product_build = strm.read_u32().UNWRAP();
       DEBUG("Product Build: ", game_state.product_build);
     }
 
     return lak::ok_t{};
   }
 
-  result_t<uint64_t> ParsePackData(lak::memory &strm, game_t &game_state)
+  result_t<uint64_t> ParsePackData(data_reader_t &strm, game_t &game_state)
   {
     DEBUG("Parsing pack data");
 
     uint64_t start = strm.position();
-    CHECK_REMAINING(strm, 8);
-    uint64_t header = strm.read_u64();
+    TRY_ASSIGN(uint64_t header =, strm.read_u64());
     DEBUG("Header: ", header);
 
-    CHECK_REMAINING(strm, 4);
-    [[maybe_unused]] uint32_t header_size = strm.read_u32();
+    TRY_ASSIGN([[maybe_unused]] uint32_t header_size =, strm.read_u32());
     DEBUG("Header Size: ", header_size);
 
-    CHECK_REMAINING(strm, 4);
-    uint32_t data_size = strm.read_u32();
+    TRY_ASSIGN(uint32_t data_size =, strm.read_u32());
     DEBUG("Data Size: ", data_size);
 
     bool unicode = false;
-    if (start + data_size - 0x20 < strm.remaining())
+    if (start + data_size - 0x20 < strm.remaining().size())
     {
-      CHECK_POSITION(strm, start + data_size - 0x20);
-      strm.seek(start + data_size - 0x20);
+      TRY(strm.seek(start + data_size - 0x20));
 
-      CHECK_REMAINING(strm, 4);
-      header = strm.read_u32();
+      TRY_ASSIGN(header =, strm.read_u32());
       DEBUG("Head: ", header);
       unicode = header == HEADER_UNIC;
       if (unicode)
@@ -409,50 +413,43 @@ namespace SourceExplorer
     else
       WARNING("Data Size Too Large");
 
-    CHECK_POSITION(strm, start + 0x10);
-    strm.seek(start + 0x10);
+    TRY(strm.seek(start + 0x10));
 
-    CHECK_REMAINING(strm, 4);
-    [[maybe_unused]] uint32_t format_version = strm.read_u32();
+    TRY_ASSIGN([[maybe_unused]] uint32_t format_version =, strm.read_u32());
     DEBUG("Format Version: ", format_version);
 
-    CHECK_REMAINING(strm, 8);
-    strm.skip(0x8);
+    TRY(strm.skip(0x8));
 
-    CHECK_REMAINING(strm, 4);
-    int32_t count = strm.read_s32();
+    TRY_ASSIGN(int32_t count =, strm.read_s32());
     if (count < 0)
       return lak::err_t{error(LINE_TRACE, error::invalid_pack_count)};
     DEBUG("Pack Count: ", count);
 
-    CHECK_REMAINING(strm, 4);
     uint64_t off = strm.position();
     DEBUG("Offset: ", off);
 
     for (int32_t i = 0; i < count; ++i)
     {
       if ((strm.size() - strm.position()) < 2) break;
-      uint32_t val = strm.read_u16();
+      TRY_ASSIGN(uint32_t val =, strm.read_u16());
 
       if ((strm.size() - strm.position()) < val) break;
-      strm.skip(val);
+      TRY(strm.skip(val));
 
       if ((strm.size() - strm.position()) < 4) break;
-      val = strm.read_u32();
+      TRY_ASSIGN(val =, strm.read_u32());
 
       if ((strm.size() - strm.position()) < val) break;
-      strm.skip(val);
+      TRY(strm.skip(val));
     }
 
-    CHECK_REMAINING(strm, 4);
-    header = strm.read_u32();
+    TRY_ASSIGN(header =, strm.read_u32());
     DEBUG("Header: ", header);
 
     bool has_bingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
     DEBUG("Has Bingo: ", (has_bingo ? "true" : "false"));
 
-    CHECK_POSITION(strm, off);
-    strm.seek(off);
+    TRY(strm.seek(off));
 
     game_state.pack_files.resize(count);
 
@@ -460,19 +457,30 @@ namespace SourceExplorer
     {
       SCOPED_CHECKPOINT("Pack ", i + 1, "/", count);
 
-      CHECK_REMAINING(strm, 2);
-      uint32_t read = strm.read_u16();
+      TRY_ASSIGN(uint32_t read =, strm.read_u16());
       // size_t strstart = strm.position();
 
       DEBUG("Filename Length: ", read);
       DEBUG("Position: ", strm.position());
 
+      auto array_to_string = [](const auto &array) {
+        return lak::string<lak::remove_cvref_t<decltype(array)>::value_type>(
+          array.begin(), array.end());
+      };
+
       if (unicode)
-        game_state.pack_files[i].filename =
-          strm.read_u16string_exact(read).to_string();
+      {
+        TRY_ASSIGN(game_state.pack_files[i].filename =,
+                   strm.read<char16_t>(read).map(array_to_string));
+      }
       else
-        game_state.pack_files[i].filename =
-          lak::to_u16string(strm.read_astring_exact(read));
+      {
+        TRY_ASSIGN(game_state.pack_files[i].filename =,
+                   strm.read<char>(read)
+                     .map(array_to_string)
+                     .map((lak::u16string(*)(
+                       const lak::string<char> &))lak::to_u16string<char>));
+      }
 
       // strm.seek(strstart + (unicode ? read * 2 : read));
 
@@ -481,34 +489,30 @@ namespace SourceExplorer
 
       if (has_bingo)
       {
-        CHECK_REMAINING(strm, 4);
-        game_state.pack_files[i].bingo = strm.read_u32();
+        TRY_ASSIGN(game_state.pack_files[i].bingo =, strm.read_u32());
       }
       else
         game_state.pack_files[i].bingo = 0;
 
       DEBUG("Bingo: ", game_state.pack_files[i].bingo);
 
-      CHECK_REMAINING(strm, 4);
       // if (unicode)
       //     read = strm.read_u32();
       // else
       //     read = strm.read_u16();
-      read = strm.read_u32();
+      TRY_ASSIGN(read =, strm.read_u32());
 
       DEBUG("Pack File Data Size: ", read, ", Pos: ", strm.position());
-      CHECK_REMAINING(strm, read);
-      game_state.pack_files[i].data = strm.read(read);
+      TRY_ASSIGN(game_state.pack_files[i].data =, strm.read<uint8_t>(read));
     }
 
-    CHECK_REMAINING(strm, 4);
-    header = strm.read_u32(); // PAMU sometimes
+    TRY_ASSIGN(header =, strm.read_u32()); // PAMU sometimes
     DEBUG("Header: ", header);
 
     if (header == HEADER_GAME || header == HEADER_UNIC)
     {
       uint32_t pos = (uint32_t)strm.position();
-      strm.unread(0x4);
+      TRY(strm.unread(0x4));
       return lak::ok_t{pos};
     }
     return lak::ok_t{strm.position()};
@@ -532,109 +536,89 @@ namespace SourceExplorer
             255};
   }
 
-  result_t<lak::color4_t> ColorFrom8bit(lak::memory &strm,
+  result_t<lak::color4_t> ColorFrom8bit(data_reader_t &strm,
                                         const lak::color4_t palette[256])
   {
-    CHECK_REMAINING(strm, 1);
-
-    if (palette) return lak::ok_t{palette[strm.read_u8()]};
-    return lak::ok_t{ColorFrom8bit(strm.read_u8())};
+    TRY_ASSIGN(const auto val =, strm.read_u8());
+    if (palette) return lak::ok_t{palette[val]};
+    return lak::ok_t{ColorFrom8bit(val)};
   }
 
-  result_t<lak::color4_t> ColorFrom15bit(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom15bit(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 2);
-
-    uint16_t val = strm.read_u8();
-    val |= (uint16_t)strm.read_u8() << 8;
+    TRY_ASSIGN(const auto val =, strm.read_u16<lak::endian::little>());
     return lak::ok_t{ColorFrom15bit(val)};
   }
 
-  result_t<lak::color4_t> ColorFrom16bit(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom16bit(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 2);
-
-    uint16_t val = strm.read_u8();
-    val |= (uint16_t)strm.read_u8() << 8;
+    TRY_ASSIGN(const auto val =, strm.read_u16<lak::endian::little>());
     return lak::ok_t{ColorFrom16bit(val)};
   }
 
-  result_t<lak::color4_t> ColorFrom24bitBGR(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom24bitBGR(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 3);
     lak::color4_t rtn;
-    rtn.b = strm.read_u8();
-    rtn.g = strm.read_u8();
-    rtn.r = strm.read_u8();
+    TRY_ASSIGN(rtn.b =, strm.read_u8());
+    TRY_ASSIGN(rtn.g =, strm.read_u8());
+    TRY_ASSIGN(rtn.r =, strm.read_u8());
     rtn.a = 255;
     return lak::ok_t{rtn};
   }
 
-  result_t<lak::color4_t> ColorFrom32bitBGRA(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom32bitBGRA(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 4);
-
     lak::color4_t rtn;
-    rtn.b = strm.read_u8();
-    rtn.g = strm.read_u8();
-    rtn.r = strm.read_u8();
-    rtn.a = strm.read_u8();
+    TRY_ASSIGN(rtn.b =, strm.read_u8());
+    TRY_ASSIGN(rtn.g =, strm.read_u8());
+    TRY_ASSIGN(rtn.r =, strm.read_u8());
+    TRY_ASSIGN(rtn.a =, strm.read_u8());
     return lak::ok_t{rtn};
   }
 
-  result_t<lak::color4_t> ColorFrom32bitBGR(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom32bitBGR(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 4);
-
     lak::color4_t rtn;
-    rtn.b = strm.read_u8();
-    rtn.g = strm.read_u8();
-    rtn.r = strm.read_u8();
+    TRY_ASSIGN(rtn.b =, strm.read_u8());
+    TRY_ASSIGN(rtn.g =, strm.read_u8());
+    TRY_ASSIGN(rtn.r =, strm.read_u8());
     rtn.a = 255;
-    strm.skip(1);
+    TRY(strm.skip(1));
     return lak::ok_t{rtn};
   }
 
-  result_t<lak::color4_t> ColorFrom24bitRGB(lak::memory &strm)
+  result_t<lak::color4_t> ColorFrom24bitRGB(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 3);
-
     lak::color4_t rtn;
-    rtn.r = strm.read_u8();
-    rtn.g = strm.read_u8();
-    rtn.b = strm.read_u8();
+    TRY_ASSIGN(rtn.r =, strm.read_u8());
+    TRY_ASSIGN(rtn.g =, strm.read_u8());
+    TRY_ASSIGN(rtn.b =, strm.read_u8());
     rtn.a = 255;
     return lak::ok_t{rtn};
   }
 
-  template<typename STRM>
-  result_t<lak::color4_t> ColorFrom32bitRGBA(STRM &strm)
+  result_t<lak::color4_t> ColorFrom32bitRGBA(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 4);
-
     lak::color4_t rtn;
-    rtn.r = strm.read_u8();
-    rtn.g = strm.read_u8();
-    rtn.b = strm.read_u8();
-    rtn.a = strm.read_u8();
+    TRY_ASSIGN(rtn.r =, strm.read_u8());
+    TRY_ASSIGN(rtn.g =, strm.read_u8());
+    TRY_ASSIGN(rtn.b =, strm.read_u8());
+    TRY_ASSIGN(rtn.a =, strm.read_u8());
     return lak::ok_t{rtn};
   }
 
-  template<typename STRM>
-  result_t<lak::color4_t> ColorFrom32bitRGB(STRM &strm)
+  result_t<lak::color4_t> ColorFrom32bitRGB(data_reader_t &strm)
   {
-    CHECK_REMAINING(strm, 4);
-
     lak::color4_t rtn;
-    rtn.r = strm.read_u8();
-    rtn.g = strm.read_u8();
-    rtn.b = strm.read_u8();
+    TRY_ASSIGN(rtn.r =, strm.read_u8());
+    TRY_ASSIGN(rtn.g =, strm.read_u8());
+    TRY_ASSIGN(rtn.b =, strm.read_u8());
     rtn.a = 255;
-    strm.skip(1);
+    TRY(strm.skip(1));
     return lak::ok_t{rtn};
   }
 
-  result_t<lak::color4_t> ColorFromMode(lak::memory &strm,
+  result_t<lak::color4_t> ColorFromMode(data_reader_t &strm,
                                         const graphics_mode_t mode,
                                         const lak::color4_t palette[256])
   {
@@ -681,12 +665,12 @@ namespace SourceExplorer
                                (double)col_size);
   }
 
-  result_t<size_t> ReadRLE(lak::memory &strm,
+  result_t<size_t> ReadRLE(data_reader_t &strm,
                            lak::image4_t &bitmap,
                            graphics_mode_t mode,
                            const lak::color4_t palette[256] = nullptr)
   {
-    SCOPED_CHECKPOINT("ReadRLE");
+    FUNCTION_CHECKPOINT();
 
     const size_t point_size = ColorModeSize(mode);
     const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
@@ -697,9 +681,7 @@ namespace SourceExplorer
 
     while (true)
     {
-      CHECK_REMAINING(strm, 1);
-
-      uint8_t command = strm.read_u8();
+      TRY_ASSIGN(uint8_t command =, strm.read_u8());
 
       if (command == 0) break;
 
@@ -714,8 +696,7 @@ namespace SourceExplorer
           }
           else
           {
-            CHECK_REMAINING(strm, point_size);
-            strm.skip(point_size);
+            TRY(strm.skip(point_size));
           }
         }
       }
@@ -734,12 +715,12 @@ namespace SourceExplorer
     return lak::ok_t{strm.position() - start};
   }
 
-  result_t<size_t> ReadRGB(lak::memory &strm,
+  result_t<size_t> ReadRGB(data_reader_t &strm,
                            lak::image4_t &bitmap,
                            graphics_mode_t mode,
                            const lak::color4_t palette[256] = nullptr)
   {
-    SCOPED_CHECKPOINT("ReadRGB");
+    FUNCTION_CHECKPOINT();
 
     const size_t point_size = ColorModeSize(mode);
     const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
@@ -756,15 +737,15 @@ namespace SourceExplorer
       {
         bitmap[i++] = ColorFromMode(strm, mode, palette).UNWRAP();
       }
-      strm.skip(pad * point_size);
+      strm.skip(pad * point_size).UNWRAP();
     }
 
     return lak::ok_t{strm.position() - start};
   }
 
-  result_t<size_t> ReadAlpha(lak::memory &strm, lak::image4_t &bitmap)
+  result_t<size_t> ReadAlpha(data_reader_t &strm, lak::image4_t &bitmap)
   {
-    SCOPED_CHECKPOINT("ReadAlpha");
+    FUNCTION_CHECKPOINT();
 
     const uint16_t pad = BitmapPaddingSize(bitmap.size().x, 1, 4);
     size_t i           = 0;
@@ -777,9 +758,9 @@ namespace SourceExplorer
     {
       for (size_t x = 0; x < bitmap.size().x; ++x)
       {
-        bitmap[i++].a = strm.read_u8();
+        bitmap[i++].a = strm.read_u8().UNWRAP();
       }
-      strm.skip(pad);
+      strm.skip(pad).UNWRAP();
     }
 
     return lak::ok_t{strm.position() - start};
@@ -787,7 +768,7 @@ namespace SourceExplorer
 
   void ReadTransparent(const lak::color4_t &transparent, lak::image4_t &bitmap)
   {
-    SCOPED_CHECKPOINT("ReadTransparent");
+    FUNCTION_CHECKPOINT();
 
     for (size_t i = 0; i < bitmap.contig_size(); ++i)
     {
@@ -800,7 +781,7 @@ namespace SourceExplorer
   texture_t CreateTexture(const lak::image4_t &bitmap,
                           const lak::graphics_mode mode)
   {
-    SCOPED_CHECKPOINT("CreateTexture");
+    FUNCTION_CHECKPOINT();
 
     if (mode == lak::graphics_mode::OpenGL)
     {
@@ -1037,38 +1018,45 @@ namespace SourceExplorer
     }
   }
 
-  result_t<std::vector<uint8_t>> Decode(const std::vector<uint8_t> &encoded,
-                                        chunk_t id,
-                                        encoding_t mode)
+  result_t<data_ref_span_t> Decode(data_ref_span_t encoded,
+                                   chunk_t id,
+                                   encoding_t mode)
   {
-    SCOPED_CHECKPOINT("Decode");
+    FUNCTION_CHECKPOINT();
 
     switch (mode)
     {
       case encoding_t::mode3:
       case encoding_t::mode2: return Decrypt(encoded, id, mode);
-      case encoding_t::mode1: return lak::ok_t{InflateOrCompressed(encoded)};
+      case encoding_t::mode1:
+        return lak::ok_t{
+          lak::ok_or_err(Inflate(encoded, false, false).map_err([&](...) {
+            return encoded;
+          }))};
       default:
         if (encoded.size() > 0 && encoded[0] == 0x78)
-          return lak::ok_t{InflateOrCompressed(encoded)};
+          return lak::ok_t{
+            lak::ok_or_err(Inflate(encoded, false, false).map_err([&](...) {
+              return encoded;
+            }))};
         else
           return lak::ok_t{encoded};
     }
   }
 
-  result_t<std::vector<uint8_t>> Inflate(
-    const std::vector<uint8_t> &compressed,
-    bool skip_header,
-    bool anaconda,
-    size_t max_size)
+  result_t<data_ref_span_t> Inflate(data_ref_span_t compressed,
+                                    bool skip_header,
+                                    bool anaconda,
+                                    size_t max_size)
   {
-    SCOPED_CHECKPOINT("Inflate");
+    FUNCTION_CHECKPOINT();
 
     lak::array<uint8_t, 0x8000> buffer;
     auto inflater =
       lak::deflate_iterator(compressed, buffer, !skip_header, anaconda);
 
-    std::vector<uint8_t> output;
+    lak::array<uint8_t> output;
+    output.reserve(buffer.size());
     if (auto err = inflater.read([&](uint8_t v) {
           if (output.size() > max_size) return false;
           output.push_back(v);
@@ -1076,18 +1064,17 @@ namespace SourceExplorer
         });
         err.is_ok())
     {
-      return lak::ok_t{lak::move(output)};
+      return lak::ok_t{make_data_ref_ptr(compressed, lak::move(output))};
     }
     else if (err.unsafe_unwrap_err() == lak::deflate_iterator::error_t::ok)
     {
       // This is not (always) an error, we may intentionally stop the decode
       // early to not waste time and memory.
 
-      return lak::ok_t{lak::move(output)};
+      return lak::ok_t{make_data_ref_ptr(compressed, lak::move(output))};
     }
     else
     {
-      DEBUG("Buffer Size: ", buffer.size());
       DEBUG("Max Size: ", max_size);
       DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
       return lak::err_t{
@@ -1099,102 +1086,59 @@ namespace SourceExplorer
     }
   }
 
-  error_t Inflate(std::vector<uint8_t> &out,
-                  const std::vector<uint8_t> &compressed,
-                  bool skip_header,
-                  bool anaconda,
-                  size_t max_size)
+  result_t<data_ref_span_t> LZ4Decode(data_ref_span_t compressed,
+                                      unsigned int out_size)
   {
-    SCOPED_CHECKPOINT("Inflate");
+    FUNCTION_CHECKPOINT();
 
-    RES_TRY_ASSIGN(out =,
-                   Inflate(compressed, skip_header, anaconda, max_size)
-                     .map_err(APPEND_TRACE("Inflate")));
-    return lak::ok_t{};
-  }
-
-  error_t Inflate(lak::memory &out,
-                  const std::vector<uint8_t> &compressed,
-                  bool skip_header,
-                  bool anaconda,
-                  size_t max_size)
-  {
-    SCOPED_CHECKPOINT("Inflate");
-
-    RES_TRY_ASSIGN(out =,
-                   Inflate(compressed, skip_header, anaconda, max_size)
-                     .map_err(APPEND_TRACE("Inflate")));
-    return lak::ok_t{};
-  }
-
-  std::vector<uint8_t> InflateOrCompressed(
-    const std::vector<uint8_t> &compressed)
-  {
-    SCOPED_CHECKPOINT("InflateOrCompressed");
-
-    if (auto result = Inflate(compressed, false, false); result.is_ok())
-      return lak::move(result).unsafe_unwrap();
-    ERROR("Failed To Inflate");
-    return compressed;
-  }
-
-  std::vector<uint8_t> DecompressOrCompressed(
-    const std::vector<uint8_t> &compressed, unsigned int out_size)
-  {
-    SCOPED_CHECKPOINT("DecompressOrCompressed");
-
-    if (auto result = Inflate(compressed, true, true); result.is_ok())
-      return lak::move(result).unsafe_unwrap();
-    ERROR("Failed To Decompress");
-    return compressed;
-  }
-
-  result_t<std::vector<uint8_t>> LZ4Decode(lak::span_memory strm,
-                                           unsigned int out_size)
-  {
-    SCOPED_CHECKPOINT("LZ4Decode");
-
-    if (auto result = lak::decode_lz4_block(strm, out_size); result.is_ok())
-      return lak::ok_t{lak::move(result).unsafe_unwrap().release()};
+    lak::binary_reader reader(compressed);
+    if (auto result = lak::decode_lz4_block(reader, out_size); result.is_ok())
+      return lak::ok_t{
+        make_data_ref_ptr(compressed, lak::move(result).unsafe_unwrap())};
 
     ERROR("Failed To Decompress");
     return lak::err_t{
       error(LINE_TRACE, error::inflate_failed, "Failed To Decompress")};
   }
 
-  result_t<std::vector<uint8_t>> LZ4DecodeReadSize(lak::span_memory strm)
+  result_t<data_ref_span_t> LZ4DecodeReadSize(data_ref_span_t compressed)
   {
-    CHECK_REMAINING(strm, 4);
     // intentionally doing this outside of the LZ4Decode call incase strm
     // copies first (?)
-    const uint32_t out_size = strm.read_u32();
-    return LZ4Decode(strm, out_size);
+    data_reader_t strm(compressed);
+    TRY_ASSIGN(const uint32_t out_size =, strm.read_u32());
+    return LZ4Decode(strm.read_remaining_ref_span(), out_size);
   }
 
-  result_t<std::vector<uint8_t>> StreamDecompress(lak::memory &strm,
-                                                  unsigned int out_size)
+  result_t<data_ref_span_t> StreamDecompress(data_reader_t &strm,
+                                             unsigned int out_size)
   {
-    SCOPED_CHECKPOINT("StreamDecompress");
+    FUNCTION_CHECKPOINT();
 
     lak::array<uint8_t, 0x8000> buffer;
-    auto inflater = lak::deflate_iterator(lak::span(strm.cursor(), strm.end()),
+    auto inflater = lak::deflate_iterator(strm.remaining(),
                                           buffer,
                                           /* parse_header */ false,
                                           /* anaconda */ true);
 
-    std::vector<uint8_t> output;
+    lak::array<uint8_t> output;
     if (auto err = inflater.read([&](uint8_t v) {
           output.push_back(v);
           return true;
         });
         err.is_ok())
     {
-      if (inflater.compressed().begin() > strm.cursor())
-        strm.skip(inflater.compressed().begin() - strm.cursor());
-      return lak::ok_t{lak::move(output)};
+      const auto offset = strm.position();
+      const auto bytes_read =
+        inflater.compressed().begin() - strm.remaining().begin();
+      ASSERT_GREATER_OR_EQUAL(bytes_read, 0);
+      strm.skip(bytes_read).UNWRAP();
+      return lak::ok_t{
+        make_data_ref_ptr(strm.source, offset, bytes_read, lak::move(output))};
     }
     else
     {
+      DEBUG("Out Size: ", out_size);
       DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
       return lak::err_t{
         error(LINE_TRACE,
@@ -1205,11 +1149,13 @@ namespace SourceExplorer
     }
   }
 
-  result_t<std::vector<uint8_t>> Decrypt(const std::vector<uint8_t> &encrypted,
-                                         chunk_t ID,
-                                         encoding_t mode)
+  result_t<data_ref_span_t> Decrypt(data_ref_span_t encrypted,
+                                    chunk_t ID,
+                                    encoding_t mode)
   {
-    SCOPED_CHECKPOINT("Decrypt");
+    FUNCTION_CHECKPOINT();
+
+    data_reader_t estrm(encrypted);
 
     if (mode == encoding_t::mode3)
     {
@@ -1220,23 +1166,34 @@ namespace SourceExplorer
                 "MODE 3 Decryption Failed: Encrypted Buffer Too Small")};
       // TODO: check endian
       // size_t dataLen = *reinterpret_cast<const uint32_t*>(&encrypted[0]);
-      std::vector<uint8_t> mem(encrypted.begin() + 4, encrypted.end());
+      TRY(estrm.skip(4));
+
+      auto mem_ptr = estrm.copy_remaining();
+      auto mem_span = lak::span<uint8_t>(mem_ptr->get());
+
+      data_reader_t mem_reader(mem_ptr);
 
       if ((_mode != game_mode_t::_284) && ((uint16_t)ID & 0x1) != 0)
-        mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
+        mem_span[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
-      if (DecodeChunk(mem))
+      if (DecodeChunk(mem_span))
       {
-        if (mem.size() <= 4)
+        if (mem_reader.remaining().size() <= 4)
           return lak::err_t{
             error(LINE_TRACE,
                   error::decrypt_failed,
                   "MODE 3 Decryption Failed: Decoded Chunk Too Small")};
         // dataLen = *reinterpret_cast<uint32_t*>(&mem[0]);
 
+        TRY(mem_reader.skip(4));
+
+        auto rem_span = mem_reader.read_remaining_ref_span();
+
         // Try Inflate even if it doesn't need to be
-        return lak::ok_t{InflateOrCompressed(
-          std::vector<uint8_t>(mem.begin() + 4, mem.end()))};
+        return lak::ok_t{lak::ok_or_err(
+          Inflate(rem_span, false, false)
+            .map_err([&](...) { return rem_span; })
+            .if_err([](auto ref_span) { DEBUG("Size: ", ref_span.size()); }))};
       }
       return lak::err_t{
         error(LINE_TRACE, error::decrypt_failed, "MODE 3 Decryption Failed")};
@@ -1249,12 +1206,13 @@ namespace SourceExplorer
                 error::decrypt_failed,
                 "MODE 2 Decryption Failed: Encrypted Buffer Too Small")};
 
-      std::vector<uint8_t> mem = encrypted;
+      auto mem_ptr  = estrm.copy_remaining();
+      auto mem_span = lak::span<uint8_t>(mem_ptr->get());
 
       if ((_mode != game_mode_t::_284) && (uint16_t)ID & 0x1)
-        mem[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
+        mem_span[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
-      if (!DecodeChunk(mem))
+      if (!DecodeChunk(mem_span))
       {
         if (mode == encoding_t::mode2)
         {
@@ -1262,7 +1220,8 @@ namespace SourceExplorer
             LINE_TRACE, error::decrypt_failed, "MODE 2 Decryption Failed")};
         }
       }
-      return lak::ok_t{lak::move(mem)};
+
+      return lak::ok_t{mem_ptr};
     }
   }
 
@@ -1317,60 +1276,59 @@ namespace SourceExplorer
     return lak::ok_t{game.game.image_bank->items[iter->second]};
   }
 
-  result_t<lak::memory> data_point_t::decode(const chunk_t ID,
-                                             const encoding_t mode) const
+  result_t<data_ref_span_t> data_point_t::decode(const chunk_t ID,
+                                                 const encoding_t mode) const
   {
-    return Decode(data.get(), ID, mode).map([](std::vector<uint8_t> &&array) {
-      return lak::memory(lak::move(array));
-    });
+    return Decode(data, ID, mode);
   }
 
-  error_t chunk_entry_t::read(game_t &game, lak::memory &strm)
+  error_t chunk_entry_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("chunk_entry_t::read");
+    FUNCTION_CHECKPOINT("chunk_entry_t::");
 
-    CHECK_REMAINING(strm, 8);
+    const auto strm_ref_span = strm.peek_remaining_ref_span();
 
-    position = strm.position();
-    old      = game.old_game;
-    ID       = (chunk_t)strm.read_u16();
-    mode     = (encoding_t)strm.read_u16();
+    const auto start = strm.position();
+
+    old = game.old_game;
+    TRY_ASSIGN(ID = (chunk_t), strm.read_u16());
+    TRY_ASSIGN(mode = (encoding_t), strm.read_u16());
 
     DEBUG("Type: ", GetTypeString(ID), " (", uintmax_t(ID), ")");
     if (GetTypeString(ID) == lak::astring("INVALID"))
       WARNING("Invalid Type Detected (", uintmax_t(ID), ")");
     DEBUG("Mode: ", (uint16_t)mode);
-    DEBUG("Position: ", position);
+    DEBUG("Position: ", start);
+    DEBUG("Position: ", strm_ref_span.position().UNWRAP());
+    DEBUG("Root Position: ", strm_ref_span.root_position().UNWRAP());
 
     if ((mode == encoding_t::mode2 || mode == encoding_t::mode3) &&
         _magic_key.size() < 256)
       GetEncryptionKey(game);
 
-    const auto chunk_size     = strm.read_u32();
+    TRY_ASSIGN(const auto chunk_size =, strm.read_u32());
     const auto chunk_data_end = strm.position() + chunk_size;
 
     CHECK_REMAINING(strm, chunk_size);
 
     if (mode == encoding_t::mode1)
     {
-      data.expected_size = strm.read_u32();
+      TRY_ASSIGN(body.expected_size =, strm.read_u32());
 
       if (game.old_game)
       {
-        data.position = strm.position();
-
         if (chunk_size > 4)
-          data.data = strm.read(chunk_size - 4);
+        {
+          TRY_ASSIGN(body.data =, strm.read_ref_span(chunk_size - 4));
+        }
         else
-          data.data.clear();
+          body.data.reset();
       }
       else
       {
-        const auto data_size = strm.read_u32();
-        CHECK_REMAINING(strm, data_size);
+        TRY_ASSIGN(const auto data_size =, strm.read_u32());
 
-        data.position = strm.position();
-        data.data     = strm.read(data_size);
+        TRY_ASSIGN(body.data =, strm.read_ref_span(data_size));
 
         if (strm.position() > chunk_data_end)
         {
@@ -1381,70 +1339,74 @@ namespace SourceExplorer
           ERROR("Read Too Little Data");
         }
 
-        strm.seek(chunk_data_end);
+        TRY(strm.seek(chunk_data_end));
       }
     }
     else
     {
-      data.expected_size = 0;
-      data.position      = strm.position();
-      data.data          = strm.read(chunk_size);
+      body.expected_size = 0;
+      TRY_ASSIGN(body.data =, strm.read_ref_span(chunk_size));
     }
-    end = strm.position();
-    DEBUG("Size: ", end - position);
+
+    const auto size = strm.position() - start;
+    strm.seek(start).UNWRAP();
+    ref_span = strm.read_ref_span(size).UNWRAP();
+    DEBUG("Ref Span Size: ", ref_span.size());
 
     return lak::ok_t{};
   }
 
   void chunk_entry_t::view(source_explorer_t &srcexp) const
   {
-    LAK_TREE_NODE("Entry Information##%zX", position)
+    LAK_TREE_NODE("Entry Information##%zX", position())
     {
       if (old)
         ImGui::Text("Old Entry");
       else
         ImGui::Text("New Entry");
-      ImGui::Text("Position: 0x%zX", position);
-      ImGui::Text("End Pos: 0x%zX", end);
-      ImGui::Text("Size: 0x%zX", end - position);
+      ImGui::Text("Position: 0x%zX", position());
+      ImGui::Text("Size: 0x%zX", ref_span.size());
 
       ImGui::Text("ID: 0x%zX", (size_t)ID);
       ImGui::Text("Mode: MODE%zu", (size_t)mode);
 
-      ImGui::Text("Header Position: 0x%zX", header.position);
-      ImGui::Text("Header Expected Size: 0x%zX", header.expected_size);
-      ImGui::Text("Header Size: 0x%zX", header.data.size());
+      ImGui::Text("Head Position: 0x%zX", head.position());
+      ImGui::Text("Head Expected Size: 0x%zX", head.expected_size);
+      ImGui::Text("Head Size: 0x%zX", head.data.size());
 
-      ImGui::Text("Data Position: 0x%zX", data.position);
-      ImGui::Text("Data Expected Size: 0x%zX", data.expected_size);
-      ImGui::Text("Data Size: 0x%zX", data.data.size());
+      ImGui::Text("Body Position: 0x%zX", body.position());
+      ImGui::Text("Body Expected Size: 0x%zX", body.expected_size);
+      ImGui::Text("Body Size: 0x%zX", body.data.size());
     }
 
     if (ImGui::Button("View Memory")) srcexp.view = this;
   }
 
   error_t item_entry_t::read(game_t &game,
-                             lak::memory &strm,
+                             data_reader_t &strm,
                              bool compressed,
                              size_t header_size,
                              bool has_handle)
   {
-    SCOPED_CHECKPOINT("item_entry_t::read");
+    FUNCTION_CHECKPOINT("item_entry_t::");
 
     DEBUG("Compressed: ", compressed);
     DEBUG("Header Size: ", header_size);
 
-    if (!strm.remaining())
-      return lak::err_t{error(LINE_TRACE, error::out_of_data)};
+    const auto start = strm.position();
 
-    position = strm.position();
-    old      = game.old_game;
-    mode     = encoding_t::mode0;
-    handle   = has_handle ? strm.read_u32() : 0xFF'FF'FF'FF;
+    old  = game.old_game;
+    mode = encoding_t::mode0;
+    if (has_handle)
+    {
+      TRY_ASSIGN(handle =, strm.read_u32());
+    }
+    else
+      handle = 0xFF'FF'FF'FF;
     DEBUG("Handle: ", handle);
 
-    const uint32_t peekaboo = strm.peek_u32();
-    const bool new_item     = peekaboo == 0xFF'FF'FF'FF;
+    TRY_ASSIGN(const uint32_t peekaboo =, strm.peek_u32());
+    const bool new_item = peekaboo == 0xFF'FF'FF'FF;
     if (new_item)
     {
       DEBUG(LAK_BRIGHT_YELLOW "New Item" LAK_SGR_RESET);
@@ -1454,13 +1416,17 @@ namespace SourceExplorer
 
     if (!game.old_game && header_size > 0)
     {
-      header.position      = strm.position();
-      header.expected_size = 0;
-      header.data          = strm.read(header_size);
+      TRY_ASSIGN(head.data =, strm.read_ref_span(header_size));
+      head.expected_size = 0;
     }
 
-    data.expected_size = game.old_game || compressed ? strm.read_u32() : 0;
-    DEBUG("Data Expected Size: ", data.expected_size);
+    if (game.old_game || compressed)
+    {
+      TRY_ASSIGN(body.expected_size =, strm.read_u32());
+    }
+    else
+      body.expected_size = 0;
+    DEBUG("Body Expected Size: ", body.expected_size);
 
     size_t data_size = 0;
     if (game.old_game)
@@ -1470,102 +1436,96 @@ namespace SourceExplorer
       // :TODO: It should be possible to figure this out without
       // actually decompressing it... surely...
       RES_TRY_ASSIGN(const auto raw =,
-                     StreamDecompress(strm, data.expected_size)
-                       .map_err(APPEND_TRACE("item_entry_t::read")));
-      if (raw.size() != data.expected_size)
+                     StreamDecompress(strm, body.expected_size)
+                       .MAP_SE_ERR("item_entry_t::read"));
+      if (raw.size() != body.expected_size)
       {
         WARNING("Actual decompressed size (",
                 raw.size(),
                 ") was not equal to the expected size (",
-                data.expected_size,
+                body.expected_size,
                 ").");
       }
       data_size = strm.position() - start;
-      strm.seek(start);
+      strm.seek(start).UNWRAP();
       DEBUG("Data Size: ", data_size);
     }
     else if (!new_item)
     {
-      data_size = strm.read_u32();
+      DEBUG("Pos: ", strm.position());
+      TRY_ASSIGN(data_size =, strm.read_u32());
       DEBUG("Data Size: ", data_size);
     }
 
-    data.position = strm.position();
-    CHECK_REMAINING(strm, data_size);
-    data.data = strm.read(data_size);
+    TRY_ASSIGN(body.data =, strm.read_ref_span(data_size));
+    DEBUG("Data Size: ", body.data.size());
 
     // hack because one of MMF1.5 or tinf_uncompress is a bitch
     if (game.old_game) mode = encoding_t::mode1;
 
-    end = strm.position();
+    const auto size = strm.position() - start;
+    strm.seek(start).UNWRAP();
+    ref_span = strm.read_ref_span(size).UNWRAP();
+    DEBUG("Ref Span Size: ", ref_span.size());
 
     return lak::ok_t{};
   }
 
   void item_entry_t::view(source_explorer_t &srcexp) const
   {
-    LAK_TREE_NODE("Entry Information##%zX", position)
+    LAK_TREE_NODE("Entry Information##%zX", position())
     {
       if (old)
         ImGui::Text("Old Entry");
       else
         ImGui::Text("New Entry");
-      ImGui::Text("Position: 0x%zX", position);
-      ImGui::Text("End Pos: 0x%zX", end);
-      ImGui::Text("Size: 0x%zX", end - position);
+      ImGui::Text("Position: 0x%zX", position());
+      ImGui::Text("Size: 0x%zX", ref_span.size());
 
       ImGui::Text("Handle: 0x%zX", (size_t)handle);
 
-      ImGui::Text("Header Position: 0x%zX", header.position);
-      ImGui::Text("Header Expected Size: 0x%zX", header.expected_size);
-      ImGui::Text("Header Size: 0x%zX", header.data.size());
+      ImGui::Text("Head Position: 0x%zX", head.position());
+      ImGui::Text("Head Expected Size: 0x%zX", head.expected_size);
+      ImGui::Text("Head Size: 0x%zX", head.data.size());
 
-      ImGui::Text("Data Position: 0x%zX", data.position);
-      ImGui::Text("Data Expected Size: 0x%zX", data.expected_size);
-      ImGui::Text("Data Size: 0x%zX", data.data.size());
+      ImGui::Text("Body Position: 0x%zX", body.position());
+      ImGui::Text("Body Expected Size: 0x%zX", body.expected_size);
+      ImGui::Text("Body Size: 0x%zX", body.data.size());
     }
 
     if (ImGui::Button("View Memory")) srcexp.view = this;
   }
 
-  result_t<lak::memory> basic_entry_t::decode(size_t max_size) const
+  result_t<data_ref_span_t> basic_entry_t::decode_body(size_t max_size) const
   {
-    SCOPED_CHECKPOINT("basic_entry_t::decode");
-
-    auto array_to_memory = [](std::vector<uint8_t> &&array) {
-      return lak::memory(lak::move(array));
-    };
+    FUNCTION_CHECKPOINT("basic_entry_t::");
 
     if (old)
     {
       switch (mode)
       {
-        case encoding_t::mode0: return lak::ok_t{lak::memory(data.data)};
+        case encoding_t::mode0: return lak::ok_t{body.data};
 
         case encoding_t::mode1:
         {
-          lak::memory result = data.data;
-          uint8_t magic      = result.read_u8();
-          uint16_t len       = result.read_u16();
-          if (magic == 0x0F && (size_t)len == data.expected_size)
+          data_reader_t reader(body.data);
+          TRY_ASSIGN(const uint8_t magic =, reader.read_u8());
+          TRY_ASSIGN(const uint16_t len =, reader.read_u16());
+          if (magic == 0x0F && (size_t)len == body.expected_size)
           {
-            result =
-              lak::memory(result.read(std::min(result.remaining(), max_size)));
+            auto result = reader.read_remaining_ref_span(max_size);
             DEBUG("Size: ", result.size());
-            return lak::ok_t{lak::move(result)};
+            return lak::ok_t{result};
           }
           else
           {
-            result.unread(3);
-            return Inflate(result,
-                           result.get(),
+            return Inflate(body.data,
                            true,
                            true,
-                           std::min(data.expected_size, max_size))
-              .map([&](const auto &) { return lak::move(result); })
-              .map_err(APPEND_TRACE("MODE1 Failed To Inflate"))
-              .if_ok([](const lak::memory &memory) {
-                DEBUG("Size: ", memory.size());
+                           std::min(body.expected_size, max_size))
+              .MAP_SE_ERR("MODE1 Failed To Inflate")
+              .if_ok([](const auto &ref_span) {
+                DEBUG("Size: ", ref_span.size());
               });
           }
         }
@@ -1576,9 +1536,7 @@ namespace SourceExplorer
         case encoding_t::mode3:
           return lak::err_t{error(LINE_TRACE, error::no_mode3_decoder)};
 
-        default:
-          ASSERT_NYI();
-          return lak::err_t{error(LINE_TRACE, "Invalid Mode")};
+        default: return lak::err_t{error(LINE_TRACE, error::invalid_mode)};
       }
     }
     else
@@ -1586,69 +1544,59 @@ namespace SourceExplorer
       switch (mode)
       {
         case encoding_t::mode4:
-          return LZ4DecodeReadSize(
-                   lak::span_memory(lak::span<uint8_t>(
-                     (uint8_t *)data.data.data(), data.data.size())))
-            .map(array_to_memory)
-            .map_err(APPEND_TRACE("LZ4 Decode Failed"))
-            .if_ok([](const lak::memory &memory) {
-              DEBUG("Size: ", memory.size())
-            });
+        {
+          return LZ4DecodeReadSize(body.data)
+            .MAP_SE_ERR("LZ4 Decode Failed")
+            .if_ok(
+              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+        }
 
         case encoding_t::mode3: [[fallthrough]];
         case encoding_t::mode2:
-          return Decrypt(data.data.get(), ID, mode)
-            .map(array_to_memory)
-            .map_err(APPEND_TRACE("MODE2/3 Failed To Decrypt"))
-            .if_ok([](const lak::memory &memory) {
-              DEBUG("Size: ", memory.size());
-            });
+        {
+          return Decrypt(body.data, ID, mode)
+            .MAP_SE_ERR("MODE2/3 Failed To Decrypt")
+            .if_ok(
+              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+        }
 
         case encoding_t::mode1:
-          return Inflate(data.data.get(), false, false, max_size)
-            .map(array_to_memory)
-            .map_err(APPEND_TRACE("MODE1 Failed To Inflate"))
-            .if_ok([](const lak::memory &memory) {
-              DEBUG("Size: ", memory.size());
-            });
+        {
+          return Inflate(body.data, false, false, max_size)
+            .MAP_SE_ERR("MODE1 Failed To Inflate")
+            .if_ok(
+              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+        }
 
         case encoding_t::mode0: [[fallthrough]];
         default:
-          if (data.data.size() > 0 && data.data.get()[0] == 0x78)
+        {
+          if (body.data.size() > 0 && body.data[0] == 0x78)
           {
-            if (auto result = Inflate(data.data.get(), false, false, max_size)
-                                .map(array_to_memory)
-                                .if_ok([](const lak::memory &memory) {
-                                  DEBUG("Size: ", memory.size());
-                                });
-                result.is_ok())
-            {
-              if (result.unwrap().size() == 0)
-                WARNING("Inflated Data Was Empty");
-              return result;
-            }
-            else
-            {
-              DEBUG("Size: ", data.data.size());
-              WARNING("Guessed MODE1 Failed To Inflate: ",
-                      result.unsafe_unwrap_err());
-              return lak::ok_t{data.data};
-            }
+            return lak::ok_t{lak::ok_or_err(
+              Inflate(body.data, false, false, max_size)
+                .if_ok([](const auto &ref_span) {
+                  if (ref_span.size() == 0) WARNING("Inflated Data Was Empty");
+                  DEBUG("Size: ", ref_span.size());
+                })
+                .map_err([this](const auto &err) {
+                  WARNING("Guess MODE1 Failed To Inflate: ", err);
+                  DEBUG("Size: ", body.data.size());
+                  return body.data;
+                }))};
           }
           else
           {
-            DEBUG("Size: ", data.data.size());
-            return lak::ok_t{data.data};
+            return lak::ok_t{body.data};
           }
+        }
       }
     }
   }
 
-  result_t<lak::memory> basic_entry_t::decodeHeader(size_t max_size) const
+  result_t<data_ref_span_t> basic_entry_t::decode_head(size_t max_size) const
   {
-    auto array_to_memory = [](std::vector<uint8_t> &&array) {
-      return lak::memory(lak::move(array));
-    };
+    FUNCTION_CHECKPOINT("basic_entry_t::");
 
     if (old)
     {
@@ -1662,9 +1610,7 @@ namespace SourceExplorer
           return lak::err_t{error(LINE_TRACE, error::no_mode2_decoder)};
         case encoding_t::mode3:
           return lak::err_t{error(LINE_TRACE, error::no_mode3_decoder)};
-        default:
-          ASSERT_NYI();
-          return lak::err_t{error(LINE_TRACE, "Invalid Mode")};
+        default: return lak::err_t{error(LINE_TRACE, error::invalid_mode)};
       }
     }
     else
@@ -1673,101 +1619,102 @@ namespace SourceExplorer
       {
         case encoding_t::mode3:
         case encoding_t::mode2:
-          return Decrypt(data.data.get(), ID, mode)
-            .map(array_to_memory)
-            .map_err(APPEND_TRACE("MODE2/3 Failed To Decrypt"));
+        {
+          // :TODO: this was originally body not head, check that this change
+          // is correct.
+          return Decrypt(head.data, ID, mode)
+            .MAP_SE_ERR("MODE2/3 Failed To Decrypt")
+            .if_ok(
+              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+        }
 
         case encoding_t::mode1:
-          return Inflate(header.data.get(), false, false, max_size)
-            .map(array_to_memory)
-            .map_err(APPEND_TRACE("MODE1 Failed To Inflate"));
+        {
+          return Inflate(head.data, false, false, max_size)
+            .MAP_SE_ERR("MODE1 Failed To Inflate")
+            .if_ok(
+              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+        }
 
         case encoding_t::mode4: [[fallthrough]];
         case encoding_t::mode0: [[fallthrough]];
         default:
-          if (header.data.size() > 0 && header.data.get()[0] == 0x78)
+        {
+          if (head.data.size() > 0 && head.data[0] == 0x78)
           {
-            if (auto result =
-                  Inflate(header.data.get(), false, false, max_size)
-                    .map(array_to_memory);
-                result.is_ok())
-            {
-              if (result.unwrap().size() == 0)
-                WARNING("Inflated Data Was Empty");
-              return result;
-            }
-            else
-            {
-              WARNING("Guessed MODE1 Failed To Inflate");
-              return lak::ok_t{header.data};
-            }
+            return lak::ok_t{lak::ok_or_err(
+              Inflate(head.data, false, false, max_size)
+                .if_ok([](const auto &ref_span) {
+                  if (ref_span.size() == 0) WARNING("Inflated Data Was Empty");
+                  DEBUG("Size: ", ref_span.size());
+                })
+                .map_err([this](const auto &err) {
+                  WARNING("Guess MODE1 Failed To Inflate: ", err);
+                  DEBUG("Size: ", head.data.size());
+                  return head.data;
+                }))};
           }
           else
-            return lak::ok_t{header.data};
+          {
+            return lak::ok_t{head.data};
+          }
+        }
       }
     }
   }
 
-  const lak::memory &basic_entry_t::raw() const { return data.data; }
+  const data_ref_span_t &basic_entry_t::raw_body() const { return body.data; }
 
-  const lak::memory &basic_entry_t::rawHeader() const { return header.data; }
+  const data_ref_span_t &basic_entry_t::raw_head() const { return head.data; }
 
-  std::u16string ReadStringEntry(game_t &game, const chunk_entry_t &entry)
+  result_t<std::u16string> ReadStringEntry(game_t &game,
+                                           const chunk_entry_t &entry)
   {
-    std::u16string result;
-
     if (game.old_game)
     {
       switch (entry.mode)
       {
-        case encoding_t::mode0:
+        case encoding_t::mode0: [[fallthrough]];
         case encoding_t::mode1:
-        {
-          if (auto decoded = entry.decode(); decoded.is_ok())
-            result = lak::to_u16string(decoded.unsafe_unwrap().read_astring());
-          else
-            decoded
-              .IF_ERR("Invalid String Chunk: ",
-                      (int)entry.mode,
-                      ", Chunk: ",
-                      (int)entry.ID)
-              .discard();
-        }
-        break;
+          return entry.decode_body()
+            .map([&](const data_ref_span_t &ref_span) {
+              data_reader_t reader(ref_span);
+              return lak::to_u16string(reader.read_any_c_str<char>());
+            })
+            .MAP_SE_ERR("Invalid String Chunk: ",
+                        (int)entry.mode,
+                        ", Chunk: ",
+                        (int)entry.ID);
+
         default:
-        {
-          ERROR("Invalid String Mode: ",
-                (int)entry.mode,
-                ", Chunk: ",
-                (int)entry.ID);
-        }
-        break;
+          return lak::err_t{error(LINE_TRACE,
+                                  error::invalid_mode,
+                                  "Invalid String Mode: ",
+                                  (int)entry.mode,
+                                  ", Chunk: ",
+                                  (int)entry.ID)};
       }
     }
     else
     {
-      if (auto decoded = entry.decode(); decoded.is_ok())
-      {
-        if (game.unicode)
-          result = decoded.unsafe_unwrap().read_u16string().to_string();
-        else
-          result = lak::to_u16string(decoded.unsafe_unwrap().read_astring());
-      }
-      else
-        decoded
-          .IF_ERR("Invalid String Chunk: ",
-                  (int)entry.mode,
-                  ", Chunk: ",
-                  (int)entry.ID)
-          .discard();
+      return entry.decode_body()
+        .map([&](const data_ref_span_t &ref_span) {
+          data_reader_t reader(ref_span);
+          if (game.unicode)
+            return reader.read_any_c_str<char16_t>();
+          else
+            return lak::to_u16string(reader.read_any_c_str<char>());
+        })
+        .MAP_SE_ERR("Invalid String Chunk: ",
+                    (int)entry.mode,
+                    ", Chunk: ",
+                    (int)entry.ID);
     }
-
-    return result;
   }
 
-  error_t basic_chunk_t::read(game_t &game, lak::memory &strm)
+  error_t basic_chunk_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("basic_chunk_t::read");
+    FUNCTION_CHECKPOINT("basic_chunk_t::");
     error_t result = entry.read(game, strm);
     return result;
   }
@@ -1775,7 +1722,7 @@ namespace SourceExplorer
   error_t basic_chunk_t::basic_view(source_explorer_t &srcexp,
                                     const char *name) const
   {
-    LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position)
+    LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position())
     {
       entry.view(srcexp);
     }
@@ -1783,9 +1730,9 @@ namespace SourceExplorer
     return lak::ok_t{};
   }
 
-  error_t basic_item_t::read(game_t &game, lak::memory &strm)
+  error_t basic_item_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("basic_item_t::read");
+    FUNCTION_CHECKPOINT("basic_item_t::");
     error_t result = entry.read(game, strm, true);
     return result;
   }
@@ -1793,7 +1740,7 @@ namespace SourceExplorer
   error_t basic_item_t::basic_view(source_explorer_t &srcexp,
                                    const char *name) const
   {
-    LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position)
+    LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position())
     {
       entry.view(srcexp);
     }
@@ -1801,16 +1748,15 @@ namespace SourceExplorer
     return lak::ok_t{};
   }
 
-  error_t string_chunk_t::read(game_t &game, lak::memory &strm)
+  error_t string_chunk_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("string_chunk_t::read");
+    FUNCTION_CHECKPOINT("string_chunk_t::");
 
-    RES_TRY_ERR(
-      entry.read(game, strm).map_err(APPEND_TRACE("string_chunk_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("string_chunk_t::read"));
 
-    value = ReadStringEntry(game, entry);
+    TRY_SE_ASSIGN(value =, ReadStringEntry(game, entry));
 
-    DEBUG(LAK_YELLOW "Value: \"", value, "\"" LAK_SGR_RESET);
+    DEBUG(LAK_YELLOW "Value: \"", lak::to_astring(value), "\"" LAK_SGR_RESET);
 
     return lak::ok_t{};
   }
@@ -1819,16 +1765,16 @@ namespace SourceExplorer
                                const char *name,
                                const bool preview) const
   {
-    lak::astring str = astring();
+    lak::astring str = "'" + astring() + "'";
 
-    LAK_TREE_NODE("0x%zX %s '%s'##%zX",
+    LAK_TREE_NODE("0x%zX %s %s##%zX",
                   (size_t)entry.ID,
                   name,
                   preview ? str.c_str() : "",
-                  entry.position)
+                  entry.position())
     {
       entry.view(srcexp);
-      ImGui::Text("String: '%s'", str.c_str());
+      ImGui::Text("String: %s", str.c_str());
       ImGui::Text("String Length: 0x%zX", value.size());
     }
 
@@ -1847,23 +1793,23 @@ namespace SourceExplorer
     return lak::strconv<char>(value);
   }
 
-  error_t strings_chunk_t::read(game_t &game, lak::memory &strm)
+  error_t strings_chunk_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("strings_chunk_t::read");
+    FUNCTION_CHECKPOINT("strings_chunk_t::");
 
-    RES_TRY_ERR(
-      entry.read(game, strm).map_err(APPEND_TRACE("string_chunk_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("string_chunk_t::read"));
 
-    RES_TRY_ASSIGN(
-      auto sstrm =,
-      entry.decode().map_err(APPEND_TRACE("string_chunk_t::read")));
+    RES_TRY_ASSIGN(auto span =,
+                   entry.decode_body().MAP_SE_ERR("string_chunk_t::read"));
 
-    while (sstrm.remaining())
+    data_reader_t sstrm(span);
+
+    while (!sstrm.empty())
     {
-      auto str = sstrm.read_u16string(sstrm.remaining());
+      auto str = sstrm.read_any_c_str<char16_t>();
       DEBUG("    Read String (Len ", str.size(), ")");
       if (!str.size()) break;
-      values.emplace_back(str.to_string());
+      values.emplace_back(lak::move(str));
     }
 
     return lak::ok_t{};
@@ -1876,7 +1822,7 @@ namespace SourceExplorer
                   (size_t)entry.ID,
                   name,
                   values.size(),
-                  entry.position)
+                  entry.position())
     {
       entry.view(srcexp);
       for (const auto &s : values)
@@ -1894,23 +1840,24 @@ namespace SourceExplorer
   error_t compressed_chunk_t::view(source_explorer_t &srcexp) const
   {
     LAK_TREE_NODE(
-      "0x%zX Unknown Compressed##%zX", (size_t)entry.ID, entry.position)
+      "0x%zX Unknown Compressed##%zX", (size_t)entry.ID, entry.position())
     {
       entry.view(srcexp);
 
       if (ImGui::Button("View Compressed"))
       {
         RES_TRY_ASSIGN(
-          auto strm =,
-          entry.decode().map_err(APPEND_TRACE("compressed_chunk_t::view")));
-        strm.skip(8);
-        lak::array<uint8_t> buffer;
-        tinf::error_t err =
-          tinf::tinflate(strm.read(strm.remaining()), &buffer);
-        if (err == tinf::error_t::OK)
-          srcexp.buffer = std::vector(buffer.begin(), buffer.end());
-        else
-          ERROR("Failed To Decompress Chunk (", tinf::error_name(err), ")");
+          auto span =,
+          entry.decode_body().MAP_SE_ERR("compressed_chunk_t::view"));
+
+        data_reader_t strm(span);
+
+        TRY(strm.skip(8));
+
+        Inflate(strm.read_remaining_ref_span(), false, false)
+          .if_ok([&](auto ref_span) { srcexp.buffer = ref_span; })
+          .IF_ERR("Inflate Failed")
+          .discard();
       }
     }
 
@@ -1977,42 +1924,51 @@ namespace SourceExplorer
     return basic_view(srcexp, "Extension List");
   }
 
-  error_t icon_t::read(game_t &game, lak::memory &strm)
+  error_t icon_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("icon_t::read");
+    FUNCTION_CHECKPOINT("icon_t::");
 
-    RES_TRY_ERR(entry.read(game, strm).map_err(APPEND_TRACE("icon_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("icon_t::read"));
 
-    RES_TRY_ASSIGN(auto dstrm =,
-                   entry.decode().map_err(APPEND_TRACE("icon_t::read")));
-    dstrm.seek(dstrm.peek_u32());
+    RES_TRY_ASSIGN(auto span =,
+                   entry.decode_body().MAP_SE_ERR("icon_t::read"));
+
+    data_reader_t dstrm(span);
+
+    TRY_ASSIGN(const auto data_begin =, dstrm.peek_u32());
+    TRY(dstrm.seek(data_begin));
 
     std::vector<lak::color4_t> palette;
     palette.resize(16 * 16);
 
     for (auto &point : palette)
     {
-      point.b = dstrm.read_u8();
-      point.g = dstrm.read_u8();
-      point.r = dstrm.read_u8();
-      // point.a = dstrm.read_u8();
+      TRY_ASSIGN(point.b =, dstrm.read_u8());
+      TRY_ASSIGN(point.g =, dstrm.read_u8());
+      TRY_ASSIGN(point.r =, dstrm.read_u8());
+      // TRY_ASSIGN(point.a =, dstrm.read_u8());
       point.a = 0xFF;
-      dstrm.skip(1);
+      TRY(dstrm.skip(1));
     }
 
     bitmap.resize({16, 16});
+
+    CHECK_REMAINING(dstrm, bitmap.contig_size());
 
     for (size_t y = 0; y < bitmap.size().y; ++y)
     {
       for (size_t x = 0; x < bitmap.size().x; ++x)
       {
-        bitmap[{x, (bitmap.size().y - 1) - y}] = palette[dstrm.read_u8()];
+        bitmap[{x, (bitmap.size().y - 1) - y}] =
+          palette[dstrm.read_u8().UNWRAP()];
       }
     }
 
+    CHECK_REMAINING(dstrm, bitmap.contig_size() / 8);
+
     for (size_t i = 0; i < bitmap.contig_size() / 8; ++i)
     {
-      uint8_t mask = dstrm.read_u8();
+      uint8_t mask = dstrm.read_u8().UNWRAP();
       for (size_t j = 0; j < 8; ++j)
       {
         if (0x1 & (mask >> (8 - j)))
@@ -2031,7 +1987,7 @@ namespace SourceExplorer
 
   error_t icon_t::view(source_explorer_t &srcexp) const
   {
-    LAK_TREE_NODE("0x%zX Icon##%zX", (size_t)entry.ID, entry.position)
+    LAK_TREE_NODE("0x%zX Icon##%zX", (size_t)entry.ID, entry.position())
     {
       entry.view(srcexp);
 
@@ -2058,54 +2014,69 @@ namespace SourceExplorer
     return basic_view(srcexp, "Security Number");
   }
 
-  error_t binary_file_t::read(game_t &game, lak::memory &strm)
+  error_t binary_file_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("binary_file_t::read");
+    FUNCTION_CHECKPOINT("binary_file_t::");
 
+    TRY_ASSIGN(const auto str_len =, strm.read_u16());
+
+    auto to_str = [](auto &&arr) { return lak::to_u8string(lak::span(arr)); };
+    auto set_name = [&](auto &&str) { name = lak::move(str); };
     if (game.unicode)
-      name = strm.read_u16string_exact(strm.read_u16()).to_string();
+    {
+      TRY(strm.read<char16_t>(str_len).map(to_str).if_ok(set_name));
+    }
     else
-      name = lak::to_u16string(strm.read_astring_exact(strm.read_u16()));
+    {
+      TRY(strm.read<char>(str_len).map(to_str).if_ok(set_name));
+    }
 
-    data = strm.read(strm.read_u32());
+    TRY_ASSIGN(const auto data_len =, strm.read_u32());
+
+    TRY_ASSIGN(data =, strm.read_ref_span(data_len));
 
     return lak::ok_t{};
   }
 
   error_t binary_file_t::view(source_explorer_t &srcexp) const
   {
-    lak::astring str = lak::to_astring(name);
+    auto str = lak::as_astring(name);
 
-    LAK_TREE_NODE("%s", str.c_str())
+    LAK_TREE_NODE("%s", str.data())
     {
-      ImGui::Text("Name: %s", str.c_str());
+      ImGui::Text("Name: %s", str.data());
       ImGui::Text("Data Size: 0x%zX", data.size());
     }
 
     return lak::ok_t{};
   }
 
-  error_t binary_files_t::read(game_t &game, lak::memory &strm)
+  error_t binary_files_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("binary_files_t::read");
+    FUNCTION_CHECKPOINT("binary_files_t::");
 
-    RES_TRY_ERR(
-      entry.read(game, strm).map_err(APPEND_TRACE("binary_files_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("binary_files_t::read"));
 
-    RES_TRY_ASSIGN(
-      lak::memory bstrm =,
-      entry.decode().map_err(APPEND_TRACE("binary_files_t::read")));
-    items.resize(bstrm.read_u32());
+    RES_TRY_ASSIGN(auto span =,
+                   entry.decode_body().MAP_SE_ERR("binary_files_t::read"));
+
+    data_reader_t bstrm(span);
+
+    TRY_ASSIGN(const auto item_count =, bstrm.read_u32());
+
+    items.resize(item_count);
     for (auto &item : items)
-      RES_TRY_ERR(
-        item.read(game, bstrm).map_err(APPEND_TRACE("binary_files_t::read")));
+    {
+      RES_TRY(item.read(game, bstrm).MAP_SE_ERR("binary_files_t::read"));
+    }
 
     return lak::ok_t{};
   }
 
   error_t binary_files_t::view(source_explorer_t &srcexp) const
   {
-    LAK_TREE_NODE("0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position)
+    LAK_TREE_NODE(
+      "0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position())
     {
       entry.view(srcexp);
 
@@ -2114,8 +2085,7 @@ namespace SourceExplorer
       {
         ImGui::PushID(index++);
         DEFER(ImGui::PopID());
-        RES_TRY_ERR(
-          item.view(srcexp).map_err(APPEND_TRACE("binary_files_t::view")));
+        RES_TRY(item.view(srcexp).MAP_SE_ERR("binary_files_t::view"));
       }
     }
 
@@ -2162,21 +2132,22 @@ namespace SourceExplorer
     return basic_view(srcexp, "Shaders");
   }
 
-  error_t extended_header_t::read(game_t &game, lak::memory &strm)
+  error_t extended_header_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("extended_header_t::read");
+    FUNCTION_CHECKPOINT("extended_header_t::");
 
-    RES_TRY_ERR(
-      entry.read(game, strm).map_err(APPEND_TRACE("extended_header_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("extended_header_t::read"));
 
-    RES_TRY_ASSIGN(
-      lak::memory estrm =,
-      entry.decode().map_err(APPEND_TRACE("extended_header_t::read")));
-    flags                  = estrm.read_u32();
-    build_type             = estrm.read_u32();
-    build_flags            = estrm.read_u32();
-    screen_ratio_tolerance = estrm.read_u16();
-    screen_angle           = estrm.read_u16();
+    RES_TRY_ASSIGN(auto span =,
+                   entry.decode_body().MAP_SE_ERR("extended_header_t::read"));
+
+    data_reader_t estrm(span);
+
+    TRY_ASSIGN(flags =, estrm.read_u32());
+    TRY_ASSIGN(build_type =, estrm.read_u32());
+    TRY_ASSIGN(build_flags =, estrm.read_u32());
+    TRY_ASSIGN(screen_ratio_tolerance =, estrm.read_u16());
+    TRY_ASSIGN(screen_angle =, estrm.read_u16());
 
     game.compat |= build_type >= 0x10000000;
 
@@ -2186,7 +2157,7 @@ namespace SourceExplorer
   error_t extended_header_t::view(source_explorer_t &srcexp) const
   {
     LAK_TREE_NODE(
-      "0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position)
+      "0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position())
     {
       entry.view(srcexp);
 
@@ -2216,16 +2187,16 @@ namespace SourceExplorer
     return basic_view(srcexp, "Title 2");
   }
 
-  error_t chunk_2253_item_t::read(game_t &game, lak::memory &strm)
+  error_t chunk_2253_item_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("chunk2253_t::read");
+    FUNCTION_CHECKPOINT("chunk2253_t::");
 
     CHECK_REMAINING(strm, 16);
 
     position = strm.position();
-    DEFER(strm.seek(position + 16));
+    DEFER(strm.seek(position + 16).UNWRAP());
 
-    ID = strm.read_u16();
+    TRY_ASSIGN(ID =, strm.read_u16());
 
     return lak::ok_t{};
   }
@@ -2237,27 +2208,26 @@ namespace SourceExplorer
     return lak::ok_t{};
   }
 
-  error_t chunk_2253_t::read(game_t &game, lak::memory &strm)
+  error_t chunk_2253_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("chunk2253_t::read");
+    FUNCTION_CHECKPOINT("chunk2253_t::");
 
-    RES_TRY_ERR(
-      entry.read(game, strm).map_err(APPEND_TRACE("chunk_2253_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("chunk_2253_t::read"));
 
-    RES_TRY_ASSIGN(lak::memory cstrm =,
-                   entry.decode().map_err(APPEND_TRACE("chunk_2253_t::read")));
+    RES_TRY_ASSIGN(auto span =,
+                   entry.decode_body().MAP_SE_ERR("chunk_2253_t::read"));
 
-    while (cstrm.remaining() >= 16)
+    data_reader_t cstrm(span);
+
+    while (cstrm.remaining().size() >= 16)
     {
       const size_t pos = cstrm.position();
       items.emplace_back();
-      RES_TRY_ERR(items.back()
-                    .read(game, cstrm)
-                    .map_err(APPEND_TRACE("chunk_2253_t::read")));
+      RES_TRY(items.back().read(game, cstrm).MAP_SE_ERR("chunk_2253_t::read"));
       if (cstrm.position() == pos) break;
     }
 
-    if (cstrm.remaining()) WARNING("Data Left Over");
+    if (!cstrm.empty()) WARNING("Data Left Over");
 
     return lak::ok_t{};
   }
@@ -2267,7 +2237,7 @@ namespace SourceExplorer
     LAK_TREE_NODE("0x%zX Chunk 2253 (%zu Items)##%zX",
                   (size_t)entry.ID,
                   items.size(),
-                  entry.position)
+                  entry.position())
     {
       entry.view(srcexp);
 
@@ -2276,8 +2246,7 @@ namespace SourceExplorer
       {
         LAK_TREE_NODE("0x%zX Item##%zX", (size_t)item.ID, i++)
         {
-          RES_TRY(
-            item.view(srcexp).map_err(APPEND_TRACE("chunk_2253_t::view")));
+          RES_TRY(item.view(srcexp).MAP_SE_ERR("chunk_2253_t::view"));
         }
       }
     }
@@ -2296,28 +2265,23 @@ namespace SourceExplorer
   }
 
   error_t two_five_plus_object_properties_t::read(game_t &game,
-                                                  lak::memory &strm)
+                                                  data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("two_five_plus_object_properties_t::read");
+    FUNCTION_CHECKPOINT("two_five_plus_object_properties_t::");
 
     game.two_five_plus_game = true;
 
-    RES_TRY_ERR(
-      entry.read(game, strm)
-        .map_err(APPEND_TRACE("two_five_plus_object_properties_t::read")));
+    RES_TRY(entry.read(game, strm)
+              .MAP_SE_ERR("two_five_plus_object_properties_t::read"));
 
-    const auto end = strm.position();
-    DEFER(strm.seek(end));
+    data_reader_t reader(entry.raw_body());
 
-    strm.seek(entry.data.position);
-
-    while (strm.position() < end)
+    while (!reader.empty())
     {
       items.emplace_back();
-      RES_TRY_ERR(
-        items.back()
-          .read(game, strm, true, 0, false)
-          .map_err(APPEND_TRACE("two_five_plus_object_properties_t::read")));
+      RES_TRY(items.back()
+                .read(game, reader, true, 0, false)
+                .MAP_SE_ERR("two_five_plus_object_properties_t::read"));
     }
 
     return lak::ok_t{};
@@ -2329,13 +2293,16 @@ namespace SourceExplorer
     LAK_TREE_NODE("0x%zX Object Properties (2.5+) (%zu Items)##%zX",
                   (size_t)entry.ID,
                   items.size(),
-                  entry.position)
+                  entry.position())
     {
       entry.view(srcexp);
 
       for (const auto &item : items)
       {
-        LAK_TREE_NODE("Properties##%zX", item.position) { item.view(srcexp); }
+        LAK_TREE_NODE("Properties##%zX", item.position())
+        {
+          item.view(srcexp);
+        }
       }
     }
 
@@ -2347,24 +2314,20 @@ namespace SourceExplorer
     return basic_view(srcexp, "Chunk 2257");
   }
 
-  error_t object_properties_t::read(game_t &game, lak::memory &strm)
+  error_t object_properties_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("object_properties_t::read");
+    FUNCTION_CHECKPOINT("object_properties_t::");
 
-    RES_TRY_ERR(entry.read(game, strm)
-                  .map_err(APPEND_TRACE("object_properties_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("object_properties_t::read"));
 
-    const auto end = strm.position();
-    DEFER(strm.seek(end));
+    data_reader_t reader(entry.raw_body());
 
-    strm.seek(entry.data.position);
-
-    while (strm.position() < end)
+    while (!reader.empty())
     {
       items.emplace_back();
-      RES_TRY_ERR(items.back()
-                    .read(game, strm, false)
-                    .map_err(APPEND_TRACE("object_properties_t::read")));
+      RES_TRY(items.back()
+                .read(game, reader, false)
+                .MAP_SE_ERR("object_properties_t::read"));
     }
 
     return lak::ok_t{};
@@ -2375,13 +2338,14 @@ namespace SourceExplorer
     LAK_TREE_NODE("0x%zX Object Properties (%zu Items)##%zX",
                   (size_t)entry.ID,
                   items.size(),
-                  entry.position)
+                  entry.position())
     {
       entry.view(srcexp);
 
       for (const auto &item : items)
       {
-        LAK_TREE_NODE("0x%zX Properties##%zX", (size_t)item.ID, item.position)
+        LAK_TREE_NODE(
+          "0x%zX Properties##%zX", (size_t)item.ID, item.position())
         {
           item.view(srcexp);
         }
@@ -2396,26 +2360,23 @@ namespace SourceExplorer
     return basic_view(srcexp, "TrueType Fonts Meta");
   }
 
-  error_t truetype_fonts_t::read(game_t &game, lak::memory &strm)
+  error_t truetype_fonts_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("truetype_fonts_t::read");
+    FUNCTION_CHECKPOINT("truetype_fonts_t::");
 
     const size_t pos = strm.position();
 
-    RES_TRY_ERR(
-      entry.read(game, strm).map_err(APPEND_TRACE("truetype_fonts_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("truetype_fonts_t::read"));
 
-    const auto end = strm.position();
-    DEFER(strm.seek(end));
-    strm.seek(entry.data.position);
+    data_reader_t reader(entry.raw_body());
 
-    for (size_t i = 0; strm.position() < end; ++i)
+    for (size_t i = 0; !reader.empty(); ++i)
     {
       DEBUG("Font ", i);
       items.emplace_back();
-      RES_TRY_ERR(items.back()
-                    .read(game, strm, false)
-                    .map_err(APPEND_TRACE("truetype_fonts_t::read")));
+      RES_TRY(items.back()
+                .read(game, reader, false)
+                .MAP_SE_ERR("truetype_fonts_t::read"));
     }
 
     return lak::ok_t{};
@@ -2426,13 +2387,13 @@ namespace SourceExplorer
     LAK_TREE_NODE("0x%zX TrueType Fonts (%zu Items)##%zX",
                   (size_t)entry.ID,
                   items.size(),
-                  entry.position)
+                  entry.position())
     {
       entry.view(srcexp);
 
       for (const auto &item : items)
       {
-        LAK_TREE_NODE("0x%zX Font##%zX", (size_t)item.ID, item.position)
+        LAK_TREE_NODE("0x%zX Font##%zX", (size_t)item.ID, item.position())
         {
           item.view(srcexp);
         }
@@ -2449,17 +2410,17 @@ namespace SourceExplorer
       return basic_view(srcexp, "Effect");
     }
 
-    error_t shape_t::read(game_t &game, lak::memory &strm)
+    error_t shape_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::shape_t::read");
+      FUNCTION_CHECKPOINT("object::shape_t::");
 
-      border_size    = strm.read_u16();
-      border_color.r = strm.read_u8();
-      border_color.g = strm.read_u8();
-      border_color.b = strm.read_u8();
-      border_color.a = strm.read_u8();
-      shape          = (shape_type_t)strm.read_u16();
-      fill           = (fill_type_t)strm.read_u16();
+      TRY_ASSIGN(border_size =, strm.read_u16());
+      TRY_ASSIGN(border_color.r =, strm.read_u8());
+      TRY_ASSIGN(border_color.g =, strm.read_u8());
+      TRY_ASSIGN(border_color.b =, strm.read_u8());
+      TRY_ASSIGN(border_color.a =, strm.read_u8());
+      TRY_ASSIGN(shape = (shape_type_t), strm.read_u16());
+      TRY_ASSIGN(fill = (fill_type_t), strm.read_u16());
 
       line     = line_flags_t::none;
       gradient = gradient_flags_t::horizontal;
@@ -2467,30 +2428,30 @@ namespace SourceExplorer
 
       if (shape == shape_type_t::line)
       {
-        line = (line_flags_t)strm.read_u16();
+        TRY_ASSIGN(line = (line_flags_t), strm.read_u16());
       }
       else if (fill == fill_type_t::solid)
       {
-        color1.r = strm.read_u8();
-        color1.g = strm.read_u8();
-        color1.b = strm.read_u8();
-        color1.a = strm.read_u8();
+        TRY_ASSIGN(color1.r =, strm.read_u8());
+        TRY_ASSIGN(color1.g =, strm.read_u8());
+        TRY_ASSIGN(color1.b =, strm.read_u8());
+        TRY_ASSIGN(color1.a =, strm.read_u8());
       }
       else if (fill == fill_type_t::gradient)
       {
-        color1.r = strm.read_u8();
-        color1.g = strm.read_u8();
-        color1.b = strm.read_u8();
-        color1.a = strm.read_u8();
-        color2.r = strm.read_u8();
-        color2.g = strm.read_u8();
-        color2.b = strm.read_u8();
-        color2.a = strm.read_u8();
-        gradient = (gradient_flags_t)strm.read_u16();
+        TRY_ASSIGN(color1.r =, strm.read_u8());
+        TRY_ASSIGN(color1.g =, strm.read_u8());
+        TRY_ASSIGN(color1.b =, strm.read_u8());
+        TRY_ASSIGN(color1.a =, strm.read_u8());
+        TRY_ASSIGN(color2.r =, strm.read_u8());
+        TRY_ASSIGN(color2.g =, strm.read_u8());
+        TRY_ASSIGN(color2.b =, strm.read_u8());
+        TRY_ASSIGN(color2.a =, strm.read_u8());
+        TRY_ASSIGN(gradient = (gradient_flags_t), strm.read_u16());
       }
       else if (fill == fill_type_t::motif)
       {
-        handle = strm.read_u16();
+        TRY_ASSIGN(handle =, strm.read_u16());
       }
 
       return lak::ok_t{};
@@ -2532,23 +2493,34 @@ namespace SourceExplorer
       return lak::ok_t{};
     }
 
-    error_t quick_backdrop_t::read(game_t &game, lak::memory &strm)
+    error_t quick_backdrop_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::quick_backdrop_t::read");
+      FUNCTION_CHECKPOINT("object::quick_backdrop_t::");
 
-      RES_TRY_ERR(entry.read(game, strm)
-                    .map_err(APPEND_TRACE("object::quick_backdrop_t::read")));
+      RES_TRY(
+        entry.read(game, strm).MAP_SE_ERR("object::quick_backdrop_t::read"));
 
-      RES_TRY_ASSIGN(lak::memory qstrm =,
-                     entry.decode().map_err(
-                       APPEND_TRACE("object::quick_backdrop_t::read")));
-      size        = qstrm.read_u32();
-      obstacle    = qstrm.read_u16();
-      collision   = qstrm.read_u16();
-      dimension.x = game.old_game ? qstrm.read_u16() : qstrm.read_u32();
-      dimension.y = game.old_game ? qstrm.read_u16() : qstrm.read_u32();
-      RES_TRY_ERR(shape.read(game, qstrm)
-                    .map_err(APPEND_TRACE("object::quick_backdrop_t::read")));
+      RES_TRY_ASSIGN(
+        auto span =,
+        entry.decode_body().MAP_SE_ERR("object::quick_backdrop_t::read"));
+
+      data_reader_t qstrm(span);
+
+      TRY_ASSIGN(size =, qstrm.read_u32());
+      TRY_ASSIGN(obstacle =, qstrm.read_u16());
+      TRY_ASSIGN(collision =, qstrm.read_u16());
+      if (game.old_game)
+      {
+        TRY_ASSIGN(dimension.x =, qstrm.read_u16());
+        TRY_ASSIGN(dimension.y =, qstrm.read_u16());
+      }
+      else
+      {
+        TRY_ASSIGN(dimension.x =, qstrm.read_u32());
+        TRY_ASSIGN(dimension.y =, qstrm.read_u32());
+      }
+      RES_TRY(
+        shape.read(game, qstrm).MAP_SE_ERR("object::quick_backdrop_t::read"));
 
       return lak::ok_t{};
     }
@@ -2557,7 +2529,7 @@ namespace SourceExplorer
     {
       LAK_TREE_NODE("0x%zX Properties (Quick Backdrop)##%zX",
                     (size_t)entry.ID,
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
@@ -2567,41 +2539,50 @@ namespace SourceExplorer
         ImGui::Text(
           "Dimension: (%li, %li)", (long)dimension.x, (long)dimension.y);
 
-        RES_TRY_ERR(shape.view(srcexp).map_err(
-          APPEND_TRACE("object::quick_backdrop_t::view")));
+        RES_TRY(
+          shape.view(srcexp).MAP_SE_ERR("object::quick_backdrop_t::view"));
 
         ImGui::Text("Handle: 0x%zX", (size_t)shape.handle);
         if (shape.handle < 0xFFFF)
         {
-          RES_TRY_ASSIGN(auto img =,
-                         GetImage(srcexp.state, shape.handle)
-                           .map_err(APPEND_TRACE(
-                             "object::quick_backdrop_t::view: bad image")));
-          RES_TRY(img.view(srcexp).map_err(
-            APPEND_TRACE("object::quick_backdrop_t::view")));
+          RES_TRY(
+            GetImage(srcexp.state, shape.handle)
+              .MAP_SE_ERR("object::quick_backdrop_t::view: bad image")
+              .and_then([&](const auto &img) { return img.view(srcexp); })
+              .MAP_SE_ERR("object::quick_backdrop_t::view"));
         }
       }
 
       return lak::ok_t{};
     }
 
-    error_t backdrop_t::read(game_t &game, lak::memory &strm)
+    error_t backdrop_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::backdrop_t::read");
+      FUNCTION_CHECKPOINT("object::backdrop_t::");
 
-      RES_TRY_ERR(entry.read(game, strm)
-                    .map_err(APPEND_TRACE("object::backdrop_t::read")));
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::backdrop_t::read"));
 
       RES_TRY_ASSIGN(
-        lak::memory bstrm =,
-        entry.decode().map_err(APPEND_TRACE("object::backdrop_t::read")));
-      size        = bstrm.read_u32();
-      obstacle    = bstrm.read_u16();
-      collision   = bstrm.read_u16();
-      dimension.x = game.old_game ? bstrm.read_u16() : bstrm.read_u32();
-      dimension.y = game.old_game ? bstrm.read_u16() : bstrm.read_u32();
+        auto span =,
+        entry.decode_body().MAP_SE_ERR("object::backdrop_t::read"));
+
+      data_reader_t bstrm(span);
+
+      TRY_ASSIGN(size =, bstrm.read_u32());
+      TRY_ASSIGN(obstacle =, bstrm.read_u16());
+      TRY_ASSIGN(collision =, bstrm.read_u16());
+      if (game.old_game)
+      {
+        TRY_ASSIGN(dimension.x =, bstrm.read_u16());
+        TRY_ASSIGN(dimension.y =, bstrm.read_u16());
+      }
+      else
+      {
+        TRY_ASSIGN(dimension.x =, bstrm.read_u32());
+        TRY_ASSIGN(dimension.y =, bstrm.read_u32());
+      }
       // if (!game.old_game) bstrm.skip(2);
-      handle = bstrm.read_u16();
+      TRY_ASSIGN(handle =, bstrm.read_u16());
 
       return lak::ok_t{};
     }
@@ -2609,7 +2590,7 @@ namespace SourceExplorer
     error_t backdrop_t::view(source_explorer_t &srcexp) const
     {
       LAK_TREE_NODE(
-        "0x%zX Properties (Backdrop)##%zX", (size_t)entry.ID, entry.position)
+        "0x%zX Properties (Backdrop)##%zX", (size_t)entry.ID, entry.position())
       {
         entry.view(srcexp);
 
@@ -2621,38 +2602,45 @@ namespace SourceExplorer
         ImGui::Text("Handle: 0x%zX", (size_t)handle);
         if (handle < 0xFFFF)
         {
-          RES_TRY_ASSIGN(
-            auto img =,
-            GetImage(srcexp.state, handle)
-              .map_err(APPEND_TRACE("object::backdrop_t::view: bad image")));
-          RES_TRY(img.view(srcexp).map_err(
-            APPEND_TRACE("object::backdrop_t::view")));
+          RES_TRY(
+            GetImage(srcexp.state, shape.handle)
+              .MAP_SE_ERR("object::backdrop_t::view: bad image")
+              .and_then([&](const auto &img) { return img.view(srcexp); })
+              .MAP_SE_ERR("object::backdrop_t::view"));
         }
       }
 
       return lak::ok_t{};
     }
 
-    error_t animation_direction_t::read(game_t &game, lak::memory &strm)
+    error_t animation_direction_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::animation_direction_t::read");
+      FUNCTION_CHECKPOINT("object::animation_direction_t::");
 
       DEBUG("Position: ", strm.position(), "/", strm.size());
 
       CHECK_REMAINING(strm, 8);
 
-      min_speed = strm.read_u8();
-      max_speed = strm.read_u8();
-      repeat    = strm.read_u16();
-      back_to   = strm.read_u16();
+      TRY_ASSIGN(min_speed =, strm.read_u8());
+      TRY_ASSIGN(max_speed =, strm.read_u8());
+      TRY_ASSIGN(repeat =, strm.read_u16());
+      TRY_ASSIGN(back_to =, strm.read_u16());
       // handles.resize(strm.read_u16()); // :TODO: what's going on here? how
       // did anaconda do this?
-      handles.resize(strm.read_u8());
-      strm.skip(1);
+      TRY_ASSIGN(const auto handle_count =, strm.read_u8());
+      handles.resize(handle_count);
+      TRY(strm.skip(1));
+
+      DEBUG("Min Speed: ", min_speed);
+      DEBUG("Max Speed: ", max_speed);
+      DEBUG("Repeat: ", repeat);
+      DEBUG("Back To: ", back_to);
+      DEBUG("Handle Count: ", handles.size());
+
+      DEBUG("Position: ", strm.position(), "/", strm.size());
 
       CHECK_REMAINING(strm, handles.size() * 2);
-
-      for (auto &handle : handles) handle = strm.read_u16();
+      for (auto &handle : handles) handle = strm.read_u16().UNWRAP();
 
       return lak::ok_t{};
     }
@@ -2671,55 +2659,51 @@ namespace SourceExplorer
         ImGui::PushID(index++);
         DEFER(ImGui::PopID());
 
-        [&, this]() -> error_t {
-          RES_TRY_ASSIGN(
-            auto &img =,
-            GetImage(srcexp.state, handle)
-              .map_err(APPEND_TRACE(
-                "object::animation_direction_t::view: bad image")));
-          RES_TRY(img.view(srcexp).map_err(
-            APPEND_TRACE("object::animation_direction_t::view")));
-          return lak::ok_t{};
-        }()
-                         .if_err([](const auto &err) {
-                           ImGui::Text("Invalid Image Handle");
-                           ImGui::Text(lak::streamify<char>(err).c_str());
-                         })
-                         .discard();
+        GetImage(srcexp.state, handle)
+          .MAP_SE_ERR("object::animation_direction_t::view: bad handle")
+          .and_then([&](auto &img) {
+            return img.view(srcexp).MAP_SE_ERR(
+              "object::animation_direction_t::view: bad image");
+          })
+          .if_err([](const auto &err) {
+            ImGui::Text("Invalid Image/Handle");
+            ImGui::Text(lak::streamify<char>(err).c_str());
+          })
+          .discard();
       }
 
       return lak::ok_t{};
     }
 
-    error_t animation_t::read(game_t &game, lak::memory &strm)
+    error_t animation_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::animation_t::read");
+      FUNCTION_CHECKPOINT("object::animation_t::");
 
       DEBUG("Position: ", strm.position(), "/", strm.size());
 
       CHECK_REMAINING(strm, offsets.size() * 2);
 
       const size_t begin = strm.position();
-      DEFER(strm.seek(begin + (offsets.size() * 2)););
 
       size_t index = 0;
       for (auto &offset : offsets)
       {
-        offset = strm.read_u16();
-
-        CHECK_POSITION(strm, begin + offset);
+        TRY_ASSIGN(offset =, strm.read_u16());
 
         if (offset != 0)
         {
+          CHECK_POSITION(strm, begin + offset);
           const size_t pos = strm.position();
-          strm.seek(begin + offset);
-          DEFER(strm.seek(pos););
+          TRY(strm.seek(begin + offset));
+          DEFER(strm.seek(pos).UNWRAP(););
           RES_TRY(directions[index]
                     .read(game, strm)
-                    .map_err(APPEND_TRACE("object::animation_t::read")));
+                    .MAP_SE_ERR("object::animation_t::read"));
         }
         ++index;
       }
+
+      TRY(strm.seek(begin + (offsets.size() * 2)));
 
       return lak::ok_t{};
     }
@@ -2733,8 +2717,8 @@ namespace SourceExplorer
         {
           LAK_TREE_NODE("Animation Direction 0x%zX", index)
           {
-            RES_TRY(direction.view(srcexp).map_err(
-              APPEND_TRACE("object::animation_t::view")));
+            RES_TRY(
+              direction.view(srcexp).MAP_SE_ERR("object::animation_t::view"));
           }
         }
         ++index;
@@ -2743,19 +2727,19 @@ namespace SourceExplorer
       return lak::ok_t{};
     }
 
-    error_t animation_header_t::read(game_t &game, lak::memory &strm)
+    error_t animation_header_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::animation_header_t::read");
+      FUNCTION_CHECKPOINT("object::animation_header_t::");
 
       const size_t begin = strm.position();
 
       DEBUG("Position: ", strm.position());
 
-      size = strm.read_u16();
+      TRY_ASSIGN(size =, strm.read_u16());
       DEBUG("Size: ", size);
-      DEFER(strm.seek(begin + size));
 
-      offsets.resize(strm.read_u16());
+      TRY_ASSIGN(const auto offset_count =, strm.read_u16());
+      offsets.resize(offset_count);
       animations.resize(offsets.size());
 
       DEBUG("Animation Count: ", animations.size());
@@ -2764,22 +2748,22 @@ namespace SourceExplorer
       for (auto &offset : offsets)
       {
         DEBUG("Animation: ", index, "/", offsets.size());
-        offset = strm.read_u16();
-
-        CHECK_POSITION(strm, begin + offset);
+        TRY_ASSIGN(offset =, strm.read_u16());
 
         if (offset != 0)
         {
+          CHECK_POSITION(strm, begin + offset);
           const size_t pos = strm.position();
-          strm.seek(begin + offset);
-          DEFER(strm.seek(pos));
-          RES_TRY(
-            animations[index]
-              .read(game, strm)
-              .map_err(APPEND_TRACE("object::animation_header_t::read")));
+          TRY(strm.seek(begin + offset));
+          DEFER(strm.seek(pos).UNWRAP());
+          RES_TRY(animations[index]
+                    .read(game, strm)
+                    .MAP_SE_ERR("object::animation_header_t::read"));
         }
         ++index;
       }
+
+      TRY(strm.seek(begin + size));
 
       return lak::ok_t{};
     }
@@ -2800,8 +2784,8 @@ namespace SourceExplorer
             LAK_TREE_NODE("Animation 0x%zX", index)
             {
               ImGui::Separator();
-              RES_TRY(animation.view(srcexp).map_err(
-                APPEND_TRACE("object::animation_header_t::view")));
+              RES_TRY(animation.view(srcexp).MAP_SE_ERR(
+                "object::animation_header_t::view"));
             }
           }
           ++index;
@@ -2811,16 +2795,16 @@ namespace SourceExplorer
       return lak::ok_t{};
     }
 
-    error_t common_t::read(game_t &game, lak::memory &strm)
+    error_t common_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::common_t::read");
+      FUNCTION_CHECKPOINT("object::common_t::");
 
-      RES_TRY_ERR(entry.read(game, strm)
-                    .map_err(APPEND_TRACE("object::common_t::read")));
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::common_t::read"));
 
-      RES_TRY_ASSIGN(
-        lak::memory cstrm =,
-        entry.decode().map_err(APPEND_TRACE("object::common_t::read")));
+      RES_TRY_ASSIGN(auto span =,
+                     entry.decode_body().MAP_SE_ERR("object::common_t::read"));
+
+      data_reader_t cstrm(span);
 
       // if (game.product_build >= 288 && !game.old_game)
       //     mode = game_mode_t::_288;
@@ -2830,24 +2814,23 @@ namespace SourceExplorer
       //     mode = game_mode_t::_OLD;
       mode = _mode;
 
+      // used for offsets.
       const size_t begin = cstrm.position();
 
-      size = cstrm.read_u32();
+      TRY_ASSIGN(size =, cstrm.read_u32());
+
+      DEBUG("Size: ", size);
 
       CHECK_REMAINING(cstrm, size - 4);
 
       if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
       {
-        if (!cstrm.remaining()) return lak::ok_t{};
-        animations_offset = cstrm.read_u16();
-        if (!cstrm.remaining()) return lak::ok_t{};
-        movements_offset = cstrm.read_u16(); // are these in the right order?
-        if (!cstrm.remaining()) return lak::ok_t{};
-        version = cstrm.read_u16(); // are these in the right order?
-        if (!cstrm.remaining()) return lak::ok_t{};
-        counter_offset = cstrm.read_u16(); // are these in the right order?
-        if (!cstrm.remaining()) return lak::ok_t{};
-        system_offset = cstrm.read_u16(); // are these in the right order?
+        // are these in the right order?
+        TRY_ASSIGN(animations_offset =, cstrm.read_u16());
+        TRY_ASSIGN(movements_offset =, cstrm.read_u16());
+        TRY_ASSIGN(version =, cstrm.read_u16());
+        TRY_ASSIGN(counter_offset =, cstrm.read_u16());
+        TRY_ASSIGN(system_offset =, cstrm.read_u16());
       }
       // else if (mode == game_mode_t::_284)
       // {
@@ -2860,69 +2843,57 @@ namespace SourceExplorer
       // }
       else
       {
-        if (!cstrm.remaining()) return lak::ok_t{};
-        movements_offset = cstrm.read_u16();
-        if (!cstrm.remaining()) return lak::ok_t{};
-        animations_offset = cstrm.read_u16();
-        if (!cstrm.remaining()) return lak::ok_t{};
-        version = cstrm.read_u16();
-        if (!cstrm.remaining()) return lak::ok_t{};
-        counter_offset = cstrm.read_u16();
-        if (!cstrm.remaining()) return lak::ok_t{};
-        system_offset = cstrm.read_u16();
+        TRY_ASSIGN(movements_offset =, cstrm.read_u16());
+        TRY_ASSIGN(animations_offset =, cstrm.read_u16());
+        TRY_ASSIGN(version =, cstrm.read_u16());
+        TRY_ASSIGN(counter_offset =, cstrm.read_u16());
+        TRY_ASSIGN(system_offset =, cstrm.read_u16());
       }
 
-      if (!cstrm.remaining()) return lak::ok_t{};
-      flags = cstrm.read_u32();
+      if (cstrm.empty()) return lak::ok_t{};
+      TRY_ASSIGN(flags =, cstrm.read_u32());
 
 #if 1
-      cstrm.skip(8 * 2);
+      TRY(cstrm.skip(8 * 2));
 #else
       qualifiers.clear();
       qualifiers.reserve(8);
       for (size_t i = 0; i < 8; ++i)
       {
-        int16_t qualifier = cstrm.read_s16();
+        TRY_ASSIGN(int16_t qualifier =, cstrm.read_s16());
         if (qualifier == -1) break;
         qualifiers.push_back(qualifier);
       }
 #endif
 
       if (mode == game_mode_t::_284)
-        system_offset = cstrm.read_u16();
+      {
+        TRY_ASSIGN(system_offset =, cstrm.read_u16());
+      }
       else
-        extension_offset = cstrm.read_u16();
+      {
+        TRY_ASSIGN(extension_offset =, cstrm.read_u16());
+      }
 
-      if (!cstrm.remaining()) return lak::ok_t{};
-      values_offset = cstrm.read_u16();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      strings_offset = cstrm.read_u16();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      new_flags = cstrm.read_u32();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      preferences = cstrm.read_u32();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      identifier = cstrm.read_u32();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      back_color.r = cstrm.read_u8();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      back_color.g = cstrm.read_u8();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      back_color.b = cstrm.read_u8();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      back_color.a = cstrm.read_u8();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      fade_in_offset = cstrm.read_u32();
-      if (!cstrm.remaining()) return lak::ok_t{};
-      fade_out_offset = cstrm.read_u32();
+      TRY_ASSIGN(values_offset =, cstrm.read_u16());
+      TRY_ASSIGN(strings_offset =, cstrm.read_u16());
+      TRY_ASSIGN(new_flags =, cstrm.read_u32());
+      TRY_ASSIGN(preferences =, cstrm.read_u32());
+      TRY_ASSIGN(identifier =, cstrm.read_u32());
+      TRY_ASSIGN(back_color.r =, cstrm.read_u8());
+      TRY_ASSIGN(back_color.g =, cstrm.read_u8());
+      TRY_ASSIGN(back_color.b =, cstrm.read_u8());
+      TRY_ASSIGN(back_color.a =, cstrm.read_u8());
+      TRY_ASSIGN(fade_in_offset =, cstrm.read_u32());
+      TRY_ASSIGN(fade_out_offset =, cstrm.read_u32());
 
       if (animations_offset > 0)
       {
         DEBUG("Animations Offset: ", animations_offset);
-        cstrm.seek(begin + animations_offset);
+        TRY(cstrm.seek(begin + animations_offset));
         animations = std::make_unique<animation_header_t>();
-        RES_TRY(animations->read(game, cstrm)
-                  .map_err(APPEND_TRACE("object::common_t::read")));
+        RES_TRY(
+          animations->read(game, cstrm).MAP_SE_ERR("object::common_t::read"));
       }
 
       return lak::ok_t{};
@@ -2931,7 +2902,7 @@ namespace SourceExplorer
     error_t common_t::view(source_explorer_t &srcexp) const
     {
       LAK_TREE_NODE(
-        "0x%zX Properties (Common)##%zX", (size_t)entry.ID, entry.position)
+        "0x%zX Properties (Common)##%zX", (size_t)entry.ID, entry.position())
       {
         entry.view(srcexp);
 
@@ -2979,41 +2950,45 @@ namespace SourceExplorer
 
         if (animations)
         {
-          RES_TRY(animations->view(srcexp).map_err(
-            APPEND_TRACE("object::common_t::view")));
+          RES_TRY(
+            animations->view(srcexp).MAP_SE_ERR("object::common_t::view"));
         }
       }
 
       return lak::ok_t{};
     }
 
-    error_t item_t::read(game_t &game, lak::memory &strm)
+    error_t item_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::item_t::read");
+      FUNCTION_CHECKPOINT("object::item_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("object::item_t::read")));
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::item_t::read"));
 
-      RES_TRY_ASSIGN(
-        auto dstrm =,
-        entry.decode().map_err(APPEND_TRACE("object::item_t::read")));
+      RES_TRY_ASSIGN(auto span =,
+                     entry.decode_body().MAP_SE_ERR("object::item_t::read"));
 
-      handle = dstrm.read_u16();
-      type   = (object_type_t)dstrm.read_s16();
-      dstrm.read_u16(); // flags
-      dstrm.read_u16(); // "no longer used"
-      ink_effect       = dstrm.read_u32();
-      ink_effect_param = dstrm.read_u32();
+      data_reader_t dstrm(span);
 
-      [&, this]() -> error_t {
+      TRY_ASSIGN(handle =, dstrm.read_u16());
+      TRY_ASSIGN(type = (object_type_t), dstrm.read_s16());
+      TRY(dstrm.read_u16()); // flags
+      TRY(dstrm.read_u16()); // "no longer used"
+      TRY_ASSIGN(ink_effect =, dstrm.read_u32());
+      TRY_ASSIGN(ink_effect_param =, dstrm.read_u32());
+
+      // :TODO: refactor out this lambda
+
+      [[maybe_unused]] auto err =
+        [&, this]() -> error_t {
         for (bool not_finished = true; not_finished;)
         {
-          switch ((chunk_t)strm.peek_u16())
+          TRY_ASSIGN(const auto chunk_id = (chunk_t), strm.peek_u16());
+          switch (chunk_id)
           {
             case chunk_t::object_name:
               name = std::make_unique<string_chunk_t>();
-              RES_TRY_ERR(name->read(game, strm)
-                            .map_err(APPEND_TRACE("object::item_t::read")));
+              RES_TRY(
+                name->read(game, strm).MAP_SE_ERR("object::item_t::read"));
               break;
 
             case chunk_t::object_properties:
@@ -3021,37 +2996,34 @@ namespace SourceExplorer
               {
                 case object_type_t::quick_backdrop:
                   quick_backdrop = std::make_unique<quick_backdrop_t>();
-                  RES_TRY_ERR(
-                    quick_backdrop->read(game, strm)
-                      .map_err(APPEND_TRACE("object::item_t::read")));
+                  RES_TRY(quick_backdrop->read(game, strm)
+                            .MAP_SE_ERR("object::item_t::read"));
                   break;
 
                 case object_type_t::backdrop:
                   backdrop = std::make_unique<backdrop_t>();
-                  RES_TRY_ERR(
-                    backdrop->read(game, strm)
-                      .map_err(APPEND_TRACE("object::item_t::read")));
+                  RES_TRY(backdrop->read(game, strm)
+                            .MAP_SE_ERR("object::item_t::read"));
                   break;
 
                 default:
                   common = std::make_unique<common_t>();
-                  RES_TRY_ERR(
-                    common->read(game, strm)
-                      .map_err(APPEND_TRACE("object::item_t::read")));
+                  RES_TRY(common->read(game, strm)
+                            .MAP_SE_ERR("object::item_t::read"));
                   break;
               }
               break;
 
             case chunk_t::object_effect:
               effect = std::make_unique<effect_t>();
-              RES_TRY_ERR(effect->read(game, strm)
-                            .map_err(APPEND_TRACE("object::item_t::read")));
+              RES_TRY(
+                effect->read(game, strm).MAP_SE_ERR("object::item_t::read"));
               break;
 
             case chunk_t::last:
               end = std::make_unique<last_t>();
-              RES_TRY_ERR(end->read(game, strm)
-                            .map_err(APPEND_TRACE("object::item_t::read")));
+              RES_TRY(
+                end->read(game, strm).MAP_SE_ERR("object::item_t::read"));
               [[fallthrough]];
 
             default: not_finished = false; break;
@@ -3060,8 +3032,7 @@ namespace SourceExplorer
 
         return lak::ok_t{};
       }()
-                       .IF_ERR("Failed To Read Child Chunks")
-                       .discard();
+                         .IF_ERR("Failed To Read Child Chunks");
 
       return lak::ok_t{};
     }
@@ -3072,7 +3043,7 @@ namespace SourceExplorer
                     (size_t)entry.ID,
                     GetObjectTypeString(type),
                     (name ? lak::strconv<char>(name->value).c_str() : ""),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
@@ -3084,34 +3055,30 @@ namespace SourceExplorer
         if (name)
         {
           RES_TRY(name->view(srcexp, "Name", true)
-                    .map_err(APPEND_TRACE("object::item_t::view")));
+                    .MAP_SE_ERR("object::item_t::view"));
         }
 
         if (quick_backdrop)
         {
-          RES_TRY(quick_backdrop->view(srcexp).map_err(
-            APPEND_TRACE("object::item_t::view")));
+          RES_TRY(
+            quick_backdrop->view(srcexp).MAP_SE_ERR("object::item_t::view"));
         }
         if (backdrop)
         {
-          RES_TRY(backdrop->view(srcexp).map_err(
-            APPEND_TRACE("object::item_t::view")));
+          RES_TRY(backdrop->view(srcexp).MAP_SE_ERR("object::item_t::view"));
         }
         if (common)
         {
-          RES_TRY(common->view(srcexp).map_err(
-            APPEND_TRACE("object::item_t::view")));
+          RES_TRY(common->view(srcexp).MAP_SE_ERR("object::item_t::view"));
         }
 
         if (effect)
         {
-          RES_TRY(effect->view(srcexp).map_err(
-            APPEND_TRACE("object::item_t::view")));
+          RES_TRY(effect->view(srcexp).MAP_SE_ERR("object::item_t::view"));
         }
         if (end)
         {
-          RES_TRY(
-            end->view(srcexp).map_err(APPEND_TRACE("object::item_t::view")));
+          RES_TRY(end->view(srcexp).MAP_SE_ERR("object::item_t::view"));
         }
       }
 
@@ -3155,56 +3122,45 @@ namespace SourceExplorer
       return result;
     }
 
-    error_t bank_t::read(game_t &game, lak::memory &strm)
+    error_t bank_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("object::bank_t::read");
+      FUNCTION_CHECKPOINT("object::bank_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("object::bank_t::read")));
+      DEFER(game.bank_completed = 0.0f);
 
-      CHECK_POSITION(strm, entry.end);
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::bank_t::read"));
 
-      strm.seek(entry.data.position);
-      DEFER(strm.seek(entry.end););
+      data_reader_t reader(entry.raw_body());
 
-      items.resize(strm.read_u32());
+      TRY_ASSIGN(const auto item_count =, reader.read_u32());
 
-      error_t result = lak::ok_t{};
+      items.resize(item_count);
 
       for (auto &item : items)
       {
-        if (auto res = item.read(game, strm); res.is_err())
-        {
-          result = res
-                     .IF_ERR("Failed To Read Item ",
-                             (&item - items.data()),
-                             " Of ",
-                             items.size())
-                     .map_err(APPEND_TRACE("object::bank_t::read"));
-          if (strm.remaining() == 0) break;
-        }
-        if (!item.end)
-          WARNING("Item ", (&item - items.data()), " Has No End Chunk");
-        if (strm.position() > entry.end)
-          WARNING("Reading Beyond Object Bank End");
-        game.completed =
-          (float)((double)strm.position() / (double)strm.size());
+        RES_TRY(item.read(game, reader)
+                  .MAP_SE_ERR("object::bank_t::read: Failed To Read Item ",
+                              (&item - items.data()),
+                              " Of ",
+                              items.size())
+                  .if_ok([&](...) {
+                    if (!item.end)
+                      WARNING(
+                        "Item ", (&item - items.data()), " Has No End Chunk");
+                  }));
+
+        game.bank_completed =
+          float(double(reader.position()) / double(reader.size()));
       }
 
-      if (strm.position() < entry.end)
+      if (!reader.empty())
       {
         WARNING("There is still ",
-                entry.end - strm.position(),
+                reader.remaining().size(),
                 " bytes left in the object bank");
       }
-      else if (strm.position() > entry.end)
-      {
-        ERROR("Object bank overshot entry by ",
-              strm.position() - entry.end,
-              " bytes");
-      }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t bank_t::view(source_explorer_t &srcexp) const
@@ -3212,14 +3168,13 @@ namespace SourceExplorer
       LAK_TREE_NODE("0x%zX Object Bank (%zu Items)##%zX",
                     (size_t)entry.ID,
                     items.size(),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
         for (const item_t &item : items)
         {
-          RES_TRY(
-            item.view(srcexp).map_err(APPEND_TRACE("object::bank_t::view")));
+          RES_TRY(item.view(srcexp).MAP_SE_ERR("object::bank_t::view"));
         }
       }
 
@@ -3239,25 +3194,26 @@ namespace SourceExplorer
       return basic_view(srcexp, "Password");
     }
 
-    error_t palette_t::read(game_t &game, lak::memory &strm)
+    error_t palette_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("frame::palette_t::read");
+      FUNCTION_CHECKPOINT("frame::palette_t::");
 
-      RES_TRY_ERR(entry.read(game, strm)
-                    .map_err(APPEND_TRACE("frame::palette_t::read")));
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::palette_t::read"));
 
-      RES_TRY_ASSIGN(
-        auto pstrm =,
-        entry.decode().map_err(APPEND_TRACE("frame::palette_t::read")));
+      RES_TRY_ASSIGN(auto span =,
+                     entry.decode_body().MAP_SE_ERR("frame::palette_t::read"));
 
-      unknown = pstrm.read_u32();
+      data_reader_t pstrm(span);
 
+      TRY_ASSIGN(unknown =, pstrm.read_u32());
+
+      CHECK_REMAINING(pstrm, colors.size() * 4);
       for (auto &color : colors)
       {
-        color.r = pstrm.read_u8();
-        color.g = pstrm.read_u8();
-        color.b = pstrm.read_u8();
-        /* color.a = */ pstrm.read_u8();
+        color.r = pstrm.read_u8().UNWRAP();
+        color.g = pstrm.read_u8().UNWRAP();
+        color.b = pstrm.read_u8().UNWRAP();
+        /* color.a = */ pstrm.read_u8().UNWRAP();
         color.a = 255u;
       }
 
@@ -3267,17 +3223,18 @@ namespace SourceExplorer
     error_t palette_t::view(source_explorer_t &srcexp) const
     {
       LAK_TREE_NODE(
-        "0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position)
+        "0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position())
       {
         entry.view(srcexp);
 
         uint8_t index = 0;
-        for (auto color : colors)
+        for (const auto &color : colors)
         {
           lak::vec3f_t col = ((lak::vec3f_t)color) / 256.0f;
           char str[3];
           snprintf(str, 3, "%hhX", index++);
-          ImGui::ColorEdit3(str, &col.x);
+          float f[] = {col.x, col.y, col.z};
+          ImGui::ColorEdit3(str, f);
         }
       }
 
@@ -3294,20 +3251,28 @@ namespace SourceExplorer
       return result;
     }
 
-    error_t object_instance_t::read(game_t &game, lak::memory &strm)
+    error_t object_instance_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("frame::object_instance_t::read");
+      FUNCTION_CHECKPOINT("frame::object_instance_t::");
 
-      info          = strm.read_u16();
-      handle        = strm.read_u16();
-      position.x    = game.old_game ? strm.read_s16() : strm.read_s32();
-      position.y    = game.old_game ? strm.read_s16() : strm.read_s32();
-      parent_type   = (object_parent_type_t)strm.read_u16();
-      parent_handle = strm.read_u16(); // object info (?)
+      TRY_ASSIGN(info =, strm.read_u16());
+      TRY_ASSIGN(handle =, strm.read_u16());
+      if (game.old_game)
+      {
+        TRY_ASSIGN(position.x =, strm.read_s16());
+        TRY_ASSIGN(position.y =, strm.read_s16());
+      }
+      else
+      {
+        TRY_ASSIGN(position.x =, strm.read_s32());
+        TRY_ASSIGN(position.y =, strm.read_s32());
+      }
+      TRY_ASSIGN(parent_type = (object_parent_type_t), strm.read_u16());
+      TRY_ASSIGN(parent_handle =, strm.read_u16()); // object info (?)
       if (!game.old_game)
       {
-        layer   = strm.read_u16();
-        unknown = strm.read_u16();
+        TRY_ASSIGN(layer =, strm.read_u16());
+        TRY_ASSIGN(unknown =, strm.read_u16());
       }
 
       return lak::ok_t{};
@@ -3335,8 +3300,8 @@ namespace SourceExplorer
 
         if (obj.is_ok())
         {
-          RES_TRY(obj.unwrap().view(srcexp).map_err(
-            APPEND_TRACE("frame::object_instance_t::view")));
+          RES_TRY(obj.unwrap().view(srcexp).MAP_SE_ERR(
+            "frame::object_instance_t::view"));
         }
 
         switch (parent_type)
@@ -3345,8 +3310,8 @@ namespace SourceExplorer
             if (auto parent_obj = GetObject(srcexp.state, parent_handle);
                 parent_obj.is_ok())
             {
-              RES_TRY(parent_obj.unwrap().view(srcexp).map_err(
-                APPEND_TRACE("frame::object_instance_t::view")));
+              RES_TRY(parent_obj.unwrap().view(srcexp).MAP_SE_ERR(
+                "frame::object_instance_t::view"));
             }
             break;
 
@@ -3354,8 +3319,8 @@ namespace SourceExplorer
             if (auto parent_obj = GetFrame(srcexp.state, parent_handle);
                 parent_obj.is_ok())
             {
-              RES_TRY(parent_obj.unwrap().view(srcexp).map_err(
-                APPEND_TRACE("frame::object_instance_t::view")));
+              RES_TRY(parent_obj.unwrap().view(srcexp).MAP_SE_ERR(
+                "frame::object_instance_t::view"));
             }
             break;
 
@@ -3368,23 +3333,29 @@ namespace SourceExplorer
       return lak::ok_t{};
     }
 
-    error_t object_instances_t::read(game_t &game, lak::memory &strm)
+    error_t object_instances_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("frame::object_instances_t::read");
+      FUNCTION_CHECKPOINT("frame::object_instances_t::");
 
-      RES_TRY_ERR(entry.read(game, strm)
-                    .map_err(APPEND_TRACE("frame::object_instances_t::read")));
+      RES_TRY(
+        entry.read(game, strm).MAP_SE_ERR("frame::object_instances_t::read"));
 
-      RES_TRY_ASSIGN(auto hstrm =,
-                     entry.decode().map_err(
-                       APPEND_TRACE("frame::object_instances_t::read")));
-      objects.clear();
-      objects.resize(hstrm.read_u32());
+      RES_TRY_ASSIGN(
+        auto span =,
+        entry.decode_body().MAP_SE_ERR("frame::object_instances_t::read"));
+
+      data_reader_t hstrm(span);
+
+      TRY_ASSIGN(const auto object_count =, hstrm.read_u32());
+
+      objects.resize(object_count);
+
       DEBUG("Objects: ", objects.size());
+
       for (auto &object : objects)
       {
         RES_TRY(object.read(game, hstrm)
-                  .map_err(APPEND_TRACE("frame::object_instances_t::read")));
+                  .MAP_SE_ERR("frame::object_instances_t::read"));
       }
 
       return lak::ok_t{};
@@ -3393,14 +3364,14 @@ namespace SourceExplorer
     error_t object_instances_t::view(source_explorer_t &srcexp) const
     {
       LAK_TREE_NODE(
-        "0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position)
+        "0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position())
       {
         entry.view(srcexp);
 
         for (const auto &object : objects)
         {
-          RES_TRY(object.view(srcexp).map_err(
-            APPEND_TRACE("frame::object_instances_t::view")));
+          RES_TRY(
+            object.view(srcexp).MAP_SE_ERR("frame::object_instances_t::view"));
         }
       }
 
@@ -3462,21 +3433,25 @@ namespace SourceExplorer
       return basic_view(srcexp, "Demo File Path");
     }
 
-    error_t random_seed_t::read(game_t &game, lak::memory &strm)
+    error_t random_seed_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("frame::random_seed_t::read");
+      FUNCTION_CHECKPOINT("frame::random_seed_t::");
 
-      RES_TRY_ERR(entry.read(game, strm)
-                    .map_err(APPEND_TRACE("frame::random_seed_t::read")));
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::random_seed_t::read"));
 
-      RES_TRY_ASSIGN(value =, entry.decode()).read_s16();
+      TRY_SE_ASSIGN(value =,
+                    entry.decode_body().and_then([](const auto &ref_span) {
+                      return data_reader_t(ref_span).read_s16().MAP_ERR(
+                        "frame::random_seed_t::read");
+                    }));
 
       return lak::ok_t{};
     }
 
     error_t random_seed_t::view(source_explorer_t &srcexp) const
     {
-      LAK_TREE_NODE("0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position)
+      LAK_TREE_NODE(
+        "0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position())
       {
         entry.view(srcexp);
         ImGui::Text("Value: %i", (int)value);
@@ -3520,175 +3495,184 @@ namespace SourceExplorer
       return basic_view(srcexp, "Chunk 334C");
     }
 
-    error_t item_t::read(game_t &game, lak::memory &strm)
+    error_t item_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("frame::item_t::read");
+      FUNCTION_CHECKPOINT("frame::item_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("frame::item_t::read")));
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::item_t::read"));
 
-      strm.seek(entry.position + 0x8);
-      DEFER(strm.seek(entry.end););
+      DEFER(game.bank_completed = 0.0f);
+
+      data_reader_t reader(entry.raw_body());
 
       for (bool not_finished = true; not_finished;)
       {
-        game.completed =
-          (float)((double)strm.position() / (double)strm.size());
-        switch ((chunk_t)strm.peek_u16())
+        game.bank_completed =
+          float(double(reader.position()) / double(reader.size()));
+
+        if (reader.remaining().size() < 2) break;
+
+        switch ((chunk_t)reader.peek_u16().UNWRAP())
         {
           case chunk_t::frame_name:
             name = std::make_unique<string_chunk_t>();
-            RES_TRY_ERR(name->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              name->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_header:
             header = std::make_unique<header_t>();
-            RES_TRY_ERR(header->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              header->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_password:
             password = std::make_unique<password_t>();
-            RES_TRY_ERR(password->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              password->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_palette:
             palette = std::make_unique<palette_t>();
-            RES_TRY_ERR(palette->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              palette->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_object_instances:
             object_instances = std::make_unique<object_instances_t>();
-            RES_TRY_ERR(object_instances->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(object_instances->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_fade_in_frame:
             fade_in_frame = std::make_unique<fade_in_frame_t>();
-            RES_TRY_ERR(fade_in_frame->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(fade_in_frame->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_fade_out_frame:
             fade_out_frame = std::make_unique<fade_out_frame_t>();
-            RES_TRY_ERR(fade_out_frame->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(fade_out_frame->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_fade_in:
             fade_in = std::make_unique<fade_in_t>();
-            RES_TRY_ERR(fade_in->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              fade_in->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_fade_out:
             fade_out = std::make_unique<fade_out_t>();
-            RES_TRY_ERR(fade_out->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              fade_out->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_events:
             events = std::make_unique<events_t>();
-            RES_TRY_ERR(events->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              events->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_play_header:
             play_head = std::make_unique<play_header_r>();
-            RES_TRY_ERR(play_head->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              play_head->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_additional_items:
             additional_item = std::make_unique<additional_item_t>();
-            RES_TRY_ERR(additional_item->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(additional_item->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_additional_items_instances:
             additional_item_instance =
               std::make_unique<additional_item_instance_t>();
-            RES_TRY_ERR(additional_item_instance->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(additional_item_instance->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_layers:
             layers = std::make_unique<layers_t>();
-            RES_TRY_ERR(layers->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              layers->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_virtual_size:
             virtual_size = std::make_unique<virtual_size_t>();
-            RES_TRY_ERR(virtual_size->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(virtual_size->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::demo_file_path:
             demo_file_path = std::make_unique<demo_file_path_t>();
-            RES_TRY_ERR(demo_file_path->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(demo_file_path->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::random_seed:
             random_seed = std::make_unique<random_seed_t>();
-            RES_TRY_ERR(random_seed->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(random_seed->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_layer_effect:
             layer_effect = std::make_unique<layer_effect_t>();
-            RES_TRY_ERR(layer_effect->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(layer_effect->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_bluray:
             blueray = std::make_unique<blueray_t>();
-            RES_TRY_ERR(blueray->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              blueray->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::movement_timer_base:
             movement_time_base = std::make_unique<movement_time_base_t>();
-            RES_TRY_ERR(movement_time_base->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(movement_time_base->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::mosaic_image_table:
             mosaic_image_table = std::make_unique<mosaic_image_table_t>();
-            RES_TRY_ERR(mosaic_image_table->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(mosaic_image_table->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_effects:
             effects = std::make_unique<effects_t>();
-            RES_TRY_ERR(effects->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              effects->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_iphone_options:
             iphone_options = std::make_unique<iphone_options_t>();
-            RES_TRY_ERR(iphone_options->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(iphone_options->read(game, reader)
+                      .MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::frame_chunk334C:
             chunk334C = std::make_unique<chunk_334C_t>();
-            RES_TRY_ERR(chunk334C->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(
+              chunk334C->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             break;
 
           case chunk_t::last:
             end = std::make_unique<last_t>();
-            RES_TRY_ERR(end->read(game, strm)
-                          .map_err(APPEND_TRACE("frame::item_t::read")));
+            RES_TRY(end->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
             [[fallthrough]];
 
           default: not_finished = false; break;
         }
+      }
+
+      if (!reader.empty())
+      {
+        WARNING("There is still ",
+                reader.remaining().size(),
+                " bytes left in the frame item");
       }
 
       return lak::ok_t{};
@@ -3699,147 +3683,135 @@ namespace SourceExplorer
       LAK_TREE_NODE("0x%zX '%s'##%zX",
                     (size_t)entry.ID,
                     (name ? lak::strconv<char>(name->value).c_str() : ""),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
         if (name)
         {
           RES_TRY(name->view(srcexp, "Name", true)
-                    .map_err(APPEND_TRACE("frame::item_t::view")));
+                    .MAP_SE_ERR("frame::item_t::view"));
         }
         if (header)
         {
-          RES_TRY(
-            header->view(srcexp).map_err(APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(header->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (password)
         {
-          RES_TRY(password->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(password->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (palette)
         {
-          RES_TRY(palette->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(palette->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (object_instances)
         {
-          RES_TRY(object_instances->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            object_instances->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (fade_in_frame)
         {
-          RES_TRY(fade_in_frame->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            fade_in_frame->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (fade_out_frame)
         {
-          RES_TRY(fade_out_frame->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            fade_out_frame->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (fade_in)
         {
-          RES_TRY(fade_in->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(fade_in->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (fade_out)
         {
-          RES_TRY(fade_out->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(fade_out->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (events)
         {
-          RES_TRY(
-            events->view(srcexp).map_err(APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(events->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (play_head)
         {
-          RES_TRY(play_head->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(play_head->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (additional_item)
         {
-          RES_TRY(additional_item->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            additional_item->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (layers)
         {
-          RES_TRY(
-            layers->view(srcexp).map_err(APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(layers->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (layer_effect)
         {
-          RES_TRY(layer_effect->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            layer_effect->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (virtual_size)
         {
-          RES_TRY(virtual_size->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            virtual_size->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (demo_file_path)
         {
-          RES_TRY(demo_file_path->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            demo_file_path->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (random_seed)
         {
-          RES_TRY(random_seed->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(random_seed->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (blueray)
         {
-          RES_TRY(blueray->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(blueray->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (movement_time_base)
         {
-          RES_TRY(movement_time_base->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(movement_time_base->view(srcexp).MAP_SE_ERR(
+            "frame::item_t::view"));
         }
         if (mosaic_image_table)
         {
-          RES_TRY(mosaic_image_table->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(mosaic_image_table->view(srcexp).MAP_SE_ERR(
+            "frame::item_t::view"));
         }
         if (effects)
         {
-          RES_TRY(effects->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(effects->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (iphone_options)
         {
-          RES_TRY(iphone_options->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(
+            iphone_options->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (chunk334C)
         {
-          RES_TRY(chunk334C->view(srcexp).map_err(
-            APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(chunk334C->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
         if (end)
         {
-          RES_TRY(
-            end->view(srcexp).map_err(APPEND_TRACE("frame::item_t::view")));
+          RES_TRY(end->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
         }
       }
 
       return lak::ok_t{};
     }
 
-    error_t handles_t::read(game_t &game, lak::memory &strm)
+    error_t handles_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("frame::handles_t::read");
+      FUNCTION_CHECKPOINT("frame::handles_t::");
 
-      RES_TRY_ERR(entry.read(game, strm)
-                    .map_err(APPEND_TRACE("frame::handles_t::read")));
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::handles_t::read"));
 
-      RES_TRY_ASSIGN(
-        auto hstrm =,
-        entry.decode().map_err(APPEND_TRACE("frame::handles_t::read")));
+      RES_TRY_ASSIGN(auto span =,
+                     entry.decode_body().MAP_SE_ERR("frame::handles_t::read"));
+
+      data_reader_t hstrm(span);
+
       handles.resize(hstrm.size() / 2);
-      for (auto &handle : handles) handle = hstrm.read_u16();
+      for (auto &handle : handles) handle = hstrm.read_u16().UNWRAP();
 
       return lak::ok_t{};
     }
@@ -3849,39 +3821,31 @@ namespace SourceExplorer
       return basic_view(srcexp, "Frame Handles");
     }
 
-    error_t bank_t::read(game_t &game, lak::memory &strm)
+    error_t bank_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("frame::bank_t::read");
+      FUNCTION_CHECKPOINT("frame::bank_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("frame::bank_t::read")));
+      DEFER(game.bank_completed = 0.0f);
+
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::bank_t::read"));
 
       items.clear();
-      error_t result = lak::ok_t{};
-      while ((chunk_t)strm.peek_u16() == chunk_t::frame)
+
+      size_t start_pos = strm.position();
+
+      while (strm.remaining().size() >= 2 &&
+             (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::frame)
       {
-        items.emplace_back();
-        if (result = items.back().read(game, strm); result.is_err()) break;
-        game.completed =
-          (float)((double)strm.position() / (double)strm.size());
+        auto &item = items.emplace_back();
+        RES_TRY(item.read(game, strm)
+                  .IF_ERR("Failed To Read Item ", (&item - items.data()))
+                  .MAP_SE_ERR("frame::bank_t::read"));
+
+        game.bank_completed =
+          float(double(strm.position() - start_pos) / double(strm.size()));
       }
 
-      if (strm.position() < entry.end)
-      {
-        WARNING("There is still ",
-                entry.end - strm.position(),
-                " bytes left in the frame bank");
-      }
-      else if (strm.position() > entry.end)
-      {
-        DEBUG("Frame bank overshot entry by ",
-              strm.position() - entry.end,
-              " bytes");
-      }
-
-      // strm.seek(entry.end);
-
-      return result;
+      return lak::ok_t{};
     }
 
     error_t bank_t::view(source_explorer_t &srcexp) const
@@ -3889,14 +3853,13 @@ namespace SourceExplorer
       LAK_TREE_NODE("0x%zX Frame Bank (%zu Items)##%zX",
                     (size_t)entry.ID,
                     items.size(),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
         for (const item_t &item : items)
         {
-          RES_TRY(
-            item.view(srcexp).map_err(APPEND_TRACE("frame::bank_t::view")));
+          RES_TRY(item.view(srcexp).MAP_SE_ERR("frame::bank_t::view"));
         }
       }
 
@@ -3906,67 +3869,82 @@ namespace SourceExplorer
 
   namespace image
   {
-    error_t item_t::read(game_t &game, lak::memory &strm)
+    error_t item_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("image::item_t::read");
+      FUNCTION_CHECKPOINT("image::item_t::");
 
-      lak::memory istrm;
+      data_ref_span_t span;
       if (game.two_five_plus_game)
       {
         const size_t header_size = 36;
-        RES_TRY_ERR(entry.read(game, strm, false, header_size)
-                      .map_err(APPEND_TRACE("image::item_t::read")));
+        RES_TRY(entry.read(game, strm, false, header_size)
+                  .MAP_SE_ERR("image::item_t::read"));
 
-        RES_TRY_ASSIGN(istrm =,
-                       entry.decodeHeader(header_size)
-                         .map_err(APPEND_TRACE("image::item_t::read")));
-        CHECK_REMAINING(istrm, header_size);
+        data_position = strm.position();
+
+        RES_TRY_ASSIGN(
+          span =,
+          entry.decode_head(header_size).MAP_SE_ERR("image::item_t::read"));
+
+        if (span.size() < header_size)
+          return lak::err_t{error(LINE_TRACE, error::out_of_data)};
       }
       else
       {
-        RES_TRY_ERR(entry.read(game, strm, true)
-                      .map_err(APPEND_TRACE("image::item_t::read")));
+        RES_TRY(
+          entry.read(game, strm, true).MAP_SE_ERR("image::item_t::read"));
 
         if (!game.old_game && game.product_build >= 284) --entry.handle;
 
-        RES_TRY_ASSIGN(istrm =,
-                       entry.decode(176 + (game.old_game ? 16 : 80))
-                         .map_err(APPEND_TRACE("image::item_t::read")));
+        RES_TRY_ASSIGN(span =,
+                       entry.decode_body(176 + (game.old_game ? 16 : 80))
+                         .MAP_SE_ERR("image::item_t::read"));
       }
+      auto istrm = data_reader_t(span);
+
+      DEBUG("Handle: ", entry.handle);
 
       if (game.old_game)
-        checksum = istrm.read_u16();
+      {
+        TRY_ASSIGN(checksum =, istrm.read_u16());
+      }
       else
-        checksum = istrm.read_u32();
-      reference = istrm.read_u32();
-      if (game.two_five_plus_game) istrm.skip(4);
-      data_size     = istrm.read_u32();
-      size.x        = istrm.read_u16();
-      size.y        = istrm.read_u16();
-      graphics_mode = (graphics_mode_t)istrm.read_u8();
-      flags         = (image_flag_t)istrm.read_u8();
+      {
+        TRY_ASSIGN(checksum =, istrm.read_u32());
+      }
+      TRY_ASSIGN(reference =, istrm.read_u32());
+      if (game.two_five_plus_game) TRY(istrm.skip(4));
+      TRY_ASSIGN(data_size =, istrm.read_u32());
+      TRY_ASSIGN(size.x =, istrm.read_u16());
+      TRY_ASSIGN(size.y =, istrm.read_u16());
+      TRY_ASSIGN(graphics_mode = (graphics_mode_t), istrm.read_u8());
+      TRY_ASSIGN(flags = (image_flag_t), istrm.read_u8());
 #if 0
       if (graphics_mode <= graphics_mode_t::graphics3)
       {
-        palette_entries = istrm.read_u8();
+        TRY_ASSIGN(palette_entries =, istrm.read_u8());
         for (size_t i = 0; i < palette.size();
               ++i) // where is this size coming from???
-          palette[i] = ColorFrom32bitRGBA(strm); // not sure if RGBA or BGRA
-        count = strm.read_u32();
+          palette[i] = ColorFrom32bitRGBA(istrm); // not sure if RGBA or BGRA
+        TRY_ASSIGN(count =, strm.read_u32());
       }
 #endif
-      if (!game.old_game) unknown = istrm.read_u16();
-      hotspot.x = istrm.read_u16();
-      hotspot.y = istrm.read_u16();
-      action.x  = istrm.read_u16();
-      action.y  = istrm.read_u16();
+      if (!game.old_game)
+      {
+        TRY_ASSIGN(unknown =, istrm.read_u16());
+      }
+      TRY_ASSIGN(hotspot.x =, istrm.read_u16());
+      TRY_ASSIGN(hotspot.y =, istrm.read_u16());
+      TRY_ASSIGN(action.x =, istrm.read_u16());
+      TRY_ASSIGN(action.y =, istrm.read_u16());
+
       if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
+
       if (game.two_five_plus_game)
       {
+        ASSERT_EQUAL(strm.position(), data_position);
+        TRY_ASSIGN(entry.body.data =, strm.read_ref_span(data_size));
         data_position = 0;
-        strm.seek(entry.data.position);
-        entry.data.data = strm.read(data_size);
-        entry.end       = strm.position();
       }
       else
       {
@@ -3978,7 +3956,7 @@ namespace SourceExplorer
 
     error_t item_t::view(source_explorer_t &srcexp) const
     {
-      LAK_TREE_NODE("0x%zX Image##%zX", (size_t)entry.handle, entry.position)
+      LAK_TREE_NODE("0x%zX Image##%zX", (size_t)entry.handle, entry.position())
       {
         entry.view(srcexp);
 
@@ -4000,51 +3978,59 @@ namespace SourceExplorer
 
         if (ImGui::Button("View Image"))
         {
-          auto img = image(srcexp.dump_color_transparent)
-                       .IF_ERR("Failed To Read Image Data");
-          if (img.is_ok())
-            srcexp.image = CreateTexture(img.unwrap(), srcexp.graphics_mode);
+          image(srcexp.dump_color_transparent)
+            .if_ok([&](lak::image4_t &img) {
+              ASSERT(lak::pages_are_committed(
+                lak::span(img.data(), img.contig_size())));
+              srcexp.image = CreateTexture(img, srcexp.graphics_mode);
+            })
+            .IF_ERR("Failed To Read Image Data");
         }
       }
 
       return lak::ok_t{};
     }
 
-    result_t<lak::memory> item_t::image_data() const
+    result_t<data_ref_span_t> item_t::image_data() const
     {
-      SCOPED_CHECKPOINT("image::item_t::image_data");
+      FUNCTION_CHECKPOINT("image::item_t::");
 
       RES_TRY_ASSIGN(
-        lak::memory strm =,
-        entry.decode().map_err(APPEND_TRACE("image::item_t::image_data")));
+        auto span =,
+        entry.decode_body().MAP_SE_ERR("image::item_t::image_data"));
 
-      CHECK_POSITION(strm, data_position);
+      data_reader_t strm(span);
 
-      strm.seek(data_position);
+      TRY(strm.seek(data_position));
 
       if ((flags & image_flag_t::LZX) == image_flag_t::LZX)
       {
         if (entry.mode == encoding_t::mode4)
         {
-          return lak::ok_t{lak::move(strm)};
+          return lak::ok_t{strm.read_remaining_ref_span()};
         }
         else
         {
-          CHECK_REMAINING(strm, 8);
+          TRY_ASSIGN([[maybe_unused]] const uint32_t decompressed_length =,
+                     strm.read_u32());
 
-          [[maybe_unused]] const uint32_t decompressed_length =
-            strm.read_u32();
-          const uint32_t compressed_length = strm.read_u32();
+          TRY_ASSIGN(const uint32_t compressed_length =, strm.read_u32());
 
           CHECK_REMAINING(strm, compressed_length);
 
-          return lak::ok_t{
-            lak::memory(InflateOrCompressed(strm.read(compressed_length)))};
+          return strm.read_ref_span(compressed_length)
+            .MAP_ERR("item_t::image_data: read filed")
+            .map([](const data_ref_span_t &ref_span) -> data_ref_span_t {
+              return lak::ok_or_err(
+                Inflate(ref_span, false, false).map_err([&](...) {
+                  return ref_span;
+                }));
+            });
         }
       }
       else
       {
-        return lak::ok_t{strm};
+        return lak::ok_t{strm.read_remaining_ref_span()};
       }
     }
 
@@ -4057,26 +4043,27 @@ namespace SourceExplorer
     result_t<lak::image4_t> item_t::image(
       const bool color_transparent, const lak::color4_t palette[256]) const
     {
-      SCOPED_CHECKPOINT("image::image_t::image");
+      FUNCTION_CHECKPOINT("image::image_t::");
 
-      lak::image4_t result;
-      result.resize((lak::vec2s_t)size);
+      lak::image4_t img = {};
+      img.resize((lak::vec2s_t)size);
 
-      RES_TRY_ASSIGN(
-        lak::memory strm =,
-        image_data().map_err(APPEND_TRACE("image::item_t::image")));
+      RES_TRY_ASSIGN(auto span =,
+                     image_data().MAP_SE_ERR("image::item_t::image"));
+
+      data_reader_t strm(span);
 
       [[maybe_unused]] size_t bytes_read;
       if ((flags & (image_flag_t::RLE | image_flag_t::RLEW |
                     image_flag_t::RLET)) != image_flag_t::none)
       {
         RES_TRY_ASSIGN(bytes_read =,
-                       ReadRLE(strm, result, graphics_mode, palette));
+                       ReadRLE(strm, img, graphics_mode, palette));
       }
       else
       {
         RES_TRY_ASSIGN(bytes_read =,
-                       ReadRGB(strm, result, graphics_mode, palette));
+                       ReadRGB(strm, img, graphics_mode, palette));
       }
 
       if ((flags & image_flag_t::RGBA) != image_flag_t::none)
@@ -4085,21 +4072,24 @@ namespace SourceExplorer
       }
       else if ((flags & image_flag_t::alpha) != image_flag_t::none)
       {
-        RES_TRY(ReadAlpha(strm, result));
+        RES_TRY(ReadAlpha(strm, img));
       }
       else if (color_transparent)
       {
-        ReadTransparent(transparent, result);
+        ReadTransparent(transparent, img);
       }
       else
       {
-        for (size_t i = 0; i < result.contig_size(); ++i) result[i].a = 255;
+        for (size_t i = 0; i < img.contig_size(); ++i) img[i].a = 255;
       }
 
-      if (strm.remaining() != 0)
-        WARNING(strm.remaining(), " Bytes Left Over In Image Data");
+      if (!strm.empty())
+        WARNING(strm.remaining().size(), " Bytes Left Over In Image Data");
 
-      return lak::ok_t{result};
+      ASSERT(
+        lak::pages_are_committed(lak::span(img.data(), img.contig_size())));
+
+      return lak::ok_t{lak::move(img)};
     }
 
     error_t end_t::view(source_explorer_t &srcexp) const
@@ -4107,49 +4097,50 @@ namespace SourceExplorer
       return basic_view(srcexp, "Image Bank End");
     }
 
-    error_t bank_t::read(game_t &game, lak::memory &strm)
+    error_t bank_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("image::bank_t::read");
+      FUNCTION_CHECKPOINT("image::bank_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("image::bank_t::read")));
+      DEFER(game.bank_completed = 0.0f);
 
-      strm.seek(entry.data.position);
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("image::bank_t::read"));
 
-      items.resize(strm.read_u32());
+      data_reader_t reader(entry.raw_body());
+
+      TRY_ASSIGN(const auto item_count =, reader.read_u32());
+
+      items.resize(item_count);
 
       DEBUG("Image Bank Size: ", items.size());
 
-      error_t result = lak::ok_t{};
       for (auto &item : items)
       {
-        if (result = item.read(game, strm); result.is_err()) break;
-        game.completed =
-          (float)((double)strm.position() / (double)strm.size());
+        RES_TRY(item.read(game, reader)
+                  .IF_ERR("Failed To Read Item ",
+                          (&item - items.data()),
+                          " Of ",
+                          items.size())
+                  .MAP_SE_ERR("image::bank_t::read"));
+
+        game.bank_completed =
+          float(double(reader.position()) / double(reader.size()));
       }
 
-      if (strm.position() < entry.end)
+      if (!reader.empty())
       {
         WARNING("There is still ",
-                entry.end - strm.position(),
+                reader.remaining().size(),
                 " bytes left in the image bank");
       }
-      else if (strm.position() > entry.end)
-      {
-        ERROR("Image bank overshot entry by ",
-              strm.position() - entry.end,
-              " bytes");
-      }
 
-      strm.seek(entry.end);
-
-      if ((chunk_t)strm.peek_u16() == chunk_t::image_handles)
+      if (strm.remaining().size() >= 2 &&
+          (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::image_handles)
       {
         end = std::make_unique<end_t>();
-        if (end) result = end->read(game, strm);
+        TRY_SE(end->read(game, strm));
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t bank_t::view(source_explorer_t &srcexp) const
@@ -4157,20 +4148,18 @@ namespace SourceExplorer
       LAK_TREE_NODE("0x%zX Image Bank (%zu Items)##%zX",
                     (size_t)entry.ID,
                     items.size(),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
         for (const item_t &item : items)
         {
-          RES_TRY(
-            item.view(srcexp).map_err(APPEND_TRACE("image::bank_t::view")));
+          RES_TRY(item.view(srcexp).MAP_SE_ERR("image::bank_t::view"));
         }
 
         if (end)
         {
-          RES_TRY(
-            end->view(srcexp).map_err(APPEND_TRACE("image::bank_t::view")));
+          RES_TRY(end->view(srcexp).MAP_SE_ERR("image::bank_t::view"));
         }
       }
 
@@ -4190,47 +4179,48 @@ namespace SourceExplorer
       return basic_view(srcexp, "Font Bank End");
     }
 
-    error_t bank_t::read(game_t &game, lak::memory &strm)
+    error_t bank_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("font::bank_t::read");
+      FUNCTION_CHECKPOINT("font::bank_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("font::bank_t::read")));
+      DEFER(game.bank_completed = 0.0f);
 
-      strm.seek(entry.data.position);
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("font::bank_t::read"));
 
-      items.resize(strm.read_u32());
+      data_reader_t reader(entry.raw_body());
 
-      error_t result = lak::ok_t{};
+      TRY_ASSIGN(const auto item_count =, reader.read_u32());
+
+      items.resize(item_count);
+
       for (auto &item : items)
       {
-        if (result = item.read(game, strm); result.is_err()) break;
-        game.completed =
-          (float)((double)strm.position() / (double)strm.size());
+        RES_TRY(item.read(game, reader)
+                  .IF_ERR("Failed To Read Item ",
+                          (&item - items.data()),
+                          " Of ",
+                          items.size())
+                  .MAP_SE_ERR("font::bank_t::read"));
+
+        game.bank_completed =
+          (float)((double)reader.position() / (double)reader.size());
       }
 
-      if (strm.position() < entry.end)
+      if (!reader.empty())
       {
         WARNING("There is still ",
-                entry.end - strm.position(),
+                reader.remaining().size(),
                 " bytes left in the font bank");
       }
-      else if (strm.position() > entry.end)
-      {
-        ERROR("Font bank overshot entry by ",
-              strm.position() - entry.end,
-              " bytes");
-      }
 
-      strm.seek(entry.end);
-
-      if ((chunk_t)strm.peek_u16() == chunk_t::font_handles)
+      if (strm.remaining().size() >= 2 &&
+          (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::font_handles)
       {
         end = std::make_unique<end_t>();
-        if (end) result = end->read(game, strm);
+        TRY_SE(end->read(game, strm));
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t bank_t::view(source_explorer_t &srcexp) const
@@ -4238,20 +4228,18 @@ namespace SourceExplorer
       LAK_TREE_NODE("0x%zX Font Bank (%zu Items)##%zX",
                     (size_t)entry.ID,
                     items.size(),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
         for (const item_t &item : items)
         {
-          RES_TRY(
-            item.view(srcexp).map_err(APPEND_TRACE("font::bank_t::view")));
+          RES_TRY(item.view(srcexp).MAP_SE_ERR("font::bank_t::view"));
         }
 
         if (end)
         {
-          RES_TRY(
-            end->view(srcexp).map_err(APPEND_TRACE("font::bank_t::view")));
+          RES_TRY(end->view(srcexp).MAP_SE_ERR("font::bank_t::view"));
         }
       }
 
@@ -4261,9 +4249,9 @@ namespace SourceExplorer
 
   namespace sound
   {
-    error_t item_t::read(game_t &game, lak::memory &strm)
+    error_t item_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("sound::item_t::read");
+      FUNCTION_CHECKPOINT("sound::item_t::");
       return entry.read(game, strm, false, 0x18);
     }
 
@@ -4277,47 +4265,48 @@ namespace SourceExplorer
       return basic_view(srcexp, "Sound Bank End");
     }
 
-    error_t bank_t::read(game_t &game, lak::memory &strm)
+    error_t bank_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("sound::bank_t::read");
+      FUNCTION_CHECKPOINT("sound::bank_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("sound::bank_t::read")));
+      DEFER(game.bank_completed = 0.0f);
 
-      strm.seek(entry.data.position);
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("sound::bank_t::read"));
 
-      items.resize(strm.read_u32());
+      data_reader_t reader(entry.raw_body());
 
-      error_t result = lak::ok_t{};
+      TRY_ASSIGN(const auto item_count =, reader.read_u32());
+
+      items.resize(item_count);
+
       for (auto &item : items)
       {
-        if (result = item.read(game, strm); result.is_err()) break;
-        game.completed =
-          (float)((double)strm.position() / (double)strm.size());
+        RES_TRY(item.read(game, reader)
+                  .IF_ERR("Failed To Read Item ",
+                          (&item - items.data()),
+                          " Of ",
+                          items.size())
+                  .MAP_SE_ERR("sound::bank_t::read"));
+
+        game.bank_completed =
+          (float)((double)reader.position() / (double)reader.size());
       }
 
-      if (strm.position() < entry.end)
+      if (!reader.empty())
       {
         WARNING("There is still ",
-                entry.end - strm.position(),
+                reader.remaining().size(),
                 " bytes left in the sound bank");
       }
-      else if (strm.position() > entry.end)
-      {
-        ERROR("Sound bank overshot entry by ",
-              strm.position() - entry.end,
-              " bytes");
-      }
 
-      strm.seek(entry.end);
-
-      if ((chunk_t)strm.peek_u16() == chunk_t::sound_handles)
+      if (strm.remaining().size() >= 2 &&
+          (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::sound_handles)
       {
         end = std::make_unique<end_t>();
-        if (end) result = end->read(game, strm);
+        TRY_SE(end->read(game, strm));
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t bank_t::view(source_explorer_t &srcexp) const
@@ -4325,20 +4314,18 @@ namespace SourceExplorer
       LAK_TREE_NODE("0x%zX Sound Bank (%zu Items)##%zX",
                     (size_t)entry.ID,
                     items.size(),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
         for (const item_t &item : items)
         {
-          RES_TRY(
-            item.view(srcexp).map_err(APPEND_TRACE("sound::bank_t::view")));
+          RES_TRY(item.view(srcexp).MAP_SE_ERR("sound::bank_t::view"));
         }
 
         if (end)
         {
-          RES_TRY(
-            end->view(srcexp).map_err(APPEND_TRACE("sound::bank_t::view")));
+          RES_TRY(end->view(srcexp).MAP_SE_ERR("sound::bank_t::view"));
         }
       }
 
@@ -4358,47 +4345,48 @@ namespace SourceExplorer
       return basic_view(srcexp, "Music Bank End");
     }
 
-    error_t bank_t::read(game_t &game, lak::memory &strm)
+    error_t bank_t::read(game_t &game, data_reader_t &strm)
     {
-      SCOPED_CHECKPOINT("music::bank_t::read");
+      FUNCTION_CHECKPOINT("music::bank_t::");
 
-      RES_TRY_ERR(
-        entry.read(game, strm).map_err(APPEND_TRACE("music::bank_t::read")));
+      DEFER(game.bank_completed = 0.0f);
 
-      strm.seek(entry.data.position);
+      RES_TRY(entry.read(game, strm).MAP_SE_ERR("music::bank_t::read"));
 
-      items.resize(strm.read_u32());
+      data_reader_t reader(entry.raw_body());
 
-      error_t result = lak::ok_t{};
+      TRY_ASSIGN(const auto item_count =, reader.read_u32());
+
+      items.resize(item_count);
+
       for (auto &item : items)
       {
-        if (result = item.read(game, strm); result.is_err()) break;
-        game.completed =
-          (float)((double)strm.position() / (double)strm.size());
+        RES_TRY(item.read(game, reader)
+                  .IF_ERR("Failed To Read Item ",
+                          (&item - items.data()),
+                          " Of ",
+                          items.size())
+                  .MAP_SE_ERR("music::bank_t::read"));
+
+        game.bank_completed =
+          (float)((double)reader.position() / (double)reader.size());
       }
 
-      if (strm.position() < entry.end)
+      if (!reader.empty())
       {
         WARNING("There is still ",
-                entry.end - strm.position(),
+                reader.remaining().size(),
                 " bytes left in the music bank");
       }
-      else if (strm.position() > entry.end)
-      {
-        ERROR("Music bank overshot entry by ",
-              strm.position() - entry.end,
-              " bytes");
-      }
 
-      strm.seek(entry.end);
-
-      if ((chunk_t)strm.peek_u16() == chunk_t::music_handles)
+      if (strm.remaining().size() >= 2 &&
+          (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::music_handles)
       {
         end = std::make_unique<end_t>();
-        if (end) result = end->read(game, strm);
+        TRY_SE(end->read(game, strm));
       }
 
-      return result;
+      return lak::ok_t{};
     }
 
     error_t bank_t::view(source_explorer_t &srcexp) const
@@ -4406,20 +4394,18 @@ namespace SourceExplorer
       LAK_TREE_NODE("0x%zX Music Bank (%zu Items)##%zX",
                     (size_t)entry.ID,
                     items.size(),
-                    entry.position)
+                    entry.position())
       {
         entry.view(srcexp);
 
         for (const item_t &item : items)
         {
-          RES_TRY(
-            item.view(srcexp).map_err(APPEND_TRACE("music::bank_t::view")));
+          RES_TRY(item.view(srcexp).MAP_SE_ERR("music::bank_t::view"));
         }
 
         if (end)
         {
-          RES_TRY(
-            end->view(srcexp).map_err(APPEND_TRACE("music::bank_t::view")));
+          RES_TRY(end->view(srcexp).MAP_SE_ERR("music::bank_t::view"));
         }
       }
 
@@ -4432,12 +4418,11 @@ namespace SourceExplorer
     return basic_view(srcexp, "Last");
   }
 
-  error_t header_t::read(game_t &game, lak::memory &strm)
+  error_t header_t::read(game_t &game, data_reader_t &strm)
   {
-    SCOPED_CHECKPOINT("header_t::read");
+    FUNCTION_CHECKPOINT("header_t::");
 
-    RES_TRY_ERR(
-      entry.read(game, strm).map_err(APPEND_TRACE("header_t::read")));
+    RES_TRY(entry.read(game, strm).MAP_SE_ERR("header_t::read"));
 
     auto init_chunk = [&](auto &chunk) {
       chunk = std::make_unique<
@@ -4446,7 +4431,7 @@ namespace SourceExplorer
     };
 
     chunk_t childID  = (chunk_t)-1;
-    size_t start_pos = -1;
+    size_t start_pos = SIZE_MAX;
     for (bool not_finished = true; not_finished;)
     {
       if (strm.size() > 0)
@@ -4461,285 +4446,243 @@ namespace SourceExplorer
                                 ") didn't move stream head")};
 
       start_pos = strm.position();
-      childID   = (chunk_t)strm.peek_u16();
+      TRY_ASSIGN(childID = (chunk_t), strm.peek_u16());
 
+      // the MAP_SE_ERRs are here so we get line information
       switch (childID)
       {
         case chunk_t::title:
-          RES_TRY_ERR(
-            init_chunk(title).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(title).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::author:
-          RES_TRY_ERR(
-            init_chunk(author).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(author).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::copyright:
-          RES_TRY_ERR(
-            init_chunk(copyright).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(copyright).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::project_path:
-          RES_TRY_ERR(
-            init_chunk(project_path).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(project_path).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::output_path:
-          RES_TRY_ERR(
-            init_chunk(output_path).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(output_path).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::about:
-          RES_TRY_ERR(
-            init_chunk(about).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(about).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::vitalise_preview:
-          RES_TRY_ERR(init_chunk(vitalise_preview)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(vitalise_preview).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::menu:
-          RES_TRY_ERR(
-            init_chunk(menu).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(menu).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::extra_path:
-          RES_TRY_ERR(init_chunk(extension_path)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(extension_path).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::extensions:
-          RES_TRY_ERR(
-            init_chunk(extensions).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(extensions).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::extra_data:
-          RES_TRY_ERR(init_chunk(extension_data)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(extension_data).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::additional_extensions:
-          RES_TRY_ERR(init_chunk(additional_extensions)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(
+            init_chunk(additional_extensions).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::app_doc:
-          RES_TRY_ERR(
-            init_chunk(app_doc).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(app_doc).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::other_extension:
-          RES_TRY_ERR(init_chunk(other_extension)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(other_extension).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::extensions_list:
-          RES_TRY_ERR(init_chunk(extension_list)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(extension_list).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::icon:
-          RES_TRY_ERR(
-            init_chunk(icon).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(icon).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::demo_version:
-          RES_TRY_ERR(
-            init_chunk(demo_version).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(demo_version).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::security_number:
-          RES_TRY_ERR(
-            init_chunk(security).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(security).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::binary_files:
-          RES_TRY_ERR(
-            init_chunk(binary_files).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(binary_files).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::menu_images:
-          RES_TRY_ERR(
-            init_chunk(menu_images).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(menu_images).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::movement_extensions:
-          RES_TRY_ERR(init_chunk(movement_extensions)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(
+            init_chunk(movement_extensions).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::exe_only:
-          RES_TRY_ERR(init_chunk(exe).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(exe).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::protection:
-          RES_TRY_ERR(
-            init_chunk(protection).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(protection).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::shaders:
-          RES_TRY_ERR(
-            init_chunk(shaders).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(shaders).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::extended_header:
-          RES_TRY_ERR(init_chunk(extended_header)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(extended_header).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::spacer:
-          RES_TRY_ERR(
-            init_chunk(spacer).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(spacer).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::chunk224F:
-          RES_TRY_ERR(
-            init_chunk(chunk224F).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(chunk224F).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::title2:
-          RES_TRY_ERR(
-            init_chunk(title2).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(title2).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::chunk2253:
           // 16-bytes
-          RES_TRY_ERR(
-            init_chunk(chunk2253).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(chunk2253).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::object_names:
-          RES_TRY_ERR(
-            init_chunk(object_names).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(object_names).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::chunk2255:
           // blank???
-          RES_TRY_ERR(
-            init_chunk(chunk2255).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(chunk2255).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::two_five_plus_object_properties:
           // Appears to have sub chunks
-          RES_TRY_ERR(init_chunk(two_five_plus_object_properties)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(two_five_plus_object_properties)
+                    .MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::chunk2257:
-          RES_TRY_ERR(
-            init_chunk(chunk2257).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(chunk2257).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::object_properties:
-          RES_TRY_ERR(init_chunk(object_properties)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(object_properties).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::font_meta:
-          RES_TRY_ERR(init_chunk(truetype_fonts_meta)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(
+            init_chunk(truetype_fonts_meta).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::font_chunk:
-          RES_TRY_ERR(init_chunk(truetype_fonts)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(truetype_fonts).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::shaders2:
-          RES_TRY_ERR(
-            init_chunk(shaders).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(shaders2).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::global_events:
-          RES_TRY_ERR(
-            init_chunk(global_events).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(global_events).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::global_strings:
-          RES_TRY_ERR(init_chunk(global_strings)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(global_strings).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::global_string_names:
-          RES_TRY_ERR(init_chunk(global_string_names)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(
+            init_chunk(global_string_names).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::global_values:
-          RES_TRY_ERR(
-            init_chunk(global_values).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(global_values).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::global_value_names:
-          RES_TRY_ERR(init_chunk(global_value_names)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(global_value_names).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::frame_handles:
-          RES_TRY_ERR(
-            init_chunk(frame_handles).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(frame_handles).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::frame_bank:
-          RES_TRY_ERR(
-            init_chunk(frame_bank).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(frame_bank).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::frame:
           if (frame_bank) ERROR("Frame Bank Already Exists");
           frame_bank = std::make_unique<frame::bank_t>();
           frame_bank->items.clear();
-          while ((chunk_t)strm.peek_u16() == chunk_t::frame)
+          while (strm.remaining().size() >= 2 &&
+                 (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::frame)
           {
-            frame_bank->items.emplace_back();
-            if (frame_bank->items.back().read(game, strm).is_err()) break;
+            if (frame_bank->items.emplace_back().read(game, strm).is_err())
+              break;
           }
           break;
 
           // case chunk_t::object_bank2:
-          //     RES_TRY_ERR(init_chunk(object_bank_2).map_err(APPEND_TRACE("header_t::read")));
+          //     RES_TRY(init_chunk(object_bank_2).MAP_SE_ERR("header_t::read"));
           //     break;
 
         case chunk_t::object_bank:
         case chunk_t::object_bank2:
-          RES_TRY_ERR(
-            init_chunk(object_bank).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(object_bank).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::image_bank:
-          RES_TRY_ERR(
-            init_chunk(image_bank).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(image_bank).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::sound_bank:
-          RES_TRY_ERR(
-            init_chunk(sound_bank).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(sound_bank).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::music_bank:
-          RES_TRY_ERR(
-            init_chunk(music_bank).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(music_bank).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::font_bank:
-          RES_TRY_ERR(
-            init_chunk(font_bank).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(font_bank).MAP_SE_ERR("header_t::read"));
           break;
 
         case chunk_t::last:
-          RES_TRY_ERR(
-            init_chunk(last).map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(init_chunk(last).MAP_SE_ERR("header_t::read"));
           not_finished = false;
           break;
 
         default:
           DEBUG("Invalid Chunk: ", (size_t)childID);
           unknown_chunks.emplace_back();
-          RES_TRY_ERR(unknown_chunks.back()
-                        .read(game, strm)
-                        .map_err(APPEND_TRACE("header_t::read")));
+          RES_TRY(unknown_chunks.back()
+                    .read(game, strm)
+                    .MAP_SE_ERR("header_t::read"));
           break;
       }
     }
@@ -4749,103 +4692,103 @@ namespace SourceExplorer
 
   error_t header_t::view(source_explorer_t &srcexp) const
   {
-    LAK_TREE_NODE("0x%zX Game Header##%zX", (size_t)entry.ID, entry.position)
+    LAK_TREE_NODE("0x%zX Game Header##%zX", (size_t)entry.ID, entry.position())
     {
       entry.view(srcexp);
 
       RES_TRY(title.view(srcexp, "Title", true)
-                .map_err(APPEND_TRACE("header_t::view")));
+                .MAP_SE_ERR("header_t::view"));
       RES_TRY(author.view(srcexp, "Author", true)
-                .map_err(APPEND_TRACE("header_t::view")));
+                .MAP_SE_ERR("header_t::view"));
       RES_TRY(copyright.view(srcexp, "Copyright", true)
-                .map_err(APPEND_TRACE("header_t::view")));
+                .MAP_SE_ERR("header_t::view"));
       RES_TRY(output_path.view(srcexp, "Output Path")
-                .map_err(APPEND_TRACE("header_t::view")));
+                .MAP_SE_ERR("header_t::view"));
       RES_TRY(project_path.view(srcexp, "Project Path")
-                .map_err(APPEND_TRACE("header_t::view")));
+                .MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        about.view(srcexp, "About").map_err(APPEND_TRACE("header_t::view")));
+        about.view(srcexp, "About").MAP_SE_ERR("header_t::view"));
 
       RES_TRY(
-        vitalise_preview.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(menu.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        vitalise_preview.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(menu.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        extension_path.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(extensions.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        extension_path.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(extensions.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        extension_data.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(additional_extensions.view(srcexp).map_err(
-        APPEND_TRACE("header_t::view")));
-      RES_TRY(app_doc.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        extension_data.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(additional_extensions.view(srcexp).MAP_SE_ERR(
+        "header_t::view"));
+      RES_TRY(app_doc.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        other_extension.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        other_extension.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        extension_list.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(icon.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        extension_list.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(icon.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        demo_version.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(security.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        demo_version.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(security.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        binary_files.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        binary_files.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        menu_images.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(movement_extensions.view(srcexp).map_err(
-        APPEND_TRACE("header_t::view")));
+        menu_images.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(movement_extensions.view(srcexp).MAP_SE_ERR(
+        "header_t::view"));
       RES_TRY(
-        object_bank_2.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(exe.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(protection.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(shaders.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(shaders2.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        object_bank_2.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(exe.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(protection.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(shaders.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(shaders2.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        extended_header.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(spacer.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(chunk224F.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(title2.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        extended_header.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(spacer.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(chunk224F.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(title2.view(srcexp).MAP_SE_ERR("header_t::view"));
 
       RES_TRY(
-        global_events.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        global_events.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        global_strings.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(global_string_names.view(srcexp).map_err(
-        APPEND_TRACE("header_t::view")));
+        global_strings.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(global_string_names.view(srcexp).MAP_SE_ERR(
+        "header_t::view"));
       RES_TRY(
-        global_values.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(global_value_names.view(srcexp).map_err(
-        APPEND_TRACE("header_t::view")));
+        global_values.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(global_value_names.view(srcexp).MAP_SE_ERR(
+        "header_t::view"));
 
       RES_TRY(
-        frame_handles.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(frame_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        frame_handles.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(frame_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        object_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(image_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(sound_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(music_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(font_bank.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        object_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(image_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(sound_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(music_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(font_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
 
-      RES_TRY(chunk2253.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(chunk2253.view(srcexp).MAP_SE_ERR("header_t::view"));
       RES_TRY(
-        object_names.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(chunk2255.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(two_five_plus_object_properties.view(srcexp).map_err(
-        APPEND_TRACE("header_t::view")));
-      RES_TRY(chunk2257.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
-      RES_TRY(object_properties.view(srcexp).map_err(
-        APPEND_TRACE("header_t::view")));
-      RES_TRY(truetype_fonts_meta.view(srcexp).map_err(
-        APPEND_TRACE("header_t::view")));
+        object_names.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(chunk2255.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(two_five_plus_object_properties.view(srcexp).MAP_SE_ERR(
+        "header_t::view"));
+      RES_TRY(chunk2257.view(srcexp).MAP_SE_ERR("header_t::view"));
+      RES_TRY(object_properties.view(srcexp).MAP_SE_ERR(
+        "header_t::view"));
+      RES_TRY(truetype_fonts_meta.view(srcexp).MAP_SE_ERR(
+        "header_t::view"));
       RES_TRY(
-        truetype_fonts.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        truetype_fonts.view(srcexp).MAP_SE_ERR("header_t::view"));
 
       for (auto &unk : unknown_strings)
       {
-        RES_TRY(unk.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        RES_TRY(unk.view(srcexp).MAP_SE_ERR("header_t::view"));
       }
 
       for (auto &unk : unknown_compressed)
       {
-        RES_TRY(unk.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+        RES_TRY(unk.view(srcexp).MAP_SE_ERR("header_t::view"));
       }
 
       for (auto &unk : unknown_chunks)
@@ -4853,12 +4796,12 @@ namespace SourceExplorer
         RES_TRY(unk
                   .basic_view(srcexp,
                               (lak::astring("Unknown ") +
-                               std::to_string(unk.entry.position))
+                               std::to_string(unk.entry.position()))
                                 .c_str())
-                  .map_err(APPEND_TRACE("header_t::view")));
+                  .MAP_SE_ERR("header_t::view"));
       }
 
-      RES_TRY(last.view(srcexp).map_err(APPEND_TRACE("header_t::view")));
+      RES_TRY(last.view(srcexp).MAP_SE_ERR("header_t::view"));
     }
 
     return lak::ok_t{};

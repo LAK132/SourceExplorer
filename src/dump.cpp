@@ -32,6 +32,7 @@ SOFTWARE.
 #include "tostring.hpp"
 
 #include <lak/result.hpp>
+#include <lak/string_utils.hpp>
 #include <lak/visit.hpp>
 
 #include <unordered_set>
@@ -65,18 +66,15 @@ se::error_t se::SaveImage(source_explorer_t &srcexp,
                           const fs::path &filename,
                           const frame::item_t *frame)
 {
-  RES_TRY_ASSIGN(auto &item =,
-                 GetImage(srcexp.state, handle)
-                   .map_err(APPEND_TRACE("failed to get image item")));
-
-  RES_TRY_ASSIGN(
-    lak::image4_t image =,
-    item
-      .image(srcexp.dump_color_transparent,
-             (frame && frame->palette) ? frame->palette->colors : nullptr)
-      .map_err(APPEND_TRACE("failed to read image data")));
-
-  return SaveImage(image, filename);
+  return GetImage(srcexp.state, handle)
+    .MAP_SE_ERR("failed to get image item")
+    .and_then([&](const auto &item) {
+      return item.image(
+        srcexp.dump_color_transparent,
+        (frame && frame->palette) ? frame->palette->colors.data() : nullptr);
+    })
+    .MAP_SE_ERR("failed to read image data")
+    .and_then([&](const auto &image) { return SaveImage(image, filename); });
 }
 
 lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
@@ -85,7 +83,7 @@ lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
 
   if (auto result = awaiter(LoadGame, std::ref(srcexp)); result.is_ok())
   {
-    return lak::ok_t{result.unwrap().map_err(APPEND_TRACE("OpenGame"))};
+    return lak::ok_t{result.unwrap().MAP_SE_ERR("OpenGame")};
   }
   else
   {
@@ -106,6 +104,7 @@ lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
                             &lak::debugger.line_info_enabled);
           }
           ImGui::ProgressBar(srcexp.state.completed);
+          ImGui::ProgressBar(srcexp.state.bank_completed);
           ImGui::EndPopup();
         }
         else
@@ -348,24 +347,23 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                 if (img->need_palette() && frame.palette)
                   (void)SaveImage(img
                                     ->image(srcexp.dump_color_transparent,
-                                            frame.palette->colors)
+                                            frame.palette->colors.data())
                                     .UNWRAP(),
                                   image_path);
                 else if (auto res =
                            LinkImages(unsorted_path / image_name, image_path);
                          res.is_err())
-                  lak::visit(res.unwrap_err(), [](const auto &err) {
-                    if constexpr (lak::is_same_v<decltype(err),
-                                                 std::error_code>)
-                    {
-                      ERROR(
-                        "Linking Failed: (", err.value(), ")", err.message());
-                    }
-                    else
-                    {
-                      ERROR("Linking Failed: ", err);
-                    }
-                  });
+                  lak::visit(
+                    res.unwrap_err(),
+                    lak::overloaded{
+                      [](const std::error_code &err) {
+                        ERROR("Linking Failed: (",
+                              err.value(),
+                              ")",
+                              err.message());
+                      },
+                      [](const auto &err) { ERROR("Linking Failed: ", err); },
+                    });
               }
               for (const auto &imgname : imgnames)
               {
@@ -380,20 +378,18 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                     img)
                   if (auto res = LinkImages(unsorted_image_path, image_path);
                       res.is_err())
-                    lak::visit(res.unwrap_err(), [](const auto &err) {
-                      if constexpr (lak::is_same_v<decltype(err),
-                                                   std::error_code>)
-                      {
-                        ERROR("Linking Failed: (",
-                              err.value(),
-                              ")",
-                              err.message());
-                      }
-                      else
-                      {
-                        ERROR("Linking Failed: ", err);
-                      }
-                    });
+                    lak::visit(res.unwrap_err(),
+                               lak::overloaded{
+                                 [](const std::error_code &err) {
+                                   ERROR("Linking Failed: (",
+                                         err.value(),
+                                         ")",
+                                         err.message());
+                                 },
+                                 [](const auto &err) {
+                                   ERROR("Linking Failed: ", err);
+                                 },
+                               });
               }
             }
           }
@@ -422,7 +418,8 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed)
   stbi_write_func *func = [](void *context, void *png, int len) {
     auto [out, image] =
       *static_cast<std::tuple<std::ofstream *, lak::image4_t *> *>(context);
-    auto strm = lak::memory(std::vector(size_t(0x16), uint8_t(0)));
+    lak::binary_array_writer strm;
+    strm.reserve(0x16);
     strm.write_u16(0); // reserved
     strm.write_u16(1); // .ICO
     strm.write_u16(1); // 1 image
@@ -433,8 +430,9 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed)
     strm.write_u16(1);     // color plane
     strm.write_u16(8 * 4); // bits per pixel
     strm.write_u32(len);
-    strm.write_u32(strm.position() + sizeof(uint32_t));
-    out->write((const char *)strm.data(), strm.position());
+    strm.write_u32(strm.size() + sizeof(uint32_t));
+    auto result = strm.release();
+    out->write(reinterpret_cast<const char *>(result.data()), result.size());
     out->write((const char *)png, len);
   };
 
@@ -458,43 +456,47 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
     return;
   }
 
+  auto arr_to_str = [](const auto &arr) {
+    return lak::string<lak::remove_cvref_t<decltype(*arr.begin())>>(
+      arr.begin(), arr.end());
+  };
+
   const size_t count = srcexp.state.game.sound_bank->items.size();
   size_t index       = 0;
   for (const auto &item : srcexp.state.game.sound_bank->items)
   {
-    lak::memory sound = item.entry.decode().UNWRAP();
+    data_reader_t sound(item.entry.decode_body().UNWRAP());
+    lak::array<uint8_t> result;
 
     std::u16string name;
     sound_mode_t type;
+
     if (srcexp.state.old_game)
     {
-      uint16_t checksum = sound.read_u16();
-      (void)checksum;
-      uint32_t references = sound.read_u32();
-      (void)references;
-      uint32_t decomp_len = sound.read_u32();
-      (void)decomp_len;
-      type              = (sound_mode_t)sound.read_u32();
-      uint32_t reserved = sound.read_u32();
-      (void)reserved;
-      uint32_t name_len = sound.read_u32();
+      [[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
+      [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
+      type = (sound_mode_t)sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
+      uint32_t name_len                  = sound.read_u32().UNWRAP();
 
-      name = lak::to_u16string(sound.read_astring_exact(name_len));
+      name =
+        lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
 
-      [[maybe_unused]] uint16_t format           = sound.read_u16();
-      [[maybe_unused]] uint16_t channel_count    = sound.read_u16();
-      [[maybe_unused]] uint32_t sample_rate      = sound.read_u32();
-      [[maybe_unused]] uint32_t byte_rate        = sound.read_u32();
-      [[maybe_unused]] uint16_t block_align      = sound.read_u16();
-      [[maybe_unused]] uint16_t bits_per_sample  = sound.read_u16();
-      [[maybe_unused]] uint16_t unknown          = sound.read_u16();
-      uint32_t chunk_size                        = sound.read_u32();
-      [[maybe_unused]] std::vector<uint8_t> data = sound.read(chunk_size);
+      [[maybe_unused]] uint16_t format          = sound.read_u16().UNWRAP();
+      [[maybe_unused]] uint16_t channel_count   = sound.read_u16().UNWRAP();
+      [[maybe_unused]] uint32_t sample_rate     = sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t byte_rate       = sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint16_t block_align     = sound.read_u16().UNWRAP();
+      [[maybe_unused]] uint16_t bits_per_sample = sound.read_u16().UNWRAP();
+      [[maybe_unused]] uint16_t unknown         = sound.read_u16().UNWRAP();
+      uint32_t chunk_size                       = sound.read_u32().UNWRAP();
+      [[maybe_unused]] auto data = sound.read<uint8_t>(chunk_size).UNWRAP();
 
-      lak::memory output;
-      output.write(lak::string_view("RIFF"));
+      lak::binary_array_writer output;
+      output.write("RIFF"_aview);
       output.write_s32(data.size() - 44);
-      output.write(lak::string_view("WAVEfmt "));
+      output.write("WAVEfmt "_aview);
       output.write_u32(0x10);
       output.write_u16(format);
       output.write_u16(channel_count);
@@ -502,41 +504,46 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       output.write_u32(byte_rate);
       output.write_u16(block_align);
       output.write_u16(bits_per_sample);
-      output.write(lak::string_view("data"));
+      output.write("data"_aview);
       output.write_u32(chunk_size);
-      output.write(data);
-      output.seek(0);
-      sound = lak::move(output);
+      output.write(lak::span(data));
+      result = output.release();
     }
     else
     {
-      lak::memory header                 = item.entry.decodeHeader().UNWRAP();
-      [[maybe_unused]] uint32_t checksum = header.read_u32();
-      [[maybe_unused]] uint32_t references = header.read_u32();
-      [[maybe_unused]] uint32_t decomp_len = header.read_u32();
-      type                                 = (sound_mode_t)header.read_u32();
-      [[maybe_unused]] uint32_t reserved   = header.read_u32();
-      uint32_t name_len                    = header.read_u32();
+      data_reader_t header(item.entry.decode_head().UNWRAP());
+
+      [[maybe_unused]] uint32_t checksum   = header.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t references = header.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t decomp_len = header.read_u32().UNWRAP();
+      type = (sound_mode_t)header.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t reserved = header.read_u32().UNWRAP();
+      uint32_t name_len                  = header.read_u32().UNWRAP();
 
       if (srcexp.state.unicode)
       {
-        name = sound.read_u16string_exact(name_len).to_string();
+        name = arr_to_str(sound.read<char16_t>(name_len).UNWRAP());
         DEBUG("u16string name: ", name);
       }
       else
       {
-        name = lak::to_u16string(sound.read_astring_exact(name_len));
+        name =
+          lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
         DEBUG("u8string name: ", name);
       }
 
-      if (sound.peek_astring(4) == lak::string_view("OggS"))
+      if (const auto peek = sound.peek<char>(4).UNWRAP();
+          lak::span(peek) == "OggS"_aview)
       {
         type = sound_mode_t::oggs;
       }
-      else if (sound.peek_astring(4) == lak::string_view("Exte"))
+      else if (lak::span(peek) == "Exte"_aview)
       {
         type = sound_mode_t::xm;
       }
+
+      result = lak::array<uint8_t>(sound.remaining().begin(),
+                                   sound.remaining().end());
     }
 
     switch (type)
@@ -551,9 +558,8 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
     DEBUG("MP3", (size_t)item.entry.ID);
 
     fs::path filename = srcexp.sounds.path / name;
-    std::vector<uint8_t> file(sound.cursor(), sound.end());
 
-    if (!lak::save_file(filename, file))
+    if (!lak::save_file(filename, result))
     {
       ERROR("Failed To Save File '", filename, "'");
     }
@@ -570,41 +576,49 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
     return;
   }
 
+  auto arr_to_str = [](const auto &arr) {
+    return lak::string<lak::remove_cvref_t<decltype(*arr.begin())>>(
+      arr.begin(), arr.end());
+  };
+
   const size_t count = srcexp.state.game.music_bank->items.size();
   size_t index       = 0;
   for (const auto &item : srcexp.state.game.music_bank->items)
   {
-    lak::memory sound = item.entry.decode().UNWRAP();
+    data_reader_t sound(item.entry.decode_body().UNWRAP());
 
     std::u16string name;
     sound_mode_t type;
+
     if (srcexp.state.old_game)
     {
-      [[maybe_unused]] uint16_t checksum   = sound.read_u16();
-      [[maybe_unused]] uint32_t references = sound.read_u32();
-      [[maybe_unused]] uint32_t decomp_len = sound.read_u32();
-      type                                 = (sound_mode_t)sound.read_u32();
-      [[maybe_unused]] uint32_t reserved   = sound.read_u32();
-      uint32_t name_len                    = sound.read_u32();
+      [[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
+      [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
+      type = (sound_mode_t)sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
+      uint32_t name_len                  = sound.read_u32().UNWRAP();
 
-      name = lak::to_u16string(sound.read_astring_exact(name_len));
+      name =
+        lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
     }
     else
     {
-      [[maybe_unused]] uint32_t checksum   = sound.read_u32();
-      [[maybe_unused]] uint32_t references = sound.read_u32();
-      [[maybe_unused]] uint32_t decomp_len = sound.read_u32();
-      type                                 = (sound_mode_t)sound.read_u32();
-      [[maybe_unused]] uint32_t reserved   = sound.read_u32();
-      uint32_t name_len                    = sound.read_u32();
+      [[maybe_unused]] uint32_t checksum   = sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
+      type = (sound_mode_t)sound.read_u32().UNWRAP();
+      [[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
+      uint32_t name_len                  = sound.read_u32().UNWRAP();
 
       if (srcexp.state.unicode)
       {
-        name = sound.read_u16string_exact(name_len).to_string();
+        name = arr_to_str(sound.read<char16_t>(name_len).UNWRAP());
       }
       else
       {
-        name = lak::to_u16string(sound.read_astring_exact(name_len));
+        name =
+          lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
       }
     }
 
@@ -616,9 +630,8 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
     }
 
     fs::path filename = srcexp.music.path / name;
-    std::vector<uint8_t> file(sound.cursor(), sound.end());
 
-    if (!lak::save_file(filename, file))
+    if (!lak::save_file(filename, sound.remaining()))
     {
       ERROR("Failed To Save File '", filename, "'");
     }
@@ -635,27 +648,27 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
     return;
   }
 
-  lak::memory strm = srcexp.state.game.shaders->entry.decode().UNWRAP();
+  data_reader_t strm(srcexp.state.game.shaders->entry.decode_body().UNWRAP());
 
-  uint32_t count = strm.read_u32();
+  uint32_t count = strm.read_u32().UNWRAP();
   std::vector<uint32_t> offsets;
   offsets.reserve(count);
 
-  while (count-- > 0) offsets.emplace_back(strm.read_u32());
+  while (count-- > 0) offsets.push_back(strm.read_u32().UNWRAP());
 
   for (auto offset : offsets)
   {
-    strm.seek(offset);
-    uint32_t name_offset                   = strm.read_u32();
-    uint32_t data_offset                   = strm.read_u32();
-    [[maybe_unused]] uint32_t param_offset = strm.read_u32();
-    [[maybe_unused]] uint32_t bank_tex     = strm.read_u32();
+    strm.seek(offset).UNWRAP();
+    uint32_t name_offset                   = strm.read_u32().UNWRAP();
+    uint32_t data_offset                   = strm.read_u32().UNWRAP();
+    [[maybe_unused]] uint32_t param_offset = strm.read_u32().UNWRAP();
+    [[maybe_unused]] uint32_t bank_tex     = strm.read_u32().UNWRAP();
 
-    strm.seek(offset + name_offset);
-    fs::path filename = srcexp.shaders.path / strm.read_astring().to_string();
+    strm.seek(offset + name_offset).UNWRAP();
+    fs::path filename = srcexp.shaders.path / strm.read_c_str<char>().UNWRAP();
 
-    strm.seek(offset + data_offset);
-    lak::astring file = strm.read_astring().to_string();
+    strm.seek(offset + data_offset).UNWRAP();
+    lak::astring file = strm.read_c_str<char>().UNWRAP();
 
     DEBUG(filename);
     if (!lak::save_file(filename,
@@ -677,16 +690,17 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
     return;
   }
 
-  lak::memory strm = srcexp.state.game.binary_files->entry.decode().UNWRAP();
+  data_reader_t strm(
+    srcexp.state.game.binary_files->entry.decode_body().UNWRAP());
 
   const size_t count = srcexp.state.game.binary_files->items.size();
   size_t index       = 0;
   for (const auto &file : srcexp.state.game.binary_files->items)
   {
-    fs::path filename = file.name;
+    fs::path filename = lak::to_u16string(file.name);
     filename          = srcexp.binary_files.path / filename.filename();
     DEBUG(filename);
-    if (!lak::save_file(filename, file.data.get()))
+    if (!lak::save_file(filename, file.data))
     {
       ERROR("Failed To Save File '", filename, "'");
     }
@@ -776,7 +790,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
     {
       result.unwrap().IF_ERR("AttemptExe failed").discard();
       // ERROR(result.unwrap()
-      //         .map_err(APPEND_TRACE("AttemptExe failed"))
+      //         .MAP_SE_ERR("AttemptExe failed")
       //         .unwrap_err());
       srcexp.loaded = true;
       return true;

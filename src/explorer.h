@@ -28,12 +28,14 @@
 #include "encryption.h"
 #include "stb_image.h"
 
+#include <lak/binary_reader.hpp>
+#include <lak/binary_writer.hpp>
 #include <lak/debug.hpp>
 #include <lak/file.hpp>
-#include <lak/memory.hpp>
 #include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
 #include <lak/result.hpp>
+#include <lak/stdint.hpp>
 #include <lak/strconv.hpp>
 #include <lak/string.hpp>
 #include <lak/tinflate.hpp>
@@ -114,7 +116,6 @@ namespace SourceExplorer
       append_trace(lak::move(trace), lak::forward<ARGS>(args)...);
     }
 
-    template<typename... ARGS>
     error(lak::trace trace, lak::astring err) : _value(str_err)
     {
       append_trace(lak::move(trace), lak::move(err));
@@ -176,36 +177,44 @@ namespace SourceExplorer
     {
       ++lak::debug_indent;
       DEFER(--lak::debug_indent;);
-      ASSERT(!_trace.empty());
+
       lak::u8string result;
-      if (_value == str_err)
+
+      if (_trace.size() >= 2)
       {
-        result = lak::streamify<char8_t>("\n",
-                                         lak::scoped_indenter::str(),
-                                         _trace[0].first,
-                                         ": ",
-                                         value_string());
-      }
-      else
-      {
-        result = lak::streamify<char8_t>("\n",
-                                         lak::scoped_indenter::str(),
-                                         _trace[0].first,
-                                         ": ",
-                                         value_string(),
-                                         _trace[0].second.empty() ? "" : ": ",
-                                         _trace[0].second);
-      }
-      ++lak::debug_indent;
-      DEFER(--lak::debug_indent;);
-      for (const auto &[trace, str] : lak::span(_trace).subspan(1))
-      {
+        const auto &[trace, str] = _trace.back();
+
         result += lak::streamify<char8_t>("\n",
                                           lak::scoped_indenter::str(),
                                           trace,
                                           str.empty() ? "" : ": ",
                                           str);
+
+        ++lak::debug_indent;
       }
+      if (_trace.size() >= 3)
+      {
+        for (size_t i = _trace.size() - 1; i-- > 1;)
+        {
+          const auto &[trace, str] = _trace[i];
+          result += lak::streamify<char8_t>("\n",
+                                            lak::scoped_indenter::str(),
+                                            trace,
+                                            str.empty() ? "" : ": ",
+                                            str);
+        }
+      }
+      if (_trace.size() >= 1)
+      {
+        const auto &[trace, str] = _trace.front();
+        result +=
+          lak::streamify<char8_t>("\n", lak::scoped_indenter::str(), trace);
+        if (_value != str_err)
+          result += lak::streamify<char8_t>(": ", value_string());
+        if (!str.empty()) result += lak::streamify<char8_t>(": ", str);
+      }
+      if (_trace.size() >= 2) --lak::debug_indent;
+
       return result;
     }
 
@@ -218,48 +227,75 @@ namespace SourceExplorer
 
 #define MAP_TRACE(ERR, ...)                                                   \
   [&](const auto &err) -> SourceExplorer::error {                             \
-    return SourceExplorer::error(                                             \
-      LINE_TRACE, ERR, err, " " LAK_OPT_ARGS(__VA_ARGS__));                   \
+    static_assert(!lak::is_same_v<SourceExplorer::error,                      \
+                                  lak::remove_cvref_t<decltype(err)>>);       \
+    if constexpr (lak::is_same_v<lak::monostate,                              \
+                                 lak::remove_cvref_t<decltype(err)>>)         \
+    {                                                                         \
+      return SourceExplorer::error(LINE_TRACE,                                \
+                                   ERR LAK_OPT_ARGS(__VA_ARGS__));            \
+    }                                                                         \
+    else                                                                      \
+    {                                                                         \
+      return SourceExplorer::error(                                           \
+        LINE_TRACE, ERR, "" LAK_OPT_ARGS(__VA_ARGS__), " ", err);             \
+    }                                                                         \
   }
+
+#define MAP_ERRCODE(CODE, ...) map_err(MAP_TRACE(CODE, __VA_ARGS__))
+
+#define MAP_ERR(...) MAP_ERRCODE(SourceExplorer::error::str_err, __VA_ARGS__)
+
+#define TRY_ASSIGN(A, ...)                                                    \
+  RES_TRY_ASSIGN(A, __VA_ARGS__.MAP_ERR("assign failed"))
+
+#define TRY(...) RES_TRY(__VA_ARGS__.MAP_ERR())
 
 #define APPEND_TRACE(...)                                                     \
   [&](const SourceExplorer::error &err) -> SourceExplorer::error {            \
     return err.append_trace(LINE_TRACE LAK_OPT_ARGS(__VA_ARGS__));            \
   }
 
+#define MAP_SE_ERR(...) map_err(APPEND_TRACE(__VA_ARGS__))
+
+#define TRY_SE_ASSIGN(A, ...)                                                 \
+  RES_TRY_ASSIGN(A, __VA_ARGS__.MAP_SE_ERR("assign failed"))
+
+#define TRY_SE(...) RES_TRY(__VA_ARGS__.MAP_SE_ERR())
+
 #define CHECK_REMAINING(STRM, EXPECTED)                                       \
   do                                                                          \
   {                                                                           \
-    if (STRM.remaining() < (EXPECTED))                                        \
+    if (auto expected = (EXPECTED); STRM.remaining().size() < expected)       \
     {                                                                         \
       ERROR("Out Of Data: ",                                                  \
-            STRM.remaining(),                                                 \
+            STRM.remaining().size(),                                          \
             " Bytes Remaining, Expected ",                                    \
-            (EXPECTED));                                                      \
+            expected);                                                        \
       return lak::err_t{                                                      \
         SourceExplorer::error(LINE_TRACE,                                     \
                               SourceExplorer::error::out_of_data,             \
-                              STRM.remaining(),                               \
+                              STRM.remaining().size(),                        \
                               " Bytes Remaining, Expected ",                  \
-                              (EXPECTED))};                                   \
+                              expected)};                                     \
     }                                                                         \
   } while (false)
 
 #define CHECK_POSITION(STRM, EXPECTED)                                        \
   do                                                                          \
   {                                                                           \
-    if (STRM.size() < (EXPECTED))                                             \
+    if (auto expected = (EXPECTED); STRM.size() < expected)                   \
     {                                                                         \
       ERROR("Out Of Data: ",                                                  \
-            STRM.remaining(),                                                 \
+            STRM.remaining().size(),                                          \
             " Bytes Availible, Expected ",                                    \
-            (EXPECTED));                                                      \
+            expected);                                                        \
       return lak::err_t{                                                      \
         SourceExplorer::error(LINE_TRACE,                                     \
                               SourceExplorer::error::out_of_data,             \
-                              STRM.remaining(),                               \
+                              STRM.remaining().size(),                        \
                               " Bytes Availible, Expected ",                  \
-                              (EXPECTED))};                                   \
+                              expected)};                                     \
     }                                                                         \
   } while (false)
 
@@ -291,16 +327,224 @@ namespace SourceExplorer
     std::u16string filename;
     bool wide;
     uint32_t bingo;
-    std::vector<uint8_t> data;
+    lak::array<uint8_t> data;
+  };
+
+  struct _data_ref
+  {
+    std::shared_ptr<_data_ref> _parent = {};
+    lak::span<uint8_t> _parent_span    = {};
+    lak::array<uint8_t> _data          = {};
+
+    _data_ref()                  = default;
+    _data_ref(const _data_ref &) = default;
+    _data_ref(_data_ref &&)      = default;
+    _data_ref &operator=(const _data_ref &) = default;
+    _data_ref &operator=(_data_ref &&) = default;
+
+    _data_ref(lak::array<uint8_t> data)
+    : _parent(), _parent_span(), _data(lak::move(data))
+    {
+    }
+
+    _data_ref(const std::shared_ptr<_data_ref> &parent,
+              size_t offset,
+              size_t count,
+              lak::array<uint8_t> data)
+    : _parent(parent), _data(lak::move(data))
+    {
+      ASSERT(_parent);
+      _parent_span = lak::span(_parent->_data).subspan(offset, count);
+    }
+
+    inline std::shared_ptr<_data_ref> parent() const { return _parent; }
+    inline lak::span<uint8_t> parent_span() const { return _parent_span; }
+    inline size_t size() const { return _data.size(); }
+    inline const uint8_t *data() const { return _data.data(); }
+    inline uint8_t *data() { return _data.data(); }
+    inline const lak::array<uint8_t> &get() const { return _data; }
+    inline lak::array<uint8_t> &get() { return _data; }
+
+    inline operator lak::span<const uint8_t>() const
+    {
+      return lak::span(_data);
+    }
+    inline operator lak::span<uint8_t>() { return lak::span(_data); }
+  };
+
+  using data_ref_ptr_t = std::shared_ptr<_data_ref>;
+
+  static data_ref_ptr_t make_data_ref_ptr(lak::array<uint8_t> data)
+  {
+    FUNCTION_CHECKPOINT();
+    return std::make_shared<_data_ref>(lak::move(data));
+  }
+
+  static data_ref_ptr_t make_data_ref_ptr(data_ref_ptr_t parent,
+                                          size_t offset,
+                                          size_t count,
+                                          lak::array<uint8_t> data)
+  {
+    FUNCTION_CHECKPOINT();
+    return std::make_shared<_data_ref>(parent, offset, count, lak::move(data));
+  }
+
+  struct data_ref_span_t : lak::span<uint8_t>
+  {
+    data_ref_ptr_t source;
+
+    data_ref_span_t()                        = default;
+    data_ref_span_t(const data_ref_span_t &) = default;
+    data_ref_span_t &operator=(const data_ref_span_t &) = default;
+
+    data_ref_span_t(data_ref_ptr_t src,
+                    size_t offset = 0,
+                    size_t count  = lak::dynamic_extent)
+    : source(src),
+      lak::span<uint8_t>(
+        src ? lak::span<uint8_t>(src->get()).subspan(offset, count)
+            : lak::span<uint8_t>())
+    {
+    }
+
+    data_ref_span_t parent_span() const
+    {
+      FUNCTION_CHECKPOINT("data_ref_span_t::");
+      if (!source || !source->_parent) return {};
+      return data_ref_span_t(source->_parent,
+                             source->_parent_span.begin() -
+                               source->_parent->_data.begin(),
+                             source->_parent_span.size());
+    }
+
+    lak::result<size_t> position() const
+    {
+      if (!source) return lak::err_t{};
+      return lak::ok_t{size_t(data() - source->data())};
+    }
+
+    lak::result<size_t> root_position() const
+    {
+      if (!source) return lak::err_t{};
+      if (!source->_parent) return lak::ok_t{size_t(data() - source->data())};
+      return parent_span().root_position();
+    }
+
+    void reset()
+    {
+      FUNCTION_CHECKPOINT("data_ref_span_t::");
+      static_cast<lak::span<uint8_t> &>(*this) = {};
+      source.reset();
+    }
+  };
+
+  static data_ref_ptr_t make_data_ref_ptr(data_ref_span_t parent,
+                                          lak::array<uint8_t> data)
+  {
+    FUNCTION_CHECKPOINT();
+    if (!parent.source)
+      return make_data_ref_ptr(lak::move(data));
+    else
+      return std::make_shared<_data_ref>(parent.source,
+                                         parent.position().unwrap(),
+                                         parent.size(),
+                                         lak::move(data));
+  }
+
+  static data_ref_ptr_t copy_data_ref_ptr(data_ref_span_t parent)
+  {
+    FUNCTION_CHECKPOINT();
+    if (!parent.source)
+      return {};
+    else
+      return make_data_ref_ptr(
+        parent, lak::array<uint8_t>(parent.begin(), parent.end()));
+  }
+
+  struct data_reader_t : lak::binary_reader
+  {
+    data_ref_ptr_t source;
+
+    data_reader_t(data_ref_ptr_t src)
+    : source(src),
+      lak::binary_reader(src ? lak::span<const uint8_t>(src->get())
+                             : lak::span<const uint8_t>())
+    {
+    }
+
+    data_reader_t(data_ref_span_t src)
+    : source(src.source), lak::binary_reader((lak::span<uint8_t>)src)
+    {
+    }
+
+    data_ref_span_t peek_remaining_ref_span(size_t max_size = SIZE_MAX)
+    {
+      FUNCTION_CHECKPOINT("data_reader_t::");
+      ASSERT(source);
+      const size_t offset = remaining().begin() - source->_data.data();
+      const size_t size   = std::min(remaining().size(), max_size);
+      DEBUG("Offset: ", offset);
+      DEBUG("Size: ", size);
+      return data_ref_span_t(source, offset, size);
+    }
+
+    lak::result<data_ref_span_t> read_ref_span(size_t size)
+    {
+      FUNCTION_CHECKPOINT("data_reader_t::");
+      if (!source) return lak::err_t{};
+      if (size > remaining().size()) return lak::err_t{};
+      const size_t offset = remaining().begin() - source->_data.data();
+      skip(size).UNWRAP();
+      return lak::ok_t{data_ref_span_t(source, offset, size)};
+    }
+
+    data_ref_span_t read_remaining_ref_span(size_t max_size = SIZE_MAX)
+    {
+      FUNCTION_CHECKPOINT("data_reader_t::");
+      ASSERT(source);
+      const size_t offset = remaining().begin() - source->_data.data();
+      const size_t size   = std::min(remaining().size(), max_size);
+      DEBUG("Offset: ", offset);
+      DEBUG("Size: ", size);
+      skip(size).UNWRAP();
+      return data_ref_span_t(source, offset, size);
+    }
+
+    lak::result<data_ref_ptr_t> read_ref_ptr(size_t size)
+    {
+      FUNCTION_CHECKPOINT("data_reader_t::");
+      return read_ref_span(size).map(copy_data_ref_ptr);
+    }
+
+    data_ref_ptr_t copy_remaining()
+    {
+      FUNCTION_CHECKPOINT("data_reader_t::");
+      return copy_data_ref_ptr(read_remaining_ref_span());
+    }
+
+    data_ref_ptr_t read_remaining_ref_ptr(size_t max_size,
+                                          lak::array<uint8_t> data)
+    {
+      FUNCTION_CHECKPOINT("data_reader_t::");
+      ASSERT(source);
+      const size_t offset = remaining().begin() - source->_data.data();
+      const size_t size   = std::min(remaining().size(), max_size);
+      skip(size).UNWRAP();
+      return make_data_ref_ptr(source, offset, size, lak::move(data));
+    }
   };
 
   struct data_point_t
   {
-    size_t position = 0;
+    data_ref_span_t data;
     size_t expected_size;
-    lak::memory data;
-    result_t<lak::memory> decode(const chunk_t ID,
-                                 const encoding_t mode) const;
+    size_t position() const
+    {
+      return lak::ok_or_err(
+        data.position().map_err([](...) -> size_t { return SIZE_MAX; }));
+    }
+    result_t<data_ref_span_t> decode(const chunk_t ID,
+                                     const encoding_t mode) const;
   };
 
   struct basic_entry_t
@@ -311,29 +555,34 @@ namespace SourceExplorer
       chunk_t ID;
     };
     encoding_t mode;
-    size_t position;
-    size_t end;
     bool old;
 
-    data_point_t header;
-    data_point_t data;
+    data_ref_span_t ref_span;
+    data_point_t head;
+    data_point_t body;
 
-    result_t<lak::memory> decode(size_t max_size = SIZE_MAX) const;
-    result_t<lak::memory> decodeHeader(size_t max_size = SIZE_MAX) const;
-    const lak::memory &raw() const;
-    const lak::memory &rawHeader() const;
+    size_t position() const
+    {
+      return lak::ok_or_err(
+        ref_span.position().map_err([](...) -> size_t { return SIZE_MAX; }));
+    }
+
+    const data_ref_span_t &raw_head() const;
+    const data_ref_span_t &raw_body() const;
+    result_t<data_ref_span_t> decode_head(size_t max_size = SIZE_MAX) const;
+    result_t<data_ref_span_t> decode_body(size_t max_size = SIZE_MAX) const;
   };
 
   struct chunk_entry_t : public basic_entry_t
   {
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     void view(source_explorer_t &srcexp) const;
   };
 
   struct item_entry_t : public basic_entry_t
   {
     error_t read(game_t &game,
-                 lak::memory &strm,
+                 data_reader_t &strm,
                  bool compressed,
                  size_t headersize = 0,
                  bool has_handle   = true);
@@ -344,7 +593,7 @@ namespace SourceExplorer
   {
     chunk_entry_t entry;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t basic_view(source_explorer_t &srcexp, const char *name) const;
   };
 
@@ -352,7 +601,7 @@ namespace SourceExplorer
   {
     item_entry_t entry;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t basic_view(source_explorer_t &srcexp, const char *name) const;
   };
 
@@ -360,7 +609,7 @@ namespace SourceExplorer
   {
     mutable std::u16string value;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp,
                  const char *name,
                  const bool preview = false) const;
@@ -374,7 +623,7 @@ namespace SourceExplorer
   {
     mutable std::vector<std::u16string> values;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t basic_view(source_explorer_t &srcexp, const char *name) const;
     error_t view(source_explorer_t &srcexp) const;
   };
@@ -448,7 +697,7 @@ namespace SourceExplorer
   {
     lak::image4_t bitmap;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
@@ -464,18 +713,18 @@ namespace SourceExplorer
 
   struct binary_file_t
   {
-    std::u16string name;
-    lak::memory data;
+    lak::u8string name;
+    data_ref_span_t data;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
   struct binary_files_t : public basic_chunk_t
   {
-    std::vector<binary_file_t> items;
+    lak::array<binary_file_t> items;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
@@ -527,7 +776,7 @@ namespace SourceExplorer
     uint16_t screen_ratio_tolerance;
     uint16_t screen_angle;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
@@ -552,15 +801,15 @@ namespace SourceExplorer
 
     uint16_t ID;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
   struct chunk_2253_t : public basic_chunk_t
   {
-    std::vector<chunk_2253_item_t> items;
+    lak::array<chunk_2253_item_t> items;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
@@ -576,9 +825,9 @@ namespace SourceExplorer
 
   struct two_five_plus_object_properties_t : public basic_chunk_t
   {
-    std::vector<item_entry_t> items;
+    lak::array<item_entry_t> items;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
@@ -589,9 +838,9 @@ namespace SourceExplorer
 
   struct object_properties_t : public basic_chunk_t
   {
-    std::vector<item_entry_t> items;
+    lak::array<item_entry_t> items;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
@@ -602,9 +851,9 @@ namespace SourceExplorer
 
   struct truetype_fonts_t : public basic_chunk_t
   {
-    std::vector<item_entry_t> items;
+    lak::array<item_entry_t> items;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
@@ -631,7 +880,7 @@ namespace SourceExplorer
       lak::color4_t color1, color2;
       uint16_t handle;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -643,7 +892,7 @@ namespace SourceExplorer
       lak::vec2u32_t dimension;
       shape_t shape;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -655,7 +904,7 @@ namespace SourceExplorer
       lak::vec2u32_t dimension;
       uint16_t handle;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -665,9 +914,9 @@ namespace SourceExplorer
       uint8_t max_speed;
       uint16_t repeat;
       uint16_t back_to;
-      std::vector<uint16_t> handles;
+      lak::array<uint16_t> handles;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -676,17 +925,17 @@ namespace SourceExplorer
       lak::array<uint16_t, 32> offsets;
       lak::array<animation_direction_t, 32> directions;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
     struct animation_header_t
     {
       uint16_t size;
-      std::vector<uint16_t> offsets;
-      std::vector<animation_t> animations;
+      lak::array<uint16_t> offsets;
+      lak::array<animation_t> animations;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -715,7 +964,7 @@ namespace SourceExplorer
 
       game_mode_t mode;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -735,7 +984,7 @@ namespace SourceExplorer
       std::unique_ptr<backdrop_t> backdrop;
       std::unique_ptr<common_t> common;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
 
       std::unordered_map<uint32_t, std::vector<std::u16string>> image_handles()
@@ -745,9 +994,9 @@ namespace SourceExplorer
     // aka FrameItems
     struct bank_t : public basic_chunk_t
     {
-      std::vector<item_t> items;
+      lak::array<item_t> items;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
   }
@@ -767,9 +1016,9 @@ namespace SourceExplorer
     struct palette_t : public basic_chunk_t
     {
       uint32_t unknown;
-      lak::color4_t colors[256];
+      lak::array<lak::color4_t, 256> colors;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
 
       lak::image4_t image() const;
@@ -785,15 +1034,15 @@ namespace SourceExplorer
       uint16_t layer;
       uint16_t unknown;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
     struct object_instances_t : public basic_chunk_t
     {
-      std::vector<object_instance_t> objects;
+      lak::array<object_instance_t> objects;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -856,7 +1105,7 @@ namespace SourceExplorer
     {
       int16_t value;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -923,23 +1172,23 @@ namespace SourceExplorer
       std::unique_ptr<chunk_334C_t> chunk334C;
       std::unique_ptr<last_t> end;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
     struct handles_t : public basic_chunk_t
     {
-      std::vector<uint16_t> handles;
+      lak::array<uint16_t> handles;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
     struct bank_t : public basic_chunk_t
     {
-      std::vector<item_t> items;
+      lak::array<item_t> items;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
   }
@@ -960,10 +1209,10 @@ namespace SourceExplorer
       lak::color4_t transparent; // not for old
       size_t data_position;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
 
-      result_t<lak::memory> image_data() const;
+      result_t<data_ref_span_t> image_data() const;
       bool need_palette() const;
       result_t<lak::image4_t> image(
         const bool color_transparent,
@@ -977,10 +1226,10 @@ namespace SourceExplorer
 
     struct bank_t : public basic_chunk_t
     {
-      std::vector<item_t> items;
+      lak::array<item_t> items;
       std::unique_ptr<end_t> end;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
   }
@@ -999,10 +1248,10 @@ namespace SourceExplorer
 
     struct bank_t : public basic_chunk_t
     {
-      std::vector<item_t> items;
+      lak::array<item_t> items;
       std::unique_ptr<end_t> end;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
   }
@@ -1011,7 +1260,7 @@ namespace SourceExplorer
   {
     struct item_t : public basic_item_t
     {
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
 
@@ -1022,10 +1271,10 @@ namespace SourceExplorer
 
     struct bank_t : public basic_chunk_t
     {
-      std::vector<item_t> items;
+      lak::array<item_t> items;
       std::unique_ptr<end_t> end;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
   }
@@ -1044,10 +1293,10 @@ namespace SourceExplorer
 
     struct bank_t : public basic_chunk_t
     {
-      std::vector<item_t> items;
+      lak::array<item_t> items;
       std::unique_ptr<end_t> end;
 
-      error_t read(game_t &game, lak::memory &strm);
+      error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;
     };
   }
@@ -1070,7 +1319,7 @@ namespace SourceExplorer
     {
       if (ptr)
       {
-        RES_TRY(ptr->view(args...).map_err(APPEND_TRACE("chunk_ptr::view")));
+        RES_TRY(ptr->view(args...).MAP_SE_ERR("chunk_ptr::view"));
       }
       return lak::ok_t{};
     }
@@ -1112,6 +1361,7 @@ namespace SourceExplorer
     chunk_ptr<exe_t> exe;
     chunk_ptr<protection_t> protection;
     chunk_ptr<shaders_t> shaders;
+    chunk_ptr<shaders_t> shaders2;
     chunk_ptr<extended_header_t> extended_header;
     chunk_ptr<spacer_t> spacer;
     chunk_ptr<chunk_224F_t> chunk224F;
@@ -1143,26 +1393,27 @@ namespace SourceExplorer
     chunk_ptr<truetype_fonts_t> truetype_fonts;
 
     // Unknown chunks:
-    std::vector<basic_chunk_t> unknown_chunks;
-    std::vector<strings_chunk_t> unknown_strings;
-    std::vector<compressed_chunk_t> unknown_compressed;
+    lak::array<basic_chunk_t> unknown_chunks;
+    lak::array<strings_chunk_t> unknown_strings;
+    lak::array<compressed_chunk_t> unknown_compressed;
 
     chunk_ptr<last_t> last;
 
-    error_t read(game_t &game, lak::memory &strm);
+    error_t read(game_t &game, data_reader_t &strm);
     error_t view(source_explorer_t &srcexp) const;
   };
 
   struct game_t
   {
     static std::atomic<float> completed;
+    static std::atomic<float> bank_completed;
 
     lak::astring game_path;
     lak::astring game_dir;
 
-    lak::memory file;
+    data_ref_ptr_t file;
 
-    std::vector<pack_file_t> pack_files;
+    lak::array<pack_file_t> pack_files;
     uint64_t data_pos;
     uint16_t num_header_sections;
     uint16_t num_sections;
@@ -1180,7 +1431,7 @@ namespace SourceExplorer
     bool cnc                = false;
     bool recompiled         = false;
     bool two_five_plus_game = false;
-    std::vector<uint8_t> protection;
+    lak::array<uint8_t> protection;
 
     header_t game;
 
@@ -1222,16 +1473,16 @@ namespace SourceExplorer
 
     const basic_entry_t *view = nullptr;
     texture_t image;
-    std::vector<uint8_t> buffer;
+    data_ref_span_t buffer;
   };
 
-  [[nodiscard]] error_t LoadGame(source_explorer_t &srcexp);
+  error_t LoadGame(source_explorer_t &srcexp);
 
   void GetEncryptionKey(game_t &game_state);
 
-  [[nodiscard]] error_t ParsePEHeader(lak::memory &strm, game_t &game_state);
+  error_t ParsePEHeader(data_reader_t &strm, game_t &game_state);
 
-  result_t<uint64_t> ParsePackData(lak::memory &strm, game_t &game_state);
+  result_t<uint64_t> ParsePackData(data_reader_t &strm, game_t &game_state);
 
   texture_t CreateTexture(const lak::image4_t &bitmap,
                           const lak::graphics_mode mode);
@@ -1244,40 +1495,26 @@ namespace SourceExplorer
 
   const char *GetObjectParentTypeString(object_parent_type_t type);
 
-  result_t<std::vector<uint8_t>> Decode(const std::vector<uint8_t> &encoded,
-                                        chunk_t ID,
-                                        encoding_t mode);
+  result_t<data_ref_span_t> Decode(data_ref_span_t encoded,
+                                   chunk_t ID,
+                                   encoding_t mode);
 
-  result_t<std::vector<uint8_t>> Inflate(
-    const std::vector<uint8_t> &compressed,
-    bool skip_header,
-    bool anaconda,
-    size_t max_size = SIZE_MAX);
+  result_t<data_ref_span_t> Inflate(data_ref_span_t compressed,
+                                    bool skip_header,
+                                    bool anaconda,
+                                    size_t max_size = SIZE_MAX);
 
-  error_t Inflate(std::vector<uint8_t> &out,
-                  const std::vector<uint8_t> &compressed,
-                  bool skip_header,
-                  bool anaconda,
-                  size_t max_size = SIZE_MAX);
+  result_t<data_ref_span_t> LZ4Decode(data_ref_span_t compressed,
+                                      unsigned int out_size);
 
-  error_t Inflate(lak::memory &out,
-                  const std::vector<uint8_t> &compressed,
-                  bool skip_header,
-                  bool anaconda,
-                  size_t max_size = SIZE_MAX);
+  result_t<data_ref_span_t> LZ4DecodeReadSize(data_ref_span_t compressed);
 
-  std::vector<uint8_t> InflateOrCompressed(
-    const std::vector<uint8_t> &compressed);
+  result_t<data_ref_span_t> StreamDecompress(data_reader_t &strm,
+                                             unsigned int out_size);
 
-  std::vector<uint8_t> DecompressOrCompressed(
-    const std::vector<uint8_t> &compressed, unsigned int out_size);
-
-  result_t<std::vector<uint8_t>> StreamDecompress(lak::memory &strm,
-                                                  unsigned int out_size);
-
-  result_t<std::vector<uint8_t>> Decrypt(const std::vector<uint8_t> &encrypted,
-                                         chunk_t ID,
-                                         encoding_t mode);
+  result_t<data_ref_span_t> Decrypt(data_ref_span_t encrypted,
+                                    chunk_t ID,
+                                    encoding_t mode);
 
   result_t<frame::item_t &> GetFrame(game_t &game, uint16_t handle);
 

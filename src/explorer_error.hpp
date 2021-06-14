@@ -3,7 +3,6 @@
 
 #include <lak/debug.hpp>
 #include <lak/defer.hpp>
-#include <lak/memory.hpp>
 #include <lak/result.hpp>
 #include <lak/stdint.hpp>
 #include <lak/string.hpp>

@@ -35,8 +35,8 @@
 // #define LAK_TEST_MAIN lak_test_main
 // #include <lak/src/tests/test_main.cpp>
 #  include <lak/src/tests/array.cpp>
+#  include <lak/src/tests/bit_reader.cpp>
 #  include <lak/src/tests/bitflag.cpp>
-#  include <lak/src/tests/bitreader.cpp>
 #  include <lak/src/tests/bitset.cpp>
 #  include <lak/src/tests/test.cpp>
 #  include <lak/src/tests/trie.cpp>

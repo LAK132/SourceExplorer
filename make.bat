@@ -4,15 +4,21 @@ SetLocal EnableDelayedExpansion
 set mode=%1
 set target=%2
 
-if not "%mode%"=="debug" if not "%mode%"=="release" if not "%mode%"=="nolog" if not "%mode%"=="clean" goto useage
-if not "%target%"=="x86" if not "%target%"=="x64" if not "%mode%"=="clean" (
+if "%mode%"=="clean" goto clean
+
+if "%mode%"=="" (
+    set mode=debug
+    echo No mode specified, defaulting to !mode!.
+)
+
+if not "!mode!"=="debug" if not "!mode!"=="release" if not "!mode!"=="nolog" if not "!mode!"=="clean" goto useage
+
+if not "%target%"=="x86" if not "%target%"=="x64" if not "!mode!"=="clean" (
     reg Query "HKLM\Hardware\Description\System\CentralProcessor\0" | find /i "x86" > NUL && set target=x86 || set target=x64
     echo No target specified, defaulting to !target!.
 )
 
 call makelist.bat
-
-if "%mode%"=="clean" goto clean
 
 if exist "vcvarsall.bat" (
     call "vcvarsall.bat" !target!
@@ -38,12 +44,12 @@ set /p VCVARSALLBAT=vcvarsall.bat directory:
 call "%VCVARSALLBAT%" !target!
 
 :begin
-echo Compiling in %mode% mode for !target!
+echo Compiling in !mode! mode for !target!
 
 title Compiler
 
 REM some windows functions are pedantic about \
-set OBJDIR=!OBJDIR!\%mode%\!target!
+set OBJDIR=!OBJDIR!\!mode!\!target!
 set LIBDIR=!LIBDIR!\!target!
 
 if not exist %OBJDIR% mkdir %OBJDIR%
@@ -62,6 +68,7 @@ for /f %%F in ('dir /b %LIBDIR%') do (if "%%~xF"==".dll" echo f | xcopy /y %LIBD
 goto :eof
 
 :clean
+call makelist.bat
 for /f %%F in ('dir /b %OBJDIR%') do (
     if "%%~xF"==".obj" del %OBJDIR%\%%F
 )

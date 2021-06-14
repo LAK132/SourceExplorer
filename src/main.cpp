@@ -32,6 +32,7 @@
 #include <lak/bank_ptr.hpp>
 #include <lak/defer.hpp>
 #include <lak/file.hpp>
+#include <lak/string_utils.hpp>
 #include <lak/test.hpp>
 #include <lak/window.hpp>
 
@@ -57,10 +58,12 @@ void HelpText()
   ImGui::Text(
     "To open a game either drag and drop it into this window or "
     "go to [File]->[Open]\n");
+  ImGui::PushStyleColor(ImGuiCol_Text, 0xFF8080FF);
   ImGui::Text(
     "If Source Explorer cannot open/throws errors while opening a file,\n"
-    "please save the error log ([File]->[Save Error Log]) and share\n"
+    "please SAVE THE ERROR LOG ([File]->[Save Error Log]) and share\n"
     "it at https://github.com/LAK132/SourceExplorer/issues\n");
+  ImGui::PopStyleColor();
   ImGui::Text(
     "If Source Explorer crashes before you can save the log file,\n"
     "it will attempt to save it to:\n'%s'\n",
@@ -170,6 +173,8 @@ void Navigator()
     ImGui::Text("New Game: %s", SrcExp.state.old_game ? "No" : "Yes");
     ImGui::Text("Unicode Game: %s", SrcExp.state.unicode ? "Yes" : "No");
     ImGui::Text("Compat Game: %s", SrcExp.state.compat ? "Yes" : "No");
+    ImGui::Text("2.5+ Game: %s",
+                SrcExp.state.two_five_plus_game ? "Yes" : "No");
     ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.product_build);
     ImGui::Text("Product Version: %zu", (size_t)SrcExp.state.product_version);
     ImGui::Text("Runtime Version: %zu", (size_t)SrcExp.state.runtime_version);
@@ -219,10 +224,22 @@ void BytePairsMemoryExplorer(const uint8_t *data, size_t size, bool update)
 
   if (update)
   {
-    if (SrcExp.view != nullptr && data == SrcExp.state.file.data())
+    if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
+        data == SrcExp.state.file->data())
     {
-      from = SrcExp.view->position;
-      to   = SrcExp.view->end;
+      auto ref_span = SrcExp.view->ref_span;
+      while (ref_span.source && ref_span.source != SrcExp.state.file)
+        ref_span = ref_span.parent_span();
+      if (!ref_span.empty())
+      {
+        from = ref_span.position().UNWRAP();
+        to   = from + ref_span.size();
+      }
+      else
+      {
+        from = 0;
+        to   = SIZE_MAX;
+      }
     }
     else
     {
@@ -323,10 +340,22 @@ void RawImageMemoryExplorer(const uint8_t *data, size_t size, bool update)
       image.resize(lak::vec2s_t(image_size));
     }
 
-    if (SrcExp.view != nullptr && data == SrcExp.state.file.data())
+    if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
+        data == SrcExp.state.file->data())
     {
-      from = SrcExp.view->position;
-      to   = SrcExp.view->end;
+      auto ref_span = SrcExp.view->ref_span;
+      while (ref_span.source && ref_span.source != SrcExp.state.file)
+        ref_span = ref_span.parent_span();
+      if (!ref_span.empty())
+      {
+        from = ref_span.position().UNWRAP();
+        to   = from + ref_span.size();
+      }
+      else
+      {
+        from = 0;
+        to   = SIZE_MAX;
+      }
     }
     else
     {
@@ -436,6 +465,8 @@ void RawImageMemoryExplorer(const uint8_t *data, size_t size, bool update)
 
 void MemoryExplorer(bool &update)
 {
+  if (!SrcExp.state.file) return;
+
   static const se::basic_entry_t *last = nullptr;
   static int data_mode                 = 0;
   static int content_mode              = 0;
@@ -471,28 +502,45 @@ void MemoryExplorer(bool &update)
     if (content_mode == 1)
     {
       BytePairsMemoryExplorer(
-        SrcExp.state.file.data(), SrcExp.state.file.size(), update);
+        SrcExp.state.file->data(), SrcExp.state.file->size(), update);
     }
     else if (content_mode == 2)
     {
       RawImageMemoryExplorer(
-        SrcExp.state.file.data(), SrcExp.state.file.size(), update);
+        SrcExp.state.file->data(), SrcExp.state.file->size(), update);
     }
     else
     {
       if (content_mode != 0) content_mode = 0;
-      SrcExp.editor.DrawContents(SrcExp.state.file.data(),
-                                 SrcExp.state.file.size());
+      SrcExp.editor.DrawContents(SrcExp.state.file->data(),
+                                 SrcExp.state.file->size());
       if (update && SrcExp.view != nullptr)
-        SrcExp.editor.GotoAddrAndHighlight(SrcExp.view->position,
-                                           SrcExp.view->end);
+      {
+        SCOPED_CHECKPOINT(__func__, "::EXE");
+        auto ref_span = SrcExp.view->ref_span;
+        while (ref_span.source && ref_span.source != SrcExp.state.file)
+        {
+          CHECKPOINT();
+          ref_span = ref_span.parent_span();
+        }
+        if (ref_span.source && !ref_span.empty())
+        {
+          const auto from = ref_span.position().UNWRAP();
+          SrcExp.editor.GotoAddrAndHighlight(from, from + ref_span.size());
+          DEBUG("From: ", from);
+        }
+        else
+        {
+          ERROR("Memory does not appear in EXE");
+        }
+      }
     }
   }
-  else if (data_mode == 1) // Header
+  else if (data_mode == 1) // Head
   {
     if (update && SrcExp.view != nullptr)
-      SrcExp.buffer = raw ? SrcExp.view->header.data.get()
-                          : SrcExp.view->decodeHeader().UNWRAP().get();
+      SrcExp.buffer =
+        raw ? SrcExp.view->head.data : SrcExp.view->decode_head().UNWRAP();
 
     if (content_mode == 1)
     {
@@ -511,11 +559,11 @@ void MemoryExplorer(bool &update)
       if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
     }
   }
-  else if (data_mode == 2) // Data
+  else if (data_mode == 2) // Body
   {
     if (update && SrcExp.view != nullptr)
-      SrcExp.buffer = raw ? SrcExp.view->data.data.get()
-                          : SrcExp.view->decode().UNWRAP().get();
+      SrcExp.buffer =
+        raw ? SrcExp.view->body.data : SrcExp.view->decode_body().UNWRAP();
 
     if (content_mode == 1)
     {
@@ -575,108 +623,120 @@ void AudioExplorer(bool &update)
     uint16_t bits_per_sample = 0;
     uint16_t unknown         = 0;
     uint32_t chunk_size      = 0;
-    std::vector<uint8_t> data;
+    lak::array<uint8_t> data;
   };
 
   static const se::basic_entry_t *last = nullptr;
   update |= last != SrcExp.view;
 
+  auto arr_to_str = [](const auto &arr) {
+    return lak::string<lak::remove_cvref_t<decltype(*arr.begin())>>(
+      arr.begin(), arr.end());
+  };
+
   static audio_data_t audio_data;
   if (update && SrcExp.view != nullptr)
   {
-    lak::memory audio = SrcExp.view->decode().UNWRAP();
-    audio_data        = audio_data_t{};
+    CHECKPOINT();
+
+    se::data_reader_t audio(SrcExp.view->decode_body().UNWRAP());
+    audio_data = audio_data_t{};
     if (SrcExp.state.old_game)
     {
-      audio_data.checksum   = audio.read_u16();
-      audio_data.references = audio.read_u32();
-      audio_data.decomp_len = audio.read_u32();
-      audio_data.type       = (se::sound_mode_t)audio.read_u32();
-      audio_data.reserved   = audio.read_u32();
-      audio_data.name_len   = audio.read_u32();
+      CHECKPOINT();
+      audio_data.checksum   = audio.read_u16().UNWRAP();
+      audio_data.references = audio.read_u32().UNWRAP();
+      audio_data.decomp_len = audio.read_u32().UNWRAP();
+      audio_data.type       = (se::sound_mode_t)audio.read_u32().UNWRAP();
+      audio_data.reserved   = audio.read_u32().UNWRAP();
+      audio_data.name_len   = audio.read_u32().UNWRAP();
 
       audio_data.name =
-        audio.read_u8string_exact(audio_data.name_len).to_string();
+        arr_to_str(audio.read<char8_t>(audio_data.name_len).UNWRAP());
 
       if (audio_data.type == se::sound_mode_t::wave)
       {
-        audio_data.format          = audio.read_u16();
-        audio_data.channel_count   = audio.read_u16();
-        audio_data.sample_rate     = audio.read_u32();
-        audio_data.byte_rate       = audio.read_u32();
-        audio_data.block_align     = audio.read_u16();
-        audio_data.bits_per_sample = audio.read_u16();
-        audio_data.unknown         = audio.read_u16();
-        audio_data.chunk_size      = audio.read_u32();
-        audio_data.data            = audio.read(audio_data.chunk_size);
+        audio_data.format          = audio.read_u16().UNWRAP();
+        audio_data.channel_count   = audio.read_u16().UNWRAP();
+        audio_data.sample_rate     = audio.read_u32().UNWRAP();
+        audio_data.byte_rate       = audio.read_u32().UNWRAP();
+        audio_data.block_align     = audio.read_u16().UNWRAP();
+        audio_data.bits_per_sample = audio.read_u16().UNWRAP();
+        audio_data.unknown         = audio.read_u16().UNWRAP();
+        audio_data.chunk_size      = audio.read_u32().UNWRAP();
+        audio_data.data = audio.read<uint8_t>(audio_data.chunk_size).UNWRAP();
       }
     }
     else
     {
-      lak::memory header_temp;
-      lak::memory *header_ptr;
-      if (SrcExp.view->header.data.size() > 0)
-      {
-        header_temp = SrcExp.view->decodeHeader().UNWRAP();
-        header_ptr  = &header_temp;
-      }
-      else
-        header_ptr = &audio;
-      lak::memory &header = *header_ptr;
+      CHECKPOINT();
+      se::data_reader_t header(SrcExp.view->decode_head().UNWRAP());
 
-      audio_data.checksum   = header.read_u32();
-      audio_data.references = header.read_u32();
-      audio_data.decomp_len = header.read_u32();
-      audio_data.type       = (se::sound_mode_t)audio.read_u32();
-      audio_data.reserved   = header.read_u32();
-      audio_data.name_len   = header.read_u32();
+      audio_data.checksum   = header.read_u32().UNWRAP();
+      audio_data.references = header.read_u32().UNWRAP();
+      audio_data.decomp_len = header.read_u32().UNWRAP();
+      audio_data.type       = (se::sound_mode_t)header.read_u32().UNWRAP();
+      audio_data.reserved   = header.read_u32().UNWRAP();
+      audio_data.name_len   = header.read_u32().UNWRAP();
 
       if (SrcExp.state.unicode)
       {
-        audio_data.name = lak::strconv<char8_t>(
-          audio.read_u16string_exact(audio_data.name_len));
+        audio_data.name = lak::to_u8string(
+          arr_to_str(audio.read<char16_t>(audio_data.name_len).UNWRAP()));
       }
       else
-        audio_data.name =
-          audio.read_u8string_exact(audio_data.name_len).to_string();
+      {
+        audio_data.name = lak::to_u8string(
+          arr_to_str(audio.read<char8_t>(audio_data.name_len).UNWRAP()));
+      }
 
-      if (audio.peek_astring(4) == lak::string_view("OggS"))
+      DEBUG("Name: ", audio_data.name);
+
+      if (const auto peek = audio.peek<char>(4).UNWRAP();
+          lak::span(peek) == "OggS"_aview)
         audio_data.type = se::sound_mode_t::oggs;
-      else if (audio.peek_astring(4) != lak::string_view("RIFF"))
+      else if (lak::span(peek) != "RIFF"_aview)
         audio_data.type = se::sound_mode_t(-1);
 
       if (audio_data.type == se::sound_mode_t::wave)
       {
-        audio.skip(4); // "RIFF"
-        uint32_t size = audio.read_s32() + 4;
-        audio.skip(8); // "WAVEfmt "
+        audio.skip(4).UNWRAP(); // "RIFF"
+        uint32_t size = audio.read_s32().UNWRAP() + 4;
+        audio.skip(8).UNWRAP(); // "WAVEfmt "
         // audio.position += 4; // 0x00000010
         // 16, 18 or 40
-        uint32_t chunk_size = audio.read_u32();
+        uint32_t chunk_size = audio.read_u32().UNWRAP();
         DEBUG("Chunk Size ", chunk_size);
         const size_t pos           = audio.position() + chunk_size;
-        audio_data.format          = audio.read_u16(); // 2
-        audio_data.channel_count   = audio.read_u16(); // 4
-        audio_data.sample_rate     = audio.read_u32(); // 8
-        audio_data.byte_rate       = audio.read_u32(); // 12
-        audio_data.block_align     = audio.read_u16(); // 14
-        audio_data.bits_per_sample = audio.read_u16(); // 16
+        audio_data.format          = audio.read_u16().UNWRAP(); // 2
+        audio_data.channel_count   = audio.read_u16().UNWRAP(); // 4
+        audio_data.sample_rate     = audio.read_u32().UNWRAP(); // 8
+        audio_data.byte_rate       = audio.read_u32().UNWRAP(); // 12
+        audio_data.block_align     = audio.read_u16().UNWRAP(); // 14
+        audio_data.bits_per_sample = audio.read_u16().UNWRAP(); // 16
         if (chunk_size >= 18)
         {
-          [[maybe_unused]] uint16_t extensionSize = audio.read_u16(); // 18
+          [[maybe_unused]] uint16_t extensionSize =
+            audio.read_u16().UNWRAP(); // 18
           DEBUG("Extension Size ", extensionSize);
         }
         if (chunk_size >= 40)
         {
-          [[maybe_unused]] uint16_t validPerSample = audio.read_u16(); // 20
+          [[maybe_unused]] uint16_t validPerSample =
+            audio.read_u16().UNWRAP(); // 20
           DEBUG("Valid Bits Per Sample ", validPerSample);
-          [[maybe_unused]] uint16_t channelMask = audio.read_u32(); // 24
+          [[maybe_unused]] uint16_t channelMask =
+            audio.read_u32().UNWRAP(); // 24
           DEBUG("Channel Mask ", channelMask);
           // SubFormat // 40
         }
-        audio.seek(pos + 4); // "data"
-        audio_data.chunk_size = audio.read_u32();
-        audio_data.data       = audio.read(size);
+        audio.seek(pos + 4).UNWRAP(); // "data"
+        audio_data.chunk_size = audio.read_u32().UNWRAP();
+        DEBUG("Pos: ", audio.position());
+        DEBUG("Remaining: ", audio.remaining().size());
+        DEBUG("Size: ", size);
+        DEBUG("Chunk Size: ", audio_data.chunk_size);
+        audio_data.data = audio.read<uint8_t>(audio_data.chunk_size).UNWRAP();
       }
     }
   }
@@ -710,9 +770,9 @@ void AudioExplorer(bool &update)
     spec.samples  = 2048;
     spec.callback = nullptr;
 
-    if (std::memcmp(&audio_spec, &spec, sizeof(SDL_AudioSpec)) != 0)
+    if (lak::as_bytes(&audio_spec) != lak::as_bytes(&spec))
     {
-      std::memcpy(&audio_spec, &spec, sizeof(SDL_AudioSpec));
+      lak::memcpy(&audio_spec, &spec);
       if (audio_device != 0)
       {
         SDL_CloseAudioDevice(audio_device);
@@ -952,15 +1012,17 @@ void SourceBytePairsMain(float frame_time)
     if (code.is_ok() && code.unwrap() == lak::file_open_error::VALID)
     {
       SrcExp.state      = se::game_t{};
-      SrcExp.state.file = lak::memory(
+      SrcExp.state.file = se::make_data_ref_ptr(
+        se::data_ref_ptr_t{},
         lak::read_file(file_state.path).EXPECT("failed to load file"));
+      ASSERT(SrcExp.state.file != nullptr);
       return true;
     }
     return code.is_err() || code.unwrap() != lak::file_open_error::INCOMPLETE;
   };
 
   auto manip = [] {
-    DEBUG("File size: ", SrcExp.state.file.size());
+    DEBUG("File size: ", SrcExp.state.file->size());
     SrcExp.loaded = true;
     return true;
   };
@@ -974,7 +1036,7 @@ void SourceBytePairsMain(float frame_time)
 
   if (SrcExp.loaded)
     BytePairsMemoryExplorer(
-      SrcExp.state.file.data(), SrcExp.state.file.size(), false);
+      SrcExp.state.file->data(), SrcExp.state.file->size(), false);
 }
 
 #if 1
@@ -1042,7 +1104,8 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
     {
       return lak::optional<int>(lak::run_tests());
     }
-    else if (argv[arg] == lak::astring("-tests"))
+    else if (argv[arg] == lak::astring("-tests") ||
+             argv[arg] == lak::astring("-test"))
     {
       ++arg;
       if (arg >= argc) FATAL("Missing tests");
@@ -1054,6 +1117,8 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
       SrcExp.exe.path    = argv[arg];
       SrcExp.exe.valid   = true;
       SrcExp.exe.attempt = true;
+      if (!lak::path_exists(SrcExp.exe.path).UNWRAP())
+        FATAL(SrcExp.exe.path, " does not exist");
     }
   }
 
