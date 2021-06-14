@@ -1168,7 +1168,7 @@ namespace SourceExplorer
       // size_t dataLen = *reinterpret_cast<const uint32_t*>(&encrypted[0]);
       TRY(estrm.skip(4));
 
-      auto mem_ptr = estrm.copy_remaining();
+      auto mem_ptr  = estrm.copy_remaining();
       auto mem_span = lak::span<uint8_t>(mem_ptr->get());
 
       data_reader_t mem_reader(mem_ptr);
@@ -2603,7 +2603,7 @@ namespace SourceExplorer
         if (handle < 0xFFFF)
         {
           RES_TRY(
-            GetImage(srcexp.state, shape.handle)
+            GetImage(srcexp.state, handle)
               .MAP_SE_ERR("object::backdrop_t::view: bad image")
               .and_then([&](const auto &img) { return img.view(srcexp); })
               .MAP_SE_ERR("object::backdrop_t::view"));
@@ -3980,8 +3980,6 @@ namespace SourceExplorer
         {
           image(srcexp.dump_color_transparent)
             .if_ok([&](lak::image4_t &img) {
-              ASSERT(lak::pages_are_committed(
-                lak::span(img.data(), img.contig_size())));
               srcexp.image = CreateTexture(img, srcexp.graphics_mode);
             })
             .IF_ERR("Failed To Read Image Data");
@@ -4085,9 +4083,6 @@ namespace SourceExplorer
 
       if (!strm.empty())
         WARNING(strm.remaining().size(), " Bytes Left Over In Image Data");
-
-      ASSERT(
-        lak::pages_are_committed(lak::span(img.data(), img.contig_size())));
 
       return lak::ok_t{lak::move(img)};
     }
