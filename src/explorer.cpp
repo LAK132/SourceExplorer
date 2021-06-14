@@ -3945,6 +3945,12 @@ namespace SourceExplorer
         ASSERT_EQUAL(strm.position(), data_position);
         TRY_ASSIGN(entry.body.data =, strm.read_ref_span(data_size));
         data_position = 0;
+
+        const auto strm_end = strm.position();
+        TRY(strm.seek(strm_start));
+        TRY_ASSIGN(entry.ref_span =,
+                   strm.read_ref_span(strm_end - strm_start));
+        DEBUG("Corrected Ref Span Size: ", entry.ref_span.size());
       }
       else
       {
