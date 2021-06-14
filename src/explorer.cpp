@@ -1092,13 +1092,14 @@ namespace SourceExplorer
     FUNCTION_CHECKPOINT();
 
     lak::binary_reader reader(compressed);
-    if (auto result = lak::decode_lz4_block(reader, out_size); result.is_ok())
-      return lak::ok_t{
-        make_data_ref_ptr(compressed, lak::move(result).unsafe_unwrap())};
 
-    ERROR("Failed To Decompress");
-    return lak::err_t{
-      error(LINE_TRACE, error::inflate_failed, "Failed To Decompress")};
+    return lak::decode_lz4_block(reader, out_size)
+      .map_err(lak::lz4_error_name)
+      .map([&](auto &&decompressed) {
+        return data_ref_span_t(
+          make_data_ref_ptr(compressed, lak::move(decompressed)));
+      })
+      .MAP_ERRCODE(error::inflate_failed);
   }
 
   result_t<data_ref_span_t> LZ4DecodeReadSize(data_ref_span_t compressed)

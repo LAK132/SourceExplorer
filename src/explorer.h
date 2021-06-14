@@ -238,7 +238,7 @@ namespace SourceExplorer
     else                                                                      \
     {                                                                         \
       return SourceExplorer::error(                                           \
-        LINE_TRACE, ERR, "" LAK_OPT_ARGS(__VA_ARGS__), " ", err);             \
+        LINE_TRACE, ERR, "" LAK_OPT_ARGS(__VA_ARGS__), err);                  \
     }                                                                         \
   }
 
