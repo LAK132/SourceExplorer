@@ -45,12 +45,13 @@ namespace se = SourceExplorer;
 
 se::error_t se::SaveImage(const lak::image4_t &image, const fs::path &filename)
 {
-  if (stbi_write_png(filename.u8string().c_str(),
-                     (int)image.size().x,
-                     (int)image.size().y,
-                     4,
-                     &(image[0].r),
-                     (int)(image.size().x * 4)) != 1)
+  if (stbi_write_png(
+        reinterpret_cast<const char *>(filename.u8string().c_str()),
+        (int)image.size().x,
+        (int)image.size().y,
+        4,
+        &(image[0].r),
+        (int)(image.size().x * 4)) != 1)
   {
     return lak::err_t{se::error(LINE_TRACE,
                                 se::error::str_err,

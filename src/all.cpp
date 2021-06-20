@@ -26,6 +26,7 @@
 #include <lak/src/tinflate.cpp>
 #include <lak/src/tokeniser.cpp>
 #include <lak/src/unicode.cpp>
+#include <lak/src/unique_pages.cpp>
 #include <lak/src/window.cpp>
 
 #include <lak/src/compression/deflate.cpp>
