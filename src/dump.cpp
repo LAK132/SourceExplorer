@@ -263,16 +263,18 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                        std::u16string extra = u"") {
     std::u32string str;
     if (extra.size() > 0) str += lak::to_u32string(extra + u" ");
-    if (name) str += lak::to_u32string(name->value);
-    std::u16string result;
+    if (name) str += U"'" + lak::to_u32string(name->value) + U"'";
+    std::u32string result;
     for (auto &c : str)
       if (c == U' ' || c == U'(' || c == U')' || c == U'[' || c == U']' ||
-          c == U'+' || c == U'-' || c == U'=' || c == U'_' ||
+          c == U'+' || c == U'-' || c == U'=' || c == U'_' || c == '\'' ||
           (c >= U'0' && c <= U'9') || (c >= U'a' && c <= U'z') ||
           (c >= U'A' && c <= U'Z') || c > 127)
-        result += lak::to_u16string(std::u32string() + c);
+        result += c;
+    while (!result.empty() && lak::is_whitespace(result.back()))
+      result.pop_back();
     return u"["s + se::to_u16string(handle) + (result.empty() ? u"]" : u"] ") +
-           result;
+           lak::to_u16string(result);
   };
 
   fs::path root_path     = srcexp.sorted_images.path;
