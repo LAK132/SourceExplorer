@@ -3986,10 +3986,11 @@ namespace SourceExplorer
         if (ImGui::Button("View Image"))
         {
           image(srcexp.dump_color_transparent)
-            .if_ok([&](lak::image4_t &img) {
+            .if_ok([&](lak::image4_t &&img) {
               srcexp.image = CreateTexture(img, srcexp.graphics_mode);
             })
-            .IF_ERR("Failed To Read Image Data");
+            .IF_ERR("Failed To Read Image Data")
+            .discard();
         }
       }
 

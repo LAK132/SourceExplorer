@@ -226,34 +226,50 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
   }
 
   auto LinkImages = [](const fs::path &From, const fs::path &To)
-    -> lak::error_codes<std::error_code, lak::u8string> {
-    std::error_code ec;
+    -> lak::error_codes<lak::error_code_error, lak::u8string> {
+    auto errno_map = [](lak::error_code_error err)
+      -> lak::variant<lak::error_code_error, lak::u8string> {
+      return lak::var_t<0>(err);
+    };
 
-    if (fs::exists(To, ec))
-    {
-      return lak::err_t{
-        lak::var_t<1>(lak::streamify<char8_t>(To, " already exists"))};
-    }
-    else if (!ec)
-    {
-      if (fs::exists(From, ec))
-      {
-        fs::create_directories(To.parent_path(), ec);
-        if (!ec) fs::create_hard_link(From, To, ec);
-      }
-      else if (!ec)
-      {
-        return lak::err_t{
-          lak::var_t<1>(lak::streamify<char8_t>(From, " does not exist"))};
-      }
-    }
-
-    if (ec)
-    {
-      return lak::err_t{lak::var_t<0>(ec)};
-    }
-
-    return lak::ok_t{};
+    return lak::path_exists(From)
+      .IF_ERR("from path ", From, " existence check failed")
+      .map_err(errno_map)
+      .map_expect_value(
+        true,
+        [&](...) -> lak::variant<lak::error_code_error, lak::u8string> {
+          return lak::var_t<1>(
+            lak::streamify<char8_t>(From, " does not exist"));
+        })
+      .and_then([&](...) {
+        return lak::path_exists(To)
+          .IF_ERR("to path ", To, " existence check failed")
+          .map_err(errno_map);
+      })
+      .map_expect_value(
+        false,
+        [&](...) -> lak::variant<lak::error_code_error, lak::u8string> {
+          return lak::var_t<1>(
+            lak::streamify<char8_t>(From, " already exist"));
+        })
+      .and_then([&](...) {
+        return lak::create_directory(To.parent_path())
+          .IF_ERR("create directory failed")
+          .map_err(errno_map);
+      })
+      .and_then([&](...) {
+        return lak::create_hard_link(From, To)
+          .IF_ERR_WARN("create hard link from ",
+                       From,
+                       " to ",
+                       To,
+                       " failed, trying copy instead")
+          .or_else([&](...) {
+            return lak::copy_file(From, To).IF_ERR(
+              "copy file from ", From, " to ", To, " failed");
+          })
+          .map_err(errno_map);
+      });
   };
 
   using namespace std::string_literals;
