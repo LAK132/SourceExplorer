@@ -28,6 +28,7 @@ SOFTWARE.
 #include <imgui/misc/cpp/imgui_stdlib.h>
 
 #include <lak/debug.hpp>
+#include <lak/file.hpp>
 
 #include <algorithm>
 #include <deque>
@@ -149,7 +150,7 @@ namespace lak
 
       for (const auto &folder : folders)
       {
-        const auto str = folder.filename().u8string() + u8'/';
+        const auto str = lak::to_u8string(folder.filename()) + u8'/';
         if (ImGui::Selectable(reinterpret_cast<const char *>(str.c_str())))
         {
           // User selected a folder
@@ -162,7 +163,7 @@ namespace lak
       for (const auto &file : files)
       {
         if (ImGui::Selectable(reinterpret_cast<const char *>(
-              file.filename().u8string().c_str())))
+              lak::to_u8string(file.filename()).c_str())))
         {
           // User selected a file
           path = file;
@@ -211,9 +212,10 @@ namespace lak
       {
         if (auto result = cache.refresh(full); result.is_err())
           ec = result.unwrap_err();
-        path       = cache.full();
-        file_str   = lak::as_astring(cache.file.u8string()).to_string();
-        folder_str = lak::as_astring(cache.folder.u8string()).to_string();
+        path     = cache.full();
+        file_str = lak::as_astring(lak::to_u8string(cache.file)).to_string();
+        folder_str =
+          lak::as_astring(lak::to_u8string(cache.folder)).to_string();
       }
       if (ec) return lak::err_t{ec};
 
@@ -269,7 +271,7 @@ namespace lak
     }
     else if (refreshed.unwrap())
     {
-      folder_str = lak::as_astring(cache.folder.u8string()).to_string();
+      folder_str = lak::as_astring(lak::to_u8string(cache.folder)).to_string();
     }
 
     if (DEFER(ImGui::EndChild()); ImGui::BeginChild(
@@ -289,8 +291,9 @@ namespace lak
       {
         if (auto result = cache.refresh(full); result.is_err())
           ec = result.unwrap_err();
-        path       = cache.full();
-        folder_str = lak::as_astring(cache.folder.u8string()).to_string();
+        path = cache.full();
+        folder_str =
+          lak::as_astring(lak::to_u8string(cache.folder)).to_string();
       }
       if (ec) return lak::err_t{ec};
 

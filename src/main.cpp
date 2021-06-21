@@ -629,11 +629,6 @@ void AudioExplorer(bool &update)
   static const se::basic_entry_t *last = nullptr;
   update |= last != SrcExp.view;
 
-  auto arr_to_str = [](const auto &arr) {
-    return lak::string<lak::remove_cvref_t<decltype(*arr.begin())>>(
-      arr.begin(), arr.end());
-  };
-
   static audio_data_t audio_data;
   if (update && SrcExp.view != nullptr)
   {
@@ -652,7 +647,7 @@ void AudioExplorer(bool &update)
       audio_data.name_len   = audio.read_u32().UNWRAP();
 
       audio_data.name =
-        arr_to_str(audio.read<char8_t>(audio_data.name_len).UNWRAP());
+        audio.read_exact_c_str<char8_t>(audio_data.name_len).UNWRAP();
 
       if (audio_data.type == se::sound_mode_t::wave)
       {
@@ -682,12 +677,12 @@ void AudioExplorer(bool &update)
       if (SrcExp.state.unicode)
       {
         audio_data.name = lak::to_u8string(
-          arr_to_str(audio.read<char16_t>(audio_data.name_len).UNWRAP()));
+          audio.read_exact_c_str<char16_t>(audio_data.name_len).UNWRAP());
       }
       else
       {
         audio_data.name = lak::to_u8string(
-          arr_to_str(audio.read<char8_t>(audio_data.name_len).UNWRAP()));
+          audio.read_exact_c_str<char8_t>(audio_data.name_len).UNWRAP());
       }
 
       DEBUG("Name: ", audio_data.name);

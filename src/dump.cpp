@@ -475,11 +475,6 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
     return;
   }
 
-  auto arr_to_str = [](const auto &arr) {
-    return lak::string<lak::remove_cvref_t<decltype(*arr.begin())>>(
-      arr.begin(), arr.end());
-  };
-
   const size_t count = srcexp.state.game.sound_bank->items.size();
   size_t index       = 0;
   for (const auto &item : srcexp.state.game.sound_bank->items)
@@ -500,7 +495,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       uint32_t name_len                  = sound.read_u32().UNWRAP();
 
       name =
-        lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
+        lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
 
       [[maybe_unused]] uint16_t format          = sound.read_u16().UNWRAP();
       [[maybe_unused]] uint16_t channel_count   = sound.read_u16().UNWRAP();
@@ -541,13 +536,13 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 
       if (srcexp.state.unicode)
       {
-        name = arr_to_str(sound.read<char16_t>(name_len).UNWRAP());
+        name = sound.read_exact_c_str<char16_t>(name_len).UNWRAP();
         DEBUG("u16string name: ", name);
       }
       else
       {
         name =
-          lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
+          lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
         DEBUG("u8string name: ", name);
       }
 
@@ -574,9 +569,11 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       default: name += u".mp3"; break;
     }
 
-    DEBUG("MP3", (size_t)item.entry.ID);
+    DEBUG("Sound ", (size_t)item.entry.ID);
 
     fs::path filename = srcexp.sounds.path / name;
+
+    DEBUG("Saving ", lak::to_u8string(filename));
 
     if (!lak::save_file(filename, result))
     {
@@ -594,11 +591,6 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
     ERROR("No Music Bank");
     return;
   }
-
-  auto arr_to_str = [](const auto &arr) {
-    return lak::string<lak::remove_cvref_t<decltype(*arr.begin())>>(
-      arr.begin(), arr.end());
-  };
 
   const size_t count = srcexp.state.game.music_bank->items.size();
   size_t index       = 0;
@@ -619,7 +611,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
       uint32_t name_len                  = sound.read_u32().UNWRAP();
 
       name =
-        lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
+        lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
     }
     else
     {
@@ -632,12 +624,12 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 
       if (srcexp.state.unicode)
       {
-        name = arr_to_str(sound.read<char16_t>(name_len).UNWRAP());
+        name = sound.read_exact_c_str<char16_t>(name_len).UNWRAP();
       }
       else
       {
         name =
-          lak::to_u16string(arr_to_str(sound.read<char>(name_len).UNWRAP()));
+          lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
       }
     }
 
