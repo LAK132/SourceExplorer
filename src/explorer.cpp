@@ -1066,6 +1066,18 @@ namespace SourceExplorer
     {
       return lak::ok_t{make_data_ref_ptr(compressed, lak::move(output))};
     }
+#ifndef NDEBUG
+    else if (err.unsafe_unwrap_err() ==
+             lak::deflate_iterator::error_t::corrupt_stream)
+    {
+      auto [bytes_read, bits_read] = inflater.bytes_read();
+      ERROR("Corrupt Stream. Bytes Read: ",
+            bytes_read,
+            ", Bits Read: ",
+            bits_read);
+      return lak::ok_t{make_data_ref_ptr(compressed, lak::move(output))};
+    }
+#endif
     else if (err.unsafe_unwrap_err() == lak::deflate_iterator::error_t::ok)
     {
       // This is not (always) an error, we may intentionally stop the decode
