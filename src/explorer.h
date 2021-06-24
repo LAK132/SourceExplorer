@@ -1468,6 +1468,7 @@ namespace SourceExplorer
     file_state_t binary_files;
     file_state_t appicon;
     file_state_t error_log;
+    file_state_t binary_block;
 
     MemoryEditor editor;
 

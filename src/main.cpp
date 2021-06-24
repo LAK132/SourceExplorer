@@ -494,6 +494,8 @@ void MemoryExplorer(bool &update)
     update |= ImGui::RadioButton("Byte Pairs", &content_mode, 1);
     ImGui::SameLine();
     update |= ImGui::RadioButton("Data Image", &content_mode, 2);
+    ImGui::SameLine();
+    SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
     ImGui::Separator();
   }
 
@@ -512,8 +514,8 @@ void MemoryExplorer(bool &update)
     else
     {
       if (content_mode != 0) content_mode = 0;
-      SrcExp.editor.DrawContents(SrcExp.state.file->data(),
-                                 SrcExp.state.file->size());
+      if (update) SrcExp.buffer = se::data_ref_span_t(SrcExp.state.file);
+      SrcExp.editor.DrawContents(SrcExp.buffer.data(), SrcExp.buffer.size());
       if (update && SrcExp.view != nullptr)
       {
         SCOPED_CHECKPOINT(__func__, "::EXE");
@@ -991,6 +993,8 @@ void SourceExplorerMain(float frame_time)
     se::AttemptBinaryFiles(SrcExp);
   else if (SrcExp.error_log.attempt)
     se::AttemptErrorLog(SrcExp);
+  else if (SrcExp.binary_block.attempt)
+    se::AttemptBinaryBlock(SrcExp);
 }
 
 void SourceBytePairsMain(float frame_time)
@@ -1132,7 +1136,7 @@ void basic_window_init(lak::window &window)
 
   SrcExp.images.path = SrcExp.sorted_images.path = SrcExp.sounds.path =
     SrcExp.music.path = SrcExp.shaders.path = SrcExp.binary_files.path =
-      SrcExp.appicon.path                   = fs::current_path();
+      SrcExp.appicon.path = SrcExp.binary_block.path = fs::current_path();
 
   lak::debugger.live_output_enabled = true;
 

@@ -727,6 +727,17 @@ void se::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed)
   }
 }
 
+void se::SaveBinaryBlock(source_explorer_t &srcexp,
+                         std::atomic<float> &completed)
+{
+  srcexp.binary_block.path += ".bin";
+  if (!lak::save_file(srcexp.binary_block.path,
+                      lak::span<const uint8_t>(srcexp.buffer)))
+  {
+    ERROR("Failed To Save File '", srcexp.binary_block.path, "'");
+  }
+}
+
 template<typename FUNCTOR>
 void AttemptFile(se::file_state_t &file_state,
                  FUNCTOR functor,
@@ -966,5 +977,15 @@ void se::AttemptErrorLog(source_explorer_t &srcexp)
   AttemptFile(
     srcexp.error_log,
     [&srcexp] { return DumpStuff(srcexp, "Save Error Log", &SaveErrorLog); },
+    true);
+}
+
+void se::AttemptBinaryBlock(source_explorer_t &srcexp)
+{
+  AttemptFile(
+    srcexp.binary_block,
+    [&srcexp] {
+      return DumpStuff(srcexp, "Save Binary Block", &SaveBinaryBlock);
+    },
     true);
 }
