@@ -260,6 +260,8 @@ namespace SourceExplorer
       DEBUG("Pos: ", strm.position());
     }
 
+    DEBUG("Pos: ", pos);
+
     while (true)
     {
       strm.seek(pos).UNWRAP();
@@ -1083,6 +1085,7 @@ namespace SourceExplorer
       // This is not (always) an error, we may intentionally stop the decode
       // early to not waste time and memory.
 
+      CHECKPOINT();
       return lak::ok_t{make_data_ref_ptr(compressed, lak::move(output))};
     }
     else
