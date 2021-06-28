@@ -4133,14 +4133,25 @@ namespace SourceExplorer
 
       DEBUG("Image Bank Size: ", items.size());
 
+      size_t max_tries = 3;
+
       for (auto &item : items)
       {
-        RES_TRY(item.read(game, reader)
-                  .IF_ERR("Failed To Read Item ",
-                          (&item - items.data()),
-                          " Of ",
-                          items.size())
-                  .MAP_SE_ERR("image::bank_t::read"));
+        RES_TRY([&, this]() -> error_t {
+          return item.read(game, reader)
+            .IF_ERR("Failed To Read Item ",
+                    (&item - items.data()),
+                    " Of ",
+                    items.size())
+            .MAP_SE_ERR("image::bank_t::read");
+        }()
+                                 .or_else([&](const auto &err) -> error_t {
+                                   if (max_tries == 0) return lak::err_t{err};
+                                   ERROR(err);
+                                   DEBUG("Continuing...");
+                                   --max_tries;
+                                   return lak::ok_t{};
+                                 }));
 
         game.bank_completed =
           float(double(reader.position()) / double(reader.size()));
