@@ -2587,12 +2587,12 @@ namespace SourceExplorer
       TRY_ASSIGN(size =, bstrm.read_u32());
       TRY_ASSIGN(obstacle =, bstrm.read_u16());
       TRY_ASSIGN(collision =, bstrm.read_u16());
-      if (game.old_game)
+      if (game.old_game && bstrm.remaining().size() >= 6)
       {
         TRY_ASSIGN(dimension.x =, bstrm.read_u16());
         TRY_ASSIGN(dimension.y =, bstrm.read_u16());
       }
-      else
+      else if (!game.old_game)
       {
         TRY_ASSIGN(dimension.x =, bstrm.read_u32());
         TRY_ASSIGN(dimension.y =, bstrm.read_u32());
