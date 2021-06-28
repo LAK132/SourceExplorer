@@ -3889,6 +3889,8 @@ namespace SourceExplorer
     {
       FUNCTION_CHECKPOINT("image::item_t::");
 
+      const auto strm_start = strm.position();
+
       data_ref_span_t span;
       if (game.two_five_plus_game)
       {
