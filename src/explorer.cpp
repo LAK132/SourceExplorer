@@ -675,9 +675,10 @@ namespace SourceExplorer
     FUNCTION_CHECKPOINT();
 
     const size_t point_size = ColorModeSize(mode);
-    const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
-    size_t pos              = 0;
-    size_t i                = 0;
+    const uint16_t pad =
+      BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x),
+                        static_cast<uint8_t>(point_size));
+    size_t pos = 0;
 
     size_t start = strm.position();
 
@@ -725,8 +726,10 @@ namespace SourceExplorer
     FUNCTION_CHECKPOINT();
 
     const size_t point_size = ColorModeSize(mode);
-    const uint16_t pad      = BitmapPaddingSize(bitmap.size().x, point_size);
-    size_t i                = 0;
+    const uint16_t pad =
+      BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x),
+                        static_cast<uint8_t>(point_size));
+    size_t i = 0;
 
     size_t start = strm.position();
 
@@ -749,8 +752,9 @@ namespace SourceExplorer
   {
     FUNCTION_CHECKPOINT();
 
-    const uint16_t pad = BitmapPaddingSize(bitmap.size().x, 1, 4);
-    size_t i           = 0;
+    const uint16_t pad =
+      BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x), 1, 4);
+    size_t i = 0;
 
     size_t start = strm.position();
 
@@ -817,7 +821,7 @@ namespace SourceExplorer
     else
     {
       FATAL("Unknown graphics mode: ", (uintmax_t)mode);
-      return std::monostate{};
+      // return std::monostate{};
     }
   }
 
@@ -1032,13 +1036,13 @@ namespace SourceExplorer
       case encoding_t::mode2: return Decrypt(encoded, id, mode);
       case encoding_t::mode1:
         return lak::ok_t{
-          lak::ok_or_err(Inflate(encoded, false, false).map_err([&](...) {
+          lak::ok_or_err(Inflate(encoded, false, false).map_err([&](auto &&) {
             return encoded;
           }))};
       default:
         if (encoded.size() > 0 && encoded[0] == 0x78)
           return lak::ok_t{
-            lak::ok_or_err(Inflate(encoded, false, false).map_err([&](...) {
+            lak::ok_or_err(Inflate(encoded, false, false).map_err([&](auto &&) {
               return encoded;
             }))};
         else
@@ -1149,8 +1153,8 @@ namespace SourceExplorer
         inflater.compressed().begin() - strm.remaining().begin();
       ASSERT_GREATER_OR_EQUAL(bytes_read, 0);
       strm.skip(bytes_read).UNWRAP();
-      return lak::ok_t{
-        make_data_ref_ptr(strm.source, offset, bytes_read, lak::move(output))};
+      return lak::ok_t{make_data_ref_ptr(
+        strm._source, offset, bytes_read, lak::move(output))};
     }
     else
     {
@@ -1208,7 +1212,7 @@ namespace SourceExplorer
         // Try Inflate even if it doesn't need to be
         return lak::ok_t{lak::ok_or_err(
           Inflate(rem_span, false, false)
-            .map_err([&](...) { return rem_span; })
+            .map_err([&](auto &&) { return rem_span; })
             .if_err([](auto ref_span) { DEBUG("Size: ", ref_span.size()); }))};
       }
       return lak::err_t{
@@ -1447,13 +1451,14 @@ namespace SourceExplorer
     size_t data_size = 0;
     if (game.old_game)
     {
-      const size_t start = strm.position();
+      const size_t old_start = strm.position();
       // Figure out exactly how long the compressed data is
       // :TODO: It should be possible to figure this out without
       // actually decompressing it... surely...
-      RES_TRY_ASSIGN(const auto raw =,
-                     StreamDecompress(strm, body.expected_size)
-                       .MAP_SE_ERR("item_entry_t::read"));
+      RES_TRY_ASSIGN(
+        const auto raw =,
+        StreamDecompress(strm, static_cast<unsigned int>(body.expected_size))
+          .MAP_SE_ERR("item_entry_t::read"));
       if (raw.size() != body.expected_size)
       {
         WARNING("Actual decompressed size (",
@@ -1462,8 +1467,8 @@ namespace SourceExplorer
                 body.expected_size,
                 ").");
       }
-      data_size = strm.position() - start;
-      strm.seek(start).UNWRAP();
+      data_size = strm.position() - old_start;
+      strm.seek(old_start).UNWRAP();
       DEBUG("Data Size: ", data_size);
     }
     else if (!new_item)
@@ -2054,7 +2059,7 @@ namespace SourceExplorer
     return lak::ok_t{};
   }
 
-  error_t binary_file_t::view(source_explorer_t &srcexp) const
+  error_t binary_file_t::view(source_explorer_t &) const
   {
     auto str = lak::as_astring(name);
 
@@ -2203,7 +2208,7 @@ namespace SourceExplorer
     return basic_view(srcexp, "Title 2");
   }
 
-  error_t chunk_2253_item_t::read(game_t &game, data_reader_t &strm)
+  error_t chunk_2253_item_t::read(game_t &, data_reader_t &strm)
   {
     FUNCTION_CHECKPOINT("chunk2253_t::");
 
@@ -2217,7 +2222,7 @@ namespace SourceExplorer
     return lak::ok_t{};
   }
 
-  error_t chunk_2253_item_t::view(source_explorer_t &srcexp) const
+  error_t chunk_2253_item_t::view(source_explorer_t &) const
   {
     ImGui::Text("ID: 0x%zX", ID);
 
@@ -2426,7 +2431,7 @@ namespace SourceExplorer
       return basic_view(srcexp, "Effect");
     }
 
-    error_t shape_t::read(game_t &game, data_reader_t &strm)
+    error_t shape_t::read(game_t &, data_reader_t &strm)
     {
       FUNCTION_CHECKPOINT("object::shape_t::");
 
@@ -2473,7 +2478,7 @@ namespace SourceExplorer
       return lak::ok_t{};
     }
 
-    error_t shape_t::view(source_explorer_t &srcexp) const
+    error_t shape_t::view(source_explorer_t &) const
     {
       LAK_TREE_NODE("Shape")
       {
@@ -2629,7 +2634,7 @@ namespace SourceExplorer
       return lak::ok_t{};
     }
 
-    error_t animation_direction_t::read(game_t &game, data_reader_t &strm)
+    error_t animation_direction_t::read(game_t &, data_reader_t &strm)
     {
       FUNCTION_CHECKPOINT("object::animation_direction_t::");
 
@@ -3124,8 +3129,8 @@ namespace SourceExplorer
                    frame < animation.directions[i].handles.size();
                    ++frame)
               {
-                auto handle = animation.directions[i].handles[frame];
-                result[handle].emplace_back(
+                auto h = animation.directions[i].handles[frame];
+                result[h].emplace_back(
                   u"Animation-"s + SourceExplorer::to_u16string(animIndex) +
                   u" Direction-"s + SourceExplorer::to_u16string(i) +
                   u" Frame-"s + SourceExplorer::to_u16string(frame));
@@ -3159,7 +3164,7 @@ namespace SourceExplorer
                               (&item - items.data()),
                               " Of ",
                               items.size())
-                  .if_ok([&](...) {
+                  .if_ok([&](auto &&) {
                     if (!item.end)
                       WARNING(
                         "Item ", (&item - items.data()), " Has No End Chunk");
@@ -4045,7 +4050,7 @@ namespace SourceExplorer
             .MAP_ERR("item_t::image_data: read filed")
             .map([](const data_ref_span_t &ref_span) -> data_ref_span_t {
               return lak::ok_or_err(
-                Inflate(ref_span, false, false).map_err([&](...) {
+                Inflate(ref_span, false, false).map_err([&](auto &&) {
                   return ref_span;
                 }));
             });
@@ -4813,5 +4818,3 @@ namespace SourceExplorer
     return lak::ok_t{};
   }
 }
-
-#include "encryption.cpp"

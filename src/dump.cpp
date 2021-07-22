@@ -31,6 +31,7 @@ SOFTWARE.
 #include "explorer.h"
 #include "tostring.hpp"
 
+#include <lak/char_utils.hpp>
 #include <lak/result.hpp>
 #include <lak/string_utils.hpp>
 #include <lak/visit.hpp>
@@ -123,8 +124,8 @@ lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
 
       default:
         ASSERT_NYI();
-        return lak::err_t{lak::await_error::failed};
-        break;
+        // return lak::err_t{lak::await_error::failed};
+        // break;
     }
   }
 }
@@ -237,34 +238,34 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
       .map_err(errno_map)
       .map_expect_value(
         true,
-        [&](...) -> lak::variant<lak::error_code_error, lak::u8string> {
+        [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string> {
           return lak::var_t<1>(
             lak::streamify<char8_t>(From, " does not exist"));
         })
-      .and_then([&](...) {
+      .and_then([&](auto &&) {
         return lak::path_exists(To)
           .IF_ERR("to path ", To, " existence check failed")
           .map_err(errno_map);
       })
       .map_expect_value(
         false,
-        [&](...) -> lak::variant<lak::error_code_error, lak::u8string> {
+        [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string> {
           return lak::var_t<1>(
             lak::streamify<char8_t>(From, " already exist"));
         })
-      .and_then([&](...) {
+      .and_then([&](auto &&) {
         return lak::create_directory(To.parent_path())
           .IF_ERR("create directory failed")
           .map_err(errno_map);
       })
-      .and_then([&](...) {
+      .and_then([&](auto &&){
         return lak::create_hard_link(From, To)
           .IF_ERR_WARN("create hard link from ",
                        From,
                        " to ",
                        To,
                        " failed, trying copy instead")
-          .or_else([&](...) {
+          .or_else([&](auto &&) {
             return lak::copy_file(From, To).IF_ERR(
               "copy file from ", From, " to ", To, " failed");
           })
@@ -392,9 +393,9 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                   frame_path / "[unsorted]" / unsorted_image_name;
                 std::u16string image_name = imgname + u".png";
                 fs::path image_path       = object_path / image_name;
-                if (const auto *img =
+                if (const auto *i =
                       lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
-                    img)
+                    i)
                   if (auto res = LinkImages(unsorted_image_path, image_path);
                       res.is_err())
                     lak::visit(res.unwrap_err(),
@@ -419,7 +420,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
   }
 }
 
-void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed)
+void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &)
 {
   if (!srcexp.state.game.icon)
   {
@@ -442,14 +443,14 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed)
     strm.write_u16(0); // reserved
     strm.write_u16(1); // .ICO
     strm.write_u16(1); // 1 image
-    strm.write_u8(image->size().x);
-    strm.write_u8(image->size().y);
+    strm.write_u8(static_cast<uint8_t>(image->size().x));
+    strm.write_u8(static_cast<uint8_t>(image->size().y));
     strm.write_u8(0);      // no palette
     strm.write_u8(0);      // reserved
     strm.write_u16(1);     // color plane
     strm.write_u16(8 * 4); // bits per pixel
     strm.write_u32(len);
-    strm.write_u32(strm.size() + sizeof(uint32_t));
+    strm.write_u32(static_cast<uint32_t>(strm.size() + sizeof(uint32_t)));
     auto result = strm.release();
     out->write(reinterpret_cast<const char *>(result.data()), result.size());
     out->write((const char *)png, len);
@@ -509,7 +510,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 
       lak::binary_array_writer output;
       output.write("RIFF"_aview);
-      output.write_s32(data.size() - 44);
+      output.write_s32(static_cast<uint32_t>(data.size() - 44));
       output.write("WAVEfmt "_aview);
       output.write_u32(0x10);
       output.write_u16(format);
@@ -719,7 +720,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
   }
 }
 
-void se::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed)
+void se::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &)
 {
   if (!lak::save_file(srcexp.error_log.path, lak::debugger.str()))
   {
@@ -727,8 +728,7 @@ void se::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed)
   }
 }
 
-void se::SaveBinaryBlock(source_explorer_t &srcexp,
-                         std::atomic<float> &completed)
+void se::SaveBinaryBlock(source_explorer_t &srcexp, std::atomic<float> &)
 {
   srcexp.binary_block.path += ".bin";
   if (!lak::save_file(srcexp.binary_block.path,

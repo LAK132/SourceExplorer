@@ -1,9 +1,8 @@
 #include "lisk_impl.hpp"
 
-lisk::expression LiskAbort(lisk::environment &env, bool allow_tail_eval)
+lisk::expression LiskAbort(lisk::environment &, bool)
 {
   std::abort();
-  return lisk::expression::null{};
 }
 
 lisk::expression LiskButton(
@@ -33,8 +32,8 @@ lisk::expression LiskTreeNode(
 }
 
 lisk::expression LiskTextEdit(
-  lisk::environment &env,
-  bool allow_tail_eval,
+  lisk::environment &,
+  bool,
   lisk::string id,
   std::shared_ptr<lisk::string> str)
 {
@@ -43,19 +42,19 @@ lisk::expression LiskTextEdit(
 }
 
 lisk::expression LiskMultiTextEdit(
-  lisk::environment &env,
-  bool allow_tail_eval,
+  lisk::environment &,
+  bool,
   lisk::string id,
   std::shared_ptr<lisk::string> str)
 {
   return lisk::atom(lak::input_text(
     id.c_str(),
     str.get(),
-    ImGuiInputTextFlags_Multiline | ImGuiInputTextFlags_EnterReturnsTrue));
+    static_cast<ImGuiInputTextFlags>(ImGuiInputTextFlags_Multiline) |
+      ImGuiInputTextFlags_EnterReturnsTrue));
 }
 
-lisk::expression LiskNew(
-  lisk::environment &env, bool allow_tail_eval, lisk::symbol sym)
+lisk::expression LiskNew(lisk::environment &, bool, lisk::symbol sym)
 {
   if (sym == "uint")
     return lisk::atom(lisk::pointer(std::make_shared<lisk::uint_t>()));
@@ -81,8 +80,7 @@ lisk::expression LiskValueAtomImpl(lisk::pointer ptr)
     return lisk::exception{"Not a valid pointer type"};
 }
 
-lisk::expression LiskValue(
-  lisk::environment &env, bool allow_tail_eval, lisk::pointer ptr)
+lisk::expression LiskValue(lisk::environment &, bool, lisk::pointer ptr)
 {
   if (ptr._type == std::type_index(typeid(lisk::uint_t)))
     return LiskValueAtomImpl<lisk::uint_t>(ptr);
@@ -114,8 +112,8 @@ lisk::expression LiskSetImpl(lisk::pointer ptr, const T &arg)
 }
 
 lisk::expression LiskSet(
-  lisk::environment &env,
-  bool allow_tail_eval,
+  lisk::environment &,
+  bool,
   lisk::pointer ptr,
   lisk::expression value)
 {

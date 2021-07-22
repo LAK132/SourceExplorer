@@ -92,9 +92,10 @@ namespace SourceExplorer
       no_mode1_decoder,
       no_mode2_decoder,
       no_mode3_decoder,
-    } _value = str_err;
+    };
 
     std::vector<lak::pair<lak::trace, lak::astring>> _trace;
+    value_t _value = str_err;
 
     // error() {}
     // error(const error &other) : value(other.value), trace(other.trace) {}
@@ -325,9 +326,9 @@ namespace SourceExplorer
   struct pack_file_t
   {
     std::u16string filename;
+    lak::array<uint8_t> data;
     bool wide;
     uint32_t bingo;
-    lak::array<uint8_t> data;
   };
 
   struct _data_ref
@@ -391,7 +392,7 @@ namespace SourceExplorer
 
   struct data_ref_span_t : lak::span<uint8_t>
   {
-    data_ref_ptr_t source;
+    data_ref_ptr_t _source;
 
     data_ref_span_t()                        = default;
     data_ref_span_t(const data_ref_span_t &) = default;
@@ -400,7 +401,7 @@ namespace SourceExplorer
     data_ref_span_t(data_ref_ptr_t src,
                     size_t offset = 0,
                     size_t count  = lak::dynamic_extent)
-    : source(src),
+    : _source(src),
       lak::span<uint8_t>(
         src ? lak::span<uint8_t>(src->get()).subspan(offset, count)
             : lak::span<uint8_t>())
@@ -410,23 +411,24 @@ namespace SourceExplorer
     data_ref_span_t parent_span() const
     {
       FUNCTION_CHECKPOINT("data_ref_span_t::");
-      if (!source || !source->_parent) return {};
-      return data_ref_span_t(source->_parent,
-                             source->_parent_span.begin() -
-                               source->_parent->_data.begin(),
-                             source->_parent_span.size());
+      if (!_source || !_source->_parent) return {};
+      return data_ref_span_t(_source->_parent,
+                             _source->_parent_span.begin() -
+                               _source->_parent->_data.begin(),
+                             _source->_parent_span.size());
     }
 
     lak::result<size_t> position() const
     {
-      if (!source) return lak::err_t{};
-      return lak::ok_t{size_t(data() - source->data())};
+      if (!_source) return lak::err_t{};
+      return lak::ok_t{size_t(data() - _source->data())};
     }
 
     lak::result<size_t> root_position() const
     {
-      if (!source) return lak::err_t{};
-      if (!source->_parent) return lak::ok_t{size_t(data() - source->data())};
+      if (!_source) return lak::err_t{};
+      if (!_source->_parent)
+        return lak::ok_t{size_t(data() - _source->data())};
       return parent_span().root_position();
     }
 
@@ -434,7 +436,7 @@ namespace SourceExplorer
     {
       FUNCTION_CHECKPOINT("data_ref_span_t::");
       static_cast<lak::span<uint8_t> &>(*this) = {};
-      source.reset();
+      _source.reset();
     }
   };
 
@@ -442,10 +444,10 @@ namespace SourceExplorer
                                           lak::array<uint8_t> data)
   {
     FUNCTION_CHECKPOINT();
-    if (!parent.source)
+    if (!parent._source)
       return make_data_ref_ptr(lak::move(data));
     else
-      return std::make_shared<_data_ref>(parent.source,
+      return std::make_shared<_data_ref>(parent._source,
                                          parent.position().unwrap(),
                                          parent.size(),
                                          lak::move(data));
@@ -454,7 +456,7 @@ namespace SourceExplorer
   static data_ref_ptr_t copy_data_ref_ptr(data_ref_span_t parent)
   {
     FUNCTION_CHECKPOINT();
-    if (!parent.source)
+    if (!parent._source)
       return {};
     else
       return make_data_ref_ptr(
@@ -463,51 +465,51 @@ namespace SourceExplorer
 
   struct data_reader_t : lak::binary_reader
   {
-    data_ref_ptr_t source;
+    data_ref_ptr_t _source;
 
     data_reader_t(data_ref_ptr_t src)
-    : source(src),
+    : _source(src),
       lak::binary_reader(src ? lak::span<const uint8_t>(src->get())
                              : lak::span<const uint8_t>())
     {
     }
 
     data_reader_t(data_ref_span_t src)
-    : source(src.source), lak::binary_reader((lak::span<uint8_t>)src)
+    : _source(src._source), lak::binary_reader((lak::span<uint8_t>)src)
     {
     }
 
     data_ref_span_t peek_remaining_ref_span(size_t max_size = SIZE_MAX)
     {
       FUNCTION_CHECKPOINT("data_reader_t::");
-      ASSERT(source);
-      const size_t offset = remaining().begin() - source->_data.data();
+      ASSERT(_source);
+      const size_t offset = remaining().begin() - _source->_data.data();
       const size_t size   = std::min(remaining().size(), max_size);
       DEBUG("Offset: ", offset);
       DEBUG("Size: ", size);
-      return data_ref_span_t(source, offset, size);
+      return data_ref_span_t(_source, offset, size);
     }
 
     lak::result<data_ref_span_t> read_ref_span(size_t size)
     {
       FUNCTION_CHECKPOINT("data_reader_t::");
-      if (!source) return lak::err_t{};
+      if (!_source) return lak::err_t{};
       if (size > remaining().size()) return lak::err_t{};
-      const size_t offset = remaining().begin() - source->_data.data();
+      const size_t offset = remaining().begin() - _source->_data.data();
       skip(size).UNWRAP();
-      return lak::ok_t{data_ref_span_t(source, offset, size)};
+      return lak::ok_t{data_ref_span_t(_source, offset, size)};
     }
 
     data_ref_span_t read_remaining_ref_span(size_t max_size = SIZE_MAX)
     {
       FUNCTION_CHECKPOINT("data_reader_t::");
-      ASSERT(source);
-      const size_t offset = remaining().begin() - source->_data.data();
+      ASSERT(_source);
+      const size_t offset = remaining().begin() - _source->_data.data();
       const size_t size   = std::min(remaining().size(), max_size);
       DEBUG("Offset: ", offset);
       DEBUG("Size: ", size);
       skip(size).UNWRAP();
-      return data_ref_span_t(source, offset, size);
+      return data_ref_span_t(_source, offset, size);
     }
 
     lak::result<data_ref_ptr_t> read_ref_ptr(size_t size)
@@ -526,11 +528,11 @@ namespace SourceExplorer
                                           lak::array<uint8_t> data)
     {
       FUNCTION_CHECKPOINT("data_reader_t::");
-      ASSERT(source);
-      const size_t offset = remaining().begin() - source->_data.data();
+      ASSERT(_source);
+      const size_t offset = remaining().begin() - _source->_data.data();
       const size_t size   = std::min(remaining().size(), max_size);
       skip(size).UNWRAP();
-      return make_data_ref_ptr(source, offset, size, lak::move(data));
+      return make_data_ref_ptr(_source, offset, size, lak::move(data));
     }
   };
 
@@ -541,7 +543,7 @@ namespace SourceExplorer
     size_t position() const
     {
       return lak::ok_or_err(
-        data.position().map_err([](...) -> size_t { return SIZE_MAX; }));
+        data.position().map_err([](auto &&) -> size_t { return SIZE_MAX; }));
     }
     result_t<data_ref_span_t> decode(const chunk_t ID,
                                      const encoding_t mode) const;
@@ -563,8 +565,8 @@ namespace SourceExplorer
 
     size_t position() const
     {
-      return lak::ok_or_err(
-        ref_span.position().map_err([](...) -> size_t { return SIZE_MAX; }));
+      return lak::ok_or_err(ref_span.position().map_err([](auto &&) -> size_t
+                                                        { return SIZE_MAX; }));
     }
 
     const data_ref_span_t &raw_head() const;
@@ -910,11 +912,11 @@ namespace SourceExplorer
 
     struct animation_direction_t
     {
+      lak::array<uint16_t> handles;
       uint8_t min_speed;
       uint8_t max_speed;
       uint16_t repeat;
       uint16_t back_to;
-      lak::array<uint16_t> handles;
 
       error_t read(game_t &game, data_reader_t &strm);
       error_t view(source_explorer_t &srcexp) const;

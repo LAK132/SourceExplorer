@@ -191,9 +191,9 @@ bool Crypto()
 {
   bool updated   = false;
   int magic_char = se::_magic_char;
-  if (ImGui::InputInt("Magic Char", &magic_char))
+  if (ImGui::InputInt("Magic Char (u8)", &magic_char))
   {
-    se::_magic_char = magic_char;
+    se::_magic_char = static_cast<uint8_t>(magic_char);
     se::GetEncryptionKey(SrcExp.state);
     updated = true;
   }
@@ -228,7 +228,7 @@ void BytePairsMemoryExplorer(const uint8_t *data, size_t size, bool update)
         data == SrcExp.state.file->data())
     {
       auto ref_span = SrcExp.view->ref_span;
-      while (ref_span.source && ref_span.source != SrcExp.state.file)
+      while (ref_span._source && ref_span._source != SrcExp.state.file)
         ref_span = ref_span.parent_span();
       if (!ref_span.empty())
       {
@@ -344,7 +344,7 @@ void RawImageMemoryExplorer(const uint8_t *data, size_t size, bool update)
         data == SrcExp.state.file->data())
     {
       auto ref_span = SrcExp.view->ref_span;
-      while (ref_span.source && ref_span.source != SrcExp.state.file)
+      while (ref_span._source && ref_span._source != SrcExp.state.file)
         ref_span = ref_span.parent_span();
       if (!ref_span.empty())
       {
@@ -520,12 +520,12 @@ void MemoryExplorer(bool &update)
       {
         SCOPED_CHECKPOINT(__func__, "::EXE");
         auto ref_span = SrcExp.view->ref_span;
-        while (ref_span.source && ref_span.source != SrcExp.state.file)
+        while (ref_span._source && ref_span._source != SrcExp.state.file)
         {
           CHECKPOINT();
           ref_span = ref_span.parent_span();
         }
-        if (ref_span.source && !ref_span.empty())
+        if (ref_span._source && !ref_span.empty())
         {
           const auto from = ref_span.position().UNWRAP();
           SrcExp.editor.GotoAddrAndHighlight(from, from + ref_span.size());
@@ -599,7 +599,7 @@ void MemoryExplorer(bool &update)
 void ImageExplorer(bool &update)
 {
   static float scale = 1.0f;
-  ImGui::DragFloat("Scale", &scale, 0.1, 0.1f, 10.0f);
+  ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
   ImGui::Separator();
   se::ViewImage(SrcExp, scale);
   update = false;
@@ -722,7 +722,7 @@ void AudioExplorer(bool &update)
           [[maybe_unused]] uint16_t validPerSample =
             audio.read_u16().UNWRAP(); // 20
           DEBUG("Valid Bits Per Sample ", validPerSample);
-          [[maybe_unused]] uint16_t channelMask =
+          [[maybe_unused]] uint32_t channelMask =
             audio.read_u32().UNWRAP(); // 24
           DEBUG("Channel Mask ", channelMask);
           // SubFormat // 40
@@ -763,7 +763,7 @@ void AudioExplorer(bool &update)
       case 0xFFFE: /*subformat*/ break;
       default: break;
     }
-    spec.channels = audio_data.channel_count;
+    spec.channels = static_cast<Uint8>(audio_data.channel_count);
     spec.samples  = 2048;
     spec.callback = nullptr;
 
@@ -782,7 +782,8 @@ void AudioExplorer(bool &update)
         SDL_OpenAudioDevice(nullptr, false, &audio_spec, &audio_specGot, 0);
 
     audio_size = audio_data.data.size();
-    SDL_QueueAudio(audio_device, audio_data.data.data(), audio_size);
+    SDL_QueueAudio(
+      audio_device, audio_data.data.data(), static_cast<Uint32>(audio_size));
     SDL_PauseAudioDevice(audio_device, 0);
     playing = true;
   }
@@ -798,7 +799,7 @@ void AudioExplorer(bool &update)
 
   if (audio_size > 0)
     ImGui::ProgressBar(
-      1.0 - (SDL_GetQueuedAudioSize(audio_device) / (double)audio_size));
+      1.0f - float(SDL_GetQueuedAudioSize(audio_device) / (double)audio_size));
   else
     ImGui::ProgressBar(0);
 #endif
@@ -997,7 +998,7 @@ void SourceExplorerMain(float frame_time)
     se::AttemptBinaryBlock(SrcExp);
 }
 
-void SourceBytePairsMain(float frame_time)
+void SourceBytePairsMain(float)
 {
   if (ImGui::BeginMenuBar())
   {
@@ -1185,7 +1186,7 @@ void basic_window_init(lak::window &window)
   ImGui::GetStyle().WindowRounding = 0;
 }
 
-void basic_window_handle_event(lak::window &window, lak::event &event)
+void basic_window_handle_event(lak::window &, lak::event &event)
 {
   ImGui::ImplProcessEvent(imgui_context, event);
 
@@ -1244,7 +1245,7 @@ void basic_window_loop(lak::window &window, uint64_t counter_delta)
   ImGui::ImplRender(imgui_context);
 }
 
-int basic_window_quit(lak::window &window)
+int basic_window_quit(lak::window &)
 {
   ImGui::ImplShutdownContext(imgui_context);
   return 0;

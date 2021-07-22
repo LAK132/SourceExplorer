@@ -179,8 +179,8 @@ namespace ImGui
   }
 
   inline void ImplUpdateDisplaySize(ImplSRContext context,
-                                    const lak::platform_instance &instance,
-                                    const lak::window_handle *handle,
+                                    const lak::platform_instance &,
+                                    const lak::window_handle *,
                                     lak::vec2l_t window_size)
   {
     ImGuiIO &io                  = ImGui::GetIO();
@@ -203,10 +203,11 @@ namespace ImGui
 
       context->screen_surface = SDL_CreateRGBSurfaceWithFormatFrom(
         context->screen_texture.pixels,
-        context->screen_texture.w,
-        context->screen_texture.h,
-        context->screen_texture.size * 8,
-        context->screen_texture.w * context->screen_texture.size,
+        static_cast<int>(context->screen_texture.w),
+        static_cast<int>(context->screen_texture.h),
+        static_cast<int>(context->screen_texture.size * 8),
+        static_cast<int>(context->screen_texture.w *
+                         context->screen_texture.size),
         context->screen_format);
 
 #  ifdef LAK_SOFTWARE_RENDER_8BIT
@@ -227,8 +228,8 @@ namespace ImGui
       lak::window_drawable_size(*context->platform_instance, handle);
     // auto window_size = lak::window_size(*context->platform_instance,
     // handle);
-    io.DisplaySize.x = window_size.x;
-    io.DisplaySize.y = window_size.y;
+    io.DisplaySize.x = static_cast<float>(window_size.x);
+    io.DisplaySize.y = static_cast<float>(window_size.y);
 
     switch (context->mode)
     {
@@ -378,7 +379,7 @@ namespace ImGui
     ImGui_ImplSoftraster_Init(&context->screen_texture);
   }
 
-  void ImplInitGLContext(ImplGLContext context, const lak::window &window)
+  void ImplInitGLContext(ImplGLContext context, const lak::window &)
   {
     using namespace lak::opengl::literals;
 
@@ -435,7 +436,7 @@ namespace ImGui
     io.Fonts->TexID = (ImTextureID)(intptr_t)context->font.get();
   }
 
-  void ImplInitVkContext(ImplVkContext context, const lak::window &window) {}
+  void ImplInitVkContext(ImplVkContext, const lak::window &) {}
 
   void ImplInitContext(ImplContext context, const lak::window &window)
   {
@@ -562,7 +563,7 @@ namespace ImGui
     ImGui::GetIO().Fonts->TexID = (ImTextureID)(intptr_t)0;
   }
 
-  void ImplShutdownVkContext(ImplVkContext context) {}
+  void ImplShutdownVkContext(ImplVkContext) {}
 
   void ImplShutdownContext(ImplContext context)
   {
@@ -971,7 +972,10 @@ namespace ImGui
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
     lak::opengl::enable_if(GL_SCISSOR_TEST, using_scissor_test);
-    glViewport(viewport.x, viewport.y, viewport.z, viewport.w);
+    glViewport(static_cast<GLsizei>(viewport.x),
+               static_cast<GLsizei>(viewport.y),
+               static_cast<GLsizei>(viewport.z),
+               static_cast<GLsizei>(viewport.w));
 
     {
       const float &W = draw_data->DisplaySize.x;
@@ -1101,7 +1105,7 @@ namespace ImGui
     }
   }
 
-  void ImplVkRender(ImplContext context, ImDrawData *draw_data) {}
+  void ImplVkRender(ImplContext, ImDrawData *) {}
 
   void ImplRenderData(ImplContext context, ImDrawData *draw_data)
   {
@@ -1122,7 +1126,7 @@ namespace ImGui
       if (context->mouse_release[i]) io.MouseDown[i] = false;
   }
 
-  void ImplSetClipboard(void *v, const char *text)
+  void ImplSetClipboard(void *, const char *text)
   {
 #if defined(LAK_USE_WINAPI)
     SetClipboardTextFn_DefaultImpl(v, text);
@@ -1245,9 +1249,3 @@ namespace lak
     return is_open;
   }
 }
-
-#include <imgui/imgui.cpp>
-#include <imgui/imgui_demo.cpp>
-#include <imgui/imgui_draw.cpp>
-#include <imgui/imgui_widgets.cpp>
-#include <imgui/misc/cpp/imgui_stdlib.cpp>

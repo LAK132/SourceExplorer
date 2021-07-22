@@ -110,7 +110,7 @@ namespace lak
   };
 }
 
-static std::ostream &operator<<(std::ostream &strm,
+inline std::ostream &operator<<(std::ostream &strm,
                                 const lak::await_error &err)
 {
   switch (err)
