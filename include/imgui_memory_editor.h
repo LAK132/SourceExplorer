@@ -42,10 +42,10 @@ struct MemoryEditor
 {
     typedef unsigned char u8;
 
+    int             Rows;                                   // = 16     //
     // Settings
     bool            Open;                                   // = true   // set to false when DrawWindow() was closed. ignore if not using DrawWindow
     bool            ReadOnly;                               // = false  // set to true to disable any editing
-    int             Rows;                                   // = 16     //
     bool            OptShowAscii;                           // = true   //
     bool            OptShowHexII;                           // = false  //
     bool            OptGreyOutZeroes;                       // = true   //
