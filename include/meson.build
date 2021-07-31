@@ -8,7 +8,7 @@ imgui = static_library(
     'imgui/imgui_widgets.cpp',
     'imgui/examples/imgui_impl_softraster.cpp',
   ],
-  override_options: 'cpp_std=c++latest',
+  override_options: 'cpp_std=' + version,
 )
 
 stb = static_library(
