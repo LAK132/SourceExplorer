@@ -23,6 +23,7 @@ stb = static_library(
 sdl_include_directory = include_directories('SDL')
 
 subdir('lak/src')
+subdir('lak/src/opengl')
 subdir('lak/src/windowing')
 subdir('lak/src/sqlite3')
 subdir('lisk/src')

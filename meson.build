@@ -121,6 +121,7 @@ executable(
   ]),
   link_with: [
     lak,
+    lakopengl,
     lakwindowing,
     lisk,
     stb,
