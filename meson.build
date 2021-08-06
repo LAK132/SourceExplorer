@@ -27,6 +27,9 @@ if cxx.get_id() == 'msvc'
     '-wd4366',
   ]
 
+  link_args = [
+  ]
+
   if host_machine.cpu_family() == 'x86_64'
     libs = [
       'lib/x64/SDL2main.lib',
@@ -53,13 +56,13 @@ if cxx.get_id() == 'msvc'
     error('Unsupported target ' + host_machine.cpu_family())
   endif
 
-    custom_target(
-      'generate_git_file',
-      input: 'src/git.hpp',
-      output: 'git.hpp',
-      command: ['generate_git_file.bat', '@INPUT@'] ,
-      build_by_default: true,
-    )
+  custom_target(
+    'generate_git_file',
+    input: 'src/git.hpp',
+    output: 'git.hpp',
+    command: ['generate_git_file.bat', '@INPUT@'] ,
+    build_by_default: true,
+  )
 
   cplusplus = cxx.get_define(
     '__cplusplus',
@@ -70,6 +73,9 @@ else
 
   project_args = [
     '-Wfatal-errors',
+  ]
+
+  link_args = [
   ]
 
   libs = []
@@ -102,6 +108,7 @@ executable(
   'srcexp',
   srcexp,
   objects: libs,
+  link_args: link_args,
   override_options: 'cpp_std=' + version,
   include_directories: include_directories([
     'include',
@@ -115,9 +122,11 @@ executable(
   link_with: [
     lak,
     lakwindowing,
-    laktest,
     lisk,
     stb,
     imgui,
   ],
+  link_whole: [
+    laktest,
+  ]
 )

@@ -20,6 +20,9 @@ stb = static_library(
   override_options: 'warning_level=2',
 )
 
+sdl_include_directory = include_directories('SDL')
+
 subdir('lak/src')
+subdir('lak/src/windowing')
 subdir('lak/src/sqlite3')
 subdir('lisk/src')
