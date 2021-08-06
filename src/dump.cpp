@@ -70,11 +70,13 @@ se::error_t se::SaveImage(source_explorer_t &srcexp,
 {
   return GetImage(srcexp.state, handle)
     .MAP_SE_ERR("failed to get image item")
-    .and_then([&](const auto &item) {
-      return item.image(
-        srcexp.dump_color_transparent,
-        (frame && frame->palette) ? frame->palette->colors.data() : nullptr);
-    })
+    .and_then(
+      [&](const auto &item)
+      {
+        return item.image(
+          srcexp.dump_color_transparent,
+          (frame && frame->palette) ? frame->palette->colors.data() : nullptr);
+      })
     .MAP_SE_ERR("failed to read image data")
     .and_then([&](const auto &image) { return SaveImage(image, filename); });
 }
@@ -137,7 +139,8 @@ bool se::DumpStuff(source_explorer_t &srcexp,
   static lak::await<se::error_t> awaiter;
   static std::atomic<float> completed = 0.0f;
 
-  auto functor = [&, func]() -> se::error_t {
+  auto functor = [&, func]() -> se::error_t
+  {
     func(srcexp, completed);
     return lak::ok_t{};
   };
@@ -227,7 +230,8 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
   }
 
   auto LinkImages = [](const fs::path &From, const fs::path &To)
-    -> lak::error_codes<lak::error_code_error, lak::u8string> {
+    -> lak::error_codes<lak::error_code_error, lak::u8string>
+  {
     auto errno_map = [](lak::error_code_error err)
       -> lak::variant<lak::error_code_error, lak::u8string> {
       return lak::var_t<0>(err);
@@ -239,45 +243,52 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
       .map_expect_value(
         true,
         [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string> {
-          return lak::var_t<1>(
-            lak::streamify<char8_t>(From, " does not exist"));
+          return lak::var_t<1>(lak::streamify(From, " does not exist"));
         })
-      .and_then([&](auto &&) {
-        return lak::path_exists(To)
-          .IF_ERR("to path ", To, " existence check failed")
-          .map_err(errno_map);
-      })
+      .and_then(
+        [&](auto &&)
+        {
+          return lak::path_exists(To)
+            .IF_ERR("to path ", To, " existence check failed")
+            .map_err(errno_map);
+        })
       .map_expect_value(
         false,
         [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string> {
-          return lak::var_t<1>(
-            lak::streamify<char8_t>(From, " already exist"));
+          return lak::var_t<1>(lak::streamify(From, " already exist"));
         })
-      .and_then([&](auto &&) {
-        return lak::create_directory(To.parent_path())
-          .IF_ERR("create directory failed")
-          .map_err(errno_map);
-      })
-      .and_then([&](auto &&){
-        return lak::create_hard_link(From, To)
-          .IF_ERR_WARN("create hard link from ",
-                       From,
-                       " to ",
-                       To,
-                       " failed, trying copy instead")
-          .or_else([&](auto &&) {
-            return lak::copy_file(From, To).IF_ERR(
-              "copy file from ", From, " to ", To, " failed");
-          })
-          .map_err(errno_map);
-      });
+      .and_then(
+        [&](auto &&)
+        {
+          return lak::create_directory(To.parent_path())
+            .IF_ERR("create directory failed")
+            .map_err(errno_map);
+        })
+      .and_then(
+        [&](auto &&)
+        {
+          return lak::create_hard_link(From, To)
+            .IF_ERR_WARN("create hard link from ",
+                         From,
+                         " to ",
+                         To,
+                         " failed, trying copy instead")
+            .or_else(
+              [&](auto &&)
+              {
+                return lak::copy_file(From, To).IF_ERR(
+                  "copy file from ", From, " to ", To, " failed");
+              })
+            .map_err(errno_map);
+        });
   };
 
   using namespace std::string_literals;
 
   auto HandleName = [](const std::unique_ptr<string_chunk_t> &name,
                        auto handle,
-                       std::u16string extra = u"") {
+                       std::u16string extra = u"")
+  {
     std::u32string str;
     if (extra.size() > 0) str += lak::to_u32string(extra + u" ");
     if (name) str += U"'" + lak::to_u32string(name->value) + U"'";
@@ -373,17 +384,17 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                 else if (auto res =
                            LinkImages(unsorted_path / image_name, image_path);
                          res.is_err())
-                  lak::visit(
-                    res.unwrap_err(),
-                    lak::overloaded{
-                      [](const std::error_code &err) {
-                        ERROR("Linking Failed: (",
-                              err.value(),
-                              ")",
-                              err.message());
-                      },
-                      [](const auto &err) { ERROR("Linking Failed: ", err); },
-                    });
+                  lak::visit(res.unwrap_err(),
+                             lak::overloaded{
+                               [](const std::error_code &err) {
+                                 ERROR("Linking Failed: (",
+                                       err.value(),
+                                       ")",
+                                       err.message());
+                               },
+                               [](const auto &err)
+                               { ERROR("Linking Failed: ", err); },
+                             });
               }
               for (const auto &imgname : imgnames)
               {
@@ -406,9 +417,8 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
                                          ")",
                                          err.message());
                                  },
-                                 [](const auto &err) {
-                                   ERROR("Linking Failed: ", err);
-                                 },
+                                 [](const auto &err)
+                                 { ERROR("Linking Failed: ", err); },
                                });
               }
             }
@@ -435,7 +445,8 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &)
                      std::ios::binary | std::ios::out | std::ios::ate);
   if (!file.is_open()) return;
 
-  stbi_write_func *func = [](void *context, void *png, int len) {
+  stbi_write_func *func = [](void *context, void *png, int len)
+  {
     auto [out, image] =
       *static_cast<std::tuple<std::ofstream *, lak::image4_t *> *>(context);
     lak::binary_array_writer strm;
@@ -509,9 +520,9 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       [[maybe_unused]] auto data = sound.read<uint8_t>(chunk_size).UNWRAP();
 
       lak::binary_array_writer output;
-      output.write("RIFF"_aview);
+      output.write("RIFF"_span);
       output.write_s32(static_cast<uint32_t>(data.size() - 44));
-      output.write("WAVEfmt "_aview);
+      output.write("WAVEfmt "_span);
       output.write_u32(0x10);
       output.write_u16(format);
       output.write_u16(channel_count);
@@ -519,7 +530,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       output.write_u32(byte_rate);
       output.write_u16(block_align);
       output.write_u16(bits_per_sample);
-      output.write("data"_aview);
+      output.write("data"_span);
       output.write_u32(chunk_size);
       output.write(lak::span(data));
       result = output.release();
@@ -548,11 +559,11 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
       }
 
       if (const auto peek = sound.peek<char>(4).UNWRAP();
-          lak::span(peek) == "OggS"_aview)
+          lak::string_view(lak::span(peek)) == "OggS"_view)
       {
         type = sound_mode_t::oggs;
       }
-      else if (lak::span(peek) == "Exte"_aview)
+      else if (lak::string_view(lak::span(peek)) == "Exte"_view)
       {
         type = sound_mode_t::xm;
       }
@@ -745,7 +756,8 @@ void AttemptFile(se::file_state_t &file_state,
 {
   se::Attempt(
     file_state,
-    [save](se::file_state_t &file_state) {
+    [save](se::file_state_t &file_state)
+    {
       if (auto result = lak::open_file_modal(file_state.path, save);
           result.is_ok())
       {
@@ -773,7 +785,8 @@ void AttemptFile(se::file_state_t &file_state,
 template<typename FUNCTOR>
 void AttemptFolder(se::file_state_t &file_state, FUNCTOR functor)
 {
-  auto load = [](se::file_state_t &file_state) {
+  auto load = [](se::file_state_t &file_state)
+  {
     std::error_code ec;
     if (auto result = lak::open_folder_modal(file_state.path); result.is_ok())
     {
@@ -803,174 +816,179 @@ void se::AttemptExe(source_explorer_t &srcexp)
   lak::debugger.clear();
   srcexp.loaded = false;
   DEBUG("Attempting To Load ", srcexp.exe.path);
-  AttemptFile(srcexp.exe, [&srcexp] {
-    if (auto result = OpenGame(srcexp); result.is_err())
+  AttemptFile(
+    srcexp.exe,
+    [&srcexp]
     {
-      ASSERT(result.unwrap_err() == lak::await_error::running);
-      return false;
-    }
-    else if (result.unwrap().is_err())
-    {
-      result.unwrap().IF_ERR("AttemptExe failed").discard();
-      // ERROR(result.unwrap()
-      //         .MAP_SE_ERR("AttemptExe failed")
-      //         .unwrap_err());
-      srcexp.loaded = true;
-      return true;
-    }
-    else
-    {
-      srcexp.loaded = true;
-      if (srcexp.baby_mode)
+      if (auto result = OpenGame(srcexp); result.is_err())
       {
-        // Autotragically dump everything
-
-        fs::path dump_dir =
-          srcexp.exe.path.parent_path() / srcexp.exe.path.stem();
-
-        std::error_code er;
-        if (srcexp.state.game.image_bank)
-        {
-          srcexp.sorted_images.path = dump_dir / "images";
-          if (fs::create_directories(srcexp.sorted_images.path, er); er)
-          {
-            ERROR("Failed To Dump Images");
-            ERROR("File System Error: (", er.value(), ")", er.message());
-          }
-          else
-          {
-            srcexp.sorted_images.attempt = true;
-            srcexp.sorted_images.valid   = true;
-          }
-        }
-
-        if (srcexp.state.game.icon)
-        {
-          srcexp.appicon.path = dump_dir / "icon";
-          if (fs::create_directories(srcexp.appicon.path, er); er)
-          {
-            ERROR("Failed To Dump Icon");
-            ERROR("File System Error: ", er.message());
-          }
-          else
-          {
-            srcexp.appicon.attempt = true;
-            srcexp.appicon.valid   = true;
-          }
-        }
-
-        if (srcexp.state.game.sound_bank)
-        {
-          srcexp.sounds.path = dump_dir / "sounds";
-          if (fs::create_directories(srcexp.sounds.path, er); er)
-          {
-            ERROR("Failed To Dump Audio");
-            ERROR("File System Error: ", er.message());
-          }
-          else
-          {
-            srcexp.sounds.attempt = true;
-            srcexp.sounds.valid   = true;
-          }
-        }
-
-        if (srcexp.state.game.music_bank)
-        {
-          srcexp.music.path = dump_dir / "music";
-          if (fs::create_directories(srcexp.sounds.path, er); er)
-          {
-            ERROR("Failed To Dump Audio");
-            ERROR("File System Error: ", er.message());
-          }
-          else
-          {
-            srcexp.music.attempt = true;
-            srcexp.music.valid   = true;
-          }
-        }
-
-        if (srcexp.state.game.shaders)
-        {
-          srcexp.shaders.path = dump_dir / "shaders";
-          if (fs::create_directories(srcexp.shaders.path, er); er)
-          {
-            ERROR("Failed To Dump Shaders");
-            ERROR("File System Error: ", er.message());
-          }
-          else
-          {
-            srcexp.shaders.attempt = true;
-            srcexp.shaders.valid   = true;
-          }
-        }
-
-        if (srcexp.state.game.binary_files)
-        {
-          srcexp.binary_files.path = dump_dir / "binary_files";
-          if (fs::create_directories(srcexp.binary_files.path, er); er)
-          {
-            ERROR("Failed To Dump Binary Files");
-            ERROR("File System Error: ", er.message());
-          }
-          else
-          {
-            srcexp.binary_files.attempt = true;
-            srcexp.binary_files.valid   = true;
-          }
-        }
+        ASSERT(result.unwrap_err() == lak::await_error::running);
+        return false;
       }
-      return true;
-    }
-  });
+      else if (result.unwrap().is_err())
+      {
+        result.unwrap().IF_ERR("AttemptExe failed").discard();
+        // ERROR(result.unwrap()
+        //         .MAP_SE_ERR("AttemptExe failed")
+        //         .unwrap_err());
+        srcexp.loaded = true;
+        return true;
+      }
+      else
+      {
+        srcexp.loaded = true;
+        if (srcexp.baby_mode)
+        {
+          // Autotragically dump everything
+
+          fs::path dump_dir =
+            srcexp.exe.path.parent_path() / srcexp.exe.path.stem();
+
+          std::error_code er;
+          if (srcexp.state.game.image_bank)
+          {
+            srcexp.sorted_images.path = dump_dir / "images";
+            if (fs::create_directories(srcexp.sorted_images.path, er); er)
+            {
+              ERROR("Failed To Dump Images");
+              ERROR("File System Error: (", er.value(), ")", er.message());
+            }
+            else
+            {
+              srcexp.sorted_images.attempt = true;
+              srcexp.sorted_images.valid   = true;
+            }
+          }
+
+          if (srcexp.state.game.icon)
+          {
+            srcexp.appicon.path = dump_dir / "icon";
+            if (fs::create_directories(srcexp.appicon.path, er); er)
+            {
+              ERROR("Failed To Dump Icon");
+              ERROR("File System Error: ", er.message());
+            }
+            else
+            {
+              srcexp.appicon.attempt = true;
+              srcexp.appicon.valid   = true;
+            }
+          }
+
+          if (srcexp.state.game.sound_bank)
+          {
+            srcexp.sounds.path = dump_dir / "sounds";
+            if (fs::create_directories(srcexp.sounds.path, er); er)
+            {
+              ERROR("Failed To Dump Audio");
+              ERROR("File System Error: ", er.message());
+            }
+            else
+            {
+              srcexp.sounds.attempt = true;
+              srcexp.sounds.valid   = true;
+            }
+          }
+
+          if (srcexp.state.game.music_bank)
+          {
+            srcexp.music.path = dump_dir / "music";
+            if (fs::create_directories(srcexp.sounds.path, er); er)
+            {
+              ERROR("Failed To Dump Audio");
+              ERROR("File System Error: ", er.message());
+            }
+            else
+            {
+              srcexp.music.attempt = true;
+              srcexp.music.valid   = true;
+            }
+          }
+
+          if (srcexp.state.game.shaders)
+          {
+            srcexp.shaders.path = dump_dir / "shaders";
+            if (fs::create_directories(srcexp.shaders.path, er); er)
+            {
+              ERROR("Failed To Dump Shaders");
+              ERROR("File System Error: ", er.message());
+            }
+            else
+            {
+              srcexp.shaders.attempt = true;
+              srcexp.shaders.valid   = true;
+            }
+          }
+
+          if (srcexp.state.game.binary_files)
+          {
+            srcexp.binary_files.path = dump_dir / "binary_files";
+            if (fs::create_directories(srcexp.binary_files.path, er); er)
+            {
+              ERROR("Failed To Dump Binary Files");
+              ERROR("File System Error: ", er.message());
+            }
+            else
+            {
+              srcexp.binary_files.attempt = true;
+              srcexp.binary_files.valid   = true;
+            }
+          }
+        }
+        return true;
+      }
+    });
 }
 
 void se::AttemptImages(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.images, [&srcexp] {
-    return DumpStuff(srcexp, "Dump Images", &DumpImages);
-  });
+  AttemptFolder(srcexp.images,
+                [&srcexp]
+                { return DumpStuff(srcexp, "Dump Images", &DumpImages); });
 }
 
 void se::AttemptSortedImages(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.sorted_images, [&srcexp] {
-    return DumpStuff(srcexp, "Dump Sorted Images", &DumpSortedImages);
-  });
+  AttemptFolder(
+    srcexp.sorted_images,
+    [&srcexp]
+    { return DumpStuff(srcexp, "Dump Sorted Images", &DumpSortedImages); });
 }
 
 void se::AttemptAppIcon(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.appicon, [&srcexp] {
-    return DumpStuff(srcexp, "Dump App Icon", &DumpAppIcon);
-  });
+  AttemptFolder(srcexp.appicon,
+                [&srcexp]
+                { return DumpStuff(srcexp, "Dump App Icon", &DumpAppIcon); });
 }
 
 void se::AttemptSounds(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.sounds, [&srcexp] {
-    return DumpStuff(srcexp, "Dump Sounds", &DumpSounds);
-  });
+  AttemptFolder(srcexp.sounds,
+                [&srcexp]
+                { return DumpStuff(srcexp, "Dump Sounds", &DumpSounds); });
 }
 
 void se::AttemptMusic(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.music, [&srcexp] {
-    return DumpStuff(srcexp, "Dump Music", &DumpMusic);
-  });
+  AttemptFolder(srcexp.music,
+                [&srcexp]
+                { return DumpStuff(srcexp, "Dump Music", &DumpMusic); });
 }
 
 void se::AttemptShaders(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.shaders, [&srcexp] {
-    return DumpStuff(srcexp, "Dump Shaders", &DumpShaders);
-  });
+  AttemptFolder(srcexp.shaders,
+                [&srcexp]
+                { return DumpStuff(srcexp, "Dump Shaders", &DumpShaders); });
 }
 
 void se::AttemptBinaryFiles(source_explorer_t &srcexp)
 {
-  AttemptFolder(srcexp.binary_files, [&srcexp] {
-    return DumpStuff(srcexp, "Dump Binary Files", &DumpBinaryFiles);
-  });
+  AttemptFolder(
+    srcexp.binary_files,
+    [&srcexp]
+    { return DumpStuff(srcexp, "Dump Binary Files", &DumpBinaryFiles); });
 }
 
 void se::AttemptErrorLog(source_explorer_t &srcexp)
@@ -985,8 +1003,7 @@ void se::AttemptBinaryBlock(source_explorer_t &srcexp)
 {
   AttemptFile(
     srcexp.binary_block,
-    [&srcexp] {
-      return DumpStuff(srcexp, "Save Binary Block", &SaveBinaryBlock);
-    },
+    [&srcexp]
+    { return DumpStuff(srcexp, "Save Binary Block", &SaveBinaryBlock); },
     true);
 }

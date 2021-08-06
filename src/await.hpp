@@ -63,7 +63,7 @@ namespace lak
     await &operator=(await &&) = delete;
 
     template<typename FUNCTOR, typename... ARGS>
-    lak::await_result<T> operator()(FUNCTOR &&functor, ARGS &&... args)
+    lak::await_result<T> operator()(FUNCTOR &&functor, ARGS &&...args)
     {
       if (!_thread.joinable())
       {
@@ -72,7 +72,8 @@ namespace lak
           [](auto functor,
              std::atomic_bool &finished,
              lak::await_result<T> &result,
-             auto... arg) {
+             auto... arg)
+          {
             try
             {
               result = lak::ok_t{functor(arg...)};

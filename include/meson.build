@@ -24,6 +24,7 @@ sdl_include_directory = include_directories('SDL')
 
 subdir('lak/src')
 subdir('lak/src/opengl')
+subdir('lak/src/tests')
 subdir('lak/src/windowing')
 subdir('lak/src/sqlite3')
 subdir('lisk/src')

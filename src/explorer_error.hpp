@@ -8,6 +8,7 @@
 #include <lak/string.hpp>
 #include <lak/trace.hpp>
 #include <lak/tuple.hpp>
+#include <lak/unicode.hpp>
 
 namespace se
 {
@@ -51,7 +52,7 @@ namespace se
     error &operator=(const error &) = default;
 
     template<typename... ARGS>
-    error(lak::trace trace, value_t value, ARGS &&... args) : _value(value)
+    error(lak::trace trace, value_t value, ARGS &&...args) : _value(value)
     {
       append_trace(lak::move(trace), lak::forward<ARGS>(args)...);
     }
@@ -63,17 +64,17 @@ namespace se
     }
 
     template<typename... ARGS>
-    error &append_trace(lak::trace trace, ARGS &&... args)
+    error &append_trace(lak::trace trace, ARGS &&...args)
     {
-      _trace.emplace_back(lak::move(trace), lak::streamify<char>(args...));
+      _trace.emplace_back(lak::move(trace), lak::streamify(args...));
       return *this;
     }
 
     template<typename... ARGS>
-    error append_trace(lak::trace trace, ARGS &&... args) const
+    error append_trace(lak::trace trace, ARGS &&...args) const
     {
       error result = *this;
-      result.append_trace(lak::move(trace), lak::streamify<char>(args...));
+      result.append_trace(lak::move(trace), lak::streamify(args...));
       return result;
     }
 
@@ -122,31 +123,31 @@ namespace se
       lak::u8string result;
       if (_value == str_err)
       {
-        result = lak::streamify<char8_t>("\n",
-                                         lak::scoped_indenter::str(),
-                                         _trace[0].first,
-                                         ": ",
-                                         value_string());
+        result = lak::streamify("\n",
+                                lak::scoped_indenter::str(),
+                                _trace[0].first,
+                                ": ",
+                                value_string());
       }
       else
       {
-        result = lak::streamify<char8_t>("\n",
-                                         lak::scoped_indenter::str(),
-                                         _trace[0].first,
-                                         ": ",
-                                         value_string(),
-                                         _trace[0].second.empty() ? "" : ": ",
-                                         _trace[0].second);
+        result = lak::streamify("\n",
+                                lak::scoped_indenter::str(),
+                                _trace[0].first,
+                                ": ",
+                                value_string(),
+                                _trace[0].second.empty() ? "" : ": ",
+                                _trace[0].second);
       }
       ++lak::debug_indent;
       DEFER(--lak::debug_indent;);
       for (const auto &[trace, str] : lak::span(_trace).subspan(1))
       {
-        result += lak::streamify<char8_t>("\n",
-                                          lak::scoped_indenter::str(),
-                                          trace,
-                                          str.empty() ? "" : ": ",
-                                          str);
+        result += lak::streamify("\n",
+                                 lak::scoped_indenter::str(),
+                                 trace,
+                                 str.empty() ? "" : ": ",
+                                 str);
       }
       return result;
     }
@@ -154,19 +155,17 @@ namespace se
     inline friend std::ostream &operator<<(std::ostream &strm,
                                            const error &err)
     {
-      return strm << lak::streamify<std::ostream::char_type>(err.to_string());
+      return strm << lak::string_view(err.to_string());
     }
   };
 
 #define MAP_TRACE(ERR, ...)                                                   \
-  [&](const auto &err) -> se::error {                                         \
-    return se::error(LINE_TRACE, ERR, err, " " LAK_OPT_ARGS(__VA_ARGS__));    \
-  }
+  [&](const auto &err) -> se::error                                           \
+  { return se::error(LINE_TRACE, ERR, err, " " LAK_OPT_ARGS(__VA_ARGS__)); }
 
 #define APPEND_TRACE(...)                                                     \
-  [&](const se::error &err) -> se::error {                                    \
-    return err.append_trace(LINE_TRACE LAK_OPT_ARGS(__VA_ARGS__));            \
-  }
+  [&](const se::error &err) -> se::error                                      \
+  { return err.append_trace(LINE_TRACE LAK_OPT_ARGS(__VA_ARGS__)); }
 
 #define CHECK_REMAINING(STRM, EXPECTED)                                       \
   do                                                                          \

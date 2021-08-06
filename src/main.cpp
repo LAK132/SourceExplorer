@@ -690,9 +690,9 @@ void AudioExplorer(bool &update)
       DEBUG("Name: ", audio_data.name);
 
       if (const auto peek = audio.peek<char>(4).UNWRAP();
-          lak::span(peek) == "OggS"_aview)
+          lak::string_view(lak::span(peek)) == "OggS"_view)
         audio_data.type = se::sound_mode_t::oggs;
-      else if (lak::span(peek) != "RIFF"_aview)
+      else if (lak::string_view(lak::span(peek)) != "RIFF"_view)
         audio_data.type = se::sound_mode_t(-1);
 
       if (audio_data.type == se::sound_mode_t::wave)
@@ -1006,7 +1006,8 @@ void SourceBytePairsMain(float)
     ImGui::EndMenuBar();
   }
 
-  auto load = [](se::file_state_t &file_state) {
+  auto load = [](se::file_state_t &file_state)
+  {
     lak::debugger.clear();
     auto code = lak::open_file_modal(file_state.path, false);
     if (code.is_ok() && code.unwrap() == lak::file_open_error::VALID)
@@ -1021,7 +1022,8 @@ void SourceBytePairsMain(float)
     return code.is_err() || code.unwrap() != lak::file_open_error::INCOMPLETE;
   };
 
-  auto manip = [] {
+  auto manip = []
+  {
     DEBUG("File size: ", SrcExp.state.file->size());
     SrcExp.loaded = true;
     return true;
@@ -1082,14 +1084,15 @@ bool force_only_error = false;
 
 lak::optional<int> basic_window_preinit(int argc, char **argv)
 {
-  lak::debugger.std_out(""_u8, APP_NAME "\n");
+  lak::debugger.std_out(u8"", u8"" APP_NAME "\n");
 
   for (int arg = 1; arg < argc; ++arg)
   {
     if (argv[arg] == lak::astring("-help"))
     {
-      std::cout << "srcexp.exe [-help] [-nogl] [-onlyerr] "
-                   "[-testall | -tests \"test1;test2\"] [<filepath>]";
+      std::cout
+        << "srcexp.exe [-help] [-nogl] [-onlyerr] "
+           "[-listtests | -testall | -tests \"test1;test2\"] [<filepath>]";
       return lak::optional<int>(0);
     }
     else if (argv[arg] == lak::astring("-nogl"))
@@ -1100,6 +1103,16 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
     {
       force_only_error = true;
     }
+    else if (argv[arg] == lak::astring("-listtests"))
+    {
+      lak::debugger.std_out(lak::u8string(),
+                            lak::u8string(u8"Available tests:\n"));
+      for (const auto &[name, func] : lak::registered_tests())
+      {
+        lak::debugger.std_out(lak::u8string(),
+                              lak::to_u8string(name) + u8"\n");
+      }
+    }
     else if (argv[arg] == lak::astring("-testall"))
     {
       return lak::optional<int>(lak::run_tests());
@@ -1109,7 +1122,8 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
     {
       ++arg;
       if (arg >= argc) FATAL("Missing tests");
-      return lak::optional<int>(lak::run_tests(argv[arg]));
+      return lak::optional<int>(lak::run_tests(
+        lak::as_u8string(lak::astring_view::from_c_str(argv[arg]))));
     }
     else
     {

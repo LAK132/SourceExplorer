@@ -23,6 +23,7 @@
 #include "lak/compression/lz4.hpp"
 #include "lak/string.hpp"
 #include "lak/string_utils.hpp"
+#include "lak/string_view.hpp"
 
 #include "explorer.h"
 #include "tostring.hpp"
@@ -32,7 +33,7 @@
 #endif
 
 #define TRACE_EXPECTED(EXPECTED, GOT)                                         \
-  lak::streamify<char8_t>("expected '", EXPECTED, "', got '", GOT, "'")
+  lak::streamify("expected '", EXPECTED, "', got '", GOT, "'")
 
 namespace SourceExplorer
 {
@@ -465,7 +466,8 @@ namespace SourceExplorer
       DEBUG("Filename Length: ", read);
       DEBUG("Position: ", strm.position());
 
-      auto array_to_string = [](const auto &array) {
+      auto array_to_string = [](const auto &array)
+      {
         return lak::string<lak::remove_cvref_t<decltype(array)>::value_type>(
           array.begin(), array.end());
       };
@@ -679,6 +681,7 @@ namespace SourceExplorer
       BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x),
                         static_cast<uint8_t>(point_size));
     size_t pos = 0;
+    size_t i   = 0;
 
     size_t start = strm.position();
 
@@ -1036,15 +1039,13 @@ namespace SourceExplorer
       case encoding_t::mode2: return Decrypt(encoded, id, mode);
       case encoding_t::mode1:
         return lak::ok_t{
-          lak::ok_or_err(Inflate(encoded, false, false).map_err([&](auto &&) {
-            return encoded;
-          }))};
+          lak::ok_or_err(Inflate(encoded, false, false)
+                           .map_err([&](auto &&) { return encoded; }))};
       default:
         if (encoded.size() > 0 && encoded[0] == 0x78)
           return lak::ok_t{
-            lak::ok_or_err(Inflate(encoded, false, false).map_err([&](auto &&) {
-              return encoded;
-            }))};
+            lak::ok_or_err(Inflate(encoded, false, false)
+                             .map_err([&](auto &&) { return encoded; }))};
         else
           return lak::ok_t{encoded};
     }
@@ -1063,11 +1064,13 @@ namespace SourceExplorer
 
     lak::array<uint8_t> output;
     output.reserve(buffer.size());
-    if (auto err = inflater.read([&](uint8_t v) {
-          if (output.size() > max_size) return false;
-          output.push_back(v);
-          return true;
-        });
+    if (auto err = inflater.read(
+          [&](uint8_t v)
+          {
+            if (output.size() > max_size) return false;
+            output.push_back(v);
+            return true;
+          });
         err.is_ok())
     {
       return lak::ok_t{make_data_ref_ptr(compressed, lak::move(output))};
@@ -1114,10 +1117,12 @@ namespace SourceExplorer
 
     return lak::decode_lz4_block(reader, out_size)
       .map_err(lak::lz4_error_name)
-      .map([&](auto &&decompressed) {
-        return data_ref_span_t(
-          make_data_ref_ptr(compressed, lak::move(decompressed)));
-      })
+      .map(
+        [&](auto &&decompressed)
+        {
+          return data_ref_span_t(
+            make_data_ref_ptr(compressed, lak::move(decompressed)));
+        })
       .MAP_ERRCODE(error::inflate_failed);
   }
 
@@ -1142,10 +1147,12 @@ namespace SourceExplorer
                                           /* anaconda */ true);
 
     lak::array<uint8_t> output;
-    if (auto err = inflater.read([&](uint8_t v) {
-          output.push_back(v);
-          return true;
-        });
+    if (auto err = inflater.read(
+          [&](uint8_t v)
+          {
+            output.push_back(v);
+            return true;
+          });
         err.is_ok())
     {
       const auto offset = strm.position();
@@ -1248,18 +1255,18 @@ namespace SourceExplorer
   result_t<frame::item_t &> GetFrame(game_t &game, uint16_t handle)
   {
     if (!game.game.frame_bank)
-      return lak::err_t{error(LINE_TRACE, "No Frame Bank")};
+      return lak::err_t{error(LINE_TRACE, u8"No Frame Bank")};
 
     if (!game.game.frame_handles)
-      return lak::err_t{error(LINE_TRACE, "No Frame Handles")};
+      return lak::err_t{error(LINE_TRACE, u8"No Frame Handles")};
 
     if (handle >= game.game.frame_handles->handles.size())
-      return lak::err_t{error(LINE_TRACE, "Frame Handle Out Of Range")};
+      return lak::err_t{error(LINE_TRACE, u8"Frame Handle Out Of Range")};
 
     handle = game.game.frame_handles->handles[handle];
 
     if (handle >= game.game.frame_bank->items.size())
-      lak::err_t{error(LINE_TRACE, "Frame Bank Handle Out Of Range")};
+      lak::err_t{error(LINE_TRACE, u8"Frame Bank Handle Out Of Range")};
 
     return lak::ok_t{game.game.frame_bank->items[handle]};
   }
@@ -1267,15 +1274,16 @@ namespace SourceExplorer
   result_t<object::item_t &> GetObject(game_t &game, uint16_t handle)
   {
     if (!game.game.object_bank)
-      return lak::err_t{error(LINE_TRACE, "No Object Bank")};
+      return lak::err_t{error(LINE_TRACE, u8"No Object Bank")};
 
     auto iter = game.object_handles.find(handle);
 
     if (iter == game.object_handles.end())
-      return lak::err_t{error(LINE_TRACE, "Invalid Object Handle")};
+      return lak::err_t{error(LINE_TRACE, u8"Invalid Object Handle")};
 
     if (iter->second >= game.game.object_bank->items.size())
-      return lak::err_t{error(LINE_TRACE, "Object Bank Handle Out Of Range")};
+      return lak::err_t{
+        error(LINE_TRACE, u8"Object Bank Handle Out Of Range")};
 
     return lak::ok_t{game.game.object_bank->items[iter->second]};
   }
@@ -1283,15 +1291,15 @@ namespace SourceExplorer
   result_t<image::item_t &> GetImage(game_t &game, uint32_t handle)
   {
     if (!game.game.image_bank)
-      return lak::err_t{error(LINE_TRACE, "No Image Bank")};
+      return lak::err_t{error(LINE_TRACE, u8"No Image Bank")};
 
     auto iter = game.image_handles.find(handle);
 
     if (iter == game.image_handles.end())
-      return lak::err_t{error(LINE_TRACE, "Invalid Image Handle")};
+      return lak::err_t{error(LINE_TRACE, u8"Invalid Image Handle")};
 
     if (iter->second >= game.game.image_bank->items.size())
-      return lak::err_t{error(LINE_TRACE, "Image Bank Handle Out Of Range")};
+      return lak::err_t{error(LINE_TRACE, u8"Image Bank Handle Out Of Range")};
 
     return lak::ok_t{game.game.image_bank->items[iter->second]};
   }
@@ -1545,9 +1553,8 @@ namespace SourceExplorer
                            true,
                            std::min(body.expected_size, max_size))
               .MAP_SE_ERR("MODE1 Failed To Inflate")
-              .if_ok([](const auto &ref_span) {
-                DEBUG("Size: ", ref_span.size());
-              });
+              .if_ok([](const auto &ref_span)
+                     { DEBUG("Size: ", ref_span.size()); });
           }
         }
 
@@ -1568,8 +1575,8 @@ namespace SourceExplorer
         {
           return LZ4DecodeReadSize(body.data)
             .MAP_SE_ERR("LZ4 Decode Failed")
-            .if_ok(
-              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+            .if_ok([](const auto &ref_span)
+                   { DEBUG("Size: ", ref_span.size()); });
         }
 
         case encoding_t::mode3: [[fallthrough]];
@@ -1577,16 +1584,16 @@ namespace SourceExplorer
         {
           return Decrypt(body.data, ID, mode)
             .MAP_SE_ERR("MODE2/3 Failed To Decrypt")
-            .if_ok(
-              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+            .if_ok([](const auto &ref_span)
+                   { DEBUG("Size: ", ref_span.size()); });
         }
 
         case encoding_t::mode1:
         {
           return Inflate(body.data, false, false, max_size)
             .MAP_SE_ERR("MODE1 Failed To Inflate")
-            .if_ok(
-              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+            .if_ok([](const auto &ref_span)
+                   { DEBUG("Size: ", ref_span.size()); });
         }
 
         case encoding_t::mode0: [[fallthrough]];
@@ -1596,15 +1603,20 @@ namespace SourceExplorer
           {
             return lak::ok_t{lak::ok_or_err(
               Inflate(body.data, false, false, max_size)
-                .if_ok([](const auto &ref_span) {
-                  if (ref_span.size() == 0) WARNING("Inflated Data Was Empty");
-                  DEBUG("Size: ", ref_span.size());
-                })
-                .map_err([this](const auto &err) {
-                  WARNING("Guess MODE1 Failed To Inflate: ", err);
-                  DEBUG("Size: ", body.data.size());
-                  return body.data;
-                }))};
+                .if_ok(
+                  [](const auto &ref_span)
+                  {
+                    if (ref_span.size() == 0)
+                      WARNING("Inflated Data Was Empty");
+                    DEBUG("Size: ", ref_span.size());
+                  })
+                .map_err(
+                  [this](const auto &err)
+                  {
+                    WARNING("Guess MODE1 Failed To Inflate: ", err);
+                    DEBUG("Size: ", body.data.size());
+                    return body.data;
+                  }))};
           }
           else
           {
@@ -1645,16 +1657,16 @@ namespace SourceExplorer
           // is correct.
           return Decrypt(head.data, ID, mode)
             .MAP_SE_ERR("MODE2/3 Failed To Decrypt")
-            .if_ok(
-              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+            .if_ok([](const auto &ref_span)
+                   { DEBUG("Size: ", ref_span.size()); });
         }
 
         case encoding_t::mode1:
         {
           return Inflate(head.data, false, false, max_size)
             .MAP_SE_ERR("MODE1 Failed To Inflate")
-            .if_ok(
-              [](const auto &ref_span) { DEBUG("Size: ", ref_span.size()); });
+            .if_ok([](const auto &ref_span)
+                   { DEBUG("Size: ", ref_span.size()); });
         }
 
         case encoding_t::mode4: [[fallthrough]];
@@ -1665,15 +1677,20 @@ namespace SourceExplorer
           {
             return lak::ok_t{lak::ok_or_err(
               Inflate(head.data, false, false, max_size)
-                .if_ok([](const auto &ref_span) {
-                  if (ref_span.size() == 0) WARNING("Inflated Data Was Empty");
-                  DEBUG("Size: ", ref_span.size());
-                })
-                .map_err([this](const auto &err) {
-                  WARNING("Guess MODE1 Failed To Inflate: ", err);
-                  DEBUG("Size: ", head.data.size());
-                  return head.data;
-                }))};
+                .if_ok(
+                  [](const auto &ref_span)
+                  {
+                    if (ref_span.size() == 0)
+                      WARNING("Inflated Data Was Empty");
+                    DEBUG("Size: ", ref_span.size());
+                  })
+                .map_err(
+                  [this](const auto &err)
+                  {
+                    WARNING("Guess MODE1 Failed To Inflate: ", err);
+                    DEBUG("Size: ", head.data.size());
+                    return head.data;
+                  }))};
           }
           else
           {
@@ -1698,10 +1715,12 @@ namespace SourceExplorer
         case encoding_t::mode0: [[fallthrough]];
         case encoding_t::mode1:
           return entry.decode_body()
-            .map([&](const data_ref_span_t &ref_span) {
-              data_reader_t reader(ref_span);
-              return lak::to_u16string(reader.read_any_c_str<char>());
-            })
+            .map(
+              [&](const data_ref_span_t &ref_span)
+              {
+                data_reader_t reader(ref_span);
+                return lak::to_u16string(reader.read_any_c_str<char>());
+              })
             .MAP_SE_ERR("Invalid String Chunk: ",
                         (int)entry.mode,
                         ", Chunk: ",
@@ -1719,13 +1738,15 @@ namespace SourceExplorer
     else
     {
       return entry.decode_body()
-        .map([&](const data_ref_span_t &ref_span) {
-          data_reader_t reader(ref_span);
-          if (game.unicode)
-            return reader.read_any_c_str<char16_t>();
-          else
-            return lak::to_u16string(reader.read_any_c_str<char>());
-        })
+        .map(
+          [&](const data_ref_span_t &ref_span)
+          {
+            data_reader_t reader(ref_span);
+            if (game.unicode)
+              return reader.read_any_c_str<char16_t>();
+            else
+              return lak::to_u16string(reader.read_any_c_str<char>());
+          })
         .MAP_SE_ERR("Invalid String Chunk: ",
                     (int)entry.mode,
                     ", Chunk: ",
@@ -2041,7 +2062,8 @@ namespace SourceExplorer
 
     TRY_ASSIGN(const auto str_len =, strm.read_u16());
 
-    auto to_str = [](auto &&arr) { return lak::to_u8string(lak::span(arr)); };
+    auto to_str = [](auto &&arr)
+    { return lak::to_u8string(lak::string_view(lak::span(arr))); };
     auto set_name = [&](auto &&str) { name = lak::move(str); };
     if (game.unicode)
     {
@@ -2682,14 +2704,19 @@ namespace SourceExplorer
 
         GetImage(srcexp.state, handle)
           .MAP_SE_ERR("object::animation_direction_t::view: bad handle")
-          .and_then([&](auto &img) {
-            return img.view(srcexp).MAP_SE_ERR(
-              "object::animation_direction_t::view: bad image");
-          })
-          .if_err([](const auto &err) {
-            ImGui::Text("Invalid Image/Handle");
-            ImGui::Text(lak::streamify<char>(err).c_str());
-          })
+          .and_then(
+            [&](auto &img)
+            {
+              return img.view(srcexp).MAP_SE_ERR(
+                "object::animation_direction_t::view: bad image");
+            })
+          .if_err(
+            [](const auto &err)
+            {
+              ImGui::Text("Invalid Image/Handle");
+              ImGui::Text(
+                reinterpret_cast<const char *>(lak::streamify(err).c_str()));
+            })
           .discard();
       }
 
@@ -3000,7 +3027,8 @@ namespace SourceExplorer
       // :TODO: refactor out this lambda
 
       [[maybe_unused]] auto err =
-        [&, this]() -> error_t {
+        [&, this]() -> error_t
+      {
         for (bool not_finished = true; not_finished;)
         {
           TRY_ASSIGN(const auto chunk_id = (chunk_t), strm.peek_u16());
@@ -3164,11 +3192,14 @@ namespace SourceExplorer
                               (&item - items.data()),
                               " Of ",
                               items.size())
-                  .if_ok([&](auto &&) {
-                    if (!item.end)
-                      WARNING(
-                        "Item ", (&item - items.data()), " Has No End Chunk");
-                  }));
+                  .if_ok(
+                    [&](auto &&)
+                    {
+                      if (!item.end)
+                        WARNING("Item ",
+                                (&item - items.data()),
+                                " Has No End Chunk");
+                    }));
 
         game.bank_completed =
           float(double(reader.position()) / double(reader.size()));
@@ -3461,10 +3492,12 @@ namespace SourceExplorer
       RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::random_seed_t::read"));
 
       TRY_SE_ASSIGN(value =,
-                    entry.decode_body().and_then([](const auto &ref_span) {
-                      return data_reader_t(ref_span).read_s16().MAP_ERR(
-                        "frame::random_seed_t::read");
-                    }));
+                    entry.decode_body().and_then(
+                      [](const auto &ref_span)
+                      {
+                        return data_reader_t(ref_span).read_s16().MAP_ERR(
+                          "frame::random_seed_t::read");
+                      }));
 
       return lak::ok_t{};
     }
@@ -4008,9 +4041,9 @@ namespace SourceExplorer
         if (ImGui::Button("View Image"))
         {
           image(srcexp.dump_color_transparent)
-            .if_ok([&](lak::image4_t &&img) {
-              srcexp.image = CreateTexture(img, srcexp.graphics_mode);
-            })
+            .if_ok(
+              [&](lak::image4_t &&img)
+              { srcexp.image = CreateTexture(img, srcexp.graphics_mode); })
             .IF_ERR("Failed To Read Image Data")
             .discard();
         }
@@ -4048,12 +4081,13 @@ namespace SourceExplorer
 
           return strm.read_ref_span(compressed_length)
             .MAP_ERR("item_t::image_data: read filed")
-            .map([](const data_ref_span_t &ref_span) -> data_ref_span_t {
-              return lak::ok_or_err(
-                Inflate(ref_span, false, false).map_err([&](auto &&) {
-                  return ref_span;
-                }));
-            });
+            .map(
+              [](const data_ref_span_t &ref_span) -> data_ref_span_t
+              {
+                return lak::ok_or_err(
+                  Inflate(ref_span, false, false)
+                    .map_err([&](auto &&) { return ref_span; }));
+              });
         }
       }
       else
@@ -4142,21 +4176,27 @@ namespace SourceExplorer
 
       for (auto &item : items)
       {
-        RES_TRY([&, this]() -> error_t {
-          return item.read(game, reader)
-            .IF_ERR("Failed To Read Item ",
-                    (&item - items.data()),
-                    " Of ",
-                    items.size())
-            .MAP_SE_ERR("image::bank_t::read");
-        }()
-                                 .or_else([&](const auto &err) -> error_t {
-                                   if (max_tries == 0) return lak::err_t{err};
-                                   ERROR(err);
-                                   DEBUG("Continuing...");
-                                   --max_tries;
-                                   return lak::ok_t{};
-                                 }));
+        // clang-format off
+        RES_TRY(
+          [&, this]() -> error_t
+          {
+            return item.read(game, reader)
+              .IF_ERR("Failed To Read Item ",
+                      (&item - items.data()),
+                      " Of ",
+                      items.size())
+              .MAP_SE_ERR("image::bank_t::read");
+          }()
+            .or_else(
+              [&](const auto &err) -> error_t
+              {
+                if (max_tries == 0) return lak::err_t{err};
+                ERROR(err);
+                DEBUG("Continuing...");
+                --max_tries;
+                return lak::ok_t{};
+              }));
+        // clang-format on
 
         game.bank_completed =
           float(double(reader.position()) / double(reader.size()));
@@ -4460,7 +4500,8 @@ namespace SourceExplorer
 
     RES_TRY(entry.read(game, strm).MAP_SE_ERR("header_t::read"));
 
-    auto init_chunk = [&](auto &chunk) {
+    auto init_chunk = [&](auto &chunk)
+    {
       chunk = std::make_unique<
         typename std::remove_reference_t<decltype(chunk)>::value_type>();
       return chunk->read(game, strm);

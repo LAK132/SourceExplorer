@@ -40,6 +40,7 @@
 #include <lak/string.hpp>
 #include <lak/tinflate.hpp>
 #include <lak/trace.hpp>
+#include <lak/unicode.hpp>
 
 #include <assert.h>
 #include <atomic>
@@ -94,7 +95,7 @@ namespace SourceExplorer
       no_mode3_decoder,
     };
 
-    std::vector<lak::pair<lak::trace, lak::astring>> _trace;
+    std::vector<lak::pair<lak::trace, lak::u8string>> _trace;
     value_t _value = str_err;
 
     // error() {}
@@ -112,28 +113,28 @@ namespace SourceExplorer
     error &operator=(const error &) = default;
 
     template<typename... ARGS>
-    error(lak::trace trace, value_t value, ARGS &&... args) : _value(value)
+    error(lak::trace trace, value_t value, ARGS &&...args) : _value(value)
     {
       append_trace(lak::move(trace), lak::forward<ARGS>(args)...);
     }
 
-    error(lak::trace trace, lak::astring err) : _value(str_err)
+    error(lak::trace trace, lak::u8string err) : _value(str_err)
     {
       append_trace(lak::move(trace), lak::move(err));
     }
 
     template<typename... ARGS>
-    error &append_trace(lak::trace trace, ARGS &&... args)
+    error &append_trace(lak::trace trace, ARGS &&...args)
     {
-      _trace.emplace_back(lak::move(trace), lak::streamify<char>(args...));
+      _trace.emplace_back(lak::move(trace), lak::streamify(args...));
       return *this;
     }
 
     template<typename... ARGS>
-    error append_trace(lak::trace trace, ARGS &&... args) const
+    error append_trace(lak::trace trace, ARGS &&...args) const
     {
       error result = *this;
-      result.append_trace(lak::move(trace), lak::streamify<char>(args...));
+      result.append_trace(lak::move(trace), lak::streamify(args...));
       return result;
     }
 
@@ -185,11 +186,11 @@ namespace SourceExplorer
       {
         const auto &[trace, str] = _trace.back();
 
-        result += lak::streamify<char8_t>("\n",
-                                          lak::scoped_indenter::str(),
-                                          trace,
-                                          str.empty() ? "" : ": ",
-                                          str);
+        result += lak::streamify("\n",
+                                 lak::scoped_indenter::str(),
+                                 trace,
+                                 str.empty() ? "" : ": ",
+                                 str);
 
         ++lak::debug_indent;
       }
@@ -198,21 +199,19 @@ namespace SourceExplorer
         for (size_t i = _trace.size() - 1; i-- > 1;)
         {
           const auto &[trace, str] = _trace[i];
-          result += lak::streamify<char8_t>("\n",
-                                            lak::scoped_indenter::str(),
-                                            trace,
-                                            str.empty() ? "" : ": ",
-                                            str);
+          result += lak::streamify("\n",
+                                   lak::scoped_indenter::str(),
+                                   trace,
+                                   str.empty() ? "" : ": ",
+                                   str);
         }
       }
       if (_trace.size() >= 1)
       {
         const auto &[trace, str] = _trace.front();
-        result +=
-          lak::streamify<char8_t>("\n", lak::scoped_indenter::str(), trace);
-        if (_value != str_err)
-          result += lak::streamify<char8_t>(": ", value_string());
-        if (!str.empty()) result += lak::streamify<char8_t>(": ", str);
+        result += lak::streamify("\n", lak::scoped_indenter::str(), trace);
+        if (_value != str_err) result += lak::streamify(": ", value_string());
+        if (!str.empty()) result += lak::streamify(": ", str);
       }
       if (_trace.size() >= 2) --lak::debug_indent;
 
@@ -222,12 +221,13 @@ namespace SourceExplorer
     inline friend std::ostream &operator<<(std::ostream &strm,
                                            const error &err)
     {
-      return strm << lak::streamify<std::ostream::char_type>(err.to_string());
+      return strm << lak::string_view(err.to_string());
     }
   };
 
 #define MAP_TRACE(ERR, ...)                                                   \
-  [&](const auto &err) -> SourceExplorer::error {                             \
+  [&](const auto &err) -> SourceExplorer::error                               \
+  {                                                                           \
     static_assert(!lak::is_same_v<SourceExplorer::error,                      \
                                   lak::remove_cvref_t<decltype(err)>>);       \
     if constexpr (lak::is_same_v<lak::monostate,                              \
@@ -253,9 +253,8 @@ namespace SourceExplorer
 #define TRY(...) RES_TRY(__VA_ARGS__.MAP_ERR())
 
 #define APPEND_TRACE(...)                                                     \
-  [&](const SourceExplorer::error &err) -> SourceExplorer::error {            \
-    return err.append_trace(LINE_TRACE LAK_OPT_ARGS(__VA_ARGS__));            \
-  }
+  [&](const SourceExplorer::error &err) -> SourceExplorer::error              \
+  { return err.append_trace(LINE_TRACE LAK_OPT_ARGS(__VA_ARGS__)); }
 
 #define MAP_SE_ERR(...) map_err(APPEND_TRACE(__VA_ARGS__))
 
@@ -1317,7 +1316,7 @@ namespace SourceExplorer
     }
 
     template<typename... ARGS>
-    error_t view(ARGS &&... args) const
+    error_t view(ARGS &&...args) const
     {
       if (ptr)
       {
