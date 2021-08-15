@@ -28,14 +28,16 @@
 
 #if defined(LAK_USE_WINAPI)
 // #  error "NYI"
+#  include "lak/src/windowing/win32/impl.hpp"
 #elif defined(LAK_USE_XLIB)
 #  error "NYI"
 #elif defined(LAK_USE_XCB)
 #  error "NYI"
 #elif defined(LAK_USE_SDL)
-#  include <SDL.h>
+#  include "lak/src/windowing/sdl/impl.hpp"
+#  include <SDL2/SDL.h>
 #  ifdef LAK_OS_WINDOWS
-#    include <SDL_syswm.h>
+#    include <SDL2/SDL_syswm.h>
 #  endif
 #else
 #  error "No implementation specified"
@@ -124,7 +126,6 @@ namespace ImGui
 
   typedef struct _ImplContext
   {
-    const lak::platform_instance *platform_instance;
     ImGuiContext *imgui_context;
     lak::cursor mouse_cursors[ImGuiMouseCursor_COUNT];
     bool mouse_release[3];
@@ -179,7 +180,6 @@ namespace ImGui
   }
 
   inline void ImplUpdateDisplaySize(ImplSRContext context,
-                                    const lak::platform_instance &,
                                     const lak::window_handle *,
                                     lak::vec2l_t window_size)
   {
@@ -224,26 +224,20 @@ namespace ImGui
   {
     ImGuiIO &io = ImGui::GetIO();
 
-    auto window_size =
-      lak::window_drawable_size(*context->platform_instance, handle);
-    // auto window_size = lak::window_size(*context->platform_instance,
-    // handle);
+    auto window_size = lak::window_drawable_size(handle);
+    // auto window_size = lak::window_size(handle);
     io.DisplaySize.x = static_cast<float>(window_size.x);
     io.DisplaySize.y = static_cast<float>(window_size.y);
 
     switch (context->mode)
     {
       case lak::graphics_mode::Software:
-        ImplUpdateDisplaySize(context->sr_context,
-                              *context->platform_instance,
-                              handle,
-                              window_size);
+        ImplUpdateDisplaySize(context->sr_context, handle, window_size);
         break;
 
       case lak::graphics_mode::OpenGL:
       {
-        auto drawable_size =
-          lak::window_drawable_size(*context->platform_instance, handle);
+        auto drawable_size = lak::window_drawable_size(handle);
         io.DisplayFramebufferScale.x =
           (window_size.x > 0) ? (drawable_size.x / (float)window_size.x)
                               : 1.0f;
@@ -348,7 +342,7 @@ namespace ImGui
 #elif defined(LAK_USE_XCB)
 #  error "NYI"
 #elif defined(LAK_USE_SDL)
-    context->window                = window.platform_handle();
+    context->window                = window.handle()->sdl_window;
 
 #  ifdef LAK_SOFTWARE_RENDER_8BIT
     context->palette               = SDL_AllocPalette(256);
@@ -373,8 +367,7 @@ namespace ImGui
     context->atlas_texture.init(width, height, (alpha8_t *)pixels);
     io.Fonts->TexID = &context->atlas_texture;
 
-    ImplUpdateDisplaySize(
-      context, window.platform_instance(), window.handle(), window.size());
+    ImplUpdateDisplaySize(context, window.handle(), window.size());
 
     ImGui_ImplSoftraster_Init(&context->screen_texture);
   }
@@ -440,7 +433,6 @@ namespace ImGui
 
   void ImplInitContext(ImplContext context, const lak::window &window)
   {
-    context->platform_instance = &window.platform_instance();
 #if defined(LAK_USE_WINAPI)
     context->mouse_cursors[ImGuiMouseCursor_Arrow].platform_handle =
       LoadCursorW(NULL, IDC_ARROW);
@@ -513,7 +505,7 @@ namespace ImGui
 #  elif defined(LAK_USE_SDL)
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
-    SDL_GetWindowWMInfo(window.platform_handle(), &wmInfo);
+    SDL_GetWindowWMInfo(window.handle()->sdl_window, &wmInfo);
     ImGui::GetIO().ImeWindowHandle = wmInfo.info.win.window;
 #  else
 #    error "No implementation specified"
@@ -823,9 +815,9 @@ namespace ImGui
 #elif defined(LAK_USE_XCB)
 #  error "NYI"
 #elif defined(LAK_USE_SDL)
-    if (event.platform_event.type == SDL_TEXTINPUT)
+    if (event._platform_event->sdl_event.type == SDL_TEXTINPUT)
     {
-      io.AddInputCharactersUTF8(event.platform_event.text.text);
+      io.AddInputCharactersUTF8(event._platform_event->sdl_event.text.text);
       return true;
     }
 #else

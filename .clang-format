@@ -131,4 +131,4 @@ TabWidth: 2
 
 # UseCRLF: false
 
-UseTab: Never
+UseTab: ForIndentation

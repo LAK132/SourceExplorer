@@ -234,12 +234,12 @@ namespace SourceExplorer
                                  lak::remove_cvref_t<decltype(err)>>)         \
     {                                                                         \
       return SourceExplorer::error(LINE_TRACE,                                \
-                                   ERR LAK_OPT_ARGS(__VA_ARGS__));            \
+                                   ERR __VA_OPT__(, ) __VA_ARGS__);           \
     }                                                                         \
     else                                                                      \
     {                                                                         \
       return SourceExplorer::error(                                           \
-        LINE_TRACE, ERR, "" LAK_OPT_ARGS(__VA_ARGS__), err);                  \
+        LINE_TRACE, ERR, "" __VA_OPT__(, ) __VA_ARGS__, err);                 \
     }                                                                         \
   }
 
@@ -254,7 +254,7 @@ namespace SourceExplorer
 
 #define APPEND_TRACE(...)                                                     \
   [&](const SourceExplorer::error &err) -> SourceExplorer::error              \
-  { return err.append_trace(LINE_TRACE LAK_OPT_ARGS(__VA_ARGS__)); }
+  { return err.append_trace(LINE_TRACE __VA_OPT__(, ) __VA_ARGS__); }
 
 #define MAP_SE_ERR(...) map_err(APPEND_TRACE(__VA_ARGS__))
 

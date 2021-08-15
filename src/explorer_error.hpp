@@ -161,11 +161,11 @@ namespace se
 
 #define MAP_TRACE(ERR, ...)                                                   \
   [&](const auto &err) -> se::error                                           \
-  { return se::error(LINE_TRACE, ERR, err, " " LAK_OPT_ARGS(__VA_ARGS__)); }
+  { return se::error(LINE_TRACE, ERR, err, " " __VA_OPT__(, ) __VA_ARGS__); }
 
 #define APPEND_TRACE(...)                                                     \
   [&](const se::error &err) -> se::error                                      \
-  { return err.append_trace(LINE_TRACE LAK_OPT_ARGS(__VA_ARGS__)); }
+  { return err.append_trace(LINE_TRACE __VA_OPT__(, ) __VA_ARGS__); }
 
 #define CHECK_REMAINING(STRM, EXPECTED)                                       \
   do                                                                          \

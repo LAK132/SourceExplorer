@@ -1,0 +1,20 @@
+option(
+  'use_vendored_windows_sdl',
+  type: 'boolean',
+  value: true,
+  yield: true,
+)
+
+option(
+  'lak_backend',
+  type: 'combo',
+  choices: [
+    'win32',
+    'xlib',
+    'xcb',
+    'sdl',
+    'qt',
+  ],
+  value: 'sdl',
+  yield: true,
+)

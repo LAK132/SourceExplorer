@@ -17,6 +17,7 @@
 
 // This is here to stop the #define ERROR clash caused by wingdi
 #include <GL/gl3w.h>
+#include <SDL2/SDL.h>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_utils.hpp"
@@ -1204,30 +1205,14 @@ void basic_window_handle_event(lak::window &, lak::event &event)
 {
   ImGui::ImplProcessEvent(imgui_context, event);
 
-#if defined(LAK_USE_WINAPI)
-  switch (event.platform_event.message)
+  switch (event.type)
   {
-    case WM_DROPFILES:
-    {
-    }
-    break;
+    case lak::event_type::dropfile:
+      SrcExp.exe.path    = event.dropfile().path;
+      SrcExp.exe.valid   = true;
+      SrcExp.exe.attempt = true;
+      break;
   }
-#elif defined(LAK_USE_SDL)
-  switch (event.platform_event.type)
-  {
-    case SDL_DROPFILE:
-    {
-      if (event.platform_event.drop.file != nullptr)
-      {
-        SrcExp.exe.path    = event.platform_event.drop.file;
-        SrcExp.exe.valid   = true;
-        SrcExp.exe.attempt = true;
-        SDL_free(event.platform_event.drop.file);
-      }
-    }
-    break;
-  }
-#endif
 }
 
 void basic_window_loop(lak::window &window, uint64_t counter_delta)
