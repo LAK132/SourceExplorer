@@ -13,127 +13,127 @@
 
 namespace ImGui
 {
-  struct _ImplContext;
-  using ImplContext = _ImplContext *;
+	struct _ImplContext;
+	using ImplContext = _ImplContext *;
 
-  ImplContext ImplCreateContext(lak::graphics_mode mode);
+	ImplContext ImplCreateContext(lak::graphics_mode mode);
 
-  void ImplDestroyContext(ImplContext context);
+	void ImplDestroyContext(ImplContext context);
 
-  // Run once at startup
-  void ImplInit();
+	// Run once at startup
+	void ImplInit();
 
-  // Run once per context
-  void ImplInitContext(ImplContext context, const lak::window &window);
+	// Run once per context
+	void ImplInitContext(ImplContext context, const lak::window &window);
 
-  // Run once per context
-  void ImplShutdownContext(ImplContext context);
+	// Run once per context
+	void ImplShutdownContext(ImplContext context);
 
-  void ImplSetCurrentContext(ImplContext context);
+	void ImplSetCurrentContext(ImplContext context);
 
-  void ImplSetTransform(ImplContext context, const glm::mat4x4 &transform);
+	void ImplSetTransform(ImplContext context, const glm::mat4x4 &transform);
 
-  void ImplNewFrame(ImplContext context,
-                    const lak::window &window,
-                    const float delta_time,
-                    const bool call_base_new_frame = true);
+	void ImplNewFrame(ImplContext context,
+	                  const lak::window &window,
+	                  const float delta_time,
+	                  const bool call_base_new_frame = true);
 
-  bool ImplProcessEvent(ImplContext context, const lak::event &event);
+	bool ImplProcessEvent(ImplContext context, const lak::event &event);
 
-  void ImplRender(ImplContext context, const bool call_base_render = true);
+	void ImplRender(ImplContext context, const bool call_base_render = true);
 
-  void ImplRenderData(ImplContext context, ImDrawData *draw_data);
+	void ImplRenderData(ImplContext context, ImDrawData *draw_data);
 
-  void ImplSetClipboard(void *, const char *text);
+	void ImplSetClipboard(void *, const char *text);
 
-  const char *ImplGetClipboard(char **clipboard);
+	const char *ImplGetClipboard(char **clipboard);
 
-  ImTextureID ImplGetFontTexture(ImplContext context);
+	ImTextureID ImplGetFontTexture(ImplContext context);
 
-  template<typename T>
-  lak::span<T> ToSpan(ImVector<T> &vec)
-  {
-    return lak::span<T>(vec.Data, vec.Size);
-  }
+	template<typename T>
+	lak::span<T> ToSpan(ImVector<T> &vec)
+	{
+		return lak::span<T>(vec.Data, vec.Size);
+	}
 
-  template<typename T>
-  lak::span<const T> ToSpan(const ImVector<T> &vec)
-  {
-    return lak::span<const T>(vec.Data, vec.Size);
-  }
+	template<typename T>
+	lak::span<const T> ToSpan(const ImVector<T> &vec)
+	{
+		return lak::span<const T>(vec.Data, vec.Size);
+	}
 }
 
 namespace lak
 {
-  template<typename R, typename... T, typename... D>
-  bool AwaitPopup(const char *str_id,
-                  bool &open,
-                  std::thread *&staticThread,
-                  std::atomic<bool> &staticFinished,
-                  R (*callback)(T...),
-                  const std::tuple<D...> &callbackData)
-  {
-    if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
-    {
-      if (lak::await(staticThread, &staticFinished, callback, callbackData))
-      {
-        ImGui::CloseCurrentPopup();
-        ImGui::EndPopup();
-        open = false;
-        return false;
-      }
-      open = true;
-    }
-    else
-    {
-      open = false;
-      ImGui::OpenPopup(str_id);
-    }
+	template<typename R, typename... T, typename... D>
+	bool AwaitPopup(const char *str_id,
+	                bool &open,
+	                std::thread *&staticThread,
+	                std::atomic<bool> &staticFinished,
+	                R (*callback)(T...),
+	                const std::tuple<D...> &callbackData)
+	{
+		if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
+		{
+			if (lak::await(staticThread, &staticFinished, callback, callbackData))
+			{
+				ImGui::CloseCurrentPopup();
+				ImGui::EndPopup();
+				open = false;
+				return false;
+			}
+			open = true;
+		}
+		else
+		{
+			open = false;
+			ImGui::OpenPopup(str_id);
+		}
 
-    return true;
-  }
+		return true;
+	}
 
-  bool VertSplitter(float &left,
-                    float &right,
-                    float width,
-                    float leftMin  = 8.0f,
-                    float rightMin = 8.0f,
-                    float length   = -1.0f);
+	bool VertSplitter(float &left,
+	                  float &right,
+	                  float width,
+	                  float leftMin  = 8.0f,
+	                  float rightMin = 8.0f,
+	                  float length   = -1.0f);
 
-  bool HoriSplitter(float &top,
-                    float &bottom,
-                    float width,
-                    float topMin    = 8.0f,
-                    float bottomMin = 8.0f,
-                    float length    = -1.0f);
+	bool HoriSplitter(float &top,
+	                  float &bottom,
+	                  float width,
+	                  float topMin    = 8.0f,
+	                  float bottomMin = 8.0f,
+	                  float length    = -1.0f);
 
-  bool TreeNode(const char *fmt, ...);
+	bool TreeNode(const char *fmt, ...);
 
-  struct tree_node
-  {
-    bool _result;
+	struct tree_node
+	{
+		bool _result;
 
-    template<typename... ARGS>
-    tree_node(const char *fmt, ARGS &&... args)
-    : _result(lak::TreeNode(fmt, lak::forward<ARGS>(args)...))
-    {
-      ImGui::Separator();
-    }
+		template<typename... ARGS>
+		tree_node(const char *fmt, ARGS &&...args)
+		: _result(lak::TreeNode(fmt, lak::forward<ARGS>(args)...))
+		{
+			ImGui::Separator();
+		}
 
-    ~tree_node()
-    {
-      if (_result)
-      {
-        ImGui::Separator();
-        ImGui::TreePop();
-      }
-    }
+		~tree_node()
+		{
+			if (_result)
+			{
+				ImGui::Separator();
+				ImGui::TreePop();
+			}
+		}
 
-    operator bool() const { return _result; }
-  };
+		operator bool() const { return _result; }
+	};
 
 #define LAK_TREE_NODE(...)                                                    \
-  if (lak::tree_node UNIQUIFY(TREE_NODE_)(__VA_ARGS__); UNIQUIFY(TREE_NODE_))
+	if (lak::tree_node UNIQUIFY(TREE_NODE_)(__VA_ARGS__); UNIQUIFY(TREE_NODE_))
 }
 
 #endif
