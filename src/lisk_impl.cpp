@@ -126,15 +126,14 @@ lisk::environment DefaultEnvironment()
 {
 	auto result = lisk::builtin::default_env();
 
-	result.define_functor("exit", LISK_FUNCTOR_WRAPPER(LiskAbort));
-	result.define_functor("button", LISK_FUNCTOR_WRAPPER(LiskButton));
-	result.define_functor("tree-node", LISK_FUNCTOR_WRAPPER(LiskTreeNode));
-	result.define_functor("text-edit", LISK_FUNCTOR_WRAPPER(LiskTextEdit));
-	result.define_functor("multiline-text-edit",
-	                      LISK_FUNCTOR_WRAPPER(LiskMultiTextEdit));
-	result.define_functor("new", LISK_FUNCTOR_WRAPPER(LiskNew));
-	result.define_functor("value", LISK_FUNCTOR_WRAPPER(LiskValue));
-	result.define_functor("set", LISK_FUNCTOR_WRAPPER(LiskSet));
+	result.define_functor("exit", &LiskAbort);
+	result.define_functor("button", &LiskButton);
+	result.define_functor("tree-node", &LiskTreeNode);
+	result.define_functor("text-edit", &LiskTextEdit);
+	result.define_functor("multiline-text-edit", &LiskMultiTextEdit);
+	result.define_functor("new", &LiskNew);
+	result.define_functor("value", &LiskValue);
+	result.define_functor("set", &LiskSet);
 
 	return result;
 }
