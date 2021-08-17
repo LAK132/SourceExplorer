@@ -28,11 +28,10 @@ if cxx.get_id() == 'msvc'
     '-Wv:18',
   ]
 
-  custom_target(
+  git_header = custom_target(
     'generate_git_file',
-    input: 'src/git.hpp',
     output: 'git.hpp',
-    command: ['generate_git_file.bat', '@INPUT@'] ,
+    command: ['generate_git_file.bat', '@OUTPUT@'] ,
     build_by_default: true,
   )
 
@@ -78,7 +77,7 @@ sdl2_dll = configure_file(
 
 executable(
   'srcexp',
-  srcexp,
+  srcexp + [git_header],
   override_options: 'cpp_std=' + version,
   include_directories: include_directories([
     'include',
