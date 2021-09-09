@@ -14,6 +14,10 @@ if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxil
     call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" %target%
     goto :eof
 )
+if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvarsall.bat" (
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvarsall.bat" %target%
+    goto :eof
+)
 set /p VCVARSALLBAT=vcvarsall.bat directory:
 call "%VCVARSALLBAT%" %target%
 
