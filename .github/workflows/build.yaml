@@ -1,4 +1,4 @@
-name: CI
+name: Build
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-x86-64:
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v2
@@ -20,6 +20,22 @@ jobs:
       - uses: bus1/cabuild/action/msdevshell@v1
         with:
           architecture: x64
+      - uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          meson-version: 0.58.1
+  build-x86:
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - uses: bus1/cabuild/action/msdevshell@v1
+        with:
+          architecture: x86
       - uses: BSFishy/meson-build@v1.0.3
         with:
           action: build
