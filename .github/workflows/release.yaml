@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    runs-on: windows-2019
+    steps:
+      - uses: actions/create-release@v1
+        id: create_release
+        with:
+          draft: false
+          prerelease: true
+          release_name: Source Explorer ${{ github.ref }}
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  build-x86-64:
+    needs: create-release
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - uses: bus1/cabuild/action/msdevshell@v1
+        with:
+          architecture: x64
+      - uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          directory: build
+          meson-version: 0.58.1
+      - run: |
+          Compress-Archive -Path build\srcexp.exe, build\SDL2.dll -DestinationPath Source-Explorer-x86-64.zip
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: Source-Explorer-x86-64.zip
+          asset_name: Source-Explorer-x86-64.zip
+          asset_content_type: application/zip
+
+  build-x86:
+    needs: create-release
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - uses: bus1/cabuild/action/msdevshell@v1
+        with:
+          architecture: x86
+      - uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          directory: build
+          meson-version: 0.58.1
+      - run: |
+          Compress-Archive -Path build\srcexp.exe, build\SDL2.dll -DestinationPath Source-Explorer-x86.zip
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: Source-Explorer-x86.zip
+          asset_name: Source-Explorer-x86.zip
+          asset_content_type: application/zip
