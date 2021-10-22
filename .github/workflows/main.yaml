@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - uses: bus1/cabuild/action/msdevshell@v1
+        with:
+          architecture: x64
+      - uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          meson-version: 0.58.1
