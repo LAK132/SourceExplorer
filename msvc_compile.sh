@@ -1,2 +1,2 @@
 #! /bin/sh
-cmd.exe /c compile.bat
+cmd.exe /c compile.bat $1

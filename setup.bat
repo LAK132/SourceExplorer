@@ -1,7 +1,7 @@
 @echo off
 SetLocal EnableDelayedExpansion
 
-call msvc.bat
+call msvc.bat %~1
 
 rmdir /s /q build
 meson setup build --buildtype release || exit 1

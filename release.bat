@@ -1,14 +1,19 @@
-RMDIR /S /Q bin
-RMDIR /S /Q release
+@echo off
+SetLocal EnableDelayedExpansion
 
-MKDIR release
+rmdir /s /q release
+mkdir release
 
-RMDIR /S /Q obj
-call make release x64
-RENAME bin x64
-MOVE x64 release\x64
+SetLocal
+rmdir /s /q build
+call msvc.bat x86 || exit 1
+meson setup build --buildtype release || exit 1
+meson install -C build --destdir %cd%\release || exit 1
+EndLocal
 
-RMDIR /S /Q obj
-call make release x86
-RENAME bin x86
-MOVE x86 release\x86
+SetLocal
+rmdir /s /q build
+call msvc.bat x64 || exit 1
+meson setup build --buildtype release || exit 1
+meson install -C build --destdir %cd%\release || exit 1
+EndLocal

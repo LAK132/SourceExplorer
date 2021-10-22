@@ -251,8 +251,8 @@ namespace SourceExplorer
 		for (uint16_t i = 0; i < num_header_sections; ++i)
 		{
 			SCOPED_CHECKPOINT("Section ", i + 1, "/", num_header_sections);
-			uint64_t start = strm.position();
-			auto name      = strm.read_c_str<char>().UNWRAP();
+			size_t start = strm.position();
+			auto name    = strm.read_c_str<char>().UNWRAP();
 			DEBUG("Name: ", name);
 			if (name == ".extra")
 			{
@@ -274,7 +274,8 @@ namespace SourceExplorer
 			DEBUG("Pos: ", strm.position());
 		}
 
-		TRY(strm.seek(pos));
+		CHECK_POSITION(strm, pos); // necessary check for cast to size_t
+		TRY(strm.seek(static_cast<size_t>(pos)));
 
 		return lak::ok_t{};
 	}
@@ -283,7 +284,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT();
 
-		uint64_t pos = strm.position();
+		size_t pos = strm.position();
 
 		while (true)
 		{
@@ -405,11 +406,11 @@ namespace SourceExplorer
 		return lak::ok_t{};
 	}
 
-	result_t<uint64_t> ParsePackData(data_reader_t &strm, game_t &game_state)
+	result_t<size_t> ParsePackData(data_reader_t &strm, game_t &game_state)
 	{
 		DEBUG("Parsing pack data");
 
-		uint64_t start = strm.position();
+		size_t start = strm.position();
 		TRY_ASSIGN(uint64_t header =, strm.read_u64());
 		DEBUG("Header: ", header);
 
@@ -475,7 +476,8 @@ namespace SourceExplorer
 		bool has_bingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
 		DEBUG("Has Bingo: ", (has_bingo ? "true" : "false"));
 
-		TRY(strm.seek(off));
+		CHECK_POSITION(strm, off); // necessary check for cast to size_t
+		TRY(strm.seek(static_cast<size_t>(off)));
 
 		game_state.pack_files.resize(count);
 
@@ -533,15 +535,12 @@ namespace SourceExplorer
 			TRY_ASSIGN(game_state.pack_files[i].data =, strm.read<uint8_t>(read));
 		}
 
-		TRY_ASSIGN(header =, strm.read_u32()); // PAMU sometimes
+		TRY_ASSIGN(header =, strm.peek_u32()); // PAMU sometimes
 		DEBUG("Header: ", header);
 
-		if (header == HEADER_GAME || header == HEADER_UNIC)
-		{
-			uint32_t pos = (uint32_t)strm.position();
-			TRY(strm.unread(0x4));
-			return lak::ok_t{pos};
-		}
+		if (header != HEADER_GAME && header != HEADER_UNIC)
+			strm.skip(0x4).UNWRAP();
+
 		return lak::ok_t{strm.position()};
 	}
 
@@ -2257,7 +2256,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("chunk2253_t::");
 
-		CHECK_REMAINING(strm, 16);
+		CHECK_REMAINING(strm, 16U);
 
 		position = strm.position();
 		DEFER(strm.seek(position + 16).UNWRAP());
@@ -2685,7 +2684,7 @@ namespace SourceExplorer
 
 			DEBUG("Position: ", strm.position(), "/", strm.size());
 
-			CHECK_REMAINING(strm, 8);
+			CHECK_REMAINING(strm, 8U);
 
 			TRY_ASSIGN(min_speed =, strm.read_u8());
 			TRY_ASSIGN(max_speed =, strm.read_u8());

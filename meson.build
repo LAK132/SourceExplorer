@@ -66,6 +66,8 @@ endif
 
 add_project_arguments(project_args, language: ['cpp'])
 
+install_directory = host_machine.cpu_family()
+
 subdir('include')
 subdir('src')
 
@@ -73,11 +75,15 @@ sdl2_dll = configure_file(
   copy: true,
   input: sdl2_dll,
   output: 'SDL2.dll',
+  install: true,
+  install_dir: install_directory,
 )
 
 executable(
   'srcexp',
   srcexp + [git_header],
+  install: true,
+  install_dir: install_directory,
   override_options: 'cpp_std=' + version,
   include_directories: include_directories([
     'include',

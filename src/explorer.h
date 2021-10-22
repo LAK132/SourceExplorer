@@ -1486,7 +1486,7 @@ namespace SourceExplorer
 
 	error_t ParseGameHeader(data_reader_t &strm, game_t &game_state);
 
-	result_t<uint64_t> ParsePackData(data_reader_t &strm, game_t &game_state);
+	result_t<size_t> ParsePackData(data_reader_t &strm, game_t &game_state);
 
 	texture_t CreateTexture(const lak::image4_t &bitmap,
 	                        const lak::graphics_mode mode);
