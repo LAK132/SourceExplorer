@@ -1482,7 +1482,9 @@ namespace SourceExplorer
 
 	void GetEncryptionKey(game_t &game_state);
 
-	error_t ParsePEHeader(data_reader_t &strm, game_t &game_state);
+	error_t ParsePEHeader(data_reader_t &strm);
+
+	error_t ParseGameHeader(data_reader_t &strm, game_t &game_state);
 
 	result_t<uint64_t> ParsePackData(data_reader_t &strm, game_t &game_state);
 

@@ -73,11 +73,24 @@ namespace SourceExplorer
 
 		DEBUG("File Size: ", srcexp.state.file->size());
 
-		RES_TRY(ParsePEHeader(strm, srcexp.state)
-		          .MAP_SE_ERR("LoadGame: while parsing PE header at: ",
+		if (auto err = ParsePEHeader(strm).MAP_SE_ERR(
+		      "LoadGame: while parsing PE header at: ", strm.position());
+		    err.is_err())
+		{
+			DEBUG(err.unsafe_unwrap_err());
+			DEBUG("Assuming Separate .dat File Is Being Loaded");
+			TRY(strm.seek(0x0));
+		}
+		else
+		{
+			DEBUG("Successfully Parsed PE Header");
+		}
+
+		RES_TRY(ParseGameHeader(strm, srcexp.state)
+		          .MAP_SE_ERR("LoadGame: while parsing game header at: ",
 		                      strm.position()));
 
-		DEBUG("Successfully Parsed PE Header");
+		DEBUG("Successfully Parsed Game Header");
 
 		_magic_key.clear();
 
@@ -192,7 +205,7 @@ namespace SourceExplorer
 		return decryptor.decode(chunk);
 	}
 
-	error_t ParsePEHeader(data_reader_t &strm, game_t &game_state)
+	error_t ParsePEHeader(data_reader_t &strm)
 	{
 		FUNCTION_CHECKPOINT();
 
@@ -261,21 +274,30 @@ namespace SourceExplorer
 			DEBUG("Pos: ", strm.position());
 		}
 
-		DEBUG("Pos: ", pos);
+		TRY(strm.seek(pos));
+
+		return lak::ok_t{};
+	}
+
+	error_t ParseGameHeader(data_reader_t &strm, game_t &game_state)
+	{
+		FUNCTION_CHECKPOINT();
+
+		uint64_t pos = strm.position();
 
 		while (true)
 		{
-			strm.seek(pos).UNWRAP();
-			uint16_t first_short = strm.read_u16().UNWRAP();
-			DEBUG("First Short: ", first_short);
-			strm.seek(pos).UNWRAP();
-			uint32_t pame_magic = strm.read_u32().UNWRAP();
-			DEBUG("PAME Magic: ", pame_magic);
-			strm.seek(pos).UNWRAP();
-			uint64_t pack_magic = strm.read_u64().UNWRAP();
-			DEBUG("Pack Magic: ", pack_magic);
-			strm.seek(pos).UNWRAP();
 			DEBUG("Pos: ", pos);
+			strm.seek(pos).UNWRAP();
+
+			uint16_t first_short = strm.peek_u16().UNWRAP();
+			DEBUG("First Short: ", first_short);
+
+			uint32_t pame_magic = strm.peek_u32().UNWRAP();
+			DEBUG("PAME Magic: ", pame_magic);
+
+			uint64_t pack_magic = strm.peek_u64().UNWRAP();
+			DEBUG("Pack Magic: ", pack_magic);
 
 			if (first_short == (uint16_t)chunk_t::header ||
 			    pame_magic == HEADER_GAME)
@@ -292,10 +314,11 @@ namespace SourceExplorer
 				game_state.old_game = false;
 				game_state.state    = {};
 				game_state.state.push(chunk_t::_new);
-				RES_TRY_ASSIGN(pos =,
-				               ParsePackData(strm, game_state)
-				                 .map_err(APPEND_TRACE("while parseing PE header at: ",
-				                                       strm.position())));
+				RES_TRY_ASSIGN(
+				  pos =,
+				  ParsePackData(strm, game_state)
+				    .map_err(APPEND_TRACE("while parsing game header at: ",
+				                          strm.position())));
 				break;
 			}
 			else if (first_short == 0x222C)
