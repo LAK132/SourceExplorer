@@ -23,6 +23,7 @@ jobs:
       - uses: BSFishy/meson-build@v1.0.3
         with:
           action: build
+          setup-options: --buildtype debugoptimized
           meson-version: 0.58.1
   build-x86:
     runs-on: windows-2019
@@ -39,4 +40,5 @@ jobs:
       - uses: BSFishy/meson-build@v1.0.3
         with:
           action: build
+          setup-options: --buildtype debugoptimized
           meson-version: 0.58.1
