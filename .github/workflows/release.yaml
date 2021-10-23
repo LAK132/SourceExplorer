@@ -10,8 +10,12 @@ jobs:
   create-release:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag: ${{ steps.get_tag.outputs.TAG }}
     runs-on: windows-2019
     steps:
+      - run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
+        shell: bash
+        id: get_tag
       - uses: actions/create-release@v1
         id: create_release
         with:
@@ -49,7 +53,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: Source-Explorer-x86-64.zip
-          asset_name: Source-Explorer-${{ github.ref }}-x86-64.zip
+          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-x86-64.zip
           asset_content_type: application/zip
 
   build-x86:
@@ -79,5 +83,5 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: Source-Explorer-x86.zip
-          asset_name: Source-Explorer-${{ github.ref }}-x86.zip
+          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-x86.zip
           asset_content_type: application/zip
