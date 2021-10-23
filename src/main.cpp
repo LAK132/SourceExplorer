@@ -1093,7 +1093,7 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		{
 			std::cout
 			  << "srcexp.exe [-help] [-nogl] [-onlyerr] "
-			     "[-listtests | -testall | -tests \"test1;test2\"] [<filepath>]";
+			     "[-listtests | -testall | -tests \"test1;test2\"] [<filepath>]\n";
 			return lak::optional<int>(0);
 		}
 		else if (argv[arg] == lak::astring("-nogl"))
