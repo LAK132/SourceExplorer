@@ -493,7 +493,8 @@ namespace SourceExplorer
 
 			auto array_to_string = [](const auto &array)
 			{
-				return lak::string<lak::remove_cvref_t<decltype(array)>::value_type>(
+				return lak::string<
+				  typename lak::remove_cvref_t<decltype(array)>::value_type>(
 				  array.begin(), array.end());
 			};
 
@@ -1288,7 +1289,7 @@ namespace SourceExplorer
 		handle = game.game.frame_handles->handles[handle];
 
 		if (handle >= game.game.frame_bank->items.size())
-			lak::err_t{error(LINE_TRACE, u8"Frame Bank Handle Out Of Range")};
+			return lak::err_t{error(LINE_TRACE, u8"Frame Bank Handle Out Of Range")};
 
 		return lak::ok_t{game.game.frame_bank->items[handle]};
 	}
@@ -2268,7 +2269,7 @@ namespace SourceExplorer
 
 	error_t chunk_2253_item_t::view(source_explorer_t &) const
 	{
-		ImGui::Text("ID: 0x%zX", ID);
+		ImGui::Text("ID: 0x%zX", size_t(ID));
 
 		return lak::ok_t{};
 	}
@@ -2737,6 +2738,7 @@ namespace SourceExplorer
 				    {
 					    ImGui::Text("Invalid Image/Handle");
 					    ImGui::Text(
+					      "%s",
 					      reinterpret_cast<const char *>(lak::streamify(err).c_str()));
 				    })
 				  .discard();

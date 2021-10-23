@@ -1178,13 +1178,12 @@ namespace lak
 		if (top > maxLeft) top = maxLeft;
 		bottom = width - (top + thickness);
 
-		ImGuiContext &g     = *GImGui;
-		ImGuiWindow *window = g.CurrentWindow;
-		ImGuiID id          = window->GetID("##Splitter");
+		ImGuiID id    = ImGui::GetID("##Splitter");
+		ImVec2 cursor = ImGui::GetCursorScreenPos();
 		ImRect bb;
 
-		bb.Min.x = window->DC.CursorPos.x + top;
-		bb.Min.y = window->DC.CursorPos.y;
+		bb.Min.x = cursor.x + top;
+		bb.Min.y = cursor.y;
 
 		bb.Max = ImGui::CalcItemSize(ImVec2(thickness, length), 0.0f, 0.0f);
 		bb.Max.x += bb.Min.x;
@@ -1206,13 +1205,12 @@ namespace lak
 		if (left > maxTop) left = maxTop;
 		right = width - (left + thickness);
 
-		ImGuiContext &g     = *GImGui;
-		ImGuiWindow *window = g.CurrentWindow;
-		ImGuiID id          = window->GetID("##Splitter");
+		ImGuiID id    = ImGui::GetID("##Splitter");
+		ImVec2 cursor = ImGui::GetCursorScreenPos();
 		ImRect bb;
 
-		bb.Min.x = window->DC.CursorPos.x;
-		bb.Min.y = window->DC.CursorPos.y + left;
+		bb.Min.x = cursor.x;
+		bb.Min.y = cursor.y + left;
 
 		bb.Max = ImGui::CalcItemSize(ImVec2(length, thickness), 0.0f, 0.0f);
 		bb.Max.x += bb.Min.x;

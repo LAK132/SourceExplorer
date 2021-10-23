@@ -160,7 +160,7 @@ bool se::DumpStuff(source_explorer_t &srcexp,
 					ImGui::Text("Dumping, please wait...");
 					ImGui::Checkbox("Print to debug console?",
 					                &lak::debugger.live_output_enabled);
-					if (&lak::debugger.live_output_enabled)
+					if (lak::debugger.live_output_enabled)
 					{
 						ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
 						ImGui::Checkbox("Developer mode?",

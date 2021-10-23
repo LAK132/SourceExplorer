@@ -805,7 +805,8 @@ void AudioExplorer(bool &update)
 		ImGui::ProgressBar(0);
 #endif
 
-	ImGui::Text("Name: %s", audio_data.name.c_str());
+	ImGui::Text("Name: %s",
+	            reinterpret_cast<const char *>(audio_data.name.c_str()));
 	ImGui::Text("Type: ");
 	ImGui::SameLine();
 	switch (audio_data.type)
@@ -1212,6 +1213,7 @@ void basic_window_handle_event(lak::window &, lak::event &event)
 			SrcExp.exe.valid   = true;
 			SrcExp.exe.attempt = true;
 			break;
+		default: break;
 	}
 }
 
