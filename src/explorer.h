@@ -400,10 +400,10 @@ namespace SourceExplorer
 		data_ref_span_t(data_ref_ptr_t src,
 		                size_t offset = 0,
 		                size_t count  = lak::dynamic_extent)
-		: _source(src),
-		  lak::span<uint8_t>(
+		: lak::span<uint8_t>(
 		    src ? lak::span<uint8_t>(src->get()).subspan(offset, count)
-		        : lak::span<uint8_t>())
+		        : lak::span<uint8_t>()),
+		  _source(src)
 		{
 		}
 
@@ -467,14 +467,14 @@ namespace SourceExplorer
 		data_ref_ptr_t _source;
 
 		data_reader_t(data_ref_ptr_t src)
-		: _source(src),
-		  lak::binary_reader(src ? lak::span<const uint8_t>(src->get())
-		                         : lak::span<const uint8_t>())
+		: lak::binary_reader(src ? lak::span<const uint8_t>(src->get())
+		                         : lak::span<const uint8_t>()),
+		  _source(src)
 		{
 		}
 
 		data_reader_t(data_ref_span_t src)
-		: _source(src._source), lak::binary_reader((lak::span<uint8_t>)src)
+		: lak::binary_reader((lak::span<uint8_t>)src), _source(src._source)
 		{
 		}
 

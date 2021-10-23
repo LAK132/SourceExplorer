@@ -2430,8 +2430,6 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("truetype_fonts_t::");
 
-		const size_t pos = strm.position();
-
 		RES_TRY(entry.read(game, strm).MAP_SE_ERR("truetype_fonts_t::read"));
 
 		data_reader_t reader(entry.raw_body());

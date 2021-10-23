@@ -49,8 +49,9 @@
 #	define LAK_SOFTWARE_RENDER_16BIT
 #endif
 
-static const char *GetClipboardTextFn_DefaultImpl(void *);
-static void SetClipboardTextFn_DefaultImpl(void *, const char *text);
+[[maybe_unused]] static const char *GetClipboardTextFn_DefaultImpl(void *);
+[[maybe_unused]] static void SetClipboardTextFn_DefaultImpl(void *,
+                                                            const char *text);
 
 namespace ImGui
 {

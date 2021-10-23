@@ -44,6 +44,7 @@ else
     '-Wno-microsoft-cast',
     '-Wno-pragma-pack',
     '-Wno-deprecated-declarations',
+    '-Wno-unused-private-field',
     '-Wfatal-errors',
     # '-mavx',
   ]
