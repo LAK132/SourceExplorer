@@ -50,7 +50,9 @@ namespace fs = std::filesystem;
 
 #include "git.hpp"
 
-#define APP_NAME "Source Explorer " GIT_TAG "-" GIT_HASH
+#define APP_VERSION GIT_TAG "-" GIT_HASH
+
+#define APP_NAME "Source Explorer " STRINGIFY(LAK_ARCH) " " APP_VERSION
 
 #ifndef MAIN_H
 #	define MAIN_H
