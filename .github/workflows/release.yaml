@@ -69,7 +69,7 @@ jobs:
         with:
           action: build
           directory: build
-          setup-options: --buildtype debugoptimised
+          setup-options: --buildtype debugoptimized
           meson-version: 0.58.1
       - run: |
           Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb, build\SDL2.dll -DestinationPath Source-Explorer-x86.zip
