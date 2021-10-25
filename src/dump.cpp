@@ -817,11 +817,11 @@ void se::AttemptExe(source_explorer_t &srcexp)
 {
 	lak::debugger.clear();
 	srcexp.loaded = false;
-	DEBUG("Attempting To Load ", srcexp.exe.path);
 	AttemptFile(
 	  srcexp.exe,
 	  [&srcexp]
 	  {
+		  DEBUG("Attempting To Load ", srcexp.exe.path);
 		  if (auto result = OpenGame(srcexp); result.is_err())
 		  {
 			  ASSERT(result.unwrap_err() == lak::await_error::running);
