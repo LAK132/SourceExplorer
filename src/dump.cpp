@@ -233,18 +233,16 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 	  -> lak::error_codes<lak::error_code_error, lak::u8string>
 	{
 		auto errno_map = [](lak::error_code_error err)
-		  -> lak::variant<lak::error_code_error, lak::u8string> {
-			return lak::var_t<0>(err);
-		};
+		  -> lak::variant<lak::error_code_error, lak::u8string>
+		{ return lak::var_t<0>(err); };
 
 		return lak::path_exists(From)
 		  .IF_ERR("from path ", From, " existence check failed")
 		  .map_err(errno_map)
 		  .map_expect_value(
 		    true,
-		    [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string> {
-			    return lak::var_t<1>(lak::streamify(From, " does not exist"));
-		    })
+		    [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string>
+		    { return lak::var_t<1>(lak::streamify(From, " does not exist")); })
 		  .and_then(
 		    [&](auto &&)
 		    {
@@ -254,9 +252,8 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 		    })
 		  .map_expect_value(
 		    false,
-		    [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string> {
-			    return lak::var_t<1>(lak::streamify(From, " already exist"));
-		    })
+		    [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string>
+		    { return lak::var_t<1>(lak::streamify(From, " already exist")); })
 		  .and_then(
 		    [&](auto &&)
 		    {
