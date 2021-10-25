@@ -546,7 +546,15 @@ void MemoryExplorer(bool &update)
 	{
 		if (update && SrcExp.view != nullptr)
 			SrcExp.buffer =
-			  raw ? SrcExp.view->head.data : SrcExp.view->decode_head().UNWRAP();
+			  raw ? SrcExp.view->head.data
+			      : SrcExp.view->decode_head()
+			          .or_else(
+			            [&](const auto &err) -> se::result_t<se::data_ref_span_t>
+			            {
+				            ERROR(err);
+				            return lak::ok_t{SrcExp.view->head.data};
+			            })
+			          .UNWRAP();
 
 		if (content_mode == 1)
 		{
@@ -571,7 +579,15 @@ void MemoryExplorer(bool &update)
 	{
 		if (update && SrcExp.view != nullptr)
 			SrcExp.buffer =
-			  raw ? SrcExp.view->body.data : SrcExp.view->decode_body().UNWRAP();
+			  raw ? SrcExp.view->body.data
+			      : SrcExp.view->decode_body()
+			          .or_else(
+			            [&](const auto &err) -> se::result_t<se::data_ref_span_t>
+			            {
+				            ERROR(err);
+				            return lak::ok_t{SrcExp.view->body.data};
+			            })
+			          .UNWRAP();
 
 		if (content_mode == 1)
 		{
