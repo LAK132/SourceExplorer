@@ -47,7 +47,7 @@ bool encryption_table::init(lak::span<const uint8_t, 0x100U> magic_key,
 	return true;
 }
 
-bool encryption_table::decode(lak::span<uint8_t> chunk) const
+bool encryption_table::decode(lak::span<byte_t> chunk) const
 {
 	if (!valid) return false;
 
@@ -56,7 +56,7 @@ bool encryption_table::decode(lak::span<uint8_t> chunk) const
 
 	uint8_t i  = 0U;
 	uint8_t i2 = 0U;
-	for (uint8_t &elem : chunk)
+	for (uint8_t &elem : lak::span<uint8_t>(chunk))
 	{
 		++i;
 		i2 += (uint8_t)buffer.u32[i];

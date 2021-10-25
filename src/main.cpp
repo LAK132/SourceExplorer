@@ -206,14 +206,14 @@ bool Crypto()
 	return updated;
 }
 
-void BytePairsMemoryExplorer(const uint8_t *data, size_t size, bool update)
+void BytePairsMemoryExplorer(const byte_t *data, size_t size, bool update)
 {
 	static lak::image<GLfloat> image(lak::vec2s_t(256, 256));
 	static lak::opengl::texture texture(GL_TEXTURE_2D);
-	static float scale             = 1.0f;
-	static uint64_t from           = 0;
-	static uint64_t to             = SIZE_MAX;
-	static const uint8_t *old_data = data;
+	static float scale            = 1.0f;
+	static uint64_t from          = 0;
+	static uint64_t to            = SIZE_MAX;
+	static const byte_t *old_data = data;
 
 	if (data == nullptr && old_data == nullptr) return;
 
@@ -286,8 +286,9 @@ void BytePairsMemoryExplorer(const uint8_t *data, size_t size, bool update)
 		auto it          = begin + from;
 
 		const GLfloat step = 1.0f / ((to - from) / image.contig_size());
-		for (uint8_t prev = (it != end ? *it : 0); it != end; prev = *(it++))
-			image[{prev, *it}] += step;
+		for (uint8_t prev = (it != end ? uint8_t(*it) : 0); it != end;
+		     prev         = uint8_t(*(it++)))
+      image[{prev, uint8_t(*it)}] += step;
 
 		texture.bind()
 		  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
@@ -311,18 +312,18 @@ void BytePairsMemoryExplorer(const uint8_t *data, size_t size, bool update)
 	}
 }
 
-void RawImageMemoryExplorer(const uint8_t *data, size_t size, bool update)
+void RawImageMemoryExplorer(const byte_t *data, size_t size, bool update)
 {
 	static bool reset_on_update      = true;
 	static lak::vec2u64_t image_size = {256, 256};
 	static lak::vec2u64_t block_skip = {0, 0};
 	static lak::image4_t image{lak::vec2s_t(image_size)};
 	static lak::opengl::texture texture(GL_TEXTURE_2D);
-	static float scale             = 1.0f;
-	static uint64_t from           = 0;
-	static uint64_t to             = SIZE_MAX;
-	static int colour_size         = 3;
-	static const uint8_t *old_data = data;
+	static float scale            = 1.0f;
+	static uint64_t from          = 0;
+	static uint64_t to            = SIZE_MAX;
+	static int colour_size        = 3;
+	static const byte_t *old_data = data;
 
 	if (data == nullptr && old_data == nullptr) return;
 
@@ -430,7 +431,7 @@ void RawImageMemoryExplorer(const uint8_t *data, size_t size, bool update)
 		const auto end   = begin + to;
 		auto it          = begin + from;
 
-		auto img           = (uint8_t *)image.data();
+		auto img           = (byte_t *)image.data();
 		const auto img_end = img + (image.contig_size() * sizeof(image[0]));
 
 		for (uint64_t i = 0; img < img_end && it < end;)
@@ -516,7 +517,9 @@ void MemoryExplorer(bool &update)
 		{
 			if (content_mode != 0) content_mode = 0;
 			if (update) SrcExp.buffer = se::data_ref_span_t(SrcExp.state.file);
-			SrcExp.editor.DrawContents(SrcExp.buffer.data(), SrcExp.buffer.size());
+			SrcExp.editor.DrawContents(
+			  reinterpret_cast<uint8_t *>(SrcExp.buffer.data()),
+			  SrcExp.buffer.size());
 			if (update && SrcExp.view != nullptr)
 			{
 				SCOPED_CHECKPOINT(__func__, "::EXE");
@@ -558,7 +561,9 @@ void MemoryExplorer(bool &update)
 		else
 		{
 			if (content_mode != 0) content_mode = 0;
-			SrcExp.editor.DrawContents(SrcExp.buffer.data(), SrcExp.buffer.size());
+			SrcExp.editor.DrawContents(
+			  reinterpret_cast<uint8_t *>(SrcExp.buffer.data()),
+			  SrcExp.buffer.size());
 			if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
 		}
 	}
@@ -581,7 +586,9 @@ void MemoryExplorer(bool &update)
 		else
 		{
 			if (content_mode != 0) content_mode = 0;
-			SrcExp.editor.DrawContents(SrcExp.buffer.data(), SrcExp.buffer.size());
+			SrcExp.editor.DrawContents(
+			  reinterpret_cast<uint8_t *>(SrcExp.buffer.data()),
+			  SrcExp.buffer.size());
 			if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
 		}
 	}
@@ -626,7 +633,7 @@ void AudioExplorer(bool &update)
 		uint16_t bits_per_sample = 0;
 		uint16_t unknown         = 0;
 		uint32_t chunk_size      = 0;
-		lak::array<uint8_t> data;
+		lak::array<byte_t> data;
 	};
 
 	static const se::basic_entry_t *last = nullptr;
@@ -662,7 +669,7 @@ void AudioExplorer(bool &update)
 				audio_data.bits_per_sample = audio.read_u16().UNWRAP();
 				audio_data.unknown         = audio.read_u16().UNWRAP();
 				audio_data.chunk_size      = audio.read_u32().UNWRAP();
-				audio_data.data = audio.read<uint8_t>(audio_data.chunk_size).UNWRAP();
+				audio_data.data = audio.read<byte_t>(audio_data.chunk_size).UNWRAP();
 			}
 		}
 		else
@@ -734,7 +741,7 @@ void AudioExplorer(bool &update)
 				DEBUG("Remaining: ", audio.remaining().size());
 				DEBUG("Size: ", size);
 				DEBUG("Chunk Size: ", audio_data.chunk_size);
-				audio_data.data = audio.read<uint8_t>(audio_data.chunk_size).UNWRAP();
+				audio_data.data = audio.read<byte_t>(audio_data.chunk_size).UNWRAP();
 			}
 		}
 	}

@@ -492,7 +492,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 	for (const auto &item : srcexp.state.game.sound_bank->items)
 	{
 		data_reader_t sound(item.entry.decode_body().UNWRAP());
-		lak::array<uint8_t> result;
+		lak::array<byte_t> result;
 
 		std::u16string name;
 		sound_mode_t type;
@@ -517,7 +517,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 			[[maybe_unused]] uint16_t bits_per_sample = sound.read_u16().UNWRAP();
 			[[maybe_unused]] uint16_t unknown         = sound.read_u16().UNWRAP();
 			uint32_t chunk_size                       = sound.read_u32().UNWRAP();
-			[[maybe_unused]] auto data = sound.read<uint8_t>(chunk_size).UNWRAP();
+			[[maybe_unused]] auto data = sound.read<byte_t>(chunk_size).UNWRAP();
 
 			lak::binary_array_writer output;
 			output.write("RIFF"_span);
@@ -568,8 +568,8 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 				type = sound_mode_t::xm;
 			}
 
-			result = lak::array<uint8_t>(sound.remaining().begin(),
-			                             sound.remaining().end());
+			result =
+			  lak::array<byte_t>(sound.remaining().begin(), sound.remaining().end());
 		}
 
 		switch (type)
@@ -694,8 +694,10 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
 		lak::astring file = strm.read_c_str<char>().UNWRAP();
 
 		DEBUG(filename);
-		if (!lak::save_file(filename,
-		                    std::vector<uint8_t>(file.begin(), file.end())))
+		if (!lak::save_file(
+		      filename,
+		      lak::span(reinterpret_cast<const byte_t *>(file.c_str()),
+		                file.size())))
 		{
 			ERROR("Failed To Save File '", filename, "'");
 		}
@@ -743,7 +745,7 @@ void se::SaveBinaryBlock(source_explorer_t &srcexp, std::atomic<float> &)
 {
 	srcexp.binary_block.path += ".bin";
 	if (!lak::save_file(srcexp.binary_block.path,
-	                    lak::span<const uint8_t>(srcexp.buffer)))
+	                    lak::span<const byte_t>(srcexp.buffer)))
 	{
 		ERROR("Failed To Save File '", srcexp.binary_block.path, "'");
 	}

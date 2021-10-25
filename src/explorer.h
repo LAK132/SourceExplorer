@@ -325,7 +325,7 @@ namespace SourceExplorer
 	struct pack_file_t
 	{
 		std::u16string filename;
-		lak::array<uint8_t> data;
+		lak::array<byte_t> data;
 		bool wide;
 		uint32_t bingo;
 	};
@@ -333,8 +333,8 @@ namespace SourceExplorer
 	struct _data_ref
 	{
 		std::shared_ptr<_data_ref> _parent = {};
-		lak::span<uint8_t> _parent_span    = {};
-		lak::array<uint8_t> _data          = {};
+		lak::span<byte_t> _parent_span     = {};
+		lak::array<byte_t> _data           = {};
 
 		_data_ref()                  = default;
 		_data_ref(const _data_ref &) = default;
@@ -342,7 +342,7 @@ namespace SourceExplorer
 		_data_ref &operator=(const _data_ref &) = default;
 		_data_ref &operator=(_data_ref &&) = default;
 
-		_data_ref(lak::array<uint8_t> data)
+		_data_ref(lak::array<byte_t> data)
 		: _parent(), _parent_span(), _data(lak::move(data))
 		{
 		}
@@ -350,7 +350,7 @@ namespace SourceExplorer
 		_data_ref(const std::shared_ptr<_data_ref> &parent,
 		          size_t offset,
 		          size_t count,
-		          lak::array<uint8_t> data)
+		          lak::array<byte_t> data)
 		: _parent(parent), _data(lak::move(data))
 		{
 			ASSERT(_parent);
@@ -358,23 +358,23 @@ namespace SourceExplorer
 		}
 
 		inline std::shared_ptr<_data_ref> parent() const { return _parent; }
-		inline lak::span<uint8_t> parent_span() const { return _parent_span; }
+		inline lak::span<byte_t> parent_span() const { return _parent_span; }
 		inline size_t size() const { return _data.size(); }
-		inline const uint8_t *data() const { return _data.data(); }
-		inline uint8_t *data() { return _data.data(); }
-		inline const lak::array<uint8_t> &get() const { return _data; }
-		inline lak::array<uint8_t> &get() { return _data; }
+		inline const byte_t *data() const { return _data.data(); }
+		inline byte_t *data() { return _data.data(); }
+		inline const lak::array<byte_t> &get() const { return _data; }
+		inline lak::array<byte_t> &get() { return _data; }
 
-		inline operator lak::span<const uint8_t>() const
+		inline operator lak::span<const byte_t>() const
 		{
 			return lak::span(_data);
 		}
-		inline operator lak::span<uint8_t>() { return lak::span(_data); }
+		inline operator lak::span<byte_t>() { return lak::span(_data); }
 	};
 
 	using data_ref_ptr_t = std::shared_ptr<_data_ref>;
 
-	static data_ref_ptr_t make_data_ref_ptr(lak::array<uint8_t> data)
+	static data_ref_ptr_t make_data_ref_ptr(lak::array<byte_t> data)
 	{
 		FUNCTION_CHECKPOINT();
 		return std::make_shared<_data_ref>(lak::move(data));
@@ -383,13 +383,13 @@ namespace SourceExplorer
 	static data_ref_ptr_t make_data_ref_ptr(data_ref_ptr_t parent,
 	                                        size_t offset,
 	                                        size_t count,
-	                                        lak::array<uint8_t> data)
+	                                        lak::array<byte_t> data)
 	{
 		FUNCTION_CHECKPOINT();
 		return std::make_shared<_data_ref>(parent, offset, count, lak::move(data));
 	}
 
-	struct data_ref_span_t : lak::span<uint8_t>
+	struct data_ref_span_t : lak::span<byte_t>
 	{
 		data_ref_ptr_t _source;
 
@@ -400,9 +400,9 @@ namespace SourceExplorer
 		data_ref_span_t(data_ref_ptr_t src,
 		                size_t offset = 0,
 		                size_t count  = lak::dynamic_extent)
-		: lak::span<uint8_t>(
-		    src ? lak::span<uint8_t>(src->get()).subspan(offset, count)
-		        : lak::span<uint8_t>()),
+		: lak::span<byte_t>(
+		    src ? lak::span<byte_t>(src->get()).subspan(offset, count)
+		        : lak::span<byte_t>()),
 		  _source(src)
 		{
 		}
@@ -434,13 +434,13 @@ namespace SourceExplorer
 		void reset()
 		{
 			FUNCTION_CHECKPOINT("data_ref_span_t::");
-			static_cast<lak::span<uint8_t> &>(*this) = {};
+			static_cast<lak::span<byte_t> &>(*this) = {};
 			_source.reset();
 		}
 	};
 
 	static data_ref_ptr_t make_data_ref_ptr(data_ref_span_t parent,
-	                                        lak::array<uint8_t> data)
+	                                        lak::array<byte_t> data)
 	{
 		FUNCTION_CHECKPOINT();
 		if (!parent._source)
@@ -459,7 +459,7 @@ namespace SourceExplorer
 			return {};
 		else
 			return make_data_ref_ptr(
-			  parent, lak::array<uint8_t>(parent.begin(), parent.end()));
+			  parent, lak::array<byte_t>(parent.begin(), parent.end()));
 	}
 
 	struct data_reader_t : lak::binary_reader
@@ -467,14 +467,14 @@ namespace SourceExplorer
 		data_ref_ptr_t _source;
 
 		data_reader_t(data_ref_ptr_t src)
-		: lak::binary_reader(src ? lak::span<const uint8_t>(src->get())
-		                         : lak::span<const uint8_t>()),
+		: lak::binary_reader(src ? lak::span<const byte_t>(src->get())
+		                         : lak::span<const byte_t>()),
 		  _source(src)
 		{
 		}
 
 		data_reader_t(data_ref_span_t src)
-		: lak::binary_reader((lak::span<uint8_t>)src), _source(src._source)
+		: lak::binary_reader((lak::span<byte_t>)src), _source(src._source)
 		{
 		}
 
@@ -524,7 +524,7 @@ namespace SourceExplorer
 		}
 
 		data_ref_ptr_t read_remaining_ref_ptr(size_t max_size,
-		                                      lak::array<uint8_t> data)
+		                                      lak::array<byte_t> data)
 		{
 			FUNCTION_CHECKPOINT("data_reader_t::");
 			ASSERT(_source);

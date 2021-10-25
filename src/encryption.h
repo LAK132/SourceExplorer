@@ -49,7 +49,7 @@ struct encryption_table
 
 	bool init(lak::span<const uint8_t, 0x100> magic_key, const char magic_char);
 
-	bool decode(lak::span<uint8_t> chunk) const;
+	bool decode(lak::span<byte_t> chunk) const;
 };
 
 std::vector<uint8_t> KeyString(const std::u16string &str);

@@ -194,7 +194,7 @@ namespace SourceExplorer
 		decryptor.valid = false;
 	}
 
-	bool DecodeChunk(lak::span<uint8_t> chunk)
+	bool DecodeChunk(lak::span<byte_t> chunk)
 	{
 		if (!decryptor.valid)
 		{
@@ -533,7 +533,7 @@ namespace SourceExplorer
 			TRY_ASSIGN(read =, strm.read_u32());
 
 			DEBUG("Pack File Data Size: ", read, ", Pos: ", strm.position());
-			TRY_ASSIGN(game_state.pack_files[i].data =, strm.read<uint8_t>(read));
+			TRY_ASSIGN(game_state.pack_files[i].data =, strm.read<byte_t>(read));
 		}
 
 		TRY_ASSIGN(header =, strm.peek_u32()); // PAMU sometimes
@@ -1065,7 +1065,7 @@ namespace SourceExplorer
 				  lak::ok_or_err(Inflate(encoded, false, false)
 				                   .map_err([&](auto &&) { return encoded; }))};
 			default:
-				if (encoded.size() > 0 && encoded[0] == 0x78)
+				if (encoded.size() > 0 && uint8_t(encoded[0]) == 0x78)
 					return lak::ok_t{
 					  lak::ok_or_err(Inflate(encoded, false, false)
 					                   .map_err([&](auto &&) { return encoded; }))};
@@ -1081,14 +1081,14 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT();
 
-		lak::array<uint8_t, 0x8000> buffer;
+		lak::array<byte_t, 0x8000> buffer;
 		auto inflater =
 		  lak::deflate_iterator(compressed, buffer, !skip_header, anaconda);
 
-		lak::array<uint8_t> output;
+		lak::array<byte_t> output;
 		output.reserve(buffer.size());
 		if (auto err = inflater.read(
-		      [&](uint8_t v)
+		      [&](byte_t v)
 		      {
 			      if (output.size() > max_size) return false;
 			      output.push_back(v);
@@ -1163,15 +1163,15 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT();
 
-		lak::array<uint8_t, 0x8000> buffer;
+		lak::array<byte_t, 0x8000> buffer;
 		auto inflater = lak::deflate_iterator(strm.remaining(),
 		                                      buffer,
 		                                      /* parse_header */ false,
 		                                      /* anaconda */ true);
 
-		lak::array<uint8_t> output;
+		lak::array<byte_t> output;
 		if (auto err = inflater.read(
-		      [&](uint8_t v)
+		      [&](byte_t v)
 		      {
 			      output.push_back(v);
 			      return true;
@@ -1219,12 +1219,13 @@ namespace SourceExplorer
 			TRY(estrm.skip(4));
 
 			auto mem_ptr  = estrm.copy_remaining();
-			auto mem_span = lak::span<uint8_t>(mem_ptr->get());
+			auto mem_span = lak::span<byte_t>(mem_ptr->get());
 
 			data_reader_t mem_reader(mem_ptr);
 
 			if ((_mode != game_mode_t::_284) && ((uint16_t)ID & 0x1) != 0)
-				mem_span[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
+				(uint8_t &)(mem_span[0]) ^=
+				  ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
 			if (DecodeChunk(mem_span))
 			{
@@ -1257,10 +1258,11 @@ namespace SourceExplorer
 				        "MODE 2 Decryption Failed: Encrypted Buffer Too Small")};
 
 			auto mem_ptr  = estrm.copy_remaining();
-			auto mem_span = lak::span<uint8_t>(mem_ptr->get());
+			auto mem_span = lak::span<byte_t>(mem_ptr->get());
 
 			if ((_mode != game_mode_t::_284) && (uint16_t)ID & 0x1)
-				mem_span[0] ^= ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
+				(uint8_t &)(mem_span[0]) ^=
+				  ((uint16_t)ID & 0xFF) ^ ((uint16_t)ID >> 0x8);
 
 			if (!DecodeChunk(mem_span))
 			{
@@ -1622,7 +1624,7 @@ namespace SourceExplorer
 				case encoding_t::mode0: [[fallthrough]];
 				default:
 				{
-					if (body.data.size() > 0 && body.data[0] == 0x78)
+					if (body.data.size() > 0 && uint8_t(body.data[0]) == 0x78)
 					{
 						return lak::ok_t{lak::ok_or_err(
 						  Inflate(body.data, false, false, max_size)
@@ -1696,7 +1698,7 @@ namespace SourceExplorer
 				case encoding_t::mode0: [[fallthrough]];
 				default:
 				{
-					if (head.data.size() > 0 && head.data[0] == 0x78)
+					if (head.data.size() > 0 && uint8_t(head.data[0]) == 0x78)
 					{
 						return lak::ok_t{lak::ok_or_err(
 						  Inflate(head.data, false, false, max_size)
