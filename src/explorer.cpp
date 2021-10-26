@@ -58,6 +58,8 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT();
 
+		DEBUG("Attempting To Load ", srcexp.exe.path);
+
 		srcexp.state.completed      = 0.0f;
 		srcexp.state.bank_completed = 0.0f;
 
