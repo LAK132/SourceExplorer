@@ -81,7 +81,7 @@ else
   git_header = custom_target(
     'generate_git_file',
     output: 'git.hpp',
-    command: ['generate_git_file.sh', '@OUTPUT@'] ,
+    command: ['./generate_git_file.sh', '@OUTPUT@'] ,
     build_by_default: true,
   )
 endif

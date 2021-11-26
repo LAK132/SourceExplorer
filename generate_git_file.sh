@@ -1,3 +1,4 @@
+#! /bin/sh
 git_hash="`git rev-parse --short HEAD`" || exit 1
 git_tag="`git describe --tags --abbrev=0`" || exit 1
 echo "#ifndef GIT_HASH" > $1
