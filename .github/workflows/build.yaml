@@ -42,3 +42,18 @@ jobs:
           action: build
           setup-options: --buildtype debugoptimized
           meson-version: 0.58.1
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - run: sudo apt-get update && sudo apt-get install libsdl2-dev
+      - uses: egor-tensin/setup-clang@v1
+        with:
+          version: 13
+      - uses: BSFishy/meson-build@v1.0.3
+        with:
+          action: build
+          setup-options: --buildtype debugoptimized
+          meson-version: 0.58.1
