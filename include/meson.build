@@ -20,7 +20,7 @@ stb = static_library(
   override_options: 'warning_level=2',
 )
 
-subdir('lak/inc/sdl')
+subdir('lak/inc/SDL')
 subdir('lak/src')
 subdir('lak/src/opengl')
 subdir('lak/src/windowing')
