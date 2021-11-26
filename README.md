@@ -22,4 +22,14 @@ compiling:
 2. run `build\srcexp.exe`
 
 ### Linux
-git, at least SDL 2.0.5 (and g++11 if building from source)
+git, at least SDL 2.0.5 (and clang-13 if building from source)
+
+setup:
+1. `git clone https://github.com/LAK132/SourceExplorer SourceExplorer`
+2. `cd SourceExplorer`
+3. `git submodule update --init --recursive`
+4. `./clang_setup.sh`
+
+compiling:
+1. `./compile.sh`
+2. `./build/srcexp`

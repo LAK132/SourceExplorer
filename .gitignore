@@ -5,6 +5,7 @@ obj/*
 dump/*
 ignore/*
 release/*
+build/*
 
 imgui.ini
 *.exe
