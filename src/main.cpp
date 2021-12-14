@@ -431,16 +431,25 @@ void RawImageMemoryExplorer(const byte_t *data, size_t size, bool update)
 		const auto end   = begin + to;
 		auto it          = begin + from;
 
-		auto img           = (byte_t *)image.data();
-		const auto img_end = img + (image.contig_size() * sizeof(image[0]));
+		auto out_img       = (byte_t *)image.data();
+		const auto img_end = out_img + (image.contig_size() * sizeof(image[0]));
 
-		for (uint64_t i = 0; img < img_end && it < end;)
+		for (uint64_t i = 1; out_img < img_end && it < end; ++i, ++it, ++out_img)
 		{
-			*img = *it;
-			++it;
-			++i;
+			*out_img = *it;
+
 			if (block_skip.x > 0 && (i % block_skip.x) == 0) it += block_skip.y;
-			img += (5 - colour_size);
+
+			if (colour_size < 4 && (i % colour_size) == 0)
+				out_img += 4 - colour_size;
+		}
+
+		if (colour_size < 4)
+		{
+			for (size_t sz = image.contig_size(); sz-- > 0;)
+			{
+				image[sz].a = 0xFF;
+			}
 		}
 
 		texture.bind()

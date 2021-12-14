@@ -330,12 +330,14 @@ namespace SourceExplorer
 	//
 	enum class graphics_mode_t : uint8_t
 	{
-		graphics2 = 2,
-		graphics3 = 3,
-		graphics4 = 4,
-		graphics6 = 6,
-		graphics7 = 7,
-		graphics8 = 8
+		RGBA32,
+		BGRA32,
+		RGB24,
+		BGR24,
+		RGB16,
+		RGB15,
+		RGB8,
+		JPEG,
 	};
 
 	enum class image_flag_t : uint8_t
