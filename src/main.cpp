@@ -174,6 +174,7 @@ void Navigator()
 		ImGui::Text("New Game: %s", SrcExp.state.old_game ? "No" : "Yes");
 		ImGui::Text("Unicode Game: %s", SrcExp.state.unicode ? "Yes" : "No");
 		ImGui::Text("Compat Game: %s", SrcExp.state.compat ? "Yes" : "No");
+		ImGui::Text("CCN Game: %s", SrcExp.state.ccn ? "Yes" : "No");
 		ImGui::Text("2.5+ Game: %s",
 		            SrcExp.state.two_five_plus_game ? "Yes" : "No");
 		ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.product_build);

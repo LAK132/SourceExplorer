@@ -324,6 +324,15 @@ namespace SourceExplorer
 				                          strm.position())));
 				break;
 			}
+			else if (pame_magic == HEADER_UNIC)
+			{
+				DEBUG("New Game (ccn)");
+				game_state.old_game = false;
+				game_state.ccn      = true;
+				game_state.state    = {};
+				game_state.state.push(chunk_t::_new);
+				break;
+			}
 			else if (first_short == 0x222C)
 			{
 				strm.skip(4).UNWRAP();
@@ -863,7 +872,7 @@ namespace SourceExplorer
 	                           data_reader_t &strm)
 	{
 		CHECK_REMAINING(strm, colors.size() * 3);
-		ColorsFrom24bitRGB(colors, strm.read_bytes(colors.size() * 4).UNWRAP());
+		ColorsFrom24bitRGB(colors, strm.read_bytes(colors.size() * 3).UNWRAP());
 		return lak::ok_t{};
 	}
 
@@ -927,11 +936,9 @@ namespace SourceExplorer
 
 	uint16_t BitmapPaddingSize(uint16_t width,
 	                           uint8_t col_size,
-	                           uint8_t bytes = 2)
+	                           uint8_t bytes = 4)
 	{
-		uint16_t num = bytes - ((width * col_size) % bytes);
-		return (uint16_t)std::ceil((double)(num == bytes ? 0 : num) /
-		                           (double)col_size);
+		return (bytes - ((width * col_size) % bytes)) % bytes;
 	}
 
 	result_t<size_t> ReadRLE(data_reader_t &strm,
@@ -945,6 +952,8 @@ namespace SourceExplorer
 		const uint16_t pad =
 		  BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x),
 		                    static_cast<uint8_t>(point_size));
+		DEBUG("Point Size: ", point_size);
+		DEBUG("Padding: ", pad);
 		size_t pos = 0;
 		size_t i   = 0;
 
@@ -997,11 +1006,13 @@ namespace SourceExplorer
 		const uint16_t pad =
 		  BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x),
 		                    static_cast<uint8_t>(point_size));
+		DEBUG("Point Size: ", point_size);
+		DEBUG("Padding: ", pad);
 
 		size_t start = strm.position();
 
 		CHECK_REMAINING(strm,
-		                point_size * bitmap.size().y * (bitmap.size().x + pad));
+		                bitmap.size().y * ((point_size * bitmap.size().x) + pad));
 
 		if (pad == 0)
 		{
@@ -1019,7 +1030,7 @@ namespace SourceExplorer
 				  mode,
 				  palette)
 				  .UNWRAP();
-				strm.skip(pad * point_size).UNWRAP();
+				strm.skip(pad).UNWRAP();
 			}
 		}
 
@@ -4216,98 +4227,138 @@ namespace SourceExplorer
 			FUNCTION_CHECKPOINT("image::item_t::");
 
 			const auto strm_start = strm.position();
-
-			data_ref_span_t span;
-			if (game.two_five_plus_game)
-			{
-				const size_t header_size = 36;
-				RES_TRY(entry.read(game, strm, false, header_size)
-				          .MAP_SE_ERR("image::item_t::read"));
-
-				data_position = strm.position();
-
-				RES_TRY_ASSIGN(
-				  span =,
-				  entry.decode_head(header_size).MAP_SE_ERR("image::item_t::read"));
-
-				if (span.size() < header_size)
-					return lak::err_t{error(LINE_TRACE, error::out_of_data)};
-			}
-			else
+			if (game.ccn)
 			{
 				RES_TRY(
-				  entry.read(game, strm, true).MAP_SE_ERR("image::item_t::read"));
+				  entry.read(game, strm, true, 10).MAP_SE_ERR("image::item_t::read"));
+
+				const uint16_t gmode = entry.handle >> 16;
+				switch (gmode)
+				{
+					case 0:
+						graphics_mode = graphics_mode_t::RGBA32;
+						flags         = image_flag_t::none;
+						break;
+
+					case 3:
+						graphics_mode = graphics_mode_t::RGB24;
+						flags         = image_flag_t::none;
+						break;
+
+					case 5:
+						graphics_mode = graphics_mode_t::JPEG;
+						flags         = image_flag_t::none;
+						break;
+
+					default: WARNING("Unknown Graphics Mode: ", gmode); break;
+				}
+
+				data_position = 0;
 
 				if (!game.old_game && game.product_build >= 284) --entry.handle;
 
-				RES_TRY_ASSIGN(span =,
-				               entry.decode_body(176 + (game.old_game ? 16 : 80))
-				                 .MAP_SE_ERR("image::item_t::read"));
-			}
-			auto istrm = data_reader_t(span);
+				auto hstrm = data_reader_t(entry.raw_head());
 
-			DEBUG("Handle: ", entry.handle);
-
-			if (game.old_game)
-			{
-				TRY_ASSIGN(checksum =, istrm.read_u16());
+				TRY_ASSIGN([[maybe_unused]] const auto unk1 =, hstrm.read_u16());
+				TRY_ASSIGN(size.x =, hstrm.read_u16());
+				TRY_ASSIGN(size.y =, hstrm.read_u16());
+				TRY_ASSIGN([[maybe_unused]] const auto unk2 =, hstrm.read_u16());
+				TRY_ASSIGN([[maybe_unused]] const auto unk3 =, hstrm.read_u16());
 			}
 			else
 			{
-				TRY_ASSIGN(checksum =, istrm.read_u32());
-			}
-			TRY_ASSIGN(reference =, istrm.read_u32());
-			if (game.two_five_plus_game) TRY(istrm.skip(4));
-			TRY_ASSIGN(data_size =, istrm.read_u32());
-			TRY_ASSIGN(size.x =, istrm.read_u16());
-			TRY_ASSIGN(size.y =, istrm.read_u16());
-			TRY_ASSIGN(const uint8_t gmode =, istrm.read_u8());
-			switch (gmode)
-			{
-				case 2: graphics_mode = graphics_mode_t::RGB8; break;
-				case 3: graphics_mode = graphics_mode_t::RGB8; break;
-				case 4: graphics_mode = graphics_mode_t::BGR24; break;
-				case 6: graphics_mode = graphics_mode_t::RGB15; break;
-				case 7: graphics_mode = graphics_mode_t::RGB16; break;
-				case 8: graphics_mode = graphics_mode_t::BGRA32; break;
-			}
-			TRY_ASSIGN(flags = (image_flag_t), istrm.read_u8());
+				data_ref_span_t span;
+				if (game.two_five_plus_game)
+				{
+					const size_t header_size = 36;
+					RES_TRY(entry.read(game, strm, false, header_size)
+					          .MAP_SE_ERR("image::item_t::read"));
+
+					data_position = strm.position();
+
+					RES_TRY_ASSIGN(
+					  span =,
+					  entry.decode_head(header_size).MAP_SE_ERR("image::item_t::read"));
+
+					if (span.size() < header_size)
+						return lak::err_t{error(LINE_TRACE, error::out_of_data)};
+				}
+				else
+				{
+					RES_TRY(
+					  entry.read(game, strm, true).MAP_SE_ERR("image::item_t::read"));
+
+					if (!game.old_game && game.product_build >= 284) --entry.handle;
+
+					RES_TRY_ASSIGN(span =,
+					               entry.decode_body(176 + (game.old_game ? 16 : 80))
+					                 .MAP_SE_ERR("image::item_t::read"));
+				}
+				auto istrm = data_reader_t(span);
+
+				DEBUG("Handle: ", entry.handle);
+
+				if (game.old_game)
+				{
+					TRY_ASSIGN(checksum =, istrm.read_u16());
+				}
+				else
+				{
+					TRY_ASSIGN(checksum =, istrm.read_u32());
+				}
+				TRY_ASSIGN(reference =, istrm.read_u32());
+				if (game.two_five_plus_game) TRY(istrm.skip(4));
+				TRY_ASSIGN(data_size =, istrm.read_u32());
+				TRY_ASSIGN(size.x =, istrm.read_u16());
+				TRY_ASSIGN(size.y =, istrm.read_u16());
+				TRY_ASSIGN(const uint8_t gmode =, istrm.read_u8());
+				switch (gmode)
+				{
+					case 2: graphics_mode = graphics_mode_t::RGB8; break;
+					case 3: graphics_mode = graphics_mode_t::RGB8; break;
+					case 4: graphics_mode = graphics_mode_t::BGR24; break;
+					case 6: graphics_mode = graphics_mode_t::RGB15; break;
+					case 7: graphics_mode = graphics_mode_t::RGB16; break;
+					case 8: graphics_mode = graphics_mode_t::BGRA32; break;
+				}
+				TRY_ASSIGN(flags = (image_flag_t), istrm.read_u8());
 #if 0
-			if (graphics_mode == graphics_mode_t::RGB8)
-			{
-				TRY_ASSIGN(palette_entries =, istrm.read_u8());
-				for (size_t i = 0; i < palette.size();
-				     ++i) // where is this size coming from???
-					palette[i] = ColorFrom32bitRGBA(istrm); // not sure if RGBA or BGRA
-				TRY_ASSIGN(count =, strm.read_u32());
-			}
+				if (graphics_mode == graphics_mode_t::RGB8)
+				{
+					TRY_ASSIGN(palette_entries =, istrm.read_u8());
+					for (size_t i = 0; i < palette.size();
+					     ++i) // where is this size coming from???
+						palette[i] = ColorFrom32bitRGBA(istrm); // not sure if RGBA or BGRA
+					TRY_ASSIGN(count =, strm.read_u32());
+				}
 #endif
-			if (!game.old_game)
-			{
-				TRY_ASSIGN(unknown =, istrm.read_u16());
-			}
-			TRY_ASSIGN(hotspot.x =, istrm.read_u16());
-			TRY_ASSIGN(hotspot.y =, istrm.read_u16());
-			TRY_ASSIGN(action.x =, istrm.read_u16());
-			TRY_ASSIGN(action.y =, istrm.read_u16());
+				if (!game.old_game)
+				{
+					TRY_ASSIGN(unknown =, istrm.read_u16());
+				}
+				TRY_ASSIGN(hotspot.x =, istrm.read_u16());
+				TRY_ASSIGN(hotspot.y =, istrm.read_u16());
+				TRY_ASSIGN(action.x =, istrm.read_u16());
+				TRY_ASSIGN(action.y =, istrm.read_u16());
 
-			if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
+				if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
 
-			if (game.two_five_plus_game)
-			{
-				ASSERT_EQUAL(strm.position(), data_position);
-				TRY_ASSIGN(entry.body.data =, strm.read_ref_span(data_size));
-				data_position = 0;
+				if (game.two_five_plus_game)
+				{
+					ASSERT_EQUAL(strm.position(), data_position);
+					TRY_ASSIGN(entry.body.data =, strm.read_ref_span(data_size));
+					data_position = 0;
 
-				const auto strm_end = strm.position();
-				TRY(strm.seek(strm_start));
-				TRY_ASSIGN(entry.ref_span =,
-				           strm.read_ref_span(strm_end - strm_start));
-				DEBUG("Corrected Ref Span Size: ", entry.ref_span.size());
-			}
-			else
-			{
-				data_position = istrm.position();
+					const auto strm_end = strm.position();
+					TRY(strm.seek(strm_start));
+					TRY_ASSIGN(entry.ref_span =,
+					           strm.read_ref_span(strm_end - strm_start));
+					DEBUG("Corrected Ref Span Size: ", entry.ref_span.size());
+				}
+				else
+				{
+					data_position = istrm.position();
+				}
 			}
 
 			return lak::ok_t{};
@@ -4430,45 +4481,81 @@ namespace SourceExplorer
 			FUNCTION_CHECKPOINT("image::image_t::");
 
 			lak::image4_t img = {};
-			img.resize((lak::vec2s_t)size);
 
 			RES_TRY_ASSIGN(auto span =,
 			               image_data().MAP_SE_ERR("image::item_t::image"));
 
-			data_reader_t strm(span);
-
-			[[maybe_unused]] size_t bytes_read;
-			if ((flags & (image_flag_t::RLE | image_flag_t::RLEW |
-			              image_flag_t::RLET)) != image_flag_t::none)
+			if (graphics_mode == graphics_mode_t::JPEG)
 			{
-				RES_TRY_ASSIGN(bytes_read =,
-				               ReadRLE(strm, img, graphics_mode, palette));
+				int x, y, n;
+				uint8_t *data =
+				  stbi_load_from_memory(reinterpret_cast<const uint8_t *>(span.data()),
+				                        static_cast<int>(span.size()),
+				                        &x,
+				                        &y,
+				                        &n,
+				                        4);
+				DEFER(stbi_image_free(data));
+
+				if (x != size.x || y != size.y)
+				{
+					return lak::err_t{error(LINE_TRACE,
+					                        error::str_err,
+					                        "jpeg decode failed, expected size (",
+					                        size.x,
+					                        ", ",
+					                        size.y,
+					                        ") got (",
+					                        x,
+					                        ", ",
+					                        y,
+					                        ")")};
+				}
+				else
+				{
+					img = lak::image_from_rgba32(reinterpret_cast<const byte_t *>(data),
+					                             lak::vec2s_t{size_t(x), size_t(y)});
+				}
 			}
 			else
 			{
-				RES_TRY_ASSIGN(bytes_read =,
-				               ReadRGB(strm, img, graphics_mode, palette));
-			}
+				data_reader_t strm(span);
 
-			if ((flags & image_flag_t::RGBA) != image_flag_t::none)
-			{
-				// we already read the alpha data with the colour data
-			}
-			else if ((flags & image_flag_t::alpha) != image_flag_t::none)
-			{
-				RES_TRY(ReadAlpha(strm, img));
-			}
-			else if (color_transparent)
-			{
-				ReadTransparent(transparent, img);
-			}
-			else
-			{
-				for (size_t i = 0; i < img.contig_size(); ++i) img[i].a = 255;
-			}
+				img.resize(lak::vec2s_t(size));
 
-			if (!strm.empty())
-				WARNING(strm.remaining().size(), " Bytes Left Over In Image Data");
+				[[maybe_unused]] size_t bytes_read;
+				if ((flags & (image_flag_t::RLE | image_flag_t::RLEW |
+				              image_flag_t::RLET)) != image_flag_t::none)
+				{
+					RES_TRY_ASSIGN(bytes_read =,
+					               ReadRLE(strm, img, graphics_mode, palette));
+				}
+				else
+				{
+					RES_TRY_ASSIGN(bytes_read =,
+					               ReadRGB(strm, img, graphics_mode, palette));
+				}
+
+				if ((flags & image_flag_t::RGBA) != image_flag_t::none)
+				{
+					// we already read the alpha data with the colour data
+				}
+				else if ((flags & image_flag_t::alpha) != image_flag_t::none)
+				{
+					RES_TRY(ReadAlpha(strm, img));
+				}
+				else if (color_transparent)
+				{
+					ReadTransparent(transparent, img);
+				}
+				else
+				{
+					for (size_t i = 0; i < img.contig_size(); ++i) img[i].a = 255;
+				}
+
+				if (!strm.empty())
+					WARNING(strm.remaining().size(), " Bytes Left Over In Image Data");
+			}
 
 			return lak::ok_t{lak::move(img)};
 		}
@@ -4488,7 +4575,16 @@ namespace SourceExplorer
 
 			data_reader_t reader(entry.raw_body());
 
-			TRY_ASSIGN(const auto item_count =, reader.read_u32());
+			uint32_t item_count = 0;
+			if (game.ccn)
+			{
+				TRY_ASSIGN([[maybe_unused]] const auto unknown =, reader.read_u16());
+				TRY_ASSIGN(item_count =, reader.read_u16());
+			}
+			else
+			{
+				TRY_ASSIGN(item_count =, reader.read_u32());
+			}
 
 			items.resize(item_count);
 

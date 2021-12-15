@@ -1432,6 +1432,7 @@ namespace SourceExplorer
 		bool cnc                = false;
 		bool recompiled         = false;
 		bool two_five_plus_game = false;
+		bool ccn                = false;
 		lak::array<uint8_t> protection;
 
 		header_t game;
