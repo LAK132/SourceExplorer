@@ -419,22 +419,22 @@ namespace SourceExplorer
 
 	result_t<size_t> ParsePackData(data_reader_t &strm, game_t &game_state)
 	{
-		DEBUG("Parsing pack data");
+		FUNCTION_CHECKPOINT();
 
 		size_t start = strm.position();
 		TRY_ASSIGN(uint64_t header =, strm.read_u64());
 		DEBUG("Header: ", header);
 
-		TRY_ASSIGN([[maybe_unused]] uint32_t header_size =, strm.read_u32());
+		TRY_ASSIGN(uint32_t header_size =, strm.read_u32());
 		DEBUG("Header Size: ", header_size);
 
 		TRY_ASSIGN(uint32_t data_size =, strm.read_u32());
 		DEBUG("Data Size: ", data_size);
 
 		bool unicode = false;
-		if (start + data_size - 0x20 < strm.remaining().size())
+		if (start + data_size - header_size < strm.size())
 		{
-			TRY(strm.seek(start + data_size - 0x20));
+			TRY(strm.seek(start + data_size - header_size));
 
 			TRY_ASSIGN(header =, strm.read_u32());
 			DEBUG("Head: ", header);
@@ -449,7 +449,10 @@ namespace SourceExplorer
 			}
 		}
 		else
-			WARNING("Data Size Too Large");
+			WARNING("Data Size Too Large: ",
+			        start + data_size - 0x20,
+			        " >= ",
+			        strm.remaining().size());
 
 		TRY(strm.seek(start + 0x10));
 
