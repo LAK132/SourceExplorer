@@ -937,13 +937,6 @@ namespace SourceExplorer
 		}
 	}
 
-	uint16_t BitmapPaddingSize(uint16_t width,
-	                           uint8_t col_size,
-	                           uint8_t bytes = 4)
-	{
-		return (bytes - ((width * col_size) % bytes)) % bytes;
-	}
-
 	result_t<size_t> ReadRLE(data_reader_t &strm,
 	                         lak::image4_t &bitmap,
 	                         graphics_mode_t mode,
@@ -953,8 +946,7 @@ namespace SourceExplorer
 
 		const size_t point_size = ColorModeSize(mode);
 		const uint16_t pad =
-		  BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x),
-		                    static_cast<uint8_t>(point_size));
+		  uint16_t(lak::inv_mod<size_t>(bitmap.size().x * point_size, 4));
 		DEBUG("Point Size: ", point_size);
 		DEBUG("Padding: ", pad);
 		size_t pos = 0;
@@ -1007,8 +999,7 @@ namespace SourceExplorer
 
 		const size_t point_size = ColorModeSize(mode);
 		const uint16_t pad =
-		  BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x),
-		                    static_cast<uint8_t>(point_size));
+		  uint16_t(lak::inv_mod<size_t>(bitmap.size().x * point_size, 4));
 		DEBUG("Point Size: ", point_size);
 		DEBUG("Padding: ", pad);
 
@@ -1044,8 +1035,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT();
 
-		const uint16_t pad =
-		  BitmapPaddingSize(static_cast<uint16_t>(bitmap.size().x), 1, 4);
+		const uint16_t pad = uint16_t(lak::inv_mod<size_t>(bitmap.size().x, 4));
 
 		size_t start = strm.position();
 
