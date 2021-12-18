@@ -61,7 +61,7 @@ c_cpp_args += [
   '-DSDL_MAIN_HANDLED',
 ]
 
-if get_option('buildtype') == 'release'
+if get_option('buildtype') != 'debug'
   c_cpp_args += [ '-DNDEBUG' ]
 endif
 
