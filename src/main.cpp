@@ -1183,7 +1183,7 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 void basic_window_init(lak::window &window)
 {
 	lak::debugger.crash_path = SrcExp.error_log.path =
-	  fs::current_path() / "SEND-THIS-CRASH-LOG-TO-LAK132.txt";
+	  fs::current_path() / "ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt";
 
 	SrcExp.images.path = SrcExp.sorted_images.path = SrcExp.sounds.path =
 	  SrcExp.music.path = SrcExp.shaders.path = SrcExp.binary_files.path =
