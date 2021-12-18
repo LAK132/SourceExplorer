@@ -946,7 +946,7 @@ namespace SourceExplorer
 
 		const size_t point_size = ColorModeSize(mode);
 		const uint16_t pad =
-		  uint16_t(lak::inv_mod<size_t>(bitmap.size().x * point_size, 4));
+		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, 4));
 		DEBUG("Point Size: ", point_size);
 		DEBUG("Padding: ", pad);
 		size_t pos = 0;
@@ -999,7 +999,7 @@ namespace SourceExplorer
 
 		const size_t point_size = ColorModeSize(mode);
 		const uint16_t pad =
-		  uint16_t(lak::inv_mod<size_t>(bitmap.size().x * point_size, 4));
+		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, 4));
 		DEBUG("Point Size: ", point_size);
 		DEBUG("Padding: ", pad);
 
@@ -1035,7 +1035,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT();
 
-		const uint16_t pad = uint16_t(lak::inv_mod<size_t>(bitmap.size().x, 4));
+		const uint16_t pad = uint16_t(lak::slack<size_t>(bitmap.size().x, 4));
 
 		size_t start = strm.position();
 

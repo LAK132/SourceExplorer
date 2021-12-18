@@ -26,8 +26,8 @@ rmdir /s /q build
 :arg-loop
 shift
 if "%1"=="" goto end-arg-loop
-goto arg-loop
 set meson_args=!meson_args! %1
+goto arg-loop
 :end-arg-loop
 
 meson setup build !meson_args!
