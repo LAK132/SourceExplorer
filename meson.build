@@ -61,6 +61,10 @@ c_cpp_args += [
   '-DSDL_MAIN_HANDLED',
 ]
 
+if get_option('buildtype') == 'release'
+  c_cpp_args += [ '-DNDEBUG' ]
+endif
+
 if get_option('lak_backend') == 'sdl'
   c_cpp_args += [ '-DLAK_USE_SDL' ]
 elif get_option('lak_backend') == 'win32'

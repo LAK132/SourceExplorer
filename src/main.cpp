@@ -116,6 +116,7 @@ void MenuBar(float frame_time)
 		ImGui::Text("Frame rate %f", std::round(1.0f / frame_time));
 		credits();
 		ImGui::Checkbox("Byte Pairs", &byte_pairs_mode);
+		if (ImGui::Button("Crash")) FATAL("Force Crashed");
 		ImGui::EndMenu();
 	}
 
