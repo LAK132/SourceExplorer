@@ -33,6 +33,7 @@ SOFTWARE.
 
 #include <lak/char_utils.hpp>
 #include <lak/result.hpp>
+#include <lak/string_literals.hpp>
 #include <lak/string_utils.hpp>
 #include <lak/visit.hpp>
 

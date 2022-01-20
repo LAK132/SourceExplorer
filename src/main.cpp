@@ -33,6 +33,7 @@
 #include <lak/bank_ptr.hpp>
 #include <lak/defer.hpp>
 #include <lak/file.hpp>
+#include <lak/string_literals.hpp>
 #include <lak/string_utils.hpp>
 #include <lak/test.hpp>
 #include <lak/window.hpp>
@@ -1120,6 +1121,17 @@ bool force_only_error = false;
 
 lak::optional<int> basic_window_preinit(int argc, char **argv)
 {
+	if (argc == 2 && argv[1] == lak::astring("--version"))
+	{
+		std::cout << "Source Explorer " APP_VERSION << "\n";
+		return lak::optional<int>(0);
+	}
+	else if (argc == 2 && argv[1] == lak::astring("--full-version"))
+	{
+		std::cout << APP_NAME << "\n";
+		return lak::optional<int>(0);
+	}
+
 	lak::debugger.std_out(u8"", u8"" APP_NAME "\n");
 
 	for (int arg = 1; arg < argc; ++arg)

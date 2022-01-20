@@ -21,12 +21,15 @@ if "%~1"=="gcc" (
 goto usage
 
 :run
-rmdir /s /q build
+shift
+if not "%~1"=="--reconfigure" (
+  rmdir /s /q build
+)
 
 :arg-loop
-shift
 if "%1"=="" goto end-arg-loop
 set meson_args=!meson_args! %1
+shift
 goto arg-loop
 :end-arg-loop
 

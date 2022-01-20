@@ -2,7 +2,7 @@ option(
   'use_vendored_windows_sdl',
   type: 'boolean',
   value: true,
-  yield: true,
+  yield: false,
 )
 
 option(
@@ -16,5 +16,54 @@ option(
     'qt',
   ],
   value: 'sdl',
-  yield: true,
+  yield: false,
+)
+
+option(
+  'enable_llvm',
+  type: 'boolean',
+  value: false,
+  yield: false,
+)
+
+option(
+  'use_vendored_llvm',
+  type: 'boolean',
+  value: false,
+  yield: false,
+)
+
+option(
+  'llvm_components',
+  type: 'array',
+  value: [
+    'Native',
+  ],
+  yield: false,
+)
+
+option(
+  'llvm_install_components',
+  type: 'array',
+  value: [
+    'Core',
+    'ExecutionEngine',
+    'OrcJIT',
+    'Support',
+  ],
+  yield: false,
+)
+
+option(
+  'llvm_parallel_link_jobs',
+  type: 'string',
+  value: '4',
+  yield: false,
+)
+
+option(
+  'enable_lmdb',
+  type: 'boolean',
+  value: true,
+  yield: false,
 )

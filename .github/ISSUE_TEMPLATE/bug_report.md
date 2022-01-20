@@ -8,7 +8,7 @@ assignees: LAK132
 ---
 
 # IMPORTANT
-Please provide a copy of the Error Log (File -> Save Error Log...) or the Crash Log ("ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt"). Without this we cannot/will not help you!
+Please provide a copy of the Error Log (File -> Save Error Log...) or the Crash Log ("ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt"). Without this we cannot not help you!
 
 **Describe the bug**
 A clear and concise description of what the bug is.
