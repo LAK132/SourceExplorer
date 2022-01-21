@@ -80,9 +80,9 @@ namespace ImGui
 #	if defined(LAK_SOFTWARE_RENDER_32BIT)
 		static const Uint32 screen_format = SDL_PIXELFORMAT_ABGR8888;
 #	elif defined(LAK_SOFTWARE_RENDER_24BIT)
-		static const Uint32 screen_format = SDL_PIXELFORMAT_BGR888;
+		static const Uint32 screen_format = SDL_PIXELFORMAT_RGB24;
 #	elif defined(LAK_SOFTWARE_RENDER_16BIT)
-		static const Uint32 screen_format = SDL_PIXELFORMAT_BGR565;
+		static const Uint32 screen_format = SDL_PIXELFORMAT_RGB565;
 #	elif defined(LAK_SOFTWARE_RENDER_8BIT)
 		SDL_Palette *palette;
 		static const Uint32 screen_format = SDL_PIXELFORMAT_INDEX8;
@@ -350,10 +350,10 @@ namespace ImGui
 		SDL_Colour palette[256];
 		for (size_t i = 0; i < 256; ++i)
 		{
-			palette[i].r = i;
-			palette[i].g = i;
-			palette[i].b = i;
-			palette[i].a = 255;
+			palette[i].r = uint8_t(i);
+			palette[i].g = uint8_t(i);
+			palette[i].b = uint8_t(i);
+			palette[i].a = uint8_t(255);
 		}
 		SDL_SetPaletteColors(context->palette, palette, 0, 256);
 #	endif
