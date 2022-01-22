@@ -201,6 +201,8 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
 	size_t index       = 0;
 	for (const auto &item : srcexp.state.game.image_bank->items)
 	{
+		SCOPED_CHECKPOINT(
+		  "Image ", index, "/", count, " (", item.entry.handle, ")");
 		lak::image4_t image = item.image(srcexp.dump_color_transparent).UNWRAP();
 		fs::path filename =
 		  srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
@@ -312,6 +314,8 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 	const size_t image_count = srcexp.state.game.image_bank->items.size();
 	for (const auto &image : srcexp.state.game.image_bank->items)
 	{
+		SCOPED_CHECKPOINT(
+		  "Image ", image_index, "/", image_count, " (", image.entry.handle, ")");
 		std::u16string image_name = se::to_u16string(image.entry.handle) + u".png";
 		fs::path image_path       = unsorted_path / image_name;
 		(void)SaveImage(image.image(srcexp.dump_color_transparent).UNWRAP(),
@@ -323,6 +327,13 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 	const size_t frame_count = srcexp.state.game.frame_bank->items.size();
 	for (const auto &frame : srcexp.state.game.frame_bank->items)
 	{
+		SCOPED_CHECKPOINT("Frame ",
+		                  frame_index,
+		                  "/",
+		                  frame_count,
+		                  " (",
+		                  frame.name->u8string(),
+		                  ")");
 		std::u16string frame_name = HandleName(frame.name, frame_index);
 		fs::path frame_path       = root_path / frame_name;
 		fs::create_directories(frame_path / "[unsorted]", err);
@@ -367,6 +378,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 						{
 							if (used_images.find(imghandle) == used_images.end())
 							{
+								SCOPED_CHECKPOINT("Image (", imghandle, ")");
 								used_images.insert(imghandle);
 								std::u16string image_name =
 								  se::to_u16string(imghandle) + u".png";
@@ -489,6 +501,8 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 	size_t index       = 0;
 	for (const auto &item : srcexp.state.game.sound_bank->items)
 	{
+		SCOPED_CHECKPOINT(
+		  "Sound ", index, "/", count, " (", item.entry.handle, ")");
 		data_reader_t sound(item.entry.decode_body().UNWRAP());
 		lak::array<byte_t> result;
 
@@ -606,6 +620,8 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 	size_t index       = 0;
 	for (const auto &item : srcexp.state.game.music_bank->items)
 	{
+		SCOPED_CHECKPOINT(
+		  "Music ", index, "/", count, " (", item.entry.handle, ")");
 		data_reader_t sound(item.entry.decode_body().UNWRAP());
 
 		std::u16string name;
@@ -720,6 +736,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
 	size_t index       = 0;
 	for (const auto &file : srcexp.state.game.binary_files->items)
 	{
+		SCOPED_CHECKPOINT("Binary ", index, "/", count, " (", file.name, ")");
 		fs::path filename = lak::to_u16string(file.name);
 		filename          = srcexp.binary_files.path / filename.filename();
 		DEBUG(filename);
