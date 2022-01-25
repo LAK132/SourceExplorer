@@ -4376,7 +4376,7 @@ namespace SourceExplorer
 
 				padding       = uint16_t(lak::slack<size_t>(size.x, 2) *
 				                   ColorModeSize(graphics_mode));
-				alpha_padding = uint16_t(lak::slack<size_t>(size.x, 2));
+				alpha_padding = uint16_t(lak::slack<size_t>(size.x, 4));
 			}
 
 			return lak::ok_t{};
