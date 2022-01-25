@@ -21,6 +21,7 @@
 
 #include "lak/compression/deflate.hpp"
 #include "lak/compression/lz4.hpp"
+#include "lak/math.hpp"
 #include "lak/string.hpp"
 #include "lak/string_utils.hpp"
 #include "lak/string_view.hpp"
@@ -940,13 +941,14 @@ namespace SourceExplorer
 	result_t<size_t> ReadRLE(data_reader_t &strm,
 	                         lak::image4_t &bitmap,
 	                         graphics_mode_t mode,
+	                         size_t pad_to,
 	                         const lak::color4_t palette[256] = nullptr)
 	{
 		FUNCTION_CHECKPOINT();
 
 		const size_t point_size = ColorModeSize(mode);
 		const uint16_t pad =
-		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, 4));
+		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, pad_to));
 		DEBUG("Point Size: ", point_size);
 		DEBUG("Padding: ", pad);
 		size_t pos = 0;
@@ -993,20 +995,22 @@ namespace SourceExplorer
 	result_t<size_t> ReadRGB(data_reader_t &strm,
 	                         lak::image4_t &bitmap,
 	                         graphics_mode_t mode,
+	                         size_t pad_to,
 	                         const lak::color4_t palette[256] = nullptr)
 	{
 		FUNCTION_CHECKPOINT();
 
 		const size_t point_size = ColorModeSize(mode);
 		const uint16_t pad =
-		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, 4));
+		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, pad_to));
+
 		DEBUG("Point Size: ", point_size);
 		DEBUG("Padding: ", pad);
 
 		size_t start = strm.position();
 
 		CHECK_REMAINING(strm,
-		                bitmap.size().y * ((point_size * bitmap.size().x) + pad));
+		                ((point_size * bitmap.size().x) + pad) * bitmap.size().y);
 
 		if (pad == 0)
 		{
@@ -1031,11 +1035,13 @@ namespace SourceExplorer
 		return lak::ok_t{strm.position() - start};
 	}
 
-	result_t<size_t> ReadAlpha(data_reader_t &strm, lak::image4_t &bitmap)
+	result_t<size_t> ReadAlpha(data_reader_t &strm,
+	                           lak::image4_t &bitmap,
+	                           size_t pad_to)
 	{
 		FUNCTION_CHECKPOINT();
 
-		const uint16_t pad = uint16_t(lak::slack<size_t>(bitmap.size().x, 4));
+		const uint16_t pad = uint16_t(lak::slack<size_t>(bitmap.size().x, pad_to));
 
 		size_t start = strm.position();
 
@@ -4222,6 +4228,7 @@ namespace SourceExplorer
 			const auto strm_start = strm.position();
 			if (game.ccn)
 			{
+				pad_to = 4;
 				RES_TRY(
 				  entry.read(game, strm, true, 10).MAP_SE_ERR("image::item_t::read"));
 
@@ -4260,6 +4267,7 @@ namespace SourceExplorer
 			}
 			else
 			{
+				pad_to = 2;
 				data_ref_span_t span;
 				if (game.two_five_plus_game)
 				{
@@ -4521,12 +4529,12 @@ namespace SourceExplorer
 				              image_flag_t::RLET)) != image_flag_t::none)
 				{
 					RES_TRY_ASSIGN(bytes_read =,
-					               ReadRLE(strm, img, graphics_mode, palette));
+					               ReadRLE(strm, img, graphics_mode, pad_to, palette));
 				}
 				else
 				{
 					RES_TRY_ASSIGN(bytes_read =,
-					               ReadRGB(strm, img, graphics_mode, palette));
+					               ReadRGB(strm, img, graphics_mode, pad_to, palette));
 				}
 
 				if ((flags & image_flag_t::RGBA) != image_flag_t::none)
@@ -4535,7 +4543,7 @@ namespace SourceExplorer
 				}
 				else if ((flags & image_flag_t::alpha) != image_flag_t::none)
 				{
-					RES_TRY(ReadAlpha(strm, img));
+					RES_TRY(ReadAlpha(strm, img, pad_to));
 				}
 				else if (color_transparent)
 				{

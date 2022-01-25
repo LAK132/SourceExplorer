@@ -1210,6 +1210,8 @@ namespace SourceExplorer
 			lak::color4_t transparent; // not for old
 			size_t data_position;
 
+			size_t pad_to;
+
 			error_t read(game_t &game, data_reader_t &strm);
 			error_t view(source_explorer_t &srcexp) const;
 
