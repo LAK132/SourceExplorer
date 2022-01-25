@@ -699,6 +699,13 @@ namespace SourceExplorer
 			colors[i] = ColorFrom8bitA(uint8_t(A[i]));
 	}
 
+	void MaskFrom8bitA(lak::span<lak::color4_t> colors,
+	                   lak::span<const byte_t> A)
+	{
+		ASSERT_EQUAL(colors.size(), A.size());
+		for (size_t i = 0; i < colors.size(); ++i) colors[i].a = uint8_t(A[i]);
+	}
+
 	void ColorsFrom8bitI(lak::span<lak::color4_t> colors,
 	                     lak::span<const byte_t> index,
 	                     lak::span<const lak::color4_t, 256> palette)
@@ -816,6 +823,13 @@ namespace SourceExplorer
 	{
 		CHECK_REMAINING(strm, colors.size());
 		ColorsFrom8bitA(colors, strm.read_bytes(colors.size()).UNWRAP());
+		return lak::ok_t{};
+	}
+
+	error_t MaskFrom8bitA(lak::span<lak::color4_t> colors, data_reader_t &strm)
+	{
+		CHECK_REMAINING(strm, colors.size());
+		MaskFrom8bitA(colors, strm.read_bytes(colors.size()).UNWRAP());
 		return lak::ok_t{};
 	}
 
@@ -941,16 +955,16 @@ namespace SourceExplorer
 	result_t<size_t> ReadRLE(data_reader_t &strm,
 	                         lak::image4_t &bitmap,
 	                         graphics_mode_t mode,
-	                         size_t pad_to,
-	                         const lak::color4_t palette[256] = nullptr)
+	                         uint16_t padding,
+	                         const lak::color4_t palette[256])
 	{
 		FUNCTION_CHECKPOINT();
 
 		const size_t point_size = ColorModeSize(mode);
-		const uint16_t pad =
-		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, pad_to));
+
 		DEBUG("Point Size: ", point_size);
-		DEBUG("Padding: ", pad);
+		DEBUG("Padding: ", padding);
+
 		size_t pos = 0;
 		size_t i   = 0;
 
@@ -967,7 +981,7 @@ namespace SourceExplorer
 				command -= 128;
 				for (uint8_t n = 0; n < command; ++n)
 				{
-					if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
+					if ((pos++) % (bitmap.size().x + padding) < bitmap.size().x)
 					{
 						RES_TRY_ASSIGN(bitmap[i++] =, ColorFromMode(strm, mode, palette));
 					}
@@ -983,7 +997,7 @@ namespace SourceExplorer
 				               ColorFromMode(strm, mode, palette));
 				for (uint8_t n = 0; n < command; ++n)
 				{
-					if ((pos++) % (bitmap.size().x + pad) < bitmap.size().x)
+					if ((pos++) % (bitmap.size().x + padding) < bitmap.size().x)
 						bitmap[i++] = col;
 				}
 			}
@@ -995,24 +1009,21 @@ namespace SourceExplorer
 	result_t<size_t> ReadRGB(data_reader_t &strm,
 	                         lak::image4_t &bitmap,
 	                         graphics_mode_t mode,
-	                         size_t pad_to,
-	                         const lak::color4_t palette[256] = nullptr)
+	                         uint16_t padding,
+	                         const lak::color4_t palette[256])
 	{
 		FUNCTION_CHECKPOINT();
 
 		const size_t point_size = ColorModeSize(mode);
-		const uint16_t pad =
-		  uint16_t(lak::slack<size_t>(bitmap.size().x * point_size, pad_to));
 
 		DEBUG("Point Size: ", point_size);
-		DEBUG("Padding: ", pad);
+		DEBUG("Padding: ", padding);
 
 		size_t start = strm.position();
 
-		CHECK_REMAINING(strm,
-		                ((point_size * bitmap.size().x) + pad) * bitmap.size().y);
+		CHECK_REMAINING(strm, (bitmap.size().x + padding) * bitmap.size().y);
 
-		if (pad == 0)
+		if (padding == 0)
 		{
 			ColorsFromMode(
 			  lak::span(bitmap.data(), bitmap.contig_size()), strm, mode, palette)
@@ -1028,7 +1039,7 @@ namespace SourceExplorer
 				  mode,
 				  palette)
 				  .UNWRAP();
-				strm.skip(pad).UNWRAP();
+				strm.skip(padding).UNWRAP();
 			}
 		}
 
@@ -1037,30 +1048,30 @@ namespace SourceExplorer
 
 	result_t<size_t> ReadAlpha(data_reader_t &strm,
 	                           lak::image4_t &bitmap,
-	                           size_t pad_to)
+	                           uint16_t padding)
 	{
 		FUNCTION_CHECKPOINT();
 
-		const uint16_t pad = uint16_t(lak::slack<size_t>(bitmap.size().x, pad_to));
+		DEBUG("Padding: ", padding);
 
 		size_t start = strm.position();
 
-		CHECK_REMAINING(strm, bitmap.size().y * (bitmap.size().x + pad));
+		CHECK_REMAINING(strm, (bitmap.size().x + padding) * bitmap.size().y);
 
-		if (pad == 0)
+		if (padding == 0)
 		{
-			ColorsFrom8bitA(lak::span(bitmap.data(), bitmap.contig_size()), strm)
+			MaskFrom8bitA(lak::span(bitmap.data(), bitmap.contig_size()), strm)
 			  .UNWRAP();
 		}
 		else
 		{
 			for (size_t y = 0; y < bitmap.size().y; ++y)
 			{
-				ColorsFrom8bitA(
+				MaskFrom8bitA(
 				  lak::span(bitmap.data() + (y * bitmap.size().x), bitmap.size().x),
 				  strm)
 				  .UNWRAP();
-				strm.skip(pad).UNWRAP();
+				strm.skip(padding).UNWRAP();
 			}
 		}
 
@@ -4228,7 +4239,6 @@ namespace SourceExplorer
 			const auto strm_start = strm.position();
 			if (game.ccn)
 			{
-				pad_to = 4;
 				RES_TRY(
 				  entry.read(game, strm, true, 10).MAP_SE_ERR("image::item_t::read"));
 
@@ -4264,10 +4274,13 @@ namespace SourceExplorer
 				TRY_ASSIGN(size.y =, hstrm.read_u16());
 				TRY_ASSIGN([[maybe_unused]] const auto unk2 =, hstrm.read_u16());
 				TRY_ASSIGN([[maybe_unused]] const auto unk3 =, hstrm.read_u16());
+
+				padding = uint16_t(
+				  lak::slack<size_t>(size.x * ColorModeSize(graphics_mode), 4));
+				alpha_padding = 0;
 			}
 			else
 			{
-				pad_to = 2;
 				data_ref_span_t span;
 				if (game.two_five_plus_game)
 				{
@@ -4360,6 +4373,10 @@ namespace SourceExplorer
 				{
 					data_position = istrm.position();
 				}
+
+				padding       = uint16_t(lak::slack<size_t>(size.x, 2) *
+				                   ColorModeSize(graphics_mode));
+				alpha_padding = uint16_t(lak::slack<size_t>(size.x, 2));
 			}
 
 			return lak::ok_t{};
@@ -4412,6 +4429,8 @@ namespace SourceExplorer
 					ImGui::ColorEdit4("Transparent", &col.x);
 				}
 				ImGui::Text("Data Position: 0x%zX", data_position);
+				ImGui::Text("Padding: 0x%zX", size_t(padding));
+				ImGui::Text("Alpha Padding: 0x%zX", size_t(alpha_padding));
 
 				if (ImGui::Button("View Image"))
 				{
@@ -4529,12 +4548,12 @@ namespace SourceExplorer
 				              image_flag_t::RLET)) != image_flag_t::none)
 				{
 					RES_TRY_ASSIGN(bytes_read =,
-					               ReadRLE(strm, img, graphics_mode, pad_to, palette));
+					               ReadRLE(strm, img, graphics_mode, padding, palette));
 				}
 				else
 				{
 					RES_TRY_ASSIGN(bytes_read =,
-					               ReadRGB(strm, img, graphics_mode, pad_to, palette));
+					               ReadRGB(strm, img, graphics_mode, padding, palette));
 				}
 
 				if ((flags & image_flag_t::RGBA) != image_flag_t::none)
@@ -4543,7 +4562,7 @@ namespace SourceExplorer
 				}
 				else if ((flags & image_flag_t::alpha) != image_flag_t::none)
 				{
-					RES_TRY(ReadAlpha(strm, img, pad_to));
+					RES_TRY(ReadAlpha(strm, img, alpha_padding));
 				}
 				else if (color_transparent)
 				{
