@@ -44,7 +44,7 @@ jobs:
           action: build
           directory: build
           setup-options: --buildtype debugoptimized
-          meson-version: 0.58.1
+          meson-version: 0.61.0
       - run: |
           Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb, build\SDL2.dll -DestinationPath Source-Explorer-x86-64.zip
       - uses: actions/upload-release-asset@v1
@@ -74,7 +74,7 @@ jobs:
           action: build
           directory: build
           setup-options: --buildtype debugoptimized
-          meson-version: 0.58.1
+          meson-version: 0.61.0
       - run: |
           Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb, build\SDL2.dll -DestinationPath Source-Explorer-x86.zip
       - uses: actions/upload-release-asset@v1

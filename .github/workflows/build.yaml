@@ -24,7 +24,7 @@ jobs:
         with:
           action: build
           setup-options: --buildtype debugoptimized
-          meson-version: 0.58.1
+          meson-version: 0.61.0
   build-x86:
     runs-on: windows-2019
     steps:
@@ -41,7 +41,7 @@ jobs:
         with:
           action: build
           setup-options: --buildtype debugoptimized
-          meson-version: 0.58.1
+          meson-version: 0.61.0
   # build-ubuntu:
   #   runs-on: ubuntu-latest
   #   steps:
@@ -56,4 +56,4 @@ jobs:
   #       with:
   #         action: build
   #         setup-options: --buildtype debugoptimized
-  #         meson-version: 0.58.1
+  #         meson-version: 0.61.0
