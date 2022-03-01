@@ -1213,12 +1213,16 @@ void basic_window_init(lak::window &window)
 		lak::debugger.live_errors_only = force_only_error;
 	}
 
-	imgui_context        = ImGui::ImplCreateContext(window.graphics());
 	SrcExp.graphics_mode = window.graphics();
+	imgui_context        = ImGui::ImplCreateContext(SrcExp.graphics_mode);
 	ImGui::ImplInit();
 	ImGui::ImplInitContext(imgui_context, window);
 
-	switch (window.graphics())
+	DEBUG("Graphics: ", SrcExp.graphics_mode);
+	if (!lak::debugger.live_output_enabled || lak::debugger.live_errors_only)
+		std::cout << "Graphics: " << SrcExp.graphics_mode << "\n";
+
+	switch (SrcExp.graphics_mode)
 	{
 		case lak::graphics_mode::OpenGL:
 		{
