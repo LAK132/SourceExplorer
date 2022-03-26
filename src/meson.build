@@ -4,6 +4,7 @@ srcexp = files([
   'explorer.cpp',
   'imgui_impl_lak.cpp',
   'imgui_utils.cpp',
+  'lisk_editor.cpp',
   'lisk_impl.cpp',
   'main.cpp',
 ])

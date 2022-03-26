@@ -71,6 +71,7 @@ ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: false
 
 ForEachMacros: []
+IfMacros: ['do_with', 'do_for', 'for_or', 'range_for_or', 'while_or', 'if_ref', 'if_in', 'if_not_in', 'if_let_ok', 'if_let_err']
 
 IncludeBlocks: Preserve
 

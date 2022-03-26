@@ -22,7 +22,7 @@ case $1 in
     echo "./setup.sh msvc"
     echo "./setup.sh msvc --buildtype release"
     echo "./setup.sh gcc --buildtype debug"
-    echo "./setup.sh clang --buildtype debugoptimised"
+    echo "./setup.sh clang --buildtype debugoptimized"
     exit 1
   ;;
 esac
