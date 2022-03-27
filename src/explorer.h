@@ -144,34 +144,37 @@ namespace SourceExplorer
 			{
 				case str_err: return lak::as_u8string(_trace[0].second).to_string();
 				case invalid_exe_signature:
-					return lak::as_u8string("Invalid EXE Signature").to_string();
+					return lak::as_u8string("Invalid EXE Signature"_view).to_string();
 				case invalid_pe_signature:
-					return lak::as_u8string("Invalid PE Signature").to_string();
+					return lak::as_u8string("Invalid PE Signature"_view).to_string();
 				case invalid_game_signature:
-					return lak::as_u8string("Invalid Game Header").to_string();
+					return lak::as_u8string("Invalid Game Header"_view).to_string();
 				case invalid_state:
-					return lak::as_u8string("Invalid State").to_string();
-				case invalid_mode: return lak::as_u8string("Invalid Mode").to_string();
+					return lak::as_u8string("Invalid State"_view).to_string();
+				case invalid_mode:
+					return lak::as_u8string("Invalid Mode"_view).to_string();
 				case invalid_chunk:
-					return lak::as_u8string("Invalid Chunk").to_string();
-				case no_mode0: return lak::as_u8string("No MODE0").to_string();
-				case no_mode1: return lak::as_u8string("No MODE1").to_string();
-				case no_mode2: return lak::as_u8string("No MODE2").to_string();
-				case no_mode3: return lak::as_u8string("No MODE3").to_string();
-				case out_of_data: return lak::as_u8string("Out Of Data").to_string();
+					return lak::as_u8string("Invalid Chunk"_view).to_string();
+				case no_mode0: return lak::as_u8string("No MODE0"_view).to_string();
+				case no_mode1: return lak::as_u8string("No MODE1"_view).to_string();
+				case no_mode2: return lak::as_u8string("No MODE2"_view).to_string();
+				case no_mode3: return lak::as_u8string("No MODE3"_view).to_string();
+				case out_of_data:
+					return lak::as_u8string("Out Of Data"_view).to_string();
 				case inflate_failed:
-					return lak::as_u8string("Inflate Failed").to_string();
+					return lak::as_u8string("Inflate Failed"_view).to_string();
 				case decrypt_failed:
-					return lak::as_u8string("Decrypt Failed").to_string();
+					return lak::as_u8string("Decrypt Failed"_view).to_string();
 				case no_mode0_decoder:
-					return lak::as_u8string("No MODE0 Decoder").to_string();
+					return lak::as_u8string("No MODE0 Decoder"_view).to_string();
 				case no_mode1_decoder:
-					return lak::as_u8string("No MODE1 Decoder").to_string();
+					return lak::as_u8string("No MODE1 Decoder"_view).to_string();
 				case no_mode2_decoder:
-					return lak::as_u8string("No MODE2 Decoder").to_string();
+					return lak::as_u8string("No MODE2 Decoder"_view).to_string();
 				case no_mode3_decoder:
-					return lak::as_u8string("No MODE3 Decoder").to_string();
-				default: return lak::as_u8string("Invalid Error Code").to_string();
+					return lak::as_u8string("No MODE3 Decoder"_view).to_string();
+				default:
+					return lak::as_u8string("Invalid Error Code"_view).to_string();
 			}
 		}
 
