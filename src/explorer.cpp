@@ -1464,7 +1464,7 @@ namespace SourceExplorer
 		    err.is_ok())
 		{
 			const auto offset     = strm.position();
-			const auto bytes_read = inflater.input_consumed();
+			const auto bytes_read = size_t(inflater.input_consumed());
 			ASSERT_GREATER_OR_EQUAL(bytes_read, 0);
 			strm.skip(bytes_read).UNWRAP();
 			return lak::ok_t{make_data_ref_ptr(
