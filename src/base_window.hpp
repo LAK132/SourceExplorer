@@ -103,7 +103,35 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 #	pragma warning(pop)
 #endif
 
-	static void menu_bar(float) { mode_select(); }
+	static void mode_select_menu()
+	{
+		if (ImGui::BeginMenu("Mode"))
+		{
+			mode_select();
+			ImGui::EndMenu();
+		}
+	}
+
+	static void debug_menu()
+	{
+		if (ImGui::BeginMenu("Debug"))
+		{
+			ImGui::Checkbox("Debug console (May make SE slow)",
+			                &lak::debugger.live_output_enabled);
+			if (lak::debugger.live_output_enabled)
+			{
+				ImGui::Checkbox("Only errors", &lak::debugger.live_errors_only);
+				ImGui::Checkbox("Developer mode", &lak::debugger.line_info_enabled);
+			}
+			ImGui::EndMenu();
+		}
+	}
+
+	static void menu_bar(float)
+	{
+		mode_select_menu();
+		debug_menu();
+	}
 
 	static void left_region() {}
 

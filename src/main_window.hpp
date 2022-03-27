@@ -28,7 +28,7 @@ struct main_window : public base_window<main_window>
 		ImGui::PopStyleVar();
 	}
 
-	static void menu_bar(float frame_time)
+	static void file_menu()
 	{
 		if (ImGui::BeginMenu("File"))
 		{
@@ -53,7 +53,10 @@ struct main_window : public base_window<main_window>
 			SrcExp.error_log.attempt |= ImGui::MenuItem("Save Error Log...");
 			ImGui::EndMenu();
 		}
+	}
 
+	static void about_menu(float frame_time)
+	{
 		if (ImGui::BeginMenu("About"))
 		{
 			ImGui::Text(APP_NAME " by LAK132");
@@ -75,23 +78,38 @@ struct main_window : public base_window<main_window>
 			if (ImGui::Button("Crash")) FATAL("Force Crashed");
 			ImGui::EndMenu();
 		}
+	}
 
+	static void help_menu()
+	{
 		if (ImGui::BeginMenu("Help"))
 		{
 			help_text();
 			ImGui::EndMenu();
 		}
+	}
 
-		ImGui::Checkbox("Color transparency?", &SrcExp.dump_color_transparent);
-		ImGui::Checkbox("Force compat mode?", &se::force_compat);
-		ImGui::Checkbox("Debug console? (May make SE slow)",
-		                &lak::debugger.live_output_enabled);
-
-		if (lak::debugger.live_output_enabled)
+	static void compat_menu()
+	{
+		if (ImGui::BeginMenu("Compatability"))
 		{
-			ImGui::Checkbox("Only errors?", &lak::debugger.live_errors_only);
-			ImGui::Checkbox("Developer mode?", &lak::debugger.line_info_enabled);
+			ImGui::Checkbox("Color transparency", &SrcExp.dump_color_transparent);
+			ImGui::Checkbox("Force compat mode", &se::force_compat);
+			ImGui::EndMenu();
 		}
+	}
+
+	static void menu_bar(float frame_time)
+	{
+		file_menu();
+
+		about_menu(frame_time);
+
+		help_menu();
+
+		compat_menu();
+
+		base_window::debug_menu();
 	}
 
 	static void left_region()
@@ -203,7 +221,10 @@ struct main_window : public base_window<main_window>
 		}
 		else
 		{
+			ImGui::BeginChild(
+			  "Help Text", ImVec2(0, 0), true, ImGuiWindowFlags_NoSavedSettings);
 			help_text();
+			ImGui::EndChild();
 		}
 
 		if (SrcExp.exe.attempt)
