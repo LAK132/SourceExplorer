@@ -4,6 +4,7 @@ bin/*
 obj/*
 dump/*
 ignore/*
+test/*
 release/*
 build/*
 

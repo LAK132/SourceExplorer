@@ -63,6 +63,7 @@ enum struct se_main_mode_t : unsigned int
 {
 	normal,
 	byte_pairs,
+	testing,
 };
 
 extern se_main_mode_t se_main_mode;

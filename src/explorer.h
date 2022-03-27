@@ -308,6 +308,7 @@ namespace SourceExplorer
 	using error_t  = result_t<lak::monostate>;
 
 	extern bool force_compat;
+	extern bool skip_broken_items;
 	extern std::vector<uint8_t> _magic_key;
 	extern uint8_t _magic_char;
 
@@ -1478,8 +1479,11 @@ namespace SourceExplorer
 		file_state_t appicon;
 		file_state_t error_log;
 		file_state_t binary_block;
+		file_state_t testing;
 
 		MemoryEditor editor;
+
+		lak::array<fs::path> testing_files;
 
 		const basic_entry_t *view = nullptr;
 		texture_t image;

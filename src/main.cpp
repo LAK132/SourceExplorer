@@ -27,6 +27,7 @@
 
 #include "byte_pairs_window.hpp"
 #include "main_window.hpp"
+#include "testing_window.hpp"
 
 #include <lak/opengl/shader.hpp>
 #include <lak/opengl/state.hpp>
@@ -56,6 +57,8 @@ void MainScreen(float frame_time)
 		case se_main_mode_t::byte_pairs:
 			byte_pairs_window::draw(frame_time);
 			break;
+
+		case se_main_mode_t::testing: test_window::draw(frame_time); break;
 
 		case se_main_mode_t::normal: [[fallthrough]];
 		default: main_window::draw(frame_time); break;
@@ -136,17 +139,21 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 				                      lak::to_u8string(name) + u8"\n");
 			}
 		}
-		else if (argv[arg] == lak::astring("-testall"))
+		else if (argv[arg] == lak::astring("-laktestall"))
 		{
 			return lak::optional<int>(lak::run_tests());
 		}
-		else if (argv[arg] == lak::astring("-tests") ||
-		         argv[arg] == lak::astring("-test"))
+		else if (argv[arg] == lak::astring("-laktests") ||
+		         argv[arg] == lak::astring("-laktest"))
 		{
 			++arg;
 			if (arg >= argc) FATAL("Missing tests");
 			return lak::optional<int>(lak::run_tests(
 			  lak::as_u8string(lak::astring_view::from_c_str(argv[arg]))));
+		}
+		else if (argv[arg] == lak::astring("-test"))
+		{
+			se_main_mode = se_main_mode_t::testing;
 		}
 		else
 		{
@@ -175,6 +182,8 @@ void basic_window_init(lak::window &window)
 	SrcExp.images.path = SrcExp.sorted_images.path = SrcExp.sounds.path =
 	  SrcExp.music.path = SrcExp.shaders.path = SrcExp.binary_files.path =
 	    SrcExp.appicon.path = SrcExp.binary_block.path = fs::current_path();
+
+	SrcExp.testing.path = fs::current_path() / "test";
 
 	lak::debugger.live_output_enabled = true;
 

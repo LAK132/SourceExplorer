@@ -95,6 +95,7 @@ struct main_window : public base_window<main_window>
 		{
 			ImGui::Checkbox("Color transparency", &SrcExp.dump_color_transparent);
 			ImGui::Checkbox("Force compat mode", &se::force_compat);
+			ImGui::Checkbox("Skip broken items", &se::skip_broken_items);
 			ImGui::EndMenu();
 		}
 	}

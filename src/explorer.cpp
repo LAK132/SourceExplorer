@@ -38,7 +38,9 @@
 
 namespace SourceExplorer
 {
-	bool force_compat = false;
+	bool force_compat          = false;
+	bool skip_broken_items     = false;
+	size_t max_item_read_fails = 3;
 	encryption_table decryptor;
 	std::vector<uint8_t> _magic_key;
 	game_mode_t _mode = game_mode_t::_OLD;
@@ -3493,25 +3495,46 @@ namespace SourceExplorer
 
 			items.resize(item_count);
 
-			for (auto &item : items)
-			{
-				RES_TRY(item.read(game, reader)
-				          .MAP_SE_ERR("object::bank_t::read: Failed To Read Item ",
-				                      (&item - items.data()),
-				                      " Of ",
-				                      items.size())
-				          .if_ok(
-				            [&](auto &&)
-				            {
-					            if (!item.end)
-						            WARNING("Item ",
-						                    (&item - items.data()),
-						                    " Has No End Chunk");
-				            }));
+			DEBUG("Object Bank Size: ", items.size());
 
-				game.bank_completed =
-				  float(double(reader.position()) / double(reader.size()));
-			}
+			size_t max_tries = 0U;
+
+			auto read_all_items = [&, this]() -> error_t
+			{
+				auto read_item = [&, this](auto &item) -> error_t
+				{
+					return item.read(game, reader)
+					  .IF_ERR("Failed To Read Item ",
+					          (&item - items.data()),
+					          " Of ",
+					          items.size())
+					  .MAP_SE_ERR("object::bank_t::read");
+				};
+
+				for (auto &item : items)
+				{
+					RES_TRY(read_item(item).or_else(
+					  [&, this](const auto &err) -> error_t
+					  {
+						  if (max_tries == 0) return lak::err_t{err};
+						  ERROR(err);
+						  DEBUG("Continuing...");
+						  --max_tries;
+						  return lak::ok_t{};
+					  }));
+
+					game.bank_completed =
+					  float(double(reader.position()) / double(reader.size()));
+				}
+				return lak::ok_t{};
+			};
+
+			RES_TRY(read_all_items().or_else(
+			  [&, this](const auto &err) -> error_t
+			  {
+				  if (skip_broken_items) return lak::ok_t{};
+				  return lak::err_t{err};
+			  }));
 
 			if (!reader.empty())
 			{
@@ -4609,35 +4632,44 @@ namespace SourceExplorer
 
 			DEBUG("Image Bank Size: ", items.size());
 
-			size_t max_tries = 3;
+			size_t max_tries = max_item_read_fails;
 
-			for (auto &item : items)
+			auto read_all_items = [&, this]() -> error_t
 			{
-				// clang-format off
-				RES_TRY(
-				  [&, this]() -> error_t
-				  {
-					  return item.read(game, reader)
-					    .IF_ERR("Failed To Read Item ",
-					            (&item - items.data()),
-					            " Of ",
-					            items.size())
-					    .MAP_SE_ERR("image::bank_t::read");
-				  }()
-					  .or_else(
-					    [&](const auto &err) -> error_t
-					    {
-						    if (max_tries == 0) return lak::err_t{err};
-						    ERROR(err);
-						    DEBUG("Continuing...");
-						    --max_tries;
-						    return lak::ok_t{};
-					    }));
-				// clang-format on
+				auto read_item = [&, this](auto &item) -> error_t
+				{
+					return item.read(game, reader)
+					  .IF_ERR("Failed To Read Item ",
+					          (&item - items.data()),
+					          " Of ",
+					          items.size())
+					  .MAP_SE_ERR("image::bank_t::read");
+				};
 
-				game.bank_completed =
-				  float(double(reader.position()) / double(reader.size()));
-			}
+				for (auto &item : items)
+				{
+					RES_TRY(read_item(item).or_else(
+					  [&, this](const auto &err) -> error_t
+					  {
+						  if (max_tries == 0) return lak::err_t{err};
+						  ERROR(err);
+						  DEBUG("Continuing...");
+						  --max_tries;
+						  return lak::ok_t{};
+					  }));
+
+					game.bank_completed =
+					  float(double(reader.position()) / double(reader.size()));
+				}
+				return lak::ok_t{};
+			};
+
+			RES_TRY(read_all_items().or_else(
+			  [&, this](const auto &err) -> error_t
+			  {
+				  if (skip_broken_items) return lak::ok_t{};
+				  return lak::err_t{err};
+			  }));
 
 			if (!reader.empty())
 			{
@@ -4706,18 +4738,46 @@ namespace SourceExplorer
 
 			items.resize(item_count);
 
-			for (auto &item : items)
-			{
-				RES_TRY(item.read(game, reader)
-				          .IF_ERR("Failed To Read Item ",
-				                  (&item - items.data()),
-				                  " Of ",
-				                  items.size())
-				          .MAP_SE_ERR("font::bank_t::read"));
+			DEBUG("Font Bank Size: ", items.size());
 
-				game.bank_completed =
-				  (float)((double)reader.position() / (double)reader.size());
-			}
+			size_t max_tries = max_item_read_fails;
+
+			auto read_all_items = [&, this]() -> error_t
+			{
+				auto read_item = [&, this](auto &item) -> error_t
+				{
+					return item.read(game, reader)
+					  .IF_ERR("Failed To Read Item ",
+					          (&item - items.data()),
+					          " Of ",
+					          items.size())
+					  .MAP_SE_ERR("font::bank_t::read");
+				};
+
+				for (auto &item : items)
+				{
+					RES_TRY(read_item(item).or_else(
+					  [&, this](const auto &err) -> error_t
+					  {
+						  if (max_tries == 0) return lak::err_t{err};
+						  ERROR(err);
+						  DEBUG("Continuing...");
+						  --max_tries;
+						  return lak::ok_t{};
+					  }));
+
+					game.bank_completed =
+					  float(double(reader.position()) / double(reader.size()));
+				}
+				return lak::ok_t{};
+			};
+
+			RES_TRY(read_all_items().or_else(
+			  [&, this](const auto &err) -> error_t
+			  {
+				  if (skip_broken_items) return lak::ok_t{};
+				  return lak::err_t{err};
+			  }));
 
 			if (!reader.empty())
 			{
@@ -4792,18 +4852,46 @@ namespace SourceExplorer
 
 			items.resize(item_count);
 
-			for (auto &item : items)
-			{
-				RES_TRY(item.read(game, reader)
-				          .IF_ERR("Failed To Read Item ",
-				                  (&item - items.data()),
-				                  " Of ",
-				                  items.size())
-				          .MAP_SE_ERR("sound::bank_t::read"));
+			DEBUG("Sound Bank Size: ", items.size());
 
-				game.bank_completed =
-				  (float)((double)reader.position() / (double)reader.size());
-			}
+			size_t max_tries = max_item_read_fails;
+
+			auto read_all_items = [&, this]() -> error_t
+			{
+				auto read_item = [&, this](auto &item) -> error_t
+				{
+					return item.read(game, reader)
+					  .IF_ERR("Failed To Read Item ",
+					          (&item - items.data()),
+					          " Of ",
+					          items.size())
+					  .MAP_SE_ERR("sound::bank_t::read");
+				};
+
+				for (auto &item : items)
+				{
+					RES_TRY(read_item(item).or_else(
+					  [&, this](const auto &err) -> error_t
+					  {
+						  if (max_tries == 0) return lak::err_t{err};
+						  ERROR(err);
+						  DEBUG("Continuing...");
+						  --max_tries;
+						  return lak::ok_t{};
+					  }));
+
+					game.bank_completed =
+					  float(double(reader.position()) / double(reader.size()));
+				}
+				return lak::ok_t{};
+			};
+
+			RES_TRY(read_all_items().or_else(
+			  [&, this](const auto &err) -> error_t
+			  {
+				  if (skip_broken_items) return lak::ok_t{};
+				  return lak::err_t{err};
+			  }));
 
 			if (!reader.empty())
 			{
@@ -4872,18 +4960,46 @@ namespace SourceExplorer
 
 			items.resize(item_count);
 
-			for (auto &item : items)
-			{
-				RES_TRY(item.read(game, reader)
-				          .IF_ERR("Failed To Read Item ",
-				                  (&item - items.data()),
-				                  " Of ",
-				                  items.size())
-				          .MAP_SE_ERR("music::bank_t::read"));
+			DEBUG("Music Bank Size: ", items.size());
 
-				game.bank_completed =
-				  (float)((double)reader.position() / (double)reader.size());
-			}
+			size_t max_tries = max_item_read_fails;
+
+			auto read_all_items = [&, this]() -> error_t
+			{
+				auto read_item = [&, this](auto &item) -> error_t
+				{
+					return item.read(game, reader)
+					  .IF_ERR("Failed To Read Item ",
+					          (&item - items.data()),
+					          " Of ",
+					          items.size())
+					  .MAP_SE_ERR("music::bank_t::read");
+				};
+
+				for (auto &item : items)
+				{
+					RES_TRY(read_item(item).or_else(
+					  [&, this](const auto &err) -> error_t
+					  {
+						  if (max_tries == 0) return lak::err_t{err};
+						  ERROR(err);
+						  DEBUG("Continuing...");
+						  --max_tries;
+						  return lak::ok_t{};
+					  }));
+
+					game.bank_completed =
+					  float(double(reader.position()) / double(reader.size()));
+				}
+				return lak::ok_t{};
+			};
+
+			RES_TRY(read_all_items().or_else(
+			  [&, this](const auto &err) -> error_t
+			  {
+				  if (skip_broken_items) return lak::ok_t{};
+				  return lak::err_t{err};
+			  }));
 
 			if (!reader.empty())
 			{
