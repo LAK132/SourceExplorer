@@ -38,6 +38,7 @@
 #include <lak/stdint.hpp>
 #include <lak/strconv.hpp>
 #include <lak/string.hpp>
+#include <lak/string_literals.hpp>
 #include <lak/tinflate.hpp>
 #include <lak/trace.hpp>
 #include <lak/unicode.hpp>
