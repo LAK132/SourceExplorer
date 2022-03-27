@@ -799,33 +799,33 @@ void AttemptFile(se::file_state_t &file_state,
 	  functor);
 }
 
-template<typename FUNCTOR>
-void AttemptFolder(se::file_state_t &file_state, FUNCTOR functor)
+bool se::FolderLoader(se::file_state_t &file_state)
 {
-	auto load = [](se::file_state_t &file_state)
+	std::error_code ec;
+	if (auto result = lak::open_folder_modal(file_state.path); result.is_ok())
 	{
-		std::error_code ec;
-		if (auto result = lak::open_folder_modal(file_state.path); result.is_ok())
+		if (auto code = result.unwrap(); code == lak::file_open_error::INCOMPLETE)
 		{
-			if (auto code = result.unwrap();
-			    code == lak::file_open_error::INCOMPLETE)
-			{
-				// Not finished.
-				return false;
-			}
-			else
-			{
-				file_state.valid = code == lak::file_open_error::VALID;
-				return true;
-			}
+			// Not finished.
+			return false;
 		}
 		else
 		{
-			file_state.valid = false;
+			file_state.valid = code == lak::file_open_error::VALID;
 			return true;
 		}
-	};
-	se::Attempt(file_state, load, functor);
+	}
+	else
+	{
+		file_state.valid = false;
+		return true;
+	}
+}
+
+template<typename FUNCTOR>
+void AttemptFolder(se::file_state_t &file_state, FUNCTOR functor)
+{
+	se::Attempt(file_state, &se::FolderLoader, functor);
 }
 
 void se::AttemptExe(source_explorer_t &srcexp)

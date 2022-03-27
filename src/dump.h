@@ -63,7 +63,7 @@ namespace SourceExplorer
 	                     std::atomic<float> &completed);
 
 	template<typename LOAD, typename MANIP>
-	void Attempt(file_state_t &file_state, LOAD load, MANIP mamip)
+	void Attempt(file_state_t &file_state, LOAD load, MANIP manip)
 	{
 		if (!file_state.valid)
 		{
@@ -71,12 +71,15 @@ namespace SourceExplorer
 				if (!file_state.valid) // User cancelled
 					file_state.attempt = false;
 		}
-		else if (mamip())
+
+		if (file_state.valid && manip())
 		{
 			file_state.valid   = false;
 			file_state.attempt = false;
 		}
 	}
+
+	bool FolderLoader(file_state_t &file_state);
 
 	void AttemptExe(source_explorer_t &srcexp);
 	void AttemptImages(source_explorer_t &srcexp);
