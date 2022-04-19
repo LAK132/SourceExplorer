@@ -175,7 +175,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	{
 		static bool reset_on_update      = true;
 		static lak::vec2u64_t image_size = {256, 256};
-		static lak::vec2u64_t block_skip = {0, 0};
+		static lak::vec3u64_t block_skip = {0, 0, 0};
 		static lak::image4_t image{lak::vec2s_t(image_size)};
 		static lak::opengl::texture texture(GL_TEXTURE_2D);
 		static float scale            = 1.0f;
@@ -197,7 +197,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			if (reset_on_update)
 			{
 				image_size = {256, 256};
-				block_skip = {0, 0};
+				block_skip = {0, 0, 0};
 				image.resize(lak::vec2s_t(image_size));
 			}
 
@@ -260,10 +260,10 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				image.resize(lak::vec2s_t(image_size));
 				update = true;
 			}
-			if (ImGui::DragScalarN("For Every/Skip",
+			if (ImGui::DragScalarN("For Every/Times/Skip",
 			                       ImGuiDataType_U64,
 			                       &block_skip,
-			                       2,
+			                       3,
 			                       0.1f,
 			                       &sizeMin,
 			                       &sizeMax))
@@ -297,7 +297,9 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			{
 				*out_img = *it;
 
-				if (block_skip.x > 0 && (i % block_skip.x) == 0) it += block_skip.y;
+				if ((block_skip.x * block_skip.y) > 0 &&
+				    (i % (block_skip.x * block_skip.y)) == 0)
+					it += block_skip.z;
 
 				if (colour_size < 4 && (i % colour_size) == 0)
 					out_img += 4 - colour_size;

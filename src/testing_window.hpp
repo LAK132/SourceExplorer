@@ -11,34 +11,40 @@ struct test_window : public base_window<test_window>
 {
 	static void menu_bar(float)
 	{
+		SrcExp.testing.attempt |= ImGui::Button("Open Folder");
 		mode_select_menu();
 		main_window::compat_menu();
 		debug_menu();
+	}
+
+	static bool refresh_testing_files()
+	{
+		SrcExp.testing_files.clear();
+
+		std::error_code ec;
+		for (const auto &entry :
+		     fs::recursive_directory_iterator{SrcExp.testing.path, ec})
+			if (entry.is_regular_file(ec))
+				if (const auto path{entry.path()}, extension{path.extension()};
+				    extension == ".exe" || extension == ".EXE" ||
+				    extension == ".ccn" || extension == ".CCN" ||
+				    extension == ".gam" || extension == ".GAM" ||
+				    extension == ".ugh" || extension == ".UGH")
+					SrcExp.testing_files.push_back(path);
+
+		if (ec) ERROR(ec);
+
+		return bool(ec);
 	}
 
 	static void main_region()
 	{
 		if (SrcExp.testing.attempt || !SrcExp.testing.valid)
 		{
-			auto manip = []
-			{
-				SrcExp.testing_files.clear();
-
-				std::error_code ec;
-				for (const auto &entry :
-				     fs::directory_iterator{SrcExp.testing.path, ec})
-					if (entry.is_regular_file(ec))
-						SrcExp.testing_files.push_back(entry.path());
-
-				if (ec) ERROR(ec);
-
-				return bool(ec);
-			};
-
 			SrcExp.testing.attempt = true;
 			SrcExp.testing.valid   = false;
 
-			se::Attempt(SrcExp.testing, &se::FolderLoader, manip);
+			se::Attempt(SrcExp.testing, &se::FolderLoader, &refresh_testing_files);
 
 			if (SrcExp.testing.valid)
 			{
@@ -63,6 +69,10 @@ struct test_window : public base_window<test_window>
 	{
 		ImGui::Text(lak::as_astring(SrcExp.testing.path.u8string().c_str()));
 
+		if (ImGui::Button("Refresh Folder")) refresh_testing_files();
+
+		ImGui::SameLine();
+
 		if (ImGui::Button("Try Open All"))
 		{
 			all_testing_files   = SrcExp.testing_files;
@@ -71,7 +81,8 @@ struct test_window : public base_window<test_window>
 
 		for (const auto &path : SrcExp.testing_files)
 		{
-			LAK_TREE_NODE(lak::as_astring(path.filename().u8string().c_str()))
+			LAK_TREE_NODE(lak::as_astring(
+			  path.lexically_relative(SrcExp.testing.path).u8string().c_str()))
 			{
 				if (ImGui::Button("Try Open"))
 				{
@@ -93,6 +104,38 @@ struct test_window : public base_window<test_window>
 			SrcExp.exe.valid   = true;
 			SrcExp.exe.path    = lak::move(all_testing_files.back());
 			all_testing_files.pop_back();
+		}
+
+		if (SrcExp.loaded)
+		{
+			ImGui::Text("\"%s\" Successfully Loaded",
+			            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+
+			if (ImGui::Button("Try Dump Images"))
+			{
+				SrcExp.images.path = SrcExp.testing.path / "test-image-dump";
+				lak::remove_path(SrcExp.images.path)
+				  .IF_ERR("Failed To Delete Folder ", SrcExp.images.path);
+				if (lak::create_directory(SrcExp.images.path)
+				      .IF_ERR("Failed To Create Folder ", SrcExp.images.path)
+				      .is_ok())
+				{
+					DEBUG("Saving Images To ", SrcExp.images.path);
+					SrcExp.images.attempt = true;
+					SrcExp.images.valid   = true;
+				}
+			}
+
+			base_window<main_window>::main_region();
+		}
+		else
+		{
+			ImGui::Text("Working Path \"%s\"",
+			            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+
+			if (!last_error.empty()) ImGui::Text(last_error.c_str());
+
+			ImGui::Text("Not Loaded");
 		}
 
 		if (SrcExp.exe.attempt)
@@ -136,20 +179,7 @@ struct test_window : public base_window<test_window>
 			}
 		}
 
-		if (SrcExp.loaded)
-		{
-			ImGui::Text("\"%s\" Successfully Loaded",
-			            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
-		}
-		else
-		{
-			ImGui::Text("Working Path \"%s\"",
-			            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
-
-			if (!last_error.empty()) ImGui::Text(last_error.c_str());
-
-			ImGui::Text("Not Loaded");
-		}
+		if (SrcExp.images.attempt) se::AttemptImages(SrcExp);
 	}
 };
 

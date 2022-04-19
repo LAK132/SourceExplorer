@@ -155,9 +155,9 @@ struct main_window : public base_window<main_window>
 			ImGui::Text("CCN Game: %s", SrcExp.state.ccn ? "Yes" : "No");
 			ImGui::Text("2.5+ Game: %s",
 			            SrcExp.state.two_five_plus_game ? "Yes" : "No");
-			ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.product_build);
 			ImGui::Text("Product Version: %zu",
 			            (size_t)SrcExp.state.product_version);
+			ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.product_build);
 			ImGui::Text("Runtime Version: %zu",
 			            (size_t)SrcExp.state.runtime_version);
 			ImGui::Text("Runtime Sub-Version: %zu",

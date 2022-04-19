@@ -295,6 +295,7 @@ namespace lak
 			{
 				if (auto result = cache.refresh(full); result.is_err())
 					ec = result.unwrap_err();
+				cache.file.clear();
 				path = cache.full();
 				folder_str =
 				  lak::as_astring(lak::to_u8string(cache.folder)).to_string();

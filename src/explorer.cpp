@@ -860,7 +860,7 @@ namespace SourceExplorer
 	                           data_reader_t &strm)
 	{
 		CHECK_REMAINING(strm, colors.size() * 2);
-		ColorsFrom16bitRGB(colors, strm.read_bytes(colors.size()).UNWRAP());
+		ColorsFrom16bitRGB(colors, strm.read_bytes(colors.size() * 2).UNWRAP());
 		return lak::ok_t{};
 	}
 
@@ -972,6 +972,9 @@ namespace SourceExplorer
 
 		size_t start = strm.position();
 
+		DEBUG_EXPR(strm.remaining().size());
+		DEBUG_EXPR(((bitmap.size().x * point_size) + padding) * bitmap.size().y);
+
 		while (true)
 		{
 			TRY_ASSIGN(uint8_t command =, strm.read_u8());
@@ -1005,6 +1008,9 @@ namespace SourceExplorer
 			}
 		}
 
+		if (i != bitmap.contig_size())
+			ERROR("Only Filled ", i, " Pixels Of ", bitmap.contig_size());
+
 		return lak::ok_t{strm.position() - start};
 	}
 
@@ -1023,20 +1029,23 @@ namespace SourceExplorer
 
 		size_t start = strm.position();
 
-		CHECK_REMAINING(strm, (bitmap.size().x + padding) * bitmap.size().y);
+		DEBUG_EXPR(strm.remaining().size());
+		DEBUG_EXPR((bitmap.size().x + padding) * bitmap.size().y);
+		CHECK_REMAINING(
+		  strm, ((bitmap.size().x * point_size) + padding) * bitmap.size().y);
+
+		const lak::span bitmap_span{bitmap.data(), bitmap.contig_size()};
 
 		if (padding == 0)
 		{
-			ColorsFromMode(
-			  lak::span(bitmap.data(), bitmap.contig_size()), strm, mode, palette)
-			  .UNWRAP();
+			ColorsFromMode(bitmap_span, strm, mode, palette).UNWRAP();
 		}
 		else
 		{
 			for (size_t y = 0; y < bitmap.size().y; ++y)
 			{
 				ColorsFromMode(
-				  lak::span(bitmap.data() + (y * bitmap.size().x), bitmap.size().x),
+				  bitmap_span.subspan(y * bitmap.size().x, bitmap.size().x),
 				  strm,
 				  mode,
 				  palette)
@@ -1330,6 +1339,37 @@ namespace SourceExplorer
 			case object_parent_type_t::qualifier: return "Qualifier";
 			default: return "Invalid";
 		}
+	}
+
+	lak::astring GetImageFlagString(image_flag_t flags)
+	{
+		lak::astring result;
+
+		if (flags == image_flag_t::none)
+			result = "none";
+		else
+		{
+			if ((flags & image_flag_t::RLE) != image_flag_t::none)
+				result += "RLE | ";
+			if ((flags & image_flag_t::RLEW) != image_flag_t::none)
+				result += "RLEW | ";
+			if ((flags & image_flag_t::RLET) != image_flag_t::none)
+				result += "RLET | ";
+			if ((flags & image_flag_t::LZX) != image_flag_t::none)
+				result += "LZX | ";
+			if ((flags & image_flag_t::alpha) != image_flag_t::none)
+				result += "alpha | ";
+			if ((flags & image_flag_t::ace) != image_flag_t::none)
+				result += "ace | ";
+			if ((flags & image_flag_t::mac) != image_flag_t::none)
+				result += "mac | ";
+			if ((flags & image_flag_t::RGBA) != image_flag_t::none)
+				result += "RGBA | ";
+
+			result.resize(result.size() - 3);
+		}
+
+		return result;
 	}
 
 	result_t<data_ref_span_t> Decode(data_ref_span_t encoded,
@@ -4296,10 +4336,6 @@ namespace SourceExplorer
 				TRY_ASSIGN(size.y =, hstrm.read_u16());
 				TRY_ASSIGN([[maybe_unused]] const auto unk2 =, hstrm.read_u16());
 				TRY_ASSIGN([[maybe_unused]] const auto unk3 =, hstrm.read_u16());
-
-				padding = uint16_t(
-				  lak::slack<size_t>(size.x * ColorModeSize(graphics_mode), 4));
-				alpha_padding = 0;
 			}
 			else
 			{
@@ -4395,11 +4431,27 @@ namespace SourceExplorer
 				{
 					data_position = istrm.position();
 				}
-
-				padding       = uint16_t(lak::slack<size_t>(size.x, 2) *
-				                   ColorModeSize(graphics_mode));
-				alpha_padding = uint16_t(lak::slack<size_t>(size.x, 4));
 			}
+
+			if ((flags & image_flag_t::RLET) != image_flag_t::none)
+				padding = (size.x * ColorModeSize(graphics_mode)) % 2;
+			else if (game.two_five_plus_game)
+				padding = (size.x * ColorModeSize(graphics_mode)) % 2;
+			else if (game.ccn)
+				padding = uint16_t(
+				  lak::slack<size_t>(size.x * ColorModeSize(graphics_mode), 4));
+			else if (game.old_game)
+				padding = (size.x * ColorModeSize(graphics_mode)) % 2;
+			else if (game.product_build < 280)
+				padding = ((size.x * ColorModeSize(graphics_mode)) % 2) *
+				          ColorModeSize(graphics_mode);
+			else
+				padding = (size.x % 2) * ColorModeSize(graphics_mode);
+
+			if (game.ccn)
+				alpha_padding = 0;
+			else
+				alpha_padding = uint16_t(lak::slack<size_t>(size.x, 4));
 
 			return lak::ok_t{};
 		}
@@ -4413,7 +4465,7 @@ namespace SourceExplorer
 				ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
 				ImGui::Text("Reference: 0x%zX", (size_t)reference);
 				ImGui::Text("Data Size: 0x%zX", (size_t)data_size);
-				ImGui::Text("Image Size: %zu * %zu", (size_t)size.x, (size_t)size.y);
+				ImGui::Text("Image Size: (%zu, %zu)", (size_t)size.x, (size_t)size.y);
 				switch (graphics_mode)
 				{
 					case graphics_mode_t::RGBA32:
@@ -4441,7 +4493,9 @@ namespace SourceExplorer
 						ImGui::Text("Graphics Mode: JPEG");
 						break;
 				}
-				ImGui::Text("Image Flags: 0x%zX", (size_t)flags);
+				ImGui::Text("Image Flags: %s (0x%zX)",
+				            GetImageFlagString(flags).c_str(),
+				            (size_t)flags);
 				ImGui::Text("Unknown: 0x%zX", (size_t)unknown);
 				ImGui::Text(
 				  "Hotspot: (%zu, %zu)", (size_t)hotspot.x, (size_t)hotspot.y);
