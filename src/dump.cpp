@@ -35,6 +35,7 @@ SOFTWARE.
 #include <lak/result.hpp>
 #include <lak/string_literals.hpp>
 #include <lak/string_utils.hpp>
+#include <lak/tasks.hpp>
 #include <lak/visit.hpp>
 
 #include <unordered_set>
@@ -142,6 +143,7 @@ bool se::DumpStuff(source_explorer_t &srcexp,
 
 	auto functor = [&, func]() -> se::error_t
 	{
+		completed = 0.0f;
 		func(srcexp, completed);
 		return lak::ok_t{};
 	};
@@ -197,17 +199,26 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
 		return;
 	}
 
-	const size_t count = srcexp.state.game.image_bank->items.size();
-	size_t index       = 0;
+	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
+	                                       : lak::tasks(1)};
+
+	const size_t count       = srcexp.state.game.image_bank->items.size();
+	std::atomic_size_t index = 0;
 	for (const auto &item : srcexp.state.game.image_bank->items)
 	{
 		SCOPED_CHECKPOINT(
 		  "Image ", index, "/", count, " (", item.entry.handle, ")");
-		lak::image4_t image = item.image(srcexp.dump_color_transparent).UNWRAP();
-		fs::path filename =
-		  srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
-		(void)SaveImage(image, filename);
-		completed = (float)((double)(index++) / (double)count);
+
+		tasks.push(
+		  [&]
+		  {
+			  lak::image4_t image =
+			    item.image(srcexp.dump_color_transparent).UNWRAP();
+			  fs::path filename =
+			    srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
+			  SaveImage(image, filename).IF_ERR("Save failed:");
+			  completed = (float)((double)(index++) / (double)count);
+		  });
 	}
 }
 
@@ -497,114 +508,129 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 		return;
 	}
 
-	const size_t count = srcexp.state.game.sound_bank->items.size();
-	size_t index       = 0;
+	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
+	                                       : lak::tasks(1)};
+
+	const size_t count       = srcexp.state.game.sound_bank->items.size();
+	std::atomic_size_t index = 0;
 	for (const auto &item : srcexp.state.game.sound_bank->items)
 	{
 		SCOPED_CHECKPOINT(
 		  "Sound ", index, "/", count, " (", item.entry.handle, ")");
-		data_reader_t sound(item.entry.decode_body().UNWRAP());
-		lak::array<byte_t> result;
 
-		std::u16string name;
-		sound_mode_t type;
+		tasks.push(
+		  [&]
+		  {
+			  data_reader_t sound(item.entry.decode_body().UNWRAP());
+			  lak::array<byte_t> result;
 
-		if (srcexp.state.old_game)
-		{
-			[[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
-			[[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
-			type = (sound_mode_t)sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
-			uint32_t name_len                  = sound.read_u32().UNWRAP();
+			  std::u8string name =
+			    u8"[" + se::to_u8string(item.entry.handle) + u8"] ";
+			  sound_mode_t type;
 
-			name =
-			  lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
+			  if (srcexp.state.old_game)
+			  {
+				  [[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
+				  [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
+				  type = (sound_mode_t)sound.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
+				  const uint32_t name_len            = sound.read_u32().UNWRAP();
 
-			[[maybe_unused]] uint16_t format          = sound.read_u16().UNWRAP();
-			[[maybe_unused]] uint16_t channel_count   = sound.read_u16().UNWRAP();
-			[[maybe_unused]] uint32_t sample_rate     = sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t byte_rate       = sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint16_t block_align     = sound.read_u16().UNWRAP();
-			[[maybe_unused]] uint16_t bits_per_sample = sound.read_u16().UNWRAP();
-			[[maybe_unused]] uint16_t unknown         = sound.read_u16().UNWRAP();
-			uint32_t chunk_size                       = sound.read_u32().UNWRAP();
-			[[maybe_unused]] auto data = sound.read<byte_t>(chunk_size).UNWRAP();
+				  name += sound.read_exact_c_str<char8_t>(name_len).UNWRAP();
+				  name.erase(std::remove(name.begin(), name.end(), u8'\0'),
+				             name.end());
+				  DEBUG("u8string name: '", name, "'");
 
-			lak::binary_array_writer output;
-			output.write("RIFF"_span);
-			output.write_s32(static_cast<uint32_t>(data.size() - 44));
-			output.write("WAVEfmt "_span);
-			output.write_u32(0x10);
-			output.write_u16(format);
-			output.write_u16(channel_count);
-			output.write_u32(sample_rate);
-			output.write_u32(byte_rate);
-			output.write_u16(block_align);
-			output.write_u16(bits_per_sample);
-			output.write("data"_span);
-			output.write_u32(chunk_size);
-			output.write(lak::span(data));
-			result = output.release();
-		}
-		else
-		{
-			data_reader_t header(item.entry.decode_head().UNWRAP());
+				  uint16_t format                   = sound.read_u16().UNWRAP();
+				  uint16_t channel_count            = sound.read_u16().UNWRAP();
+				  uint32_t sample_rate              = sound.read_u32().UNWRAP();
+				  uint32_t byte_rate                = sound.read_u32().UNWRAP();
+				  uint16_t block_align              = sound.read_u16().UNWRAP();
+				  uint16_t bits_per_sample          = sound.read_u16().UNWRAP();
+				  [[maybe_unused]] uint16_t unknown = sound.read_u16().UNWRAP();
+				  uint32_t chunk_size               = sound.read_u32().UNWRAP();
+				  auto data = sound.read<byte_t>(chunk_size).UNWRAP();
 
-			[[maybe_unused]] uint32_t checksum   = header.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t references = header.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t decomp_len = header.read_u32().UNWRAP();
-			type = (sound_mode_t)header.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t reserved = header.read_u32().UNWRAP();
-			uint32_t name_len                  = header.read_u32().UNWRAP();
+				  lak::binary_array_writer output;
+				  output.write("RIFF"_span);
+				  output.write_s32(static_cast<uint32_t>(data.size() - 44));
+				  output.write("WAVEfmt "_span);
+				  output.write_u32(0x10);
+				  output.write_u16(format);
+				  output.write_u16(channel_count);
+				  output.write_u32(sample_rate);
+				  output.write_u32(byte_rate);
+				  output.write_u16(block_align);
+				  output.write_u16(bits_per_sample);
+				  output.write("data"_span);
+				  output.write_u32(chunk_size);
+				  output.write(lak::span(data));
+				  result = output.release();
+			  }
+			  else
+			  {
+				  data_reader_t header(item.entry.decode_head().UNWRAP());
 
-			if (srcexp.state.unicode)
-			{
-				name = sound.read_exact_c_str<char16_t>(name_len).UNWRAP();
-				DEBUG("u16string name: ", name);
-			}
-			else
-			{
-				name =
-				  lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
-				DEBUG("u8string name: ", name);
-			}
+				  [[maybe_unused]] uint32_t checksum   = header.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t references = header.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t decomp_len = header.read_u32().UNWRAP();
+				  type = (sound_mode_t)header.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t reserved = header.read_u32().UNWRAP();
+				  uint32_t name_len                  = header.read_u32().UNWRAP();
 
-			if (const auto peek = sound.peek<char>(4).UNWRAP();
-			    lak::string_view(lak::span(peek)) == "OggS"_view)
-			{
-				type = sound_mode_t::oggs;
-			}
-			else if (lak::string_view(lak::span(peek)) == "Exte"_view)
-			{
-				type = sound_mode_t::xm;
-			}
+				  if (srcexp.state.unicode)
+				  {
+					  name += lak::to_u8string(
+					    sound.read_exact_c_str<char16_t>(name_len).UNWRAP());
+					  name.erase(std::remove(name.begin(), name.end(), u8'\0'),
+					             name.end());
+					  DEBUG("u16string name: '", name, "'");
+				  }
+				  else
+				  {
+					  name += sound.read_exact_c_str<char8_t>(name_len).UNWRAP();
+					  name.erase(std::remove(name.begin(), name.end(), u8'\0'),
+					             name.end());
+					  DEBUG("u8string name: '", name, "'");
+				  }
 
-			result =
-			  lak::array<byte_t>(sound.remaining().begin(), sound.remaining().end());
-		}
+				  if (const auto peek = sound.peek<char>(4).UNWRAP();
+				      lak::string_view(lak::span(peek)) == "OggS"_view)
+				  {
+					  type = sound_mode_t::oggs;
+				  }
+				  else if (lak::string_view(lak::span(peek)) == "Exte"_view)
+				  {
+					  type = sound_mode_t::xm;
+				  }
 
-		switch (type)
-		{
-			case sound_mode_t::wave: name += u".wav"; break;
-			case sound_mode_t::midi: name += u".midi"; break;
-			case sound_mode_t::oggs: name += u".ogg"; break;
-			case sound_mode_t::xm: name += u".xm"; break;
-			default: name += u".mp3"; break;
-		}
+				  result = lak::array<byte_t>(sound.remaining().begin(),
+				                              sound.remaining().end());
+			  }
 
-		DEBUG("Sound ", (size_t)item.entry.ID);
+			  switch (type)
+			  {
+				  case sound_mode_t::wave: name += u8".wav"; break;
+				  case sound_mode_t::midi: name += u8".midi"; break;
+				  case sound_mode_t::oggs: name += u8".ogg"; break;
+				  case sound_mode_t::xm: name += u8".xm"; break;
+				  default: name += u8".mp3"; break;
+			  }
 
-		fs::path filename = srcexp.sounds.path / name;
+			  DEBUG("Sound ", (size_t)item.entry.ID);
 
-		DEBUG("Saving ", lak::to_u8string(filename));
+			  fs::path filename = srcexp.sounds.path / name;
 
-		if (!lak::save_file(filename, result))
-		{
-			ERROR("Failed To Save File '", filename, "'");
-		}
+			  DEBUG("Saving '", lak::to_u8string(filename), "'");
 
-		completed = (float)((double)(index++) / (double)count);
+			  if (!lak::save_file(filename, result))
+			  {
+				  ERROR("Failed To Save File '", filename, "'");
+			  }
+
+			  completed = (float)((double)(index++) / (double)count);
+		  });
 	}
 }
 
@@ -616,64 +642,74 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 		return;
 	}
 
-	const size_t count = srcexp.state.game.music_bank->items.size();
-	size_t index       = 0;
+	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
+	                                       : lak::tasks(1)};
+
+	const size_t count       = srcexp.state.game.music_bank->items.size();
+	std::atomic_size_t index = 0;
 	for (const auto &item : srcexp.state.game.music_bank->items)
 	{
 		SCOPED_CHECKPOINT(
 		  "Music ", index, "/", count, " (", item.entry.handle, ")");
-		data_reader_t sound(item.entry.decode_body().UNWRAP());
 
-		std::u16string name;
-		sound_mode_t type;
+		tasks.push(
+		  [&]
+		  {
+			  data_reader_t sound(item.entry.decode_body().UNWRAP());
 
-		if (srcexp.state.old_game)
-		{
-			[[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
-			[[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
-			type = (sound_mode_t)sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
-			uint32_t name_len                  = sound.read_u32().UNWRAP();
+			  std::u8string name =
+			    u8"[" + se::to_u8string(item.entry.handle) + u8"] ";
+			  sound_mode_t type;
 
-			name =
-			  lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
-		}
-		else
-		{
-			[[maybe_unused]] uint32_t checksum   = sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
-			type = (sound_mode_t)sound.read_u32().UNWRAP();
-			[[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
-			uint32_t name_len                  = sound.read_u32().UNWRAP();
+			  if (srcexp.state.old_game)
+			  {
+				  [[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
+				  [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
+				  type = (sound_mode_t)sound.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
+				  uint32_t name_len                  = sound.read_u32().UNWRAP();
 
-			if (srcexp.state.unicode)
-			{
-				name = sound.read_exact_c_str<char16_t>(name_len).UNWRAP();
-			}
-			else
-			{
-				name =
-				  lak::to_u16string(sound.read_exact_c_str<char>(name_len).UNWRAP());
-			}
-		}
+				  name += sound.read_exact_c_str<char8_t>(name_len).UNWRAP();
+			  }
+			  else
+			  {
+				  [[maybe_unused]] uint32_t checksum   = sound.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t decomp_len = sound.read_u32().UNWRAP();
+				  type = (sound_mode_t)sound.read_u32().UNWRAP();
+				  [[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
+				  uint32_t name_len                  = sound.read_u32().UNWRAP();
 
-		switch (type)
-		{
-			case sound_mode_t::wave: name += u".wav"; break;
-			case sound_mode_t::midi: name += u".midi"; break;
-			default: name += u".mp3"; break;
-		}
+				  if (srcexp.state.unicode)
+				  {
+					  name += lak::to_u8string(
+					    sound.read_exact_c_str<char16_t>(name_len).UNWRAP());
+				  }
+				  else
+				  {
+					  name += sound.read_exact_c_str<char8_t>(name_len).UNWRAP();
+				  }
+			  }
 
-		fs::path filename = srcexp.music.path / name;
+			  name.erase(std::remove(name.begin(), name.end(), u8'\0'), name.end());
 
-		if (!lak::save_file(filename, sound.remaining()))
-		{
-			ERROR("Failed To Save File '", filename, "'");
-		}
+			  switch (type)
+			  {
+				  case sound_mode_t::wave: name += u8".wav"; break;
+				  case sound_mode_t::midi: name += u8".midi"; break;
+				  default: name += u8".mp3"; break;
+			  }
 
-		completed = (float)((double)(index++) / (double)count);
+			  fs::path filename = srcexp.music.path / name;
+
+			  if (!lak::save_file(filename, sound.remaining()))
+			  {
+				  ERROR("Failed To Save File '", filename, "'");
+			  }
+
+			  completed = (float)((double)(index++) / (double)count);
+		  });
 	}
 }
 

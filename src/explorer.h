@@ -1469,6 +1469,7 @@ namespace SourceExplorer
 		bool loaded                 = false;
 		bool baby_mode              = true;
 		bool dump_color_transparent = true;
+		bool allow_multithreading   = false;
 		file_state_t exe;
 		file_state_t images;
 		file_state_t sorted_images;
@@ -1510,6 +1511,8 @@ namespace SourceExplorer
 	const char *GetObjectTypeString(object_type_t type);
 
 	const char *GetObjectParentTypeString(object_parent_type_t type);
+
+	lak::astring GetImageFlagString(image_flag_t flags);
 
 	result_t<data_ref_span_t> Decode(data_ref_span_t encoded,
 	                                 chunk_t ID,

@@ -155,6 +155,10 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		{
 			se_main_mode = se_main_mode_t::testing;
 		}
+		else if (argv[arg] == lak::astring("-threaded"))
+		{
+			SrcExp.allow_multithreading = true;
+		}
 		else
 		{
 			SrcExp.baby_mode   = false;
