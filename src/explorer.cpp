@@ -4270,17 +4270,46 @@ namespace SourceExplorer
 
 			size_t start_pos = strm.position();
 
-			while (strm.remaining().size() >= 2 &&
-			       (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::frame)
-			{
-				auto &item = items.emplace_back();
-				RES_TRY(item.read(game, strm)
-				          .IF_ERR("Failed To Read Item ", (&item - items.data()))
-				          .MAP_SE_ERR("frame::bank_t::read"));
+			size_t max_tries = 0U;
 
-				game.bank_completed =
-				  float(double(strm.position() - start_pos) / double(strm.size()));
-			}
+			auto read_all_items = [&, this]() -> error_t
+			{
+				auto read_item = [&, this](auto &item) -> error_t
+				{
+					return item.read(game, strm)
+					  .IF_ERR("Failed To Read Item ", items.size())
+					  .MAP_SE_ERR("frame::bank_t::read");
+				};
+
+				while (strm.remaining().size() >= 2 &&
+				       (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::frame)
+				{
+					item_t item;
+					RES_TRY(
+					  read_item(item)
+					    .if_ok([&, this](auto &&) { items.push_back(lak::move(item)); })
+					    .or_else(
+					      [&, this](const auto &err) -> error_t
+					      {
+						      if (max_tries == 0) return lak::err_t{err};
+						      ERROR(err);
+						      DEBUG("Continuing...");
+						      --max_tries;
+						      return lak::ok_t{};
+					      }));
+
+					game.bank_completed =
+					  float(double(strm.position() - start_pos) / double(strm.size()));
+				}
+				return lak::ok_t{};
+			};
+
+			RES_TRY(read_all_items().or_else(
+			  [&, this](const auto &err) -> error_t
+			  {
+				  if (skip_broken_items) return lak::ok_t{};
+				  return lak::err_t{err};
+			  }));
 
 			return lak::ok_t{};
 		}
