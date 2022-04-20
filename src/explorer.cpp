@@ -102,7 +102,7 @@ namespace SourceExplorer
 		if (srcexp.state.product_build < 284 || srcexp.state.old_game ||
 		    srcexp.state.compat)
 			_mode = game_mode_t::_OLD;
-		else if (srcexp.state.product_build > 284)
+		else if (srcexp.state.product_build > 285)
 			_mode = game_mode_t::_288;
 		else
 			_mode = game_mode_t::_284;
