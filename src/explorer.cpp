@@ -5361,9 +5361,10 @@ namespace SourceExplorer
 					break;
 
 				case chunk_t::frame:
-					if (frame_bank) ERROR("Frame Bank Already Exists");
-					frame_bank = std::make_unique<frame::bank_t>();
-					frame_bank->items.clear();
+					if (!frame_bank)
+						frame_bank = std::make_unique<frame::bank_t>();
+					else
+						ERROR("Frame Bank Already Exists");
 					while (strm.remaining().size() >= 2 &&
 					       (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::frame)
 					{
