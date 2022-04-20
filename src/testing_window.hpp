@@ -27,6 +27,7 @@ struct test_window : public base_window<test_window>
 			if (entry.is_regular_file(ec))
 				if (const auto path{entry.path()}, extension{path.extension()};
 				    extension == ".exe" || extension == ".EXE" ||
+				    extension == ".dat" || extension == ".DAT" ||
 				    extension == ".ccn" || extension == ".CCN" ||
 				    extension == ".gam" || extension == ".GAM" ||
 				    extension == ".ugh" || extension == ".UGH")
