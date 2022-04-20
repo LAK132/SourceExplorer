@@ -145,15 +145,23 @@ struct test_window : public base_window<test_window>
 
 			if (auto result{se::OpenGame(SrcExp)}; result.is_err())
 			{
-				ASSERT(result.unwrap_err() == lak::await_error::running);
-				ImGui::Text("Loading \"%s\"",
-				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
-
-				if (testing_files_count > 0U)
+				if (result.unwrap_err() == lak::await_error::running)
 				{
-					ImGui::ProgressBar(
-					  float(double(testing_files_count - all_testing_files.size()) /
-					        testing_files_count));
+					ImGui::Text("Loading \"%s\"",
+					            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+
+					if (testing_files_count > 0U)
+					{
+						ImGui::ProgressBar(
+						  float(double(testing_files_count - all_testing_files.size()) /
+						        testing_files_count));
+					}
+				}
+				else
+				{
+					// this may happen if an exception was thrown
+					ERROR("OpenGame failed");
+					SrcExp.exe.attempt = false;
 				}
 			}
 			else if (result.unsafe_unwrap().is_err())
