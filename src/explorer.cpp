@@ -291,6 +291,18 @@ namespace SourceExplorer
 
 		size_t pos = strm.position();
 
+		DEBUG("Pos: ", pos);
+		strm.seek(pos).UNWRAP();
+
+		if (strm.empty())
+		{
+			return lak::err_t{
+			  error(LINE_TRACE,
+			        error::invalid_game_signature,
+			        "No game header. "
+			        "If this game has an associated .DAT file, open that instead.")};
+		}
+
 		while (true)
 		{
 			DEBUG("Pos: ", pos);
