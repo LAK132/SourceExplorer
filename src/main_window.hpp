@@ -33,24 +33,72 @@ struct main_window : public base_window<main_window>
 		if (ImGui::BeginMenu("File"))
 		{
 			ImGui::Checkbox("Auto-dump Mode", &SrcExp.baby_mode);
-			SrcExp.exe.attempt |= ImGui::MenuItem(
-			  SrcExp.baby_mode ? "Open And Dump..." : "Open...", nullptr);
-			SrcExp.sorted_images.attempt |= ImGui::MenuItem(
-			  "Dump Sorted Images...", nullptr, false, !SrcExp.baby_mode);
-			SrcExp.images.attempt |=
-			  ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.baby_mode);
-			SrcExp.sounds.attempt |=
-			  ImGui::MenuItem("Dump Sounds...", nullptr, false, !SrcExp.baby_mode);
-			SrcExp.music.attempt |=
-			  ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp.baby_mode);
-			SrcExp.shaders.attempt |=
-			  ImGui::MenuItem("Dump Shaders...", nullptr, false, !SrcExp.baby_mode);
-			SrcExp.binary_files.attempt |= ImGui::MenuItem(
-			  "Dump Binary Files...", nullptr, false, !SrcExp.baby_mode);
-			SrcExp.appicon.attempt |=
-			  ImGui::MenuItem("Dump App Icon...", nullptr, false, !SrcExp.baby_mode);
+
+			if (ImGui::MenuItem(SrcExp.baby_mode ? "Open And Dump..." : "Open...",
+			                    nullptr))
+			{
+				DEBUG(SrcExp.baby_mode ? "Open And Dump" : "Open");
+				SrcExp.exe.attempt |= true;
+			}
+
+			if (ImGui::MenuItem("Save Database...", nullptr, false, true))
+			{
+				DEBUG("Save Database");
+				SrcExp.database.attempt |= true;
+			}
+
+			if (ImGui::MenuItem(
+			      "Dump Sorted Images...", nullptr, false, !SrcExp.baby_mode))
+			{
+				DEBUG("Dump Sorted Images");
+				SrcExp.sorted_images.attempt |= true;
+			}
+
+			if (ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.baby_mode))
+			{
+				DEBUG("Dump Images");
+				SrcExp.images.attempt |= true;
+			}
+
+			if (ImGui::MenuItem("Dump Sounds...", nullptr, false, !SrcExp.baby_mode))
+			{
+				DEBUG("Dump Sounds");
+				SrcExp.sounds.attempt |= true;
+			}
+
+			if (ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp.baby_mode))
+			{
+				DEBUG("Dump Music");
+				SrcExp.music.attempt |= true;
+			}
+
+			if (ImGui::MenuItem(
+			      "Dump Shaders...", nullptr, false, !SrcExp.baby_mode))
+			{
+				DEBUG("Dump Shader");
+				SrcExp.shaders.attempt |= true;
+			}
+
+			if (ImGui::MenuItem(
+			      "Dump Binary Files...", nullptr, false, !SrcExp.baby_mode))
+			{
+				DEBUG("Dump Binary Files");
+				SrcExp.binary_files.attempt |= true;
+			}
+
+			if (ImGui::MenuItem(
+			      "Dump App Icon...", nullptr, false, !SrcExp.baby_mode))
+			{
+				DEBUG("Dump App Icon");
+				SrcExp.appicon.attempt |= true;
+			}
+
 			ImGui::Separator();
-			SrcExp.error_log.attempt |= ImGui::MenuItem("Save Error Log...");
+			if (ImGui::MenuItem("Save Error Log..."))
+			{
+				DEBUG("Save Error Log");
+				SrcExp.error_log.attempt |= true;
+			}
 			ImGui::EndMenu();
 		}
 	}
