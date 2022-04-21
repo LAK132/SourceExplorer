@@ -47,8 +47,11 @@ struct main_window : public base_window<main_window>
 				SrcExp.database.attempt |= true;
 			}
 
-			if (ImGui::MenuItem(
-			      "Dump Sorted Images...", nullptr, false, !SrcExp.baby_mode))
+			if (ImGui::MenuItem("Dump Sorted Images...",
+			                    nullptr,
+			                    false,
+			                    !SrcExp.baby_mode &&
+			                      !SrcExp.state.two_five_plus_game))
 			{
 				DEBUG("Dump Sorted Images");
 				SrcExp.sorted_images.attempt |= true;
@@ -281,7 +284,12 @@ struct main_window : public base_window<main_window>
 		else if (SrcExp.images.attempt)
 			se::AttemptImages(SrcExp);
 		else if (SrcExp.sorted_images.attempt)
-			se::AttemptSortedImages(SrcExp);
+		{
+			if (SrcExp.state.two_five_plus_game)
+				SrcExp.sorted_images.attempt = false;
+			else
+				se::AttemptSortedImages(SrcExp);
+		}
 		else if (SrcExp.appicon.attempt)
 			se::AttemptAppIcon(SrcExp);
 		else if (SrcExp.sounds.attempt)
