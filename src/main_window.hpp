@@ -41,12 +41,6 @@ struct main_window : public base_window<main_window>
 				SrcExp.exe.attempt |= true;
 			}
 
-			if (ImGui::MenuItem("Save Database...", nullptr, false, true))
-			{
-				DEBUG("Save Database");
-				SrcExp.database.attempt |= true;
-			}
-
 			if (ImGui::MenuItem("Dump Sorted Images...",
 			                    nullptr,
 			                    false,
