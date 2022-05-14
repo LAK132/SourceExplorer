@@ -899,16 +899,20 @@ void se::AttemptExe(source_explorer_t &srcexp)
 				  std::error_code er;
 				  if (srcexp.state.game.image_bank)
 				  {
-					  srcexp.sorted_images.path = dump_dir / "images";
-					  if (fs::create_directories(srcexp.sorted_images.path, er); er)
+					  file_state_t &images = srcexp.state.two_five_plus_game
+					                           ? srcexp.images
+					                           : srcexp.sorted_images;
+
+					  images.path = dump_dir / "images";
+					  if (fs::create_directories(images.path, er); er)
 					  {
 						  ERROR("Failed To Dump Images");
 						  ERROR("File System Error: (", er.value(), ")", er.message());
 					  }
 					  else
 					  {
-						  srcexp.sorted_images.attempt = true;
-						  srcexp.sorted_images.valid   = true;
+						  images.attempt = true;
+						  images.valid   = true;
 					  }
 				  }
 
