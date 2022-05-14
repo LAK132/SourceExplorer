@@ -160,7 +160,7 @@ bool se::DumpStuff(source_explorer_t &srcexp,
 			{
 				if (ImGui::BeginPopup(str_id, ImGuiWindowFlags_AlwaysAutoResize))
 				{
-					ImGui::Text("Dumping, please wait...");
+					ImGui::Text("%s, please wait...", str_id);
 					ImGui::Checkbox("Print to debug console?",
 					                &lak::debugger.live_output_enabled);
 					if (lak::debugger.live_output_enabled)
@@ -202,22 +202,25 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
 	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
 	                                       : lak::tasks(1)};
 
-	const size_t count       = srcexp.state.game.image_bank->items.size();
-	std::atomic_size_t index = 0;
+	const size_t count = srcexp.state.game.image_bank->items.size();
+	std::atomic_size_t completed_index = 0;
+	size_t loop_index                  = 0;
 	for (const auto &item : srcexp.state.game.image_bank->items)
 	{
+		++loop_index;
 		SCOPED_CHECKPOINT(
-		  "Image ", index, "/", count, " (", item.entry.handle, ")");
+		  "Image ", loop_index, "/", count, " (", item.entry.handle, ")");
 
 		tasks.push(
 		  [&]
 		  {
 			  lak::image4_t image =
-			    item.image(srcexp.dump_color_transparent).UNWRAP();
+			    item.image(srcexp.dump_color_transparent)
+			      .EXPECT("Image ", item.entry.handle, " Failed");
 			  fs::path filename =
 			    srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
 			  SaveImage(image, filename).IF_ERR("Save failed:");
-			  completed = (float)((double)(index++) / (double)count);
+			  completed = (float)((double)(++completed_index) / (double)count);
 		  });
 	}
 }
@@ -331,7 +334,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 		fs::path image_path       = unsorted_path / image_name;
 		(void)SaveImage(image.image(srcexp.dump_color_transparent).UNWRAP(),
 		                image_path);
-		completed = (float)((double)image_index++ / image_count);
+		completed = (float)((double)++image_index / image_count);
 	}
 
 	size_t frame_index       = 0;
@@ -447,7 +450,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 				}
 			}
 		}
-		completed = (float)((double)frame_index++ / frame_count);
+		completed = (float)((double)++frame_index / frame_count);
 	}
 }
 
@@ -511,17 +514,20 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
 	                                       : lak::tasks(1)};
 
-	const size_t count       = srcexp.state.game.sound_bank->items.size();
-	std::atomic_size_t index = 0;
+	const size_t count = srcexp.state.game.sound_bank->items.size();
+	std::atomic_size_t completed_index = 0;
+	size_t loop_index                  = 0;
 	for (const auto &item : srcexp.state.game.sound_bank->items)
 	{
+		++loop_index;
 		SCOPED_CHECKPOINT(
-		  "Sound ", index, "/", count, " (", item.entry.handle, ")");
+		  "Sound ", loop_index, "/", count, " (", item.entry.handle, ")");
 
 		tasks.push(
 		  [&]
 		  {
-			  data_reader_t sound(item.entry.decode_body().UNWRAP());
+			  data_reader_t sound(item.entry.decode_body().EXPECT(
+			    "Item ", item.entry.handle, " Body Failed To Decode"));
 			  lak::array<byte_t> result;
 
 			  std::u8string name =
@@ -570,7 +576,8 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 			  }
 			  else
 			  {
-				  data_reader_t header(item.entry.decode_head().UNWRAP());
+				  data_reader_t header(item.entry.decode_head().EXPECT(
+				    "Item ", item.entry.handle, " Head Failed To Decode"));
 
 				  [[maybe_unused]] uint32_t checksum   = header.read_u32().UNWRAP();
 				  [[maybe_unused]] uint32_t references = header.read_u32().UNWRAP();
@@ -629,7 +636,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 				  ERROR("Failed To Save File '", filename, "'");
 			  }
 
-			  completed = (float)((double)(index++) / (double)count);
+			  completed = (float)((double)(++completed_index) / (double)count);
 		  });
 	}
 }
@@ -645,17 +652,20 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
 	                                       : lak::tasks(1)};
 
-	const size_t count       = srcexp.state.game.music_bank->items.size();
-	std::atomic_size_t index = 0;
+	const size_t count = srcexp.state.game.music_bank->items.size();
+	std::atomic_size_t completed_index = 0;
+	size_t loop_index                  = 0;
 	for (const auto &item : srcexp.state.game.music_bank->items)
 	{
+		++loop_index;
 		SCOPED_CHECKPOINT(
-		  "Music ", index, "/", count, " (", item.entry.handle, ")");
+		  "Music ", loop_index, "/", count, " (", item.entry.handle, ")");
 
 		tasks.push(
 		  [&]
 		  {
-			  data_reader_t sound(item.entry.decode_body().UNWRAP());
+			  data_reader_t sound(item.entry.decode_body().EXPECT(
+			    "Item ", item.entry.handle, " Body Failed To Decode"));
 
 			  std::u8string name =
 			    u8"[" + se::to_u8string(item.entry.handle) + u8"] ";
@@ -708,7 +718,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 				  ERROR("Failed To Save File '", filename, "'");
 			  }
 
-			  completed = (float)((double)(index++) / (double)count);
+			  completed = (float)((double)(++completed_index) / (double)count);
 		  });
 	}
 }
@@ -752,7 +762,7 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
 			ERROR("Failed To Save File '", filename, "'");
 		}
 
-		completed = (float)((double)count++ / (double)offsets.size());
+		completed = (float)((double)++count / (double)offsets.size());
 	}
 }
 
@@ -772,6 +782,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
 	size_t index       = 0;
 	for (const auto &file : srcexp.state.game.binary_files->items)
 	{
+		++index;
 		SCOPED_CHECKPOINT("Binary ", index, "/", count, " (", file.name, ")");
 		fs::path filename = lak::to_u16string(file.name);
 		filename          = srcexp.binary_files.path / filename.filename();
@@ -780,7 +791,7 @@ void se::DumpBinaryFiles(source_explorer_t &srcexp,
 		{
 			ERROR("Failed To Save File '", filename, "'");
 		}
-		completed = (float)((double)index++ / (double)count);
+		completed = (float)((double)index / (double)count);
 	}
 }
 
@@ -1000,7 +1011,7 @@ void se::AttemptImages(source_explorer_t &srcexp)
 {
 	AttemptFolder(srcexp.images,
 	              [&srcexp]
-	              { return DumpStuff(srcexp, "Dump Images", &DumpImages); });
+	              { return DumpStuff(srcexp, "Saving images", &DumpImages); });
 }
 
 void se::AttemptSortedImages(source_explorer_t &srcexp)
@@ -1008,35 +1019,35 @@ void se::AttemptSortedImages(source_explorer_t &srcexp)
 	AttemptFolder(
 	  srcexp.sorted_images,
 	  [&srcexp]
-	  { return DumpStuff(srcexp, "Dump Sorted Images", &DumpSortedImages); });
+	  { return DumpStuff(srcexp, "Saving sorted images", &DumpSortedImages); });
 }
 
 void se::AttemptAppIcon(source_explorer_t &srcexp)
 {
-	AttemptFolder(srcexp.appicon,
-	              [&srcexp]
-	              { return DumpStuff(srcexp, "Dump App Icon", &DumpAppIcon); });
+	AttemptFolder(
+	  srcexp.appicon,
+	  [&srcexp] { return DumpStuff(srcexp, "Saving app icon", &DumpAppIcon); });
 }
 
 void se::AttemptSounds(source_explorer_t &srcexp)
 {
 	AttemptFolder(srcexp.sounds,
 	              [&srcexp]
-	              { return DumpStuff(srcexp, "Dump Sounds", &DumpSounds); });
+	              { return DumpStuff(srcexp, "Saving sounds", &DumpSounds); });
 }
 
 void se::AttemptMusic(source_explorer_t &srcexp)
 {
 	AttemptFolder(srcexp.music,
 	              [&srcexp]
-	              { return DumpStuff(srcexp, "Dump Music", &DumpMusic); });
+	              { return DumpStuff(srcexp, "Saving music", &DumpMusic); });
 }
 
 void se::AttemptShaders(source_explorer_t &srcexp)
 {
 	AttemptFolder(srcexp.shaders,
 	              [&srcexp]
-	              { return DumpStuff(srcexp, "Dump Shaders", &DumpShaders); });
+	              { return DumpStuff(srcexp, "Saving shaders", &DumpShaders); });
 }
 
 void se::AttemptBinaryFiles(source_explorer_t &srcexp)
@@ -1044,14 +1055,14 @@ void se::AttemptBinaryFiles(source_explorer_t &srcexp)
 	AttemptFolder(
 	  srcexp.binary_files,
 	  [&srcexp]
-	  { return DumpStuff(srcexp, "Dump Binary Files", &DumpBinaryFiles); });
+	  { return DumpStuff(srcexp, "Saving binary files", &DumpBinaryFiles); });
 }
 
 void se::AttemptErrorLog(source_explorer_t &srcexp)
 {
 	AttemptFile(
 	  srcexp.error_log,
-	  [&srcexp] { return DumpStuff(srcexp, "Save Error Log", &SaveErrorLog); },
+	  [&srcexp] { return DumpStuff(srcexp, "Saving error log", &SaveErrorLog); },
 	  true);
 }
 
@@ -1060,6 +1071,6 @@ void se::AttemptBinaryBlock(source_explorer_t &srcexp)
 	AttemptFile(
 	  srcexp.binary_block,
 	  [&srcexp]
-	  { return DumpStuff(srcexp, "Save Binary Block", &SaveBinaryBlock); },
+	  { return DumpStuff(srcexp, "Saving binary block", &SaveBinaryBlock); },
 	  true);
 }
