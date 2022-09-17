@@ -65,207 +65,85 @@ namespace fs = std::filesystem;
 
 namespace SourceExplorer
 {
-	struct error
+	enum struct error_type : uint32_t
 	{
-		enum value_t : uint32_t
-		{
-			str_err,
+		invalid_exe_signature,
+		invalid_pe_signature,
+		invalid_game_signature,
+		invalid_pack_count,
 
-			invalid_exe_signature,
-			invalid_pe_signature,
-			invalid_game_signature,
-			invalid_pack_count,
+		invalid_state,
+		invalid_mode,
+		invalid_chunk,
 
-			invalid_state,
-			invalid_mode,
-			invalid_chunk,
+		no_mode0,
+		no_mode1,
+		no_mode2,
+		no_mode3,
 
-			no_mode0,
-			no_mode1,
-			no_mode2,
-			no_mode3,
+		out_of_data,
 
-			out_of_data,
+		inflate_failed,
+		decrypt_failed,
 
-			inflate_failed,
-			decrypt_failed,
-
-			no_mode0_decoder,
-			no_mode1_decoder,
-			no_mode2_decoder,
-			no_mode3_decoder,
-		};
-
-		std::vector<lak::pair<lak::trace, lak::u8string>> _trace;
-		value_t _value = str_err;
-
-		// error() {}
-		// error(const error &other) : value(other.value), trace(other.trace) {}
-		// error &operator=(const error &other)
-		// {
-		//   value = other.value;
-		//   trace = other.trace;
-		//   return *this;
-		// }
-		error()              = default;
-		error(error &&)      = default;
-		error(const error &) = default;
-		error &operator=(error &&) = default;
-		error &operator=(const error &) = default;
-
-		template<typename... ARGS>
-		error(lak::trace trace, value_t value, ARGS &&...args) : _value(value)
-		{
-			append_trace(lak::move(trace), lak::forward<ARGS>(args)...);
-		}
-
-		error(lak::trace trace, lak::u8string err) : _value(str_err)
-		{
-			append_trace(lak::move(trace), lak::move(err));
-		}
-
-		template<typename... ARGS>
-		error &append_trace(lak::trace trace, ARGS &&...args)
-		{
-			_trace.emplace_back(lak::move(trace), lak::streamify(args...));
-			return *this;
-		}
-
-		template<typename... ARGS>
-		error append_trace(lak::trace trace, ARGS &&...args) const
-		{
-			error result = *this;
-			result.append_trace(lak::move(trace), lak::streamify(args...));
-			return result;
-		}
-
-		inline lak::u8string value_string() const
-		{
-			switch (_value)
-			{
-				case str_err: return lak::as_u8string(_trace[0].second).to_string();
-				case invalid_exe_signature:
-					return lak::as_u8string("Invalid EXE Signature"_view).to_string();
-				case invalid_pe_signature:
-					return lak::as_u8string("Invalid PE Signature"_view).to_string();
-				case invalid_game_signature:
-					return lak::as_u8string("Invalid Game Header"_view).to_string();
-				case invalid_state:
-					return lak::as_u8string("Invalid State"_view).to_string();
-				case invalid_mode:
-					return lak::as_u8string("Invalid Mode"_view).to_string();
-				case invalid_chunk:
-					return lak::as_u8string("Invalid Chunk"_view).to_string();
-				case no_mode0: return lak::as_u8string("No MODE0"_view).to_string();
-				case no_mode1: return lak::as_u8string("No MODE1"_view).to_string();
-				case no_mode2: return lak::as_u8string("No MODE2"_view).to_string();
-				case no_mode3: return lak::as_u8string("No MODE3"_view).to_string();
-				case out_of_data:
-					return lak::as_u8string("Out Of Data"_view).to_string();
-				case inflate_failed:
-					return lak::as_u8string("Inflate Failed"_view).to_string();
-				case decrypt_failed:
-					return lak::as_u8string("Decrypt Failed"_view).to_string();
-				case no_mode0_decoder:
-					return lak::as_u8string("No MODE0 Decoder"_view).to_string();
-				case no_mode1_decoder:
-					return lak::as_u8string("No MODE1 Decoder"_view).to_string();
-				case no_mode2_decoder:
-					return lak::as_u8string("No MODE2 Decoder"_view).to_string();
-				case no_mode3_decoder:
-					return lak::as_u8string("No MODE3 Decoder"_view).to_string();
-				default:
-					return lak::as_u8string("Invalid Error Code"_view).to_string();
-			}
-		}
-
-		inline lak::u8string to_string() const
-		{
-			++lak::debug_indent;
-			DEFER(--lak::debug_indent;);
-
-			lak::u8string result;
-
-			if (_trace.size() >= 2)
-			{
-				const auto &[trace, str] = _trace.back();
-
-				result += lak::streamify("\n",
-				                         lak::scoped_indenter::str(),
-				                         trace,
-				                         str.empty() ? "" : ": ",
-				                         str);
-
-				++lak::debug_indent;
-			}
-			if (_trace.size() >= 3)
-			{
-				for (size_t i = _trace.size() - 1; i-- > 1;)
-				{
-					const auto &[trace, str] = _trace[i];
-					result += lak::streamify("\n",
-					                         lak::scoped_indenter::str(),
-					                         trace,
-					                         str.empty() ? "" : ": ",
-					                         str);
-				}
-			}
-			if (_trace.size() >= 1)
-			{
-				const auto &[trace, str] = _trace.front();
-				result += lak::streamify("\n", lak::scoped_indenter::str(), trace);
-				if (_value != str_err) result += lak::streamify(": ", value_string());
-				if (!str.empty()) result += lak::streamify(": ", str);
-			}
-			if (_trace.size() >= 2) --lak::debug_indent;
-
-			return result;
-		}
-
-		inline friend std::ostream &operator<<(std::ostream &strm,
-		                                       const error &err)
-		{
-			return strm << lak::string_view(err.to_string());
-		}
+		no_mode0_decoder,
+		no_mode1_decoder,
+		no_mode2_decoder,
+		no_mode3_decoder,
 	};
 
-#define MAP_TRACE(ERR, ...)                                                   \
-	[&](const auto &err) -> SourceExplorer::error                               \
-	{                                                                           \
-		static_assert(!lak::is_same_v<SourceExplorer::error,                      \
-			                            lak::remove_cvref_t<decltype(err)>>);       \
-		if constexpr (lak::is_same_v<lak::monostate,                              \
-			                           lak::remove_cvref_t<decltype(err)>>)         \
-		{                                                                         \
-			return SourceExplorer::error(LINE_TRACE,                                \
-				                           ERR __VA_OPT__(, ) __VA_ARGS__);           \
-		}                                                                         \
-		else                                                                      \
-		{                                                                         \
-			return SourceExplorer::error(                                           \
-				LINE_TRACE, ERR, "" __VA_OPT__(, ) __VA_ARGS__, err);                 \
-		}                                                                         \
+	inline std::ostream &to_string(std::ostream &strm, error_type err)
+	{
+		switch (err)
+		{
+			case error_type::invalid_exe_signature:
+				return strm << "Invalid EXE Signature";
+			case error_type::invalid_pe_signature:
+				return strm << "Invalid PE Signature";
+			case error_type::invalid_game_signature:
+				return strm << "Invalid Game Header";
+			case error_type::invalid_state: return strm << "Invalid State";
+			case error_type::invalid_mode: return strm << "Invalid Mode";
+			case error_type::invalid_chunk: return strm << "Invalid Chunk";
+			case error_type::no_mode0: return strm << "No MODE0";
+			case error_type::no_mode1: return strm << "No MODE1";
+			case error_type::no_mode2: return strm << "No MODE2";
+			case error_type::no_mode3: return strm << "No MODE3";
+			case error_type::out_of_data: return strm << "Out Of Data";
+			case error_type::inflate_failed: return strm << "Inflate Failed";
+			case error_type::decrypt_failed: return strm << "Decrypt Failed";
+			case error_type::no_mode0_decoder: return strm << "No MODE0 Decoder";
+			case error_type::no_mode1_decoder: return strm << "No MODE1 Decoder";
+			case error_type::no_mode2_decoder: return strm << "No MODE2 Decoder";
+			case error_type::no_mode3_decoder: return strm << "No MODE3 Decoder";
+			default: return strm << "Invalid Error Code";
+		}
 	}
 
-#define MAP_ERRCODE(CODE, ...) map_err(MAP_TRACE(CODE, __VA_ARGS__))
+	inline lak::stack_trace error(error_type err, lak::trace trace = {})
+	{
+		return lak::stack_trace{}
+		  .set_message(lak::streamify(err))
+		  .add(lak::move(trace));
+	}
 
-#define MAP_ERR(...) MAP_ERRCODE(SourceExplorer::error::str_err, __VA_ARGS__)
+	inline lak::stack_trace error(lak::u8string err, lak::trace trace = {})
+	{
+		return lak::stack_trace{}.set_message(err).add(lak::move(trace));
+	}
 
-#define TRY_ASSIGN(A, ...)                                                    \
-	RES_TRY_ASSIGN(A, __VA_ARGS__.MAP_ERR("assign failed"))
+	inline lak::stack_trace error(error_type err,
+	                              lak::u8string msg,
+	                              lak::trace trace = {})
+	{
+		return lak::stack_trace{}
+		  .set_message(lak::streamify(err, ": ", msg))
+		  .add(lak::move(trace));
+	}
 
-#define TRY(...) RES_TRY(__VA_ARGS__.MAP_ERR())
+#define TRY_ASSIGN(A, ...) RES_TRY_TO_TRACE_ASSIGN(A, __VA_ARGS__)
 
-#define APPEND_TRACE(...)                                                     \
-	[&](const SourceExplorer::error &err) -> SourceExplorer::error              \
-	{ return err.append_trace(LINE_TRACE __VA_OPT__(, ) __VA_ARGS__); }
-
-#define MAP_SE_ERR(...) map_err(APPEND_TRACE(__VA_ARGS__))
-
-#define TRY_SE_ASSIGN(A, ...)                                                 \
-	RES_TRY_ASSIGN(A, __VA_ARGS__.MAP_SE_ERR("assign failed"))
-
-#define TRY_SE(...) RES_TRY(__VA_ARGS__.MAP_SE_ERR())
+#define TRY(...) RES_TRY_TO_TRACE(__VA_ARGS__)
 
 #define CHECK_REMAINING(STRM, EXPECTED)                                       \
 	do                                                                          \
@@ -277,11 +155,10 @@ namespace SourceExplorer
 			      " Bytes Remaining, Expected ",                                    \
 			      expected);                                                        \
 			return lak::err_t{                                                      \
-			  SourceExplorer::error(LINE_TRACE,                                     \
-			                        SourceExplorer::error::out_of_data,             \
-			                        STRM.remaining().size(),                        \
-			                        " Bytes Remaining, Expected ",                  \
-			                        expected)};                                     \
+			  SourceExplorer::error(SourceExplorer::error_type::out_of_data,        \
+			                        lak::streamify(STRM.remaining().size(),         \
+			                                       " Bytes Remaining, Expected ",   \
+			                                       expected))};                     \
 		}                                                                         \
 	} while (false)
 
@@ -295,16 +172,15 @@ namespace SourceExplorer
 			      " Bytes Availible, Expected ",                                    \
 			      expected);                                                        \
 			return lak::err_t{                                                      \
-			  SourceExplorer::error(LINE_TRACE,                                     \
-			                        SourceExplorer::error::out_of_data,             \
-			                        STRM.remaining().size(),                        \
-			                        " Bytes Availible, Expected ",                  \
-			                        expected)};                                     \
+			  SourceExplorer::error(SourceExplorer::error_type::out_of_data,        \
+			                        lak::streamify(STRM.remaining().size(),         \
+			                                       " Bytes Availible, Expected ",   \
+			                                       expected))};                     \
 		}                                                                         \
 	} while (false)
 
 	template<typename T>
-	using result_t = lak::result<T, error>;
+	using result_t = lak::result<T, lak::stack_trace>;
 	using error_t  = result_t<lak::monostate>;
 
 	extern bool force_compat;
@@ -1328,7 +1204,7 @@ namespace SourceExplorer
 		{
 			if (ptr)
 			{
-				RES_TRY(ptr->view(args...).MAP_SE_ERR("chunk_ptr::view"));
+				RES_TRY(ptr->view(args...).RES_ADD_TRACE("chunk_ptr::view"));
 			}
 			return lak::ok_t{};
 		}

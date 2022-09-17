@@ -173,7 +173,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	                                  size_t size,
 	                                  bool update)
 	{
-		static bool reset_on_update      = true;
+		static bool reset_on_update      = false;
 		static lak::vec2u64_t image_size = {256, 256};
 		static lak::vec3u64_t block_skip = {0, 0, 0};
 		static lak::image4_t image{lak::vec2s_t(image_size)};

@@ -69,8 +69,9 @@ namespace SourceExplorer
 		srcexp.state        = game_t{};
 		srcexp.state.compat = force_compat;
 
-		RES_TRY_ASSIGN(auto bytes =,
-		               lak::read_file(srcexp.exe.path).MAP_ERR("LoadGame"));
+		RES_TRY_ASSIGN(
+		  auto bytes =,
+		  lak::read_file(srcexp.exe.path).RES_MAP_TO_TRACE("LoadGame"));
 
 		srcexp.state.file = make_data_ref_ptr(lak::move(bytes));
 
@@ -78,7 +79,7 @@ namespace SourceExplorer
 
 		DEBUG("File Size: ", srcexp.state.file->size());
 
-		if (auto err = ParsePEHeader(strm).MAP_SE_ERR(
+		if (auto err = ParsePEHeader(strm).RES_ADD_TRACE(
 		      "LoadGame: while parsing PE header at: ", strm.position());
 		    err.is_err())
 		{
@@ -92,8 +93,8 @@ namespace SourceExplorer
 		}
 
 		RES_TRY(ParseGameHeader(strm, srcexp.state)
-		          .MAP_SE_ERR("LoadGame: while parsing game header at: ",
-		                      strm.position()));
+		          .RES_ADD_TRACE("LoadGame: while parsing game header at: ",
+		                         strm.position()));
 
 		DEBUG("Successfully Parsed Game Header");
 
@@ -113,8 +114,8 @@ namespace SourceExplorer
 			_magic_char = 54; // 'c';
 
 		RES_TRY(srcexp.state.game.read(srcexp.state, strm)
-		          .MAP_SE_ERR("LoadGame: while parsing PE header at: ",
-		                      strm.position()));
+		          .RES_ADD_TRACE("LoadGame: while parsing PE header at: ",
+		                         strm.position()));
 
 		DEBUG("Successfully Read Game Entry");
 
@@ -218,11 +219,11 @@ namespace SourceExplorer
 		DEBUG("EXE Signature: ", exe_sig);
 		if (exe_sig != WIN_EXE_SIG)
 		{
-			return lak::err_t{error(LINE_TRACE,
-			                        error::invalid_exe_signature,
-			                        TRACE_EXPECTED(WIN_EXE_SIG, exe_sig),
-			                        ", at ",
-			                        (strm.position() - 2))};
+			return lak::err_t{
+			  error(error_type::invalid_exe_signature,
+			        lak::streamify(TRACE_EXPECTED(WIN_EXE_SIG, exe_sig),
+			                       ", at ",
+			                       (strm.position() - 2)))};
 		}
 
 		strm.seek(WIN_EXE_PNT).UNWRAP();
@@ -233,11 +234,11 @@ namespace SourceExplorer
 		DEBUG("PE Signature: ", pe_sig);
 		if (pe_sig != WIN_PE_SIG)
 		{
-			return lak::err_t{error(LINE_TRACE,
-			                        error::invalid_pe_signature,
-			                        TRACE_EXPECTED(WIN_PE_SIG, pe_sig),
-			                        ", at ",
-			                        (strm.position() - 4))};
+			return lak::err_t{
+			  error(error_type::invalid_pe_signature,
+			        lak::streamify(TRACE_EXPECTED(WIN_PE_SIG, pe_sig),
+			                       ", at ",
+			                       (strm.position() - 4)))};
 		}
 
 		strm.skip(2).UNWRAP();
@@ -297,9 +298,8 @@ namespace SourceExplorer
 		if (strm.empty())
 		{
 			return lak::err_t{
-			  error(LINE_TRACE,
-			        error::invalid_game_signature,
-			        "No game header. "
+			  error(error_type::invalid_game_signature,
+			        u8"No game header. "
 			        "If this game has an associated .DAT file, open that instead.")};
 		}
 
@@ -335,8 +335,7 @@ namespace SourceExplorer
 				RES_TRY_ASSIGN(
 				  pos =,
 				  ParsePackData(strm, game_state)
-				    .map_err(APPEND_TRACE("while parsing game header at: ",
-				                          strm.position())));
+				    .RES_ADD_TRACE("while parsing game header at: ", strm.position()));
 				break;
 			}
 			else if (pame_magic == HEADER_UNIC)
@@ -360,36 +359,32 @@ namespace SourceExplorer
 			}
 			else
 			{
-				return lak::err_t{error(LINE_TRACE,
-				                        error::invalid_game_signature,
-				                        "Expected ",
-				                        (uint16_t)chunk_t::header,
-				                        "u16, ",
-				                        0x222C,
-				                        "u16, ",
-				                        0x7F7F,
-				                        "u16, ",
-				                        HEADER_GAME,
-				                        "u32 or ",
-				                        HEADER_PACK,
-				                        "u64, Found ",
-				                        first_short,
-				                        "u16/",
-				                        pame_magic,
-				                        "u32/",
-				                        pack_magic,
-				                        "u64")};
+				return lak::err_t{error(error_type::invalid_game_signature,
+				                        lak::streamify("Expected ",
+				                                       (uint16_t)chunk_t::header,
+				                                       "u16, ",
+				                                       0x222C,
+				                                       "u16, ",
+				                                       0x7F7F,
+				                                       "u16, ",
+				                                       HEADER_GAME,
+				                                       "u32 or ",
+				                                       HEADER_PACK,
+				                                       "u64, Found ",
+				                                       first_short,
+				                                       "u16/",
+				                                       pame_magic,
+				                                       "u32/",
+				                                       pack_magic,
+				                                       "u64"))};
 			}
 
 			if (pos > strm.size())
 			{
-				return lak::err_t{error(LINE_TRACE,
-				                        error::invalid_game_signature,
-				                        ": pos (",
-				                        pos,
-				                        ") > strm.size (",
-				                        strm.size(),
-				                        ")")};
+				return lak::err_t{
+				  error(error_type::invalid_game_signature,
+				        lak::streamify(
+				          ": pos (", pos, ") > strm.size (", strm.size(), ")"))};
 			}
 		}
 
@@ -404,11 +399,11 @@ namespace SourceExplorer
 		}
 		else if (header != HEADER_GAME)
 		{
-			return lak::err_t{error(LINE_TRACE,
-			                        error::invalid_game_signature,
-			                        TRACE_EXPECTED(HEADER_GAME, header),
-			                        ", at ",
-			                        (strm.position() - 4))};
+			return lak::err_t{
+			  error(error_type::invalid_game_signature,
+			        lak::streamify(TRACE_EXPECTED(HEADER_GAME, header),
+			                       ", at ",
+			                       (strm.position() - 4)))};
 		}
 
 		game_state.runtime_version = (product_code_t)strm.read_u16().UNWRAP();
@@ -477,8 +472,7 @@ namespace SourceExplorer
 		TRY(strm.skip(0x8));
 
 		TRY_ASSIGN(int32_t count =, strm.read_s32());
-		if (count < 0)
-			return lak::err_t{error(LINE_TRACE, error::invalid_pack_count)};
+		if (count < 0) return lak::err_t{error(error_type::invalid_pack_count)};
 		DEBUG("Pack Count: ", count);
 
 		uint64_t off = strm.position();
@@ -1460,12 +1454,11 @@ namespace SourceExplorer
 		{
 			DEBUG("Max Size: ", max_size);
 			DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
-			return lak::err_t{
-			  error(LINE_TRACE,
-			        error::inflate_failed,
-			        "Failed To Inflate (",
-			        lak::deflate_iterator::error_name(err.unsafe_unwrap_err()),
-			        ")")};
+			return lak::err_t{error(error_type::inflate_failed,
+			                        lak::streamify("Failed To Inflate (",
+			                                       lak::deflate_iterator::error_name(
+			                                         err.unsafe_unwrap_err()),
+			                                       ")"))};
 		}
 	}
 
@@ -1484,7 +1477,7 @@ namespace SourceExplorer
 			    return data_ref_span_t(
 			      make_data_ref_ptr(compressed, lak::move(decompressed)));
 		    })
-		  .MAP_ERRCODE(error::inflate_failed);
+		  .RES_MAP_TO_TRACE(error_type::inflate_failed);
 	}
 
 	result_t<data_ref_span_t> LZ4DecodeReadSize(data_ref_span_t compressed)
@@ -1528,12 +1521,11 @@ namespace SourceExplorer
 		{
 			DEBUG("Out Size: ", out_size);
 			DEBUG("Final? ", (inflater.is_final_block() ? "True" : "False"));
-			return lak::err_t{
-			  error(LINE_TRACE,
-			        error::inflate_failed,
-			        "Failed To Inflate (",
-			        lak::deflate_iterator::error_name(err.unsafe_unwrap_err()),
-			        ")")};
+			return lak::err_t{error(error_type::inflate_failed,
+			                        lak::streamify("Failed To Inflate (",
+			                                       lak::deflate_iterator::error_name(
+			                                         err.unsafe_unwrap_err()),
+			                                       ")"))};
 		}
 	}
 
@@ -1549,9 +1541,8 @@ namespace SourceExplorer
 		{
 			if (encrypted.size() <= 4)
 				return lak::err_t{
-				  error(LINE_TRACE,
-				        error::decrypt_failed,
-				        "MODE 3 Decryption Failed: Encrypted Buffer Too Small")};
+				  error(error_type::decrypt_failed,
+				        u8"MODE 3 Decryption Failed: Encrypted Buffer Too Small")};
 			// TODO: check endian
 			// size_t dataLen = *reinterpret_cast<const uint32_t*>(&encrypted[0]);
 			TRY(estrm.skip(4));
@@ -1569,9 +1560,8 @@ namespace SourceExplorer
 			{
 				if (mem_reader.remaining().size() <= 4)
 					return lak::err_t{
-					  error(LINE_TRACE,
-					        error::decrypt_failed,
-					        "MODE 3 Decryption Failed: Decoded Chunk Too Small")};
+					  error(error_type::decrypt_failed,
+					        u8"MODE 3 Decryption Failed: Decoded Chunk Too Small")};
 				// dataLen = *reinterpret_cast<uint32_t*>(&mem[0]);
 
 				TRY(mem_reader.skip(4));
@@ -1585,15 +1575,14 @@ namespace SourceExplorer
 				    .if_err([](auto ref_span) { DEBUG("Size: ", ref_span.size()); }))};
 			}
 			return lak::err_t{
-			  error(LINE_TRACE, error::decrypt_failed, "MODE 3 Decryption Failed")};
+			  error(error_type::decrypt_failed, u8"MODE 3 Decryption Failed")};
 		}
 		else
 		{
 			if (encrypted.size() < 1)
 				return lak::err_t{
-				  error(LINE_TRACE,
-				        error::decrypt_failed,
-				        "MODE 2 Decryption Failed: Encrypted Buffer Too Small")};
+				  error(error_type::decrypt_failed,
+				        u8"MODE 2 Decryption Failed: Encrypted Buffer Too Small")};
 
 			auto mem_ptr  = estrm.copy_remaining();
 			auto mem_span = lak::span<byte_t>(mem_ptr->get());
@@ -1606,8 +1595,8 @@ namespace SourceExplorer
 			{
 				if (mode == encoding_t::mode2)
 				{
-					return lak::err_t{error(
-					  LINE_TRACE, error::decrypt_failed, "MODE 2 Decryption Failed")};
+					return lak::err_t{
+					  error(error_type::decrypt_failed, u8"MODE 2 Decryption Failed")};
 				}
 			}
 
@@ -1617,52 +1606,48 @@ namespace SourceExplorer
 
 	result_t<frame::item_t &> GetFrame(game_t &game, uint16_t handle)
 	{
-		if (!game.game.frame_bank)
-			return lak::err_t{error(LINE_TRACE, u8"No Frame Bank")};
+		if (!game.game.frame_bank) return lak::err_t{error(u8"No Frame Bank")};
 
 		if (!game.game.frame_handles)
-			return lak::err_t{error(LINE_TRACE, u8"No Frame Handles")};
+			return lak::err_t{error(u8"No Frame Handles")};
 
 		if (handle >= game.game.frame_handles->handles.size())
-			return lak::err_t{error(LINE_TRACE, u8"Frame Handle Out Of Range")};
+			return lak::err_t{error(u8"Frame Handle Out Of Range")};
 
 		handle = game.game.frame_handles->handles[handle];
 
 		if (handle >= game.game.frame_bank->items.size())
-			return lak::err_t{error(LINE_TRACE, u8"Frame Bank Handle Out Of Range")};
+			return lak::err_t{error(u8"Frame Bank Handle Out Of Range")};
 
 		return lak::ok_t{game.game.frame_bank->items[handle]};
 	}
 
 	result_t<object::item_t &> GetObject(game_t &game, uint16_t handle)
 	{
-		if (!game.game.object_bank)
-			return lak::err_t{error(LINE_TRACE, u8"No Object Bank")};
+		if (!game.game.object_bank) return lak::err_t{error(u8"No Object Bank")};
 
 		auto iter = game.object_handles.find(handle);
 
 		if (iter == game.object_handles.end())
-			return lak::err_t{error(LINE_TRACE, u8"Invalid Object Handle")};
+			return lak::err_t{error(u8"Invalid Object Handle")};
 
 		if (iter->second >= game.game.object_bank->items.size())
-			return lak::err_t{
-			  error(LINE_TRACE, u8"Object Bank Handle Out Of Range")};
+			return lak::err_t{error(u8"Object Bank Handle Out Of Range")};
 
 		return lak::ok_t{game.game.object_bank->items[iter->second]};
 	}
 
 	result_t<image::item_t &> GetImage(game_t &game, uint32_t handle)
 	{
-		if (!game.game.image_bank)
-			return lak::err_t{error(LINE_TRACE, u8"No Image Bank")};
+		if (!game.game.image_bank) return lak::err_t{error(u8"No Image Bank")};
 
 		auto iter = game.image_handles.find(handle);
 
 		if (iter == game.image_handles.end())
-			return lak::err_t{error(LINE_TRACE, u8"Invalid Image Handle")};
+			return lak::err_t{error(u8"Invalid Image Handle")};
 
 		if (iter->second >= game.game.image_bank->items.size())
-			return lak::err_t{error(LINE_TRACE, u8"Image Bank Handle Out Of Range")};
+			return lak::err_t{error(u8"Image Bank Handle Out Of Range")};
 
 		return lak::ok_t{game.game.image_bank->items[iter->second]};
 	}
@@ -1829,7 +1814,8 @@ namespace SourceExplorer
 			RES_TRY_ASSIGN(
 			  const auto raw =,
 			  StreamDecompress(strm, static_cast<unsigned int>(body.expected_size))
-			    .MAP_SE_ERR("item_entry_t::read"));
+			    .RES_ADD_TRACE("item_entry_t::read"));
+
 			if (raw.size() != body.expected_size)
 			{
 				WARNING("Actual decompressed size (",
@@ -1915,19 +1901,19 @@ namespace SourceExplorer
 						               true,
 						               true,
 						               std::min(body.expected_size, max_size))
-						  .MAP_SE_ERR("MODE1 Failed To Inflate")
+						  .RES_ADD_TRACE("MODE1 Failed To Inflate")
 						  .if_ok([](const auto &ref_span)
 						         { DEBUG("Size: ", ref_span.size()); });
 					}
 				}
 
 				case encoding_t::mode2:
-					return lak::err_t{error(LINE_TRACE, error::no_mode2_decoder)};
+					return lak::err_t{error(error_type::no_mode2_decoder)};
 
 				case encoding_t::mode3:
-					return lak::err_t{error(LINE_TRACE, error::no_mode3_decoder)};
+					return lak::err_t{error(error_type::no_mode3_decoder)};
 
-				default: return lak::err_t{error(LINE_TRACE, error::invalid_mode)};
+				default: return lak::err_t{error(error_type::invalid_mode)};
 			}
 		}
 		else
@@ -1937,7 +1923,7 @@ namespace SourceExplorer
 				case encoding_t::mode4:
 				{
 					return LZ4DecodeReadSize(body.data)
-					  .MAP_SE_ERR("LZ4 Decode Failed")
+					  .RES_ADD_TRACE("LZ4 Decode Failed")
 					  .if_ok([](const auto &ref_span)
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
@@ -1946,7 +1932,7 @@ namespace SourceExplorer
 				case encoding_t::mode2:
 				{
 					return Decrypt(body.data, ID, mode)
-					  .MAP_SE_ERR("MODE2/3 Failed To Decrypt")
+					  .RES_ADD_TRACE("MODE2/3 Failed To Decrypt")
 					  .if_ok([](const auto &ref_span)
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
@@ -1954,7 +1940,7 @@ namespace SourceExplorer
 				case encoding_t::mode1:
 				{
 					return Inflate(body.data, false, false, max_size)
-					  .MAP_SE_ERR("MODE1 Failed To Inflate")
+					  .RES_ADD_TRACE("MODE1 Failed To Inflate")
 					  .if_ok([](const auto &ref_span)
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
@@ -1999,14 +1985,14 @@ namespace SourceExplorer
 			switch (mode)
 			{
 				case encoding_t::mode0:
-					return lak::err_t{error(LINE_TRACE, error::no_mode0_decoder)};
+					return lak::err_t{error(error_type::no_mode0_decoder)};
 				case encoding_t::mode1:
-					return lak::err_t{error(LINE_TRACE, error::no_mode1_decoder)};
+					return lak::err_t{error(error_type::no_mode1_decoder)};
 				case encoding_t::mode2:
-					return lak::err_t{error(LINE_TRACE, error::no_mode2_decoder)};
+					return lak::err_t{error(error_type::no_mode2_decoder)};
 				case encoding_t::mode3:
-					return lak::err_t{error(LINE_TRACE, error::no_mode3_decoder)};
-				default: return lak::err_t{error(LINE_TRACE, error::invalid_mode)};
+					return lak::err_t{error(error_type::no_mode3_decoder)};
+				default: return lak::err_t{error(error_type::invalid_mode)};
 			}
 		}
 		else
@@ -2019,7 +2005,7 @@ namespace SourceExplorer
 					// :TODO: this was originally body not head, check that this change
 					// is correct.
 					return Decrypt(head.data, ID, mode)
-					  .MAP_SE_ERR("MODE2/3 Failed To Decrypt")
+					  .RES_ADD_TRACE("MODE2/3 Failed To Decrypt")
 					  .if_ok([](const auto &ref_span)
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
@@ -2027,7 +2013,7 @@ namespace SourceExplorer
 				case encoding_t::mode1:
 				{
 					return Inflate(head.data, false, false, max_size)
-					  .MAP_SE_ERR("MODE1 Failed To Inflate")
+					  .RES_ADD_TRACE("MODE1 Failed To Inflate")
 					  .if_ok([](const auto &ref_span)
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
@@ -2084,18 +2070,17 @@ namespace SourceExplorer
 						    data_reader_t reader(ref_span);
 						    return lak::to_u16string(reader.read_any_c_str<char>());
 					    })
-					  .MAP_SE_ERR("Invalid String Chunk: ",
-					              (int)entry.mode,
-					              ", Chunk: ",
-					              (int)entry.ID);
+					  .RES_ADD_TRACE("Invalid String Chunk: ",
+					                 (int)entry.mode,
+					                 ", Chunk: ",
+					                 (int)entry.ID);
 
 				default:
-					return lak::err_t{error(LINE_TRACE,
-					                        error::invalid_mode,
-					                        "Invalid String Mode: ",
-					                        (int)entry.mode,
-					                        ", Chunk: ",
-					                        (int)entry.ID)};
+					return lak::err_t{error(error_type::invalid_mode,
+					                        lak::streamify("Invalid String Mode: ",
+					                                       (int)entry.mode,
+					                                       ", Chunk: ",
+					                                       (int)entry.ID))};
 			}
 		}
 		else
@@ -2110,10 +2095,10 @@ namespace SourceExplorer
 				    else
 					    return lak::to_u16string(reader.read_any_c_str<char>());
 			    })
-			  .MAP_SE_ERR("Invalid String Chunk: ",
-			              (int)entry.mode,
-			              ", Chunk: ",
-			              (int)entry.ID);
+			  .RES_ADD_TRACE("Invalid String Chunk: ",
+			                 (int)entry.mode,
+			                 ", Chunk: ",
+			                 (int)entry.ID);
 		}
 	}
 
@@ -2157,9 +2142,9 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("string_chunk_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("string_chunk_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("string_chunk_t::read"));
 
-		TRY_SE_ASSIGN(value =, ReadStringEntry(game, entry));
+		RES_TRY_TRACE_ASSIGN(value =, ReadStringEntry(game, entry));
 
 		DEBUG(LAK_YELLOW "Value: \"", lak::to_astring(value), "\"" LAK_SGR_RESET);
 
@@ -2202,10 +2187,10 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("strings_chunk_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("string_chunk_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("string_chunk_t::read"));
 
 		RES_TRY_ASSIGN(auto span =,
-		               entry.decode_body().MAP_SE_ERR("string_chunk_t::read"));
+		               entry.decode_body().RES_ADD_TRACE("string_chunk_t::read"));
 
 		data_reader_t sstrm(span);
 
@@ -2253,7 +2238,7 @@ namespace SourceExplorer
 			{
 				RES_TRY_ASSIGN(
 				  auto span =,
-				  entry.decode_body().MAP_SE_ERR("compressed_chunk_t::view"));
+				  entry.decode_body().RES_ADD_TRACE("compressed_chunk_t::view"));
 
 				data_reader_t strm(span);
 
@@ -2333,10 +2318,10 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("icon_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("icon_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("icon_t::read"));
 
 		RES_TRY_ASSIGN(auto span =,
-		               entry.decode_body().MAP_SE_ERR("icon_t::read"));
+		               entry.decode_body().RES_ADD_TRACE("icon_t::read"));
 
 		data_reader_t dstrm(span);
 
@@ -2461,10 +2446,10 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("binary_files_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("binary_files_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("binary_files_t::read"));
 
 		RES_TRY_ASSIGN(auto span =,
-		               entry.decode_body().MAP_SE_ERR("binary_files_t::read"));
+		               entry.decode_body().RES_ADD_TRACE("binary_files_t::read"));
 
 		data_reader_t bstrm(span);
 
@@ -2473,7 +2458,7 @@ namespace SourceExplorer
 		items.resize(item_count);
 		for (auto &item : items)
 		{
-			RES_TRY(item.read(game, bstrm).MAP_SE_ERR("binary_files_t::read"));
+			RES_TRY(item.read(game, bstrm).RES_ADD_TRACE("binary_files_t::read"));
 		}
 
 		return lak::ok_t{};
@@ -2491,7 +2476,7 @@ namespace SourceExplorer
 			{
 				ImGui::PushID(index++);
 				DEFER(ImGui::PopID());
-				RES_TRY(item.view(srcexp).MAP_SE_ERR("binary_files_t::view"));
+				RES_TRY(item.view(srcexp).RES_ADD_TRACE("binary_files_t::view"));
 			}
 		}
 
@@ -2542,10 +2527,11 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("extended_header_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("extended_header_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("extended_header_t::read"));
 
-		RES_TRY_ASSIGN(auto span =,
-		               entry.decode_body().MAP_SE_ERR("extended_header_t::read"));
+		RES_TRY_ASSIGN(
+		  auto span =,
+		  entry.decode_body().RES_ADD_TRACE("extended_header_t::read"));
 
 		data_reader_t estrm(span);
 
@@ -2618,10 +2604,10 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("chunk2253_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("chunk_2253_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("chunk_2253_t::read"));
 
 		RES_TRY_ASSIGN(auto span =,
-		               entry.decode_body().MAP_SE_ERR("chunk_2253_t::read"));
+		               entry.decode_body().RES_ADD_TRACE("chunk_2253_t::read"));
 
 		data_reader_t cstrm(span);
 
@@ -2629,7 +2615,8 @@ namespace SourceExplorer
 		{
 			const size_t pos = cstrm.position();
 			items.emplace_back();
-			RES_TRY(items.back().read(game, cstrm).MAP_SE_ERR("chunk_2253_t::read"));
+			RES_TRY(
+			  items.back().read(game, cstrm).RES_ADD_TRACE("chunk_2253_t::read"));
 			if (cstrm.position() == pos) break;
 		}
 
@@ -2652,7 +2639,7 @@ namespace SourceExplorer
 			{
 				LAK_TREE_NODE("0x%zX Item##%zX", (size_t)item.ID, i++)
 				{
-					RES_TRY(item.view(srcexp).MAP_SE_ERR("chunk_2253_t::view"));
+					RES_TRY(item.view(srcexp).RES_ADD_TRACE("chunk_2253_t::view"));
 				}
 			}
 		}
@@ -2678,7 +2665,7 @@ namespace SourceExplorer
 		game.two_five_plus_game = true;
 
 		RES_TRY(entry.read(game, strm)
-		          .MAP_SE_ERR("two_five_plus_object_properties_t::read"));
+		          .RES_ADD_TRACE("two_five_plus_object_properties_t::read"));
 
 		data_reader_t reader(entry.raw_body());
 
@@ -2687,7 +2674,7 @@ namespace SourceExplorer
 			items.emplace_back();
 			RES_TRY(items.back()
 			          .read(game, reader, true, 0, false)
-			          .MAP_SE_ERR("two_five_plus_object_properties_t::read"));
+			          .RES_ADD_TRACE("two_five_plus_object_properties_t::read"));
 		}
 
 		return lak::ok_t{};
@@ -2724,7 +2711,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("object_properties_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("object_properties_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("object_properties_t::read"));
 
 		data_reader_t reader(entry.raw_body());
 
@@ -2733,7 +2720,7 @@ namespace SourceExplorer
 			items.emplace_back();
 			RES_TRY(items.back()
 			          .read(game, reader, false)
-			          .MAP_SE_ERR("object_properties_t::read"));
+			          .RES_ADD_TRACE("object_properties_t::read"));
 		}
 
 		return lak::ok_t{};
@@ -2770,7 +2757,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("truetype_fonts_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("truetype_fonts_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("truetype_fonts_t::read"));
 
 		data_reader_t reader(entry.raw_body());
 
@@ -2780,7 +2767,7 @@ namespace SourceExplorer
 			items.emplace_back();
 			RES_TRY(items.back()
 			          .read(game, reader, false)
-			          .MAP_SE_ERR("truetype_fonts_t::read"));
+			          .RES_ADD_TRACE("truetype_fonts_t::read"));
 		}
 
 		return lak::ok_t{};
@@ -2901,12 +2888,12 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("object::quick_backdrop_t::");
 
-			RES_TRY(
-			  entry.read(game, strm).MAP_SE_ERR("object::quick_backdrop_t::read"));
+			RES_TRY(entry.read(game, strm)
+			          .RES_ADD_TRACE("object::quick_backdrop_t::read"));
 
 			RES_TRY_ASSIGN(
 			  auto span =,
-			  entry.decode_body().MAP_SE_ERR("object::quick_backdrop_t::read"));
+			  entry.decode_body().RES_ADD_TRACE("object::quick_backdrop_t::read"));
 
 			data_reader_t qstrm(span);
 
@@ -2923,8 +2910,8 @@ namespace SourceExplorer
 				TRY_ASSIGN(dimension.x =, qstrm.read_u32());
 				TRY_ASSIGN(dimension.y =, qstrm.read_u32());
 			}
-			RES_TRY(
-			  shape.read(game, qstrm).MAP_SE_ERR("object::quick_backdrop_t::read"));
+			RES_TRY(shape.read(game, qstrm)
+			          .RES_ADD_TRACE("object::quick_backdrop_t::read"));
 
 			return lak::ok_t{};
 		}
@@ -2944,16 +2931,16 @@ namespace SourceExplorer
 				  "Dimension: (%li, %li)", (long)dimension.x, (long)dimension.y);
 
 				RES_TRY(
-				  shape.view(srcexp).MAP_SE_ERR("object::quick_backdrop_t::view"));
+				  shape.view(srcexp).RES_ADD_TRACE("object::quick_backdrop_t::view"));
 
 				ImGui::Text("Handle: 0x%zX", (size_t)shape.handle);
 				if (shape.handle < 0xFFFF)
 				{
 					RES_TRY(
 					  GetImage(srcexp.state, shape.handle)
-					    .MAP_SE_ERR("object::quick_backdrop_t::view: bad image")
+					    .RES_ADD_TRACE("object::quick_backdrop_t::view: bad image")
 					    .and_then([&](const auto &img) { return img.view(srcexp); })
-					    .MAP_SE_ERR("object::quick_backdrop_t::view"));
+					    .RES_ADD_TRACE("object::quick_backdrop_t::view"));
 				}
 			}
 
@@ -2964,11 +2951,12 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("object::backdrop_t::");
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::backdrop_t::read"));
+			RES_TRY(
+			  entry.read(game, strm).RES_ADD_TRACE("object::backdrop_t::read"));
 
 			RES_TRY_ASSIGN(
 			  auto span =,
-			  entry.decode_body().MAP_SE_ERR("object::backdrop_t::read"));
+			  entry.decode_body().RES_ADD_TRACE("object::backdrop_t::read"));
 
 			data_reader_t bstrm(span);
 
@@ -3008,9 +2996,9 @@ namespace SourceExplorer
 				{
 					RES_TRY(
 					  GetImage(srcexp.state, handle)
-					    .MAP_SE_ERR("object::backdrop_t::view: bad image")
+					    .RES_ADD_TRACE("object::backdrop_t::view: bad image")
 					    .and_then([&](const auto &img) { return img.view(srcexp); })
-					    .MAP_SE_ERR("object::backdrop_t::view"));
+					    .RES_ADD_TRACE("object::backdrop_t::view"));
 				}
 			}
 
@@ -3064,11 +3052,11 @@ namespace SourceExplorer
 				DEFER(ImGui::PopID());
 
 				GetImage(srcexp.state, handle)
-				  .MAP_SE_ERR("object::animation_direction_t::view: bad handle")
+				  .RES_ADD_TRACE("object::animation_direction_t::view: bad handle")
 				  .and_then(
 				    [&](auto &img)
 				    {
-					    return img.view(srcexp).MAP_SE_ERR(
+					    return img.view(srcexp).RES_ADD_TRACE(
 					      "object::animation_direction_t::view: bad image");
 				    })
 				  .if_err(
@@ -3108,7 +3096,7 @@ namespace SourceExplorer
 					DEFER(strm.seek(pos).UNWRAP(););
 					RES_TRY(directions[index]
 					          .read(game, strm)
-					          .MAP_SE_ERR("object::animation_t::read"));
+					          .RES_ADD_TRACE("object::animation_t::read"));
 				}
 				++index;
 			}
@@ -3127,8 +3115,8 @@ namespace SourceExplorer
 				{
 					LAK_TREE_NODE("Animation Direction 0x%zX", index)
 					{
-						RES_TRY(
-						  direction.view(srcexp).MAP_SE_ERR("object::animation_t::view"));
+						RES_TRY(direction.view(srcexp).RES_ADD_TRACE(
+						  "object::animation_t::view"));
 					}
 				}
 				++index;
@@ -3168,7 +3156,7 @@ namespace SourceExplorer
 					DEFER(strm.seek(pos).UNWRAP());
 					RES_TRY(animations[index]
 					          .read(game, strm)
-					          .MAP_SE_ERR("object::animation_header_t::read"));
+					          .RES_ADD_TRACE("object::animation_header_t::read"));
 				}
 				++index;
 			}
@@ -3194,7 +3182,7 @@ namespace SourceExplorer
 						LAK_TREE_NODE("Animation 0x%zX", index)
 						{
 							ImGui::Separator();
-							RES_TRY(animation.view(srcexp).MAP_SE_ERR(
+							RES_TRY(animation.view(srcexp).RES_ADD_TRACE(
 							  "object::animation_header_t::view"));
 						}
 					}
@@ -3209,10 +3197,11 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("object::common_t::");
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::common_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("object::common_t::read"));
 
-			RES_TRY_ASSIGN(auto span =,
-			               entry.decode_body().MAP_SE_ERR("object::common_t::read"));
+			RES_TRY_ASSIGN(
+			  auto span =,
+			  entry.decode_body().RES_ADD_TRACE("object::common_t::read"));
 
 			data_reader_t cstrm(span);
 
@@ -3302,8 +3291,8 @@ namespace SourceExplorer
 				DEBUG("Animations Offset: ", animations_offset);
 				TRY(cstrm.seek(begin + animations_offset));
 				animations = std::make_unique<animation_header_t>();
-				RES_TRY(
-				  animations->read(game, cstrm).MAP_SE_ERR("object::common_t::read"));
+				RES_TRY(animations->read(game, cstrm)
+				          .RES_ADD_TRACE("object::common_t::read"));
 			}
 
 			return lak::ok_t{};
@@ -3361,7 +3350,7 @@ namespace SourceExplorer
 				if (animations)
 				{
 					RES_TRY(
-					  animations->view(srcexp).MAP_SE_ERR("object::common_t::view"));
+					  animations->view(srcexp).RES_ADD_TRACE("object::common_t::view"));
 				}
 			}
 
@@ -3372,10 +3361,11 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("object::item_t::");
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::item_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("object::item_t::read"));
 
-			RES_TRY_ASSIGN(auto span =,
-			               entry.decode_body().MAP_SE_ERR("object::item_t::read"));
+			RES_TRY_ASSIGN(
+			  auto span =,
+			  entry.decode_body().RES_ADD_TRACE("object::item_t::read"));
 
 			data_reader_t dstrm(span);
 
@@ -3399,7 +3389,7 @@ namespace SourceExplorer
 						case chunk_t::object_name:
 							name = std::make_unique<string_chunk_t>();
 							RES_TRY(
-							  name->read(game, strm).MAP_SE_ERR("object::item_t::read"));
+							  name->read(game, strm).RES_ADD_TRACE("object::item_t::read"));
 							break;
 
 						case chunk_t::object_properties:
@@ -3408,33 +3398,33 @@ namespace SourceExplorer
 								case object_type_t::quick_backdrop:
 									quick_backdrop = std::make_unique<quick_backdrop_t>();
 									RES_TRY(quick_backdrop->read(game, strm)
-									          .MAP_SE_ERR("object::item_t::read"));
+									          .RES_ADD_TRACE("object::item_t::read"));
 									break;
 
 								case object_type_t::backdrop:
 									backdrop = std::make_unique<backdrop_t>();
 									RES_TRY(backdrop->read(game, strm)
-									          .MAP_SE_ERR("object::item_t::read"));
+									          .RES_ADD_TRACE("object::item_t::read"));
 									break;
 
 								default:
 									common = std::make_unique<common_t>();
 									RES_TRY(common->read(game, strm)
-									          .MAP_SE_ERR("object::item_t::read"));
+									          .RES_ADD_TRACE("object::item_t::read"));
 									break;
 							}
 							break;
 
 						case chunk_t::object_effect:
 							effect = std::make_unique<effect_t>();
-							RES_TRY(
-							  effect->read(game, strm).MAP_SE_ERR("object::item_t::read"));
+							RES_TRY(effect->read(game, strm)
+							          .RES_ADD_TRACE("object::item_t::read"));
 							break;
 
 						case chunk_t::last:
 							end = std::make_unique<last_t>();
 							RES_TRY(
-							  end->read(game, strm).MAP_SE_ERR("object::item_t::read"));
+							  end->read(game, strm).RES_ADD_TRACE("object::item_t::read"));
 							[[fallthrough]];
 
 						default: not_finished = false; break;
@@ -3466,30 +3456,31 @@ namespace SourceExplorer
 				if (name)
 				{
 					RES_TRY(name->view(srcexp, "Name", true)
-					          .MAP_SE_ERR("object::item_t::view"));
+					          .RES_ADD_TRACE("object::item_t::view"));
 				}
 
 				if (quick_backdrop)
 				{
-					RES_TRY(
-					  quick_backdrop->view(srcexp).MAP_SE_ERR("object::item_t::view"));
+					RES_TRY(quick_backdrop->view(srcexp).RES_ADD_TRACE(
+					  "object::item_t::view"));
 				}
 				if (backdrop)
 				{
-					RES_TRY(backdrop->view(srcexp).MAP_SE_ERR("object::item_t::view"));
+					RES_TRY(
+					  backdrop->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
 				}
 				if (common)
 				{
-					RES_TRY(common->view(srcexp).MAP_SE_ERR("object::item_t::view"));
+					RES_TRY(common->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
 				}
 
 				if (effect)
 				{
-					RES_TRY(effect->view(srcexp).MAP_SE_ERR("object::item_t::view"));
+					RES_TRY(effect->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
 				}
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).MAP_SE_ERR("object::item_t::view"));
+					RES_TRY(end->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
 				}
 			}
 
@@ -3539,7 +3530,7 @@ namespace SourceExplorer
 
 			DEFER(game.bank_completed = 0.0f);
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("object::bank_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("object::bank_t::read"));
 
 			data_reader_t reader(entry.raw_body());
 
@@ -3560,7 +3551,7 @@ namespace SourceExplorer
 					          (&item - items.data()),
 					          " Of ",
 					          items.size())
-					  .MAP_SE_ERR("object::bank_t::read");
+					  .RES_ADD_TRACE("object::bank_t::read");
 				};
 
 				for (auto &item : items)
@@ -3609,7 +3600,7 @@ namespace SourceExplorer
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).MAP_SE_ERR("object::bank_t::view"));
+					RES_TRY(item.view(srcexp).RES_ADD_TRACE("object::bank_t::view"));
 				}
 			}
 
@@ -3633,10 +3624,11 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("frame::palette_t::");
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::palette_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::palette_t::read"));
 
-			RES_TRY_ASSIGN(auto span =,
-			               entry.decode_body().MAP_SE_ERR("frame::palette_t::read"));
+			RES_TRY_ASSIGN(
+			  auto span =,
+			  entry.decode_body().RES_ADD_TRACE("frame::palette_t::read"));
 
 			data_reader_t pstrm(span);
 
@@ -3735,7 +3727,7 @@ namespace SourceExplorer
 
 				if (obj.is_ok())
 				{
-					RES_TRY(obj.unwrap().view(srcexp).MAP_SE_ERR(
+					RES_TRY(obj.unwrap().view(srcexp).RES_ADD_TRACE(
 					  "frame::object_instance_t::view"));
 				}
 
@@ -3745,7 +3737,7 @@ namespace SourceExplorer
 						if (auto parent_obj = GetObject(srcexp.state, parent_handle);
 						    parent_obj.is_ok())
 						{
-							RES_TRY(parent_obj.unwrap().view(srcexp).MAP_SE_ERR(
+							RES_TRY(parent_obj.unwrap().view(srcexp).RES_ADD_TRACE(
 							  "frame::object_instance_t::view"));
 						}
 						break;
@@ -3754,7 +3746,7 @@ namespace SourceExplorer
 						if (auto parent_obj = GetFrame(srcexp.state, parent_handle);
 						    parent_obj.is_ok())
 						{
-							RES_TRY(parent_obj.unwrap().view(srcexp).MAP_SE_ERR(
+							RES_TRY(parent_obj.unwrap().view(srcexp).RES_ADD_TRACE(
 							  "frame::object_instance_t::view"));
 						}
 						break;
@@ -3772,12 +3764,12 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("frame::object_instances_t::");
 
-			RES_TRY(
-			  entry.read(game, strm).MAP_SE_ERR("frame::object_instances_t::read"));
+			RES_TRY(entry.read(game, strm)
+			          .RES_ADD_TRACE("frame::object_instances_t::read"));
 
 			RES_TRY_ASSIGN(
 			  auto span =,
-			  entry.decode_body().MAP_SE_ERR("frame::object_instances_t::read"));
+			  entry.decode_body().RES_ADD_TRACE("frame::object_instances_t::read"));
 
 			data_reader_t hstrm(span);
 
@@ -3790,7 +3782,7 @@ namespace SourceExplorer
 			for (auto &object : objects)
 			{
 				RES_TRY(object.read(game, hstrm)
-				          .MAP_SE_ERR("frame::object_instances_t::read"));
+				          .RES_ADD_TRACE("frame::object_instances_t::read"));
 			}
 
 			return lak::ok_t{};
@@ -3805,8 +3797,8 @@ namespace SourceExplorer
 
 				for (const auto &object : objects)
 				{
-					RES_TRY(
-					  object.view(srcexp).MAP_SE_ERR("frame::object_instances_t::view"));
+					RES_TRY(object.view(srcexp).RES_ADD_TRACE(
+					  "frame::object_instances_t::view"));
 				}
 			}
 
@@ -3872,15 +3864,17 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("frame::random_seed_t::");
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::random_seed_t::read"));
+			RES_TRY(
+			  entry.read(game, strm).RES_ADD_TRACE("frame::random_seed_t::read"));
 
-			TRY_SE_ASSIGN(value =,
-			              entry.decode_body().and_then(
-			                [](const auto &ref_span)
-			                {
-				                return data_reader_t(ref_span).read_s16().MAP_ERR(
-				                  "frame::random_seed_t::read");
-			                }));
+			RES_TRY_ASSIGN(
+			  value =,
+			  entry.decode_body().and_then(
+			    [](const auto &ref_span)
+			    {
+				    return data_reader_t(ref_span).read_s16().RES_MAP_TO_TRACE(
+				      "frame::random_seed_t::read");
+			    }));
 
 			return lak::ok_t{};
 		}
@@ -3936,7 +3930,7 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("frame::item_t::");
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::item_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::item_t::read"));
 
 			DEFER(game.bank_completed = 0.0f);
 
@@ -3954,151 +3948,152 @@ namespace SourceExplorer
 					case chunk_t::frame_name:
 						name = std::make_unique<string_chunk_t>();
 						RES_TRY(
-						  name->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						  name->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_header:
 						header = std::make_unique<header_t>();
 						RES_TRY(
-						  header->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						  header->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_password:
 						password = std::make_unique<password_t>();
-						RES_TRY(
-						  password->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(password->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_palette:
 						palette = std::make_unique<palette_t>();
-						RES_TRY(
-						  palette->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(palette->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_object_instances:
 						object_instances = std::make_unique<object_instances_t>();
 						RES_TRY(object_instances->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_fade_in_frame:
 						fade_in_frame = std::make_unique<fade_in_frame_t>();
 						RES_TRY(fade_in_frame->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_fade_out_frame:
 						fade_out_frame = std::make_unique<fade_out_frame_t>();
 						RES_TRY(fade_out_frame->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_fade_in:
 						fade_in = std::make_unique<fade_in_t>();
-						RES_TRY(
-						  fade_in->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(fade_in->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_fade_out:
 						fade_out = std::make_unique<fade_out_t>();
-						RES_TRY(
-						  fade_out->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(fade_out->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_events:
 						events = std::make_unique<events_t>();
 						RES_TRY(
-						  events->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						  events->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_play_header:
 						play_head = std::make_unique<play_header_r>();
-						RES_TRY(
-						  play_head->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(play_head->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_additional_items:
 						additional_item = std::make_unique<additional_item_t>();
 						RES_TRY(additional_item->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_additional_items_instances:
 						additional_item_instance =
 						  std::make_unique<additional_item_instance_t>();
 						RES_TRY(additional_item_instance->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_layers:
 						layers = std::make_unique<layers_t>();
 						RES_TRY(
-						  layers->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						  layers->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_virtual_size:
 						virtual_size = std::make_unique<virtual_size_t>();
 						RES_TRY(virtual_size->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::demo_file_path:
 						demo_file_path = std::make_unique<demo_file_path_t>();
 						RES_TRY(demo_file_path->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::random_seed:
 						random_seed = std::make_unique<random_seed_t>();
 						RES_TRY(random_seed->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_layer_effect:
 						layer_effect = std::make_unique<layer_effect_t>();
 						RES_TRY(layer_effect->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_bluray:
 						blueray = std::make_unique<blueray_t>();
-						RES_TRY(
-						  blueray->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(blueray->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::movement_timer_base:
 						movement_time_base = std::make_unique<movement_time_base_t>();
 						RES_TRY(movement_time_base->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::mosaic_image_table:
 						mosaic_image_table = std::make_unique<mosaic_image_table_t>();
 						RES_TRY(mosaic_image_table->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_effects:
 						effects = std::make_unique<effects_t>();
-						RES_TRY(
-						  effects->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(effects->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_iphone_options:
 						iphone_options = std::make_unique<iphone_options_t>();
 						RES_TRY(iphone_options->read(game, reader)
-						          .MAP_SE_ERR("frame::item_t::read"));
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::frame_chunk334C:
 						chunk334C = std::make_unique<chunk_334C_t>();
-						RES_TRY(
-						  chunk334C->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(chunk334C->read(game, reader)
+						          .RES_ADD_TRACE("frame::item_t::read"));
 						break;
 
 					case chunk_t::last:
 						end = std::make_unique<last_t>();
-						RES_TRY(end->read(game, reader).MAP_SE_ERR("frame::item_t::read"));
+						RES_TRY(
+						  end->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
 						[[fallthrough]];
 
 					default: not_finished = false; break;
@@ -4127,109 +4122,112 @@ namespace SourceExplorer
 				if (name)
 				{
 					RES_TRY(name->view(srcexp, "Name", true)
-					          .MAP_SE_ERR("frame::item_t::view"));
+					          .RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (header)
 				{
-					RES_TRY(header->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(header->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (password)
 				{
-					RES_TRY(password->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(password->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (palette)
 				{
-					RES_TRY(palette->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(palette->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (object_instances)
 				{
-					RES_TRY(
-					  object_instances->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(object_instances->view(srcexp).RES_ADD_TRACE(
+					  "frame::item_t::view"));
 				}
 				if (fade_in_frame)
 				{
 					RES_TRY(
-					  fade_in_frame->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					  fade_in_frame->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (fade_out_frame)
 				{
 					RES_TRY(
-					  fade_out_frame->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					  fade_out_frame->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (fade_in)
 				{
-					RES_TRY(fade_in->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(fade_in->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (fade_out)
 				{
-					RES_TRY(fade_out->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(fade_out->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (events)
 				{
-					RES_TRY(events->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(events->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (play_head)
 				{
-					RES_TRY(play_head->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(
+					  play_head->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (additional_item)
 				{
-					RES_TRY(
-					  additional_item->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(additional_item->view(srcexp).RES_ADD_TRACE(
+					  "frame::item_t::view"));
 				}
 				if (layers)
 				{
-					RES_TRY(layers->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(layers->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (layer_effect)
 				{
 					RES_TRY(
-					  layer_effect->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					  layer_effect->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (virtual_size)
 				{
 					RES_TRY(
-					  virtual_size->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					  virtual_size->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (demo_file_path)
 				{
 					RES_TRY(
-					  demo_file_path->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					  demo_file_path->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (random_seed)
 				{
-					RES_TRY(random_seed->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(
+					  random_seed->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (blueray)
 				{
-					RES_TRY(blueray->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(blueray->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (movement_time_base)
 				{
-					RES_TRY(movement_time_base->view(srcexp).MAP_SE_ERR(
+					RES_TRY(movement_time_base->view(srcexp).RES_ADD_TRACE(
 					  "frame::item_t::view"));
 				}
 				if (mosaic_image_table)
 				{
-					RES_TRY(mosaic_image_table->view(srcexp).MAP_SE_ERR(
+					RES_TRY(mosaic_image_table->view(srcexp).RES_ADD_TRACE(
 					  "frame::item_t::view"));
 				}
 				if (effects)
 				{
-					RES_TRY(effects->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(effects->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (iphone_options)
 				{
 					RES_TRY(
-					  iphone_options->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					  iphone_options->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (chunk334C)
 				{
-					RES_TRY(chunk334C->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(
+					  chunk334C->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).MAP_SE_ERR("frame::item_t::view"));
+					RES_TRY(end->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
 				}
 			}
 
@@ -4240,10 +4238,11 @@ namespace SourceExplorer
 		{
 			FUNCTION_CHECKPOINT("frame::handles_t::");
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::handles_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::handles_t::read"));
 
-			RES_TRY_ASSIGN(auto span =,
-			               entry.decode_body().MAP_SE_ERR("frame::handles_t::read"));
+			RES_TRY_ASSIGN(
+			  auto span =,
+			  entry.decode_body().RES_ADD_TRACE("frame::handles_t::read"));
 
 			data_reader_t hstrm(span);
 
@@ -4264,7 +4263,7 @@ namespace SourceExplorer
 
 			DEFER(game.bank_completed = 0.0f);
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("frame::bank_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::bank_t::read"));
 
 			items.clear();
 
@@ -4278,7 +4277,7 @@ namespace SourceExplorer
 				{
 					return item.read(game, strm)
 					  .IF_ERR("Failed To Read Item ", items.size())
-					  .MAP_SE_ERR("frame::bank_t::read");
+					  .RES_ADD_TRACE("frame::bank_t::read");
 				};
 
 				while (strm.remaining().size() >= 2 &&
@@ -4325,7 +4324,7 @@ namespace SourceExplorer
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).MAP_SE_ERR("frame::bank_t::view"));
+					RES_TRY(item.view(srcexp).RES_ADD_TRACE("frame::bank_t::view"));
 				}
 			}
 
@@ -4342,8 +4341,8 @@ namespace SourceExplorer
 			const auto strm_start = strm.position();
 			if (game.ccn)
 			{
-				RES_TRY(
-				  entry.read(game, strm, true, 10).MAP_SE_ERR("image::item_t::read"));
+				RES_TRY(entry.read(game, strm, true, 10)
+				          .RES_ADD_TRACE("image::item_t::read"));
 
 				const uint16_t gmode = entry.handle >> 16;
 				switch (gmode)
@@ -4385,27 +4384,27 @@ namespace SourceExplorer
 				{
 					const size_t header_size = 36;
 					RES_TRY(entry.read(game, strm, false, header_size)
-					          .MAP_SE_ERR("image::item_t::read"));
+					          .RES_ADD_TRACE("image::item_t::read"));
 
 					data_position = strm.position();
 
-					RES_TRY_ASSIGN(
-					  span =,
-					  entry.decode_head(header_size).MAP_SE_ERR("image::item_t::read"));
+					RES_TRY_ASSIGN(span =,
+					               entry.decode_head(header_size)
+					                 .RES_ADD_TRACE("image::item_t::read"));
 
 					if (span.size() < header_size)
-						return lak::err_t{error(LINE_TRACE, error::out_of_data)};
+						return lak::err_t{error(error_type::out_of_data)};
 				}
 				else
 				{
 					RES_TRY(
-					  entry.read(game, strm, true).MAP_SE_ERR("image::item_t::read"));
+					  entry.read(game, strm, true).RES_ADD_TRACE("image::item_t::read"));
 
 					if (!game.old_game && game.product_build >= 284) --entry.handle;
 
 					RES_TRY_ASSIGN(span =,
 					               entry.decode_body(176 + (game.old_game ? 16 : 80))
-					                 .MAP_SE_ERR("image::item_t::read"));
+					                 .RES_ADD_TRACE("image::item_t::read"));
 				}
 				auto istrm = data_reader_t(span);
 
@@ -4569,7 +4568,7 @@ namespace SourceExplorer
 
 			RES_TRY_ASSIGN(
 			  auto span =,
-			  entry.decode_body().MAP_SE_ERR("image::item_t::image_data"));
+			  entry.decode_body().RES_ADD_TRACE("image::item_t::image_data"));
 
 			data_reader_t strm(span);
 
@@ -4591,7 +4590,7 @@ namespace SourceExplorer
 					CHECK_REMAINING(strm, compressed_length);
 
 					return strm.read_ref_span(compressed_length)
-					  .MAP_ERR("item_t::image_data: read filed")
+					  .RES_MAP_TO_TRACE("item_t::image_data: read filed")
 					  .map(
 					    [](const data_ref_span_t &ref_span) -> data_ref_span_t
 					    {
@@ -4620,7 +4619,7 @@ namespace SourceExplorer
 			lak::image4_t img = {};
 
 			RES_TRY_ASSIGN(auto span =,
-			               image_data().MAP_SE_ERR("image::item_t::image"));
+			               image_data().RES_ADD_TRACE("image::item_t::image"));
 
 			if (graphics_mode == graphics_mode_t::JPEG)
 			{
@@ -4636,17 +4635,16 @@ namespace SourceExplorer
 
 				if (x != size.x || y != size.y)
 				{
-					return lak::err_t{error(LINE_TRACE,
-					                        error::str_err,
-					                        "jpeg decode failed, expected size (",
-					                        size.x,
-					                        ", ",
-					                        size.y,
-					                        ") got (",
-					                        x,
-					                        ", ",
-					                        y,
-					                        ")")};
+					return lak::err_t{
+					  error(lak::streamify("jpeg decode failed, expected size (",
+					                       size.x,
+					                       ", ",
+					                       size.y,
+					                       ") got (",
+					                       x,
+					                       ", ",
+					                       y,
+					                       ")"))};
 				}
 				else
 				{
@@ -4694,7 +4692,7 @@ namespace SourceExplorer
 					WARNING(strm.remaining().size(), " Bytes Left Over In Image Data");
 			}
 
-			return lak::ok_t{lak::move(img)};
+			return lak::move_ok(img);
 		}
 
 		error_t end_t::view(source_explorer_t &srcexp) const
@@ -4708,7 +4706,7 @@ namespace SourceExplorer
 
 			DEFER(game.bank_completed = 0.0f);
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("image::bank_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("image::bank_t::read"));
 
 			data_reader_t reader(entry.raw_body());
 
@@ -4738,7 +4736,7 @@ namespace SourceExplorer
 					          (&item - items.data()),
 					          " Of ",
 					          items.size())
-					  .MAP_SE_ERR("image::bank_t::read");
+					  .RES_ADD_TRACE("image::bank_t::read");
 				};
 
 				for (auto &item : items)
@@ -4777,7 +4775,7 @@ namespace SourceExplorer
 			    (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::image_handles)
 			{
 				end = std::make_unique<end_t>();
-				TRY_SE(end->read(game, strm));
+				RES_TRY_TRACE(end->read(game, strm));
 			}
 
 			return lak::ok_t{};
@@ -4794,12 +4792,12 @@ namespace SourceExplorer
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).MAP_SE_ERR("image::bank_t::view"));
+					RES_TRY(item.view(srcexp).RES_ADD_TRACE("image::bank_t::view"));
 				}
 
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).MAP_SE_ERR("image::bank_t::view"));
+					RES_TRY(end->view(srcexp).RES_ADD_TRACE("image::bank_t::view"));
 				}
 			}
 
@@ -4825,7 +4823,7 @@ namespace SourceExplorer
 
 			DEFER(game.bank_completed = 0.0f);
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("font::bank_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("font::bank_t::read"));
 
 			data_reader_t reader(entry.raw_body());
 
@@ -4846,7 +4844,7 @@ namespace SourceExplorer
 					          (&item - items.data()),
 					          " Of ",
 					          items.size())
-					  .MAP_SE_ERR("font::bank_t::read");
+					  .RES_ADD_TRACE("font::bank_t::read");
 				};
 
 				for (auto &item : items)
@@ -4885,7 +4883,7 @@ namespace SourceExplorer
 			    (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::font_handles)
 			{
 				end = std::make_unique<end_t>();
-				TRY_SE(end->read(game, strm));
+				RES_TRY_TRACE(end->read(game, strm));
 			}
 
 			return lak::ok_t{};
@@ -4902,12 +4900,12 @@ namespace SourceExplorer
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).MAP_SE_ERR("font::bank_t::view"));
+					RES_TRY(item.view(srcexp).RES_ADD_TRACE("font::bank_t::view"));
 				}
 
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).MAP_SE_ERR("font::bank_t::view"));
+					RES_TRY(end->view(srcexp).RES_ADD_TRACE("font::bank_t::view"));
 				}
 			}
 
@@ -4939,7 +4937,7 @@ namespace SourceExplorer
 
 			DEFER(game.bank_completed = 0.0f);
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("sound::bank_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("sound::bank_t::read"));
 
 			data_reader_t reader(entry.raw_body());
 
@@ -4960,7 +4958,7 @@ namespace SourceExplorer
 					          (&item - items.data()),
 					          " Of ",
 					          items.size())
-					  .MAP_SE_ERR("sound::bank_t::read");
+					  .RES_ADD_TRACE("sound::bank_t::read");
 				};
 
 				for (auto &item : items)
@@ -4999,7 +4997,7 @@ namespace SourceExplorer
 			    (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::sound_handles)
 			{
 				end = std::make_unique<end_t>();
-				TRY_SE(end->read(game, strm));
+				RES_TRY_TRACE(end->read(game, strm));
 			}
 
 			return lak::ok_t{};
@@ -5016,12 +5014,12 @@ namespace SourceExplorer
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).MAP_SE_ERR("sound::bank_t::view"));
+					RES_TRY(item.view(srcexp).RES_ADD_TRACE("sound::bank_t::view"));
 				}
 
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).MAP_SE_ERR("sound::bank_t::view"));
+					RES_TRY(end->view(srcexp).RES_ADD_TRACE("sound::bank_t::view"));
 				}
 			}
 
@@ -5047,7 +5045,7 @@ namespace SourceExplorer
 
 			DEFER(game.bank_completed = 0.0f);
 
-			RES_TRY(entry.read(game, strm).MAP_SE_ERR("music::bank_t::read"));
+			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("music::bank_t::read"));
 
 			data_reader_t reader(entry.raw_body());
 
@@ -5068,7 +5066,7 @@ namespace SourceExplorer
 					          (&item - items.data()),
 					          " Of ",
 					          items.size())
-					  .MAP_SE_ERR("music::bank_t::read");
+					  .RES_ADD_TRACE("music::bank_t::read");
 				};
 
 				for (auto &item : items)
@@ -5107,7 +5105,7 @@ namespace SourceExplorer
 			    (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::music_handles)
 			{
 				end = std::make_unique<end_t>();
-				TRY_SE(end->read(game, strm));
+				RES_TRY_TRACE(end->read(game, strm));
 			}
 
 			return lak::ok_t{};
@@ -5124,12 +5122,12 @@ namespace SourceExplorer
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).MAP_SE_ERR("music::bank_t::view"));
+					RES_TRY(item.view(srcexp).RES_ADD_TRACE("music::bank_t::view"));
 				}
 
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).MAP_SE_ERR("music::bank_t::view"));
+					RES_TRY(end->view(srcexp).RES_ADD_TRACE("music::bank_t::view"));
 				}
 			}
 
@@ -5146,7 +5144,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT("header_t::");
 
-		RES_TRY(entry.read(game, strm).MAP_SE_ERR("header_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("header_t::read"));
 
 		auto init_chunk = [&](auto &chunk)
 		{
@@ -5164,200 +5162,201 @@ namespace SourceExplorer
 				  (float)((double)strm.position() / (double)strm.size());
 
 			if (strm.position() == start_pos)
-				return lak::err_t{error(LINE_TRACE,
-				                        error::str_err,
-				                        "last read chunk (",
-				                        GetTypeString(childID),
-				                        ") didn't move stream head")};
+				return lak::err_t{error(lak::streamify("last read chunk (",
+				                                       GetTypeString(childID),
+				                                       ") didn't move stream head"))};
 
 			start_pos = strm.position();
 			TRY_ASSIGN(childID = (chunk_t), strm.peek_u16());
 
-			// the MAP_SE_ERRs are here so we get line information
+			// the RES_ADD_TRACEs are here so we get line information
 			switch (childID)
 			{
 				case chunk_t::title:
-					RES_TRY(init_chunk(title).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(title).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::author:
-					RES_TRY(init_chunk(author).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(author).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::copyright:
-					RES_TRY(init_chunk(copyright).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(copyright).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::project_path:
-					RES_TRY(init_chunk(project_path).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(project_path).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::output_path:
-					RES_TRY(init_chunk(output_path).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(output_path).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::about:
-					RES_TRY(init_chunk(about).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(about).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::vitalise_preview:
-					RES_TRY(init_chunk(vitalise_preview).MAP_SE_ERR("header_t::read"));
+					RES_TRY(
+					  init_chunk(vitalise_preview).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::menu:
-					RES_TRY(init_chunk(menu).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(menu).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::extra_path:
-					RES_TRY(init_chunk(extension_path).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(extension_path).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::extensions:
-					RES_TRY(init_chunk(extensions).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(extensions).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::extra_data:
-					RES_TRY(init_chunk(extension_data).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(extension_data).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::additional_extensions:
 					RES_TRY(
-					  init_chunk(additional_extensions).MAP_SE_ERR("header_t::read"));
+					  init_chunk(additional_extensions).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::app_doc:
-					RES_TRY(init_chunk(app_doc).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(app_doc).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::other_extension:
-					RES_TRY(init_chunk(other_extension).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(other_extension).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::extensions_list:
-					RES_TRY(init_chunk(extension_list).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(extension_list).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::icon:
-					RES_TRY(init_chunk(icon).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(icon).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::demo_version:
-					RES_TRY(init_chunk(demo_version).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(demo_version).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::security_number:
-					RES_TRY(init_chunk(security).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(security).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::binary_files:
-					RES_TRY(init_chunk(binary_files).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(binary_files).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::menu_images:
-					RES_TRY(init_chunk(menu_images).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(menu_images).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::movement_extensions:
 					RES_TRY(
-					  init_chunk(movement_extensions).MAP_SE_ERR("header_t::read"));
+					  init_chunk(movement_extensions).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::exe_only:
-					RES_TRY(init_chunk(exe).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(exe).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::protection:
-					RES_TRY(init_chunk(protection).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(protection).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::shaders:
-					RES_TRY(init_chunk(shaders).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(shaders).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::extended_header:
-					RES_TRY(init_chunk(extended_header).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(extended_header).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::spacer:
-					RES_TRY(init_chunk(spacer).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(spacer).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::chunk224F:
-					RES_TRY(init_chunk(chunk224F).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(chunk224F).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::title2:
-					RES_TRY(init_chunk(title2).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(title2).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::chunk2253:
 					// 16-bytes
-					RES_TRY(init_chunk(chunk2253).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(chunk2253).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::object_names:
-					RES_TRY(init_chunk(object_names).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(object_names).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::chunk2255:
 					// blank???
-					RES_TRY(init_chunk(chunk2255).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(chunk2255).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::two_five_plus_object_properties:
 					// Appears to have sub chunks
 					RES_TRY(init_chunk(two_five_plus_object_properties)
-					          .MAP_SE_ERR("header_t::read"));
+					          .RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::chunk2257:
-					RES_TRY(init_chunk(chunk2257).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(chunk2257).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::object_properties:
-					RES_TRY(init_chunk(object_properties).MAP_SE_ERR("header_t::read"));
+					RES_TRY(
+					  init_chunk(object_properties).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::font_meta:
 					RES_TRY(
-					  init_chunk(truetype_fonts_meta).MAP_SE_ERR("header_t::read"));
+					  init_chunk(truetype_fonts_meta).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::font_chunk:
-					RES_TRY(init_chunk(truetype_fonts).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(truetype_fonts).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::shaders2:
-					RES_TRY(init_chunk(shaders2).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(shaders2).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::global_events:
-					RES_TRY(init_chunk(global_events).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(global_events).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::global_strings:
-					RES_TRY(init_chunk(global_strings).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(global_strings).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::global_string_names:
 					RES_TRY(
-					  init_chunk(global_string_names).MAP_SE_ERR("header_t::read"));
+					  init_chunk(global_string_names).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::global_values:
-					RES_TRY(init_chunk(global_values).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(global_values).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::global_value_names:
-					RES_TRY(init_chunk(global_value_names).MAP_SE_ERR("header_t::read"));
+					RES_TRY(
+					  init_chunk(global_value_names).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::frame_handles:
-					RES_TRY(init_chunk(frame_handles).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(frame_handles).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::frame_bank:
-					RES_TRY(init_chunk(frame_bank).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(frame_bank).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::frame:
@@ -5374,32 +5373,32 @@ namespace SourceExplorer
 					break;
 
 					// case chunk_t::object_bank2:
-					//     RES_TRY(init_chunk(object_bank_2).MAP_SE_ERR("header_t::read"));
+					//     RES_TRY(init_chunk(object_bank_2).RES_ADD_TRACE("header_t::read"));
 					//     break;
 
 				case chunk_t::object_bank:
 				case chunk_t::object_bank2:
-					RES_TRY(init_chunk(object_bank).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(object_bank).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::image_bank:
-					RES_TRY(init_chunk(image_bank).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(image_bank).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::sound_bank:
-					RES_TRY(init_chunk(sound_bank).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(sound_bank).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::music_bank:
-					RES_TRY(init_chunk(music_bank).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(music_bank).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::font_bank:
-					RES_TRY(init_chunk(font_bank).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(font_bank).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::last:
-					RES_TRY(init_chunk(last).MAP_SE_ERR("header_t::read"));
+					RES_TRY(init_chunk(last).RES_ADD_TRACE("header_t::read"));
 					not_finished = false;
 					break;
 
@@ -5408,7 +5407,7 @@ namespace SourceExplorer
 					unknown_chunks.emplace_back();
 					RES_TRY(unknown_chunks.back()
 					          .read(game, strm)
-					          .MAP_SE_ERR("header_t::read"));
+					          .RES_ADD_TRACE("header_t::read"));
 					break;
 			}
 		}
@@ -5422,74 +5421,79 @@ namespace SourceExplorer
 		{
 			entry.view(srcexp);
 
-			RES_TRY(title.view(srcexp, "Title", true).MAP_SE_ERR("header_t::view"));
 			RES_TRY(
-			  author.view(srcexp, "Author", true).MAP_SE_ERR("header_t::view"));
+			  title.view(srcexp, "Title", true).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(
+			  author.view(srcexp, "Author", true).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(copyright.view(srcexp, "Copyright", true)
-			          .MAP_SE_ERR("header_t::view"));
-			RES_TRY(
-			  output_path.view(srcexp, "Output Path").MAP_SE_ERR("header_t::view"));
+			          .RES_ADD_TRACE("header_t::view"));
+			RES_TRY(output_path.view(srcexp, "Output Path")
+			          .RES_ADD_TRACE("header_t::view"));
 			RES_TRY(project_path.view(srcexp, "Project Path")
-			          .MAP_SE_ERR("header_t::view"));
-			RES_TRY(about.view(srcexp, "About").MAP_SE_ERR("header_t::view"));
+			          .RES_ADD_TRACE("header_t::view"));
+			RES_TRY(about.view(srcexp, "About").RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(vitalise_preview.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(menu.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(extension_path.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(extensions.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(extension_data.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(additional_extensions.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(app_doc.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(other_extension.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(extension_list.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(icon.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(demo_version.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(security.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(binary_files.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(menu_images.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(movement_extensions.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(object_bank_2.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(exe.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(protection.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(shaders.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(shaders2.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(extended_header.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(spacer.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(chunk224F.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(title2.view(srcexp).MAP_SE_ERR("header_t::view"));
+			RES_TRY(vitalise_preview.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(menu.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extension_path.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extensions.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extension_data.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(
+			  additional_extensions.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(app_doc.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(other_extension.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extension_list.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(icon.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(demo_version.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(security.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(binary_files.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(menu_images.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(
+			  movement_extensions.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_bank_2.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(exe.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(protection.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(shaders.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(shaders2.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extended_header.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(spacer.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(chunk224F.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(title2.view(srcexp).RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(global_events.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(global_strings.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(global_string_names.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(global_values.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(global_value_names.view(srcexp).MAP_SE_ERR("header_t::view"));
+			RES_TRY(global_events.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_strings.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(
+			  global_string_names.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_values.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_value_names.view(srcexp).RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(frame_handles.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(frame_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(object_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(image_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(sound_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(music_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(font_bank.view(srcexp).MAP_SE_ERR("header_t::view"));
+			RES_TRY(frame_handles.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(frame_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(image_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(sound_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(music_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(font_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(chunk2253.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(object_names.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(chunk2255.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(two_five_plus_object_properties.view(srcexp).MAP_SE_ERR(
+			RES_TRY(chunk2253.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_names.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(chunk2255.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(two_five_plus_object_properties.view(srcexp).RES_ADD_TRACE(
 			  "header_t::view"));
-			RES_TRY(chunk2257.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(object_properties.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(truetype_fonts_meta.view(srcexp).MAP_SE_ERR("header_t::view"));
-			RES_TRY(truetype_fonts.view(srcexp).MAP_SE_ERR("header_t::view"));
+			RES_TRY(chunk2257.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_properties.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(
+			  truetype_fonts_meta.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(truetype_fonts.view(srcexp).RES_ADD_TRACE("header_t::view"));
 
 			for (auto &unk : unknown_strings)
 			{
-				RES_TRY(unk.view(srcexp).MAP_SE_ERR("header_t::view"));
+				RES_TRY(unk.view(srcexp).RES_ADD_TRACE("header_t::view"));
 			}
 
 			for (auto &unk : unknown_compressed)
 			{
-				RES_TRY(unk.view(srcexp).MAP_SE_ERR("header_t::view"));
+				RES_TRY(unk.view(srcexp).RES_ADD_TRACE("header_t::view"));
 			}
 
 			for (auto &unk : unknown_chunks)
@@ -5499,10 +5503,10 @@ namespace SourceExplorer
 				                      (lak::astring("Unknown ") +
 				                       std::to_string(unk.entry.position()))
 				                        .c_str())
-				          .MAP_SE_ERR("header_t::view"));
+				          .RES_ADD_TRACE("header_t::view"));
 			}
 
-			RES_TRY(last.view(srcexp).MAP_SE_ERR("header_t::view"));
+			RES_TRY(last.view(srcexp).RES_ADD_TRACE("header_t::view"));
 		}
 
 		return lak::ok_t{};

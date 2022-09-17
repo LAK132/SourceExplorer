@@ -56,11 +56,8 @@ se::error_t se::SaveImage(const lak::image4_t &image, const fs::path &filename)
 	      &(image[0].r),
 	      (int)(image.size().x * 4)) != 1)
 	{
-		return lak::err_t{se::error(LINE_TRACE,
-		                            se::error::str_err,
-		                            "Failed to save image '",
-		                            filename,
-		                            "'")};
+		return lak::err_t{
+		  se::error(lak::streamify("Failed to save image '", filename, "'"))};
 	}
 	return lak::ok_t{};
 }
@@ -71,15 +68,16 @@ se::error_t se::SaveImage(source_explorer_t &srcexp,
                           const frame::item_t *frame)
 {
 	return GetImage(srcexp.state, handle)
-	  .MAP_SE_ERR("failed to get image item")
+	  .RES_ADD_TRACE("failed to get image item")
 	  .and_then(
 	    [&](const auto &item)
 	    {
-		    return item.image(
-		      srcexp.dump_color_transparent,
-		      (frame && frame->palette) ? frame->palette->colors.data() : nullptr);
+		    return item
+		      .image(srcexp.dump_color_transparent,
+		             (frame && frame->palette) ? frame->palette->colors.data()
+		                                       : nullptr)
+		      .RES_ADD_TRACE("failed to read image data");
 	    })
-	  .MAP_SE_ERR("failed to read image data")
 	  .and_then([&](const auto &image) { return SaveImage(image, filename); });
 }
 
@@ -89,7 +87,7 @@ lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
 
 	if (auto result = awaiter(LoadGame, std::ref(srcexp)); result.is_ok())
 	{
-		return lak::ok_t{result.unwrap().MAP_SE_ERR("OpenGame")};
+		return lak::ok_t{result.unwrap().RES_ADD_TRACE("OpenGame")};
 	}
 	else
 	{
@@ -892,7 +890,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
 		  {
 			  result.unwrap().IF_ERR("AttemptExe failed").discard();
 			  // ERROR(result.unwrap()
-			  //         .MAP_SE_ERR("AttemptExe failed")
+			  //         .RES_ADD_TRACE("AttemptExe failed")
 			  //         .unwrap_err());
 			  srcexp.loaded = true;
 			  return true;

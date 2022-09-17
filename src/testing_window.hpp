@@ -127,6 +127,40 @@ struct test_window : public base_window<test_window>
 				}
 			}
 
+			ImGui::SameLine();
+
+			if (ImGui::Button("Try Dump Sounds"))
+			{
+				SrcExp.sounds.path = SrcExp.testing.path / "test-sound-dump";
+				lak::remove_path(SrcExp.sounds.path)
+				  .IF_ERR("Failed To Delete Folder ", SrcExp.sounds.path);
+				if (lak::create_directory(SrcExp.sounds.path)
+				      .IF_ERR("Failed To Create Folder ", SrcExp.sounds.path)
+				      .is_ok())
+				{
+					DEBUG("Saving Images To ", SrcExp.sounds.path);
+					SrcExp.sounds.attempt = true;
+					SrcExp.sounds.valid   = true;
+				}
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Try Dump Music"))
+			{
+				SrcExp.music.path = SrcExp.testing.path / "test-music-dump";
+				lak::remove_path(SrcExp.music.path)
+				  .IF_ERR("Failed To Delete Folder ", SrcExp.music.path);
+				if (lak::create_directory(SrcExp.music.path)
+				      .IF_ERR("Failed To Create Folder ", SrcExp.music.path)
+				      .is_ok())
+				{
+					DEBUG("Saving Images To ", SrcExp.music.path);
+					SrcExp.music.attempt = true;
+					SrcExp.music.valid   = true;
+				}
+			}
+
 			base_window<main_window>::main_region();
 		}
 		else
@@ -168,8 +202,10 @@ struct test_window : public base_window<test_window>
 			{
 				result.unsafe_unwrap().IF_ERR("OpenGame failed").discard();
 				last_error = lak::as_astring(
-				  u8"Opening \"" + SrcExp.exe.path.u8string() + u8"\" failed:" +
-				  result.unsafe_unwrap().unsafe_unwrap_err().to_string());
+				  lak::streamify("Opening \"",
+				                 SrcExp.exe.path.u8string(),
+				                 "\" failed: ",
+				                 result.unsafe_unwrap().unsafe_unwrap_err()));
 
 				const bool is_known_bad_game = SrcExp.state.ccn;
 
@@ -189,6 +225,8 @@ struct test_window : public base_window<test_window>
 		}
 
 		if (SrcExp.images.attempt) se::AttemptImages(SrcExp);
+		if (SrcExp.sounds.attempt) se::AttemptSounds(SrcExp);
+		if (SrcExp.music.attempt) se::AttemptMusic(SrcExp);
 	}
 };
 

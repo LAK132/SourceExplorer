@@ -116,20 +116,20 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 	{
 		if (argv[arg] == lak::astring("-help"))
 		{
-			std::cout
-			  << "srcexp.exe [-help] [-nogl] [-onlyerr] "
-			     "[-listtests | -testall | -tests \"test1;test2\"] [<filepath>]\n";
+			std::cout << "srcexp.exe [--help] [--nogl] [--onlyerr] "
+			             "[--listtests | --laktestall | --laktests \"test1;test2\"] "
+			             "[<filepath>]\n";
 			return lak::optional<int>(0);
 		}
-		else if (argv[arg] == lak::astring("-nogl"))
+		else if (argv[arg] == lak::astring("--nogl"))
 		{
 			basic_window_force_software = true;
 		}
-		else if (argv[arg] == lak::astring("-onlyerr"))
+		else if (argv[arg] == lak::astring("--onlyerr"))
 		{
 			force_only_error = true;
 		}
-		else if (argv[arg] == lak::astring("-listtests"))
+		else if (argv[arg] == lak::astring("--listtests"))
 		{
 			lak::debugger.std_out(lak::u8string(),
 			                      lak::u8string(u8"Available tests:\n"));
@@ -139,23 +139,23 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 				                      lak::to_u8string(name) + u8"\n");
 			}
 		}
-		else if (argv[arg] == lak::astring("-laktestall"))
+		else if (argv[arg] == lak::astring("--laktestall"))
 		{
 			return lak::optional<int>(lak::run_tests());
 		}
-		else if (argv[arg] == lak::astring("-laktests") ||
-		         argv[arg] == lak::astring("-laktest"))
+		else if (argv[arg] == lak::astring("--laktests") ||
+		         argv[arg] == lak::astring("--laktest"))
 		{
 			++arg;
 			if (arg >= argc) FATAL("Missing tests");
 			return lak::optional<int>(lak::run_tests(
 			  lak::as_u8string(lak::astring_view::from_c_str(argv[arg]))));
 		}
-		else if (argv[arg] == lak::astring("-test"))
+		else if (argv[arg] == lak::astring("--test"))
 		{
 			se_main_mode = se_main_mode_t::testing;
 		}
-		else if (argv[arg] == lak::astring("-threaded"))
+		else if (argv[arg] == lak::astring("--threaded"))
 		{
 			SrcExp.allow_multithreading = true;
 		}
