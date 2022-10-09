@@ -17,7 +17,7 @@
 
 // This is here to stop the #define ERROR clash caused by wingdi
 #include <GL/gl3w.h>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_utils.hpp"

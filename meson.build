@@ -2,8 +2,6 @@ project(
   'source-explorer',
   ['c', 'cpp'],
   default_options: [
-    'warning_level=3',
-    'werror=true',
     'b_vscrt=static_from_buildtype',
     # 'b_sanitize=address',
   ],
@@ -101,42 +99,33 @@ install_directory = host_machine.cpu_family()
 subdir('include')
 subdir('src')
 
-if host_machine.system() == 'windows'
-  sdl2_dll = configure_file(
-    copy: true,
-    input: sdl2_dll,
-    output: 'SDL2.dll',
-    install: true,
-    install_dir: install_directory,
-  )
-endif
-
 executable(
   'srcexp',
   srcexp + [git_header],
   install: true,
   install_dir: install_directory,
-  override_options: 'cpp_std=' + version,
+  override_options: [
+    'cpp_std=' + version,
+    'warning_level=3',
+    'werror=true',
+  ],
   include_directories: include_directories([
     'include',
-    'include/glm',
-    'include/imgui',
-    'include/imgui/misc/cpp',
-    'include/lak/inc',
     'include/lisk/inc',
   ]),
   link_with: [
-    lak,
-    lakopengl,
-    lakwindowing,
     lisk,
     stb,
-    imgui,
   ],
   link_whole: [
-    laktest,
+    lak
   ],
   dependencies: [
-    sdl2,
+    lak_dep,
+    glm_dep,
+    sdl2_dep,
+  ],
+  link_args: [
+    lak_libs,
   ],
 )

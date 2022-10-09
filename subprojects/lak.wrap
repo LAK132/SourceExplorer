@@ -1,0 +1,4 @@
+[wrap-git]
+url = https://github.com/LAK132/lak
+revision = master
+depth = 1

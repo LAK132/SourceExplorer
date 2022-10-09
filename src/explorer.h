@@ -20,9 +20,9 @@
 
 #include "imgui_impl_lak.h"
 #include "imgui_utils.hpp"
-#include <imgui/misc/softraster/texture.h>
 #include <imgui_memory_editor.h>
-#include <imgui_stdlib.h>
+#include <misc/cpp/imgui_stdlib.h>
+#include <misc/softraster/texture.h>
 
 #include "defines.h"
 #include "encryption.h"

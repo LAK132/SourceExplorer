@@ -1,16 +1,3 @@
-imgui = static_library(
-  'dearimgui',
-  [
-    'imgui/imgui.cpp',
-    'imgui/imgui_demo.cpp',
-    'imgui/imgui_draw.cpp',
-    'imgui/imgui_tables.cpp',
-    'imgui/imgui_widgets.cpp',
-    'imgui/examples/imgui_impl_softraster.cpp',
-  ],
-  override_options: 'cpp_std=' + version,
-)
-
 stb = static_library(
   'stb_image',
   [
@@ -20,10 +7,12 @@ stb = static_library(
   override_options: 'warning_level=2',
 )
 
-subdir('lak/inc/SDL')
-subdir('lak/src')
-subdir('lak/src/opengl')
-subdir('lak/src/windowing')
-subdir('lak/src/tests')
-subdir('lak/src/tests/windowing')
 subdir('lisk/src')
+
+lak_subprj = subproject('lak')
+lak = lak_subprj.get_variable('lak')
+lak_dep = lak_subprj.get_variable('lak_dep')
+lak_libs = lak_subprj.get_variable('system_libraries')
+sdl2_dep = lak_subprj.get_variable('sdl2_dep')
+
+glm_dep = subproject('glm').get_variable('glm_dep')

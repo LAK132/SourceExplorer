@@ -4,9 +4,9 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_impl_lak.h"
 
-#include <imgui/examples/imgui_impl_softraster.h>
-#include <imgui/imgui_internal.h>
-#include <imgui/misc/cpp/imgui_stdlib.h>
+#include <examples/imgui_impl_softraster.h>
+#include <imgui_internal.h>
+#include <misc/cpp/imgui_stdlib.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/mat3x4.hpp>
@@ -35,9 +35,9 @@
 #	error "NYI"
 #elif defined(LAK_USE_SDL)
 #	include "lak/src/windowing/sdl/impl.hpp"
-#	include <SDL2/SDL.h>
+#	include <SDL.h>
 #	ifdef LAK_OS_WINDOWS
-#		include <SDL2/SDL_syswm.h>
+#		include <SDL_syswm.h>
 #	endif
 #else
 #	error "No implementation specified"
@@ -1231,10 +1231,10 @@ namespace lak
 
 		ImGuiContext &g = *GImGui;
 
-		ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
+		ImFormatStringV(g.TempBuffer.begin(), g.TempBuffer.size(), fmt, args);
 
-		bool is_open =
-		  ImGui::TreeNodeBehavior(window->GetID(g.TempBuffer), 0, g.TempBuffer);
+		bool is_open = ImGui::TreeNodeBehavior(
+		  window->GetID(g.TempBuffer.begin()), 0, g.TempBuffer.begin());
 
 		va_end(args);
 		return is_open;

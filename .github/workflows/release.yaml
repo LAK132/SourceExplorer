@@ -46,7 +46,7 @@ jobs:
           setup-options: --buildtype debugoptimized
           meson-version: 0.61.0
       - run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb, build\SDL2.dll -DestinationPath Source-Explorer-x86-64.zip
+          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-x86-64.zip
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -76,7 +76,7 @@ jobs:
           setup-options: --buildtype debugoptimized
           meson-version: 0.61.0
       - run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb, build\SDL2.dll -DestinationPath Source-Explorer-x86.zip
+          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-x86.zip
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}

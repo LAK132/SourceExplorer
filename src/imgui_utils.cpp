@@ -24,9 +24,9 @@ SOFTWARE.
 
 #include "imgui_utils.hpp"
 
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
-#include <imgui/misc/cpp/imgui_stdlib.h>
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <misc/cpp/imgui_stdlib.h>
 
 #include <lak/debug.hpp>
 #include <lak/defer.hpp>
@@ -35,7 +35,7 @@ SOFTWARE.
 #include <algorithm>
 #include <deque>
 
-#include <imgui/misc/cpp/imgui_stdlib.cpp>
+#include <misc/cpp/imgui_stdlib.cpp>
 
 namespace lak
 {

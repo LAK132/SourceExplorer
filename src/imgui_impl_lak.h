@@ -3,7 +3,7 @@
 
 #include <glm/mat4x4.hpp>
 
-#include <imgui/imgui.h>
+#include <imgui.h>
 
 #include "await.hpp"
 
