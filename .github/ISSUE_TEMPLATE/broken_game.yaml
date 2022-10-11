@@ -1,14 +1,9 @@
 name: Broken game
 description: Report a game that Source Explorer fails to open
-title: "<title>"
+title: "Source Explorer fails to process [insert game name here]"
 labels: ["bug"]
 assignees: "LAK132"
 body:
-- type: input
-  attributes:
-    label: Game name
-  validations:
-    required: true
 - type: input
   attributes:
     label: Game download link
