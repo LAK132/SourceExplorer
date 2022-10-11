@@ -1,0 +1,25 @@
+name: Broken game
+description: Report a game that Source Explorer fails to open
+title: "<title>"
+labels: ["bug"]
+assignees: "LAK132"
+body:
+- type: input
+  attributes:
+    label: Game name
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Game download link
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Crash log
+    description: |
+      Provide a copy of the Error Log (File -> Save Error Log...) or the Crash Log ("ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt").
+    placeholder: |
+      Drag and drop the crash log file here.
+  validations:
+    required: true

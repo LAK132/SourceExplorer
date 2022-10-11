@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a bug
+title: "<title>"
+labels: ["bug"]
+assignees: "LAK132"
+body:
+- type: textarea
+  attributes:
+    label: Describe the bug
+    description: A concise description of what the bug is and the steps to reproduce it.
+    placeholder: |
+      1. Go to '...'
+      2. Click on '....'
+      3. Scroll down to '....'
+      4. See error
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Crash log
+    description: |
+      Provide a copy of the Error Log (File -> Save Error Log...) or the Crash Log ("ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt").
+    placeholder: |
+      Drag and drop the crash log file here.
+  validations:
+    required: true

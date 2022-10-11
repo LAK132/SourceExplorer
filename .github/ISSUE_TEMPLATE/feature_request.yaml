@@ -1,0 +1,11 @@
+name: Feature request
+description: Request a feature to be added to Source Explorer
+title: "<title>"
+labels: ["enhancement"]
+assignees: "LAK132"
+body:
+- type: textarea
+  attributes:
+    label: Describe the feature you'd like
+  validations:
+    required: true
