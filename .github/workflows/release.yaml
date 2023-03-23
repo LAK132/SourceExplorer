@@ -11,7 +11,7 @@ jobs:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       tag: ${{ steps.get_tag.outputs.TAG }}
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
       - run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
         shell: bash
@@ -23,65 +23,44 @@ jobs:
           prerelease: true
           release_name: Source Explorer ${{ github.ref }}
           tag_name: ${{ github.ref }}
+          body_path: CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-  build-x86-64:
+  build:
     needs: create-release
-    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022]
+        arch: [x86, x64]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
-      - uses: bus1/cabuild/action/msdevshell@v1
+          python-version: '3.9.x'
+      - if: matrix.os == 'windows-2022'
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          architecture: x64
+          arch: ${{ matrix.arch }}
+          toolset: 19
+          vsversion: 2022
       - uses: BSFishy/meson-build@v1.0.3
         with:
           action: build
           directory: build
           setup-options: --buildtype debugoptimized
-          meson-version: 0.61.0
+          meson-version: 0.63.3
       - run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-x86-64.zip
+          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ matrix.arch }}.zip
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: Source-Explorer-x86-64.zip
-          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-x86-64.zip
-          asset_content_type: application/zip
-
-  build-x86:
-    needs: create-release
-    runs-on: windows-2019
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - uses: actions/setup-python@v1
-        with:
-          python-version: '3.x'
-      - uses: bus1/cabuild/action/msdevshell@v1
-        with:
-          architecture: x86
-      - uses: BSFishy/meson-build@v1.0.3
-        with:
-          action: build
-          directory: build
-          setup-options: --buildtype debugoptimized
-          meson-version: 0.61.0
-      - run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-x86.zip
-      - uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: Source-Explorer-x86.zip
-          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-x86.zip
+          asset_path: Source-Explorer-${{ matrix.arch }}.zip
+          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ matrix.arch }}.zip
           asset_content_type: application/zip
