@@ -53,8 +53,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install meson ninja
-      - run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ runner.os }}-${{ matrix.arch }}.zip
 
       - if: startsWith(matrix.os, 'ubuntu')
         uses: egor-tensin/setup-gcc@v1
@@ -65,15 +63,21 @@ jobs:
         run: |
           sudo python3 -m pip install --upgrade pip setuptools wheel
           sudo python3 -m pip install meson ninja
-      # - if: startsWith(matrix.os, 'ubuntu')
-      #   run: make .deb
 
       - if: startsWith(matrix.os, 'macos')
         run: |
           brew install meson ninja
-      # - if: startsWith(matrix.os, 'macos')
-      #   run: make .dmg
 
+      - run: meson setup build --buildtype debugoptimized
+      - run: meson compile -C build
+
+      - if: startsWith(matrix.os, 'windows')
+        run: |
+          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ runner.os }}-${{ matrix.arch }}.zip
+      # - if: startsWith(matrix.os, 'ubuntu')
+      #   run: make .deb and .zip
+      # - if: startsWith(matrix.os, 'macos')
+      #   run: make .dmg and .zip
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
