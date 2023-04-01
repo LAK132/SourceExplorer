@@ -42,25 +42,43 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9.x'
-      - if: matrix.os == 'windows-2022'
+
+      - if: startsWith(matrix.os, 'windows')
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.arch }}
           toolset: 19
           vsversion: 2022
-      - uses: BSFishy/meson-build@v1.0.3
-        with:
-          action: build
-          directory: build
-          setup-options: --buildtype debugoptimized
-          meson-version: 0.63.3
+      - if: startsWith(matrix.os, 'windows')
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel
+          python3 -m pip install meson ninja
       - run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ matrix.arch }}.zip
+          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ runner.os }}-${{ matrix.arch }}.zip
+
+      - if: startsWith(matrix.os, 'ubuntu')
+        uses: egor-tensin/setup-gcc@v1
+        with:
+          version: 11
+          platform: ${{ matrix.arch }}
+      - if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo python3 -m pip install --upgrade pip setuptools wheel
+          sudo python3 -m pip install meson ninja
+      # - if: startsWith(matrix.os, 'ubuntu')
+      #   run: make .deb
+
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install meson ninja
+      # - if: startsWith(matrix.os, 'macos')
+      #   run: make .dmg
+
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: Source-Explorer-${{ matrix.arch }}.zip
-          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ matrix.arch }}.zip
+          asset_path: Source-Explorer-${{ runner.os }}-${{ matrix.arch }}.zip
+          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ runner.os }}-${{ matrix.arch }}.zip
           asset_content_type: application/zip
