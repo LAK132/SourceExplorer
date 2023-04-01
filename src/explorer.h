@@ -18,7 +18,6 @@
 #ifndef EXPLORER_H
 #define EXPLORER_H
 
-#include "imgui_impl_lak.h"
 #include "imgui_utils.hpp"
 #include <imgui_memory_editor.h>
 #include <misc/cpp/imgui_stdlib.h>
@@ -32,6 +31,7 @@
 #include <lak/binary_writer.hpp>
 #include <lak/debug.hpp>
 #include <lak/file.hpp>
+#include <lak/imgui/imgui.hpp>
 #include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
 #include <lak/result.hpp>

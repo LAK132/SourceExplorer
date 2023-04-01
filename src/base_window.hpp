@@ -1,8 +1,7 @@
 #ifndef BASE_WINDOW_HPP
 #define BASE_WINDOW_HPP
 
-#include "imgui_impl_lak.h"
-
+#include <lak/imgui/imgui.hpp>
 #include <lak/opengl/texture.hpp>
 #include <lak/string_literals.hpp>
 

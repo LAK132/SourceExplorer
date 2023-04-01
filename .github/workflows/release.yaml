@@ -69,7 +69,7 @@ jobs:
           brew install meson ninja
 
       - run: meson setup build --buildtype debugoptimized
-      - run: meson compile -C build
+      - run: meson compile -C build srcexp
 
       - if: startsWith(matrix.os, 'windows')
         run: |
