@@ -1,12 +1,26 @@
-option(
-  'use_vendored_windows_sdl',
-  type: 'boolean',
-  value: true,
-  yield: false,
+# testing options
+
+option('lak_enable_tests',
+	type: 'boolean',
+	value: true,
+	yield: true,
 )
 
-option(
-  'lak_backend',
+# windowing options
+
+option('lak_enable_windowing',
+	type: 'boolean',
+	value: true,
+	yield: true,
+)
+
+option('sdl2_from_source',
+	type: 'boolean',
+	value: true,
+	yield: true,
+)
+
+option('lak_backend',
   type: 'combo',
   choices: [
     'win32',
@@ -19,51 +33,34 @@ option(
   yield: false,
 )
 
-option(
-  'enable_llvm',
+# llvm options
+
+option('lak_enable_llvm',
   type: 'boolean',
   value: false,
   yield: false,
 )
 
-option(
-  'use_vendored_llvm',
-  type: 'boolean',
-  value: false,
-  yield: false,
+# lmdb options
+
+option('lak_enable_lmdb',
+	type: 'boolean',
+	value: true,
+	yield: true,
 )
 
-option(
-  'llvm_components',
-  type: 'array',
-  value: [
-    'Native',
-  ],
-  yield: false,
+# glm options
+
+option('lak_enable_glm',
+	type: 'boolean',
+	value: true,
+	yield: true,
 )
 
-option(
-  'llvm_install_components',
-  type: 'array',
-  value: [
-    'Core',
-    'ExecutionEngine',
-    'OrcJIT',
-    'Support',
-  ],
-  yield: false,
-)
+# dear imgui options
 
-option(
-  'llvm_parallel_link_jobs',
-  type: 'string',
-  value: '4',
-  yield: false,
-)
-
-option(
-  'enable_lmdb',
-  type: 'boolean',
-  value: true,
-  yield: false,
+option('lak_enable_imgui',
+	type: 'boolean',
+	value: true,
+	yield: true,
 )

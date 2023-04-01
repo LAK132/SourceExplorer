@@ -117,13 +117,8 @@ executable(
     lisk,
     stb,
   ],
-  link_whole: [
-    lak
-  ],
   dependencies: [
     lak_dep,
-    glm_dep,
-    sdl2_dep,
   ],
   link_args: [
     lak_libs,

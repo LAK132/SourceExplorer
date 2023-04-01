@@ -406,17 +406,17 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 								else if (auto res =
 								           LinkImages(unsorted_path / image_name, image_path);
 								         res.is_err())
-									lak::visit(res.unwrap_err(),
-									           lak::overloaded{
-									             [](const std::error_code &err) {
-										             ERROR("Linking Failed: (",
-										                   err.value(),
-										                   ")",
-										                   err.message());
-									             },
-									             [](const auto &err)
-									             { ERROR("Linking Failed: ", err); },
-									           });
+									lak::visit(
+									  lak::overloaded{
+									    [](const std::error_code &err) {
+										    ERROR("Linking Failed: (",
+										          err.value(),
+										          ")",
+										          err.message());
+									    },
+									    [](const auto &err) { ERROR("Linking Failed: ", err); },
+									  },
+									  res.unwrap_err());
 							}
 							for (const auto &imgname : imgnames)
 							{
@@ -431,17 +431,18 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 								    i)
 									if (auto res = LinkImages(unsorted_image_path, image_path);
 									    res.is_err())
-										lak::visit(res.unwrap_err(),
-										           lak::overloaded{
-										             [](const std::error_code &err) {
-											             ERROR("Linking Failed: (",
-											                   err.value(),
-											                   ")",
-											                   err.message());
-										             },
-										             [](const auto &err)
-										             { ERROR("Linking Failed: ", err); },
-										           });
+										lak::visit(
+										  lak::overloaded{
+										    [](const std::error_code &err) {
+											    ERROR("Linking Failed: (",
+											          err.value(),
+											          ")",
+											          err.message());
+										    },
+										    [](const auto &err)
+										    { ERROR("Linking Failed: ", err); },
+										  },
+										  res.unwrap_err());
 							}
 						}
 					}

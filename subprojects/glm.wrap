@@ -1,5 +1,0 @@
-[wrap-git]
-url = https://github.com/g-truc/glm
-revision = master
-depth = 1
-patch_directory = glm
