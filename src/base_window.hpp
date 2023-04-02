@@ -303,7 +303,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			switch (colour_size)
 			{
 				case 1:
-					for (uint64_t i = 0; i < image.contig_size() && it < end; ++i)
+					for (size_t i = 0; i < image.contig_size() && it < end; ++i)
 					{
 						const auto rgb{get_next()};
 						image[i] =
@@ -311,7 +311,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 				case 2:
-					for (uint64_t i = 0; i < image.contig_size() && it < end; ++i)
+					for (size_t i = 0; i < image.contig_size() && it < end; ++i)
 					{
 						uint16_t rgb = static_cast<uint16_t>(get_next()) << 8U;
 						rgb |= static_cast<uint16_t>(get_next());
@@ -323,7 +323,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 				default:
-					for (uint64_t i = 0; i < image.contig_size() && it < end; ++i)
+					for (size_t i = 0; i < image.contig_size() && it < end; ++i)
 					{
 						const uint8_t r = get_next();
 						const uint8_t g = get_next();
