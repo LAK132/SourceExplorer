@@ -185,6 +185,7 @@ namespace SourceExplorer
 
 	extern bool force_compat;
 	extern bool skip_broken_items;
+	extern bool open_broken_games;
 	extern std::vector<uint8_t> _magic_key;
 	extern uint8_t _magic_char;
 
@@ -1339,6 +1340,7 @@ namespace SourceExplorer
 		bool recompiled         = false;
 		bool two_five_plus_game = false;
 		bool ccn                = false;
+		bool cruf               = false;
 		lak::array<uint8_t> protection;
 
 		header_t game;
@@ -1365,6 +1367,7 @@ namespace SourceExplorer
 		game_t state;
 
 		bool loaded                 = false;
+		bool loaded_successfully    = false;
 		bool baby_mode              = true;
 		bool dump_color_transparent = true;
 		bool allow_multithreading   = false;

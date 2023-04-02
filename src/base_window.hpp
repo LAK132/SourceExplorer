@@ -139,8 +139,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 	static void main_region()
 	{
-		ImVec2 content_size = ImGui::GetWindowContentRegionMax();
-		content_size.x      = ImGui::GetWindowContentRegionWidth();
+		const auto content_size{ImGui::GetContentRegionAvail()};
 
 		static float left_size  = content_size.x / 2;
 		static float right_size = content_size.x / 2;
@@ -289,27 +288,50 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			const auto end   = begin + to;
 			auto it          = begin + from;
 
-			auto out_img       = (byte_t *)image.data();
-			const auto img_end = out_img + (image.contig_size() * sizeof(image[0]));
-
-			for (uint64_t i = 1; out_img < img_end && it < end; ++i, ++it, ++out_img)
+			auto get_next = [&,
+			                 i      = size_t(0),
+			                 stride = uint64_t(block_skip.x) *
+			                          uint64_t(block_skip.y)]() mutable -> uint8_t
 			{
-				*out_img = *it;
+				const uint8_t value = static_cast<uint8_t>(*(it++));
+				if (stride > 0 && ((i + 1) % stride) == 0U) it += block_skip.z;
+				++i;
+				return value;
+			};
 
-				if ((block_skip.x * block_skip.y) > 0 &&
-				    (i % (block_skip.x * block_skip.y)) == 0)
-					it += block_skip.z;
-
-				if (colour_size < 4 && (i % colour_size) == 0)
-					out_img += 4 - colour_size;
-			}
-
-			if (colour_size < 4)
+			if (colour_size < 1) colour_size = 1;
+			switch (colour_size)
 			{
-				for (size_t sz = image.contig_size(); sz-- > 0;)
-				{
-					image[sz].a = 0xFF;
-				}
+				case 1:
+					for (uint64_t i = 0; i < image.contig_size() && it < end; ++i)
+					{
+						const auto rgb{get_next()};
+						image[i] =
+						  lak::color4_t(rgb, rgb, rgb, static_cast<uint8_t>(0xFFU));
+					}
+					break;
+				case 2:
+					for (uint64_t i = 0; i < image.contig_size() && it < end; ++i)
+					{
+						uint16_t rgb = static_cast<uint16_t>(get_next()) << 8U;
+						rgb |= static_cast<uint16_t>(get_next());
+						image[i] = lak::color4_t(
+						  static_cast<uint8_t>((rgb & 0xF800) >> 8), // 1111 1000 0000 0000
+						  static_cast<uint8_t>((rgb & 0x07E0) >> 3), // 0000 0111 1110 0000
+						  static_cast<uint8_t>((rgb & 0x001F) << 3), // 0000 0000 0001 1111
+						  static_cast<uint8_t>(0xFFU));
+					}
+					break;
+				default:
+					for (uint64_t i = 0; i < image.contig_size() && it < end; ++i)
+					{
+						const uint8_t r = get_next();
+						const uint8_t g = get_next();
+						const uint8_t b = get_next();
+						image[i] = lak::color4_t(r, g, b, static_cast<uint8_t>(0xFFU));
+						it += colour_size - 3;
+					}
+					break;
 			}
 
 			texture.bind()

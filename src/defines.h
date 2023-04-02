@@ -21,22 +21,24 @@
 #include <lak/string.hpp>
 
 // Executable Signature
-static const uint16_t WIN_EXE_SIG = 0x5A4D;
+static const uint16_t WIN_EXE_SIG = 0x5A'4D;
 // Position of Pointer to PE Header
 static const uint8_t WIN_EXE_PNT = 0x3C;
 // PE Signature
-static const uint32_t WIN_PE_SIG = 0x00004550;
+static const uint32_t WIN_PE_SIG = 0x00'00'45'50;
 
 namespace SourceExplorer
 {
 	//
 	// Game Headers
 	//
-	static const uint64_t HEADER_PACK = 0x1247874977777777;
+	static const uint64_t HEADER_PACK = 0x12'47'87'49'77'77'77'77;
 	// PAMU
-	static const uint32_t HEADER_UNIC = 0x554D4150;
+	static const uint32_t HEADER_UNIC = 0x55'4D'41'50;
 	// PAME
-	static const uint32_t HEADER_GAME = 0x454D4150;
+	static const uint32_t HEADER_GAME = 0x45'4D'41'50;
+	// CRUF
+	static const uint32_t HEADER_CRUF = 0x46'55'52'43;
 
 	//
 	// Product code

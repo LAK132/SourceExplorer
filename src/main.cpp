@@ -114,10 +114,11 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 
 	for (int arg = 1; arg < argc; ++arg)
 	{
-		if (argv[arg] == lak::astring("-help"))
+		if (argv[arg] == lak::astring("-h") || argv[arg] == lak::astring("--help"))
 		{
 			std::cout << "srcexp.exe [--help] [--nogl] [--onlyerr] "
 			             "[--listtests | --laktestall | --laktests \"test1;test2\"] "
+			             "[--test] [--skip-broken] [--open-broken] [--threaded] "
 			             "[<filepath>]\n";
 			return lak::optional<int>(0);
 		}
@@ -154,6 +155,14 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		else if (argv[arg] == lak::astring("--test"))
 		{
 			se_main_mode = se_main_mode_t::testing;
+		}
+		else if (argv[arg] == lak::astring("--skip-broken"))
+		{
+			se::skip_broken_items = true;
+		}
+		else if (argv[arg] == lak::astring("--open-broken"))
+		{
+			se::open_broken_games = true;
 		}
 		else if (argv[arg] == lak::astring("--threaded"))
 		{

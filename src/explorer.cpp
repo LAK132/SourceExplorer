@@ -40,6 +40,7 @@ namespace SourceExplorer
 {
 	bool force_compat          = false;
 	bool skip_broken_items     = false;
+	bool open_broken_games     = false;
 	size_t max_item_read_fails = 3;
 	encryption_table decryptor;
 	std::vector<uint8_t> _magic_key;
@@ -347,6 +348,16 @@ namespace SourceExplorer
 				game_state.state.push(chunk_t::_new);
 				break;
 			}
+			else if (pame_magic == HEADER_CRUF)
+			{
+				DEBUG("CRUF Game");
+				game_state.old_game = false;
+				game_state.ccn      = true;
+				game_state.cruf     = true;
+				game_state.state    = {};
+				game_state.state.push(chunk_t::_new);
+				break;
+			}
 			else if (first_short == 0x222C)
 			{
 				strm.skip(4).UNWRAP();
@@ -368,7 +379,11 @@ namespace SourceExplorer
 				                                       0x7F7F,
 				                                       "u16, ",
 				                                       HEADER_GAME,
-				                                       "u32 or ",
+				                                       "u32, ",
+				                                       HEADER_UNIC,
+				                                       "u32, ",
+				                                       HEADER_CRUF,
+				                                       "u32, ",
 				                                       HEADER_PACK,
 				                                       "u64, Found ",
 				                                       first_short,
@@ -392,7 +407,7 @@ namespace SourceExplorer
 		DEBUG("Header: ", header);
 
 		game_state.unicode = false;
-		if (header == HEADER_UNIC)
+		if (header == HEADER_UNIC || header == HEADER_CRUF)
 		{
 			game_state.unicode  = true;
 			game_state.old_game = false;
@@ -1873,8 +1888,8 @@ namespace SourceExplorer
 
 		const auto start = strm.position();
 		read_init(game);
-		read_head(game, strm, header_size, has_handle);
-		read_body(game, strm, compressed);
+		RES_TRY(read_head(game, strm, header_size, has_handle));
+		RES_TRY(read_body(game, strm, compressed));
 
 		const auto size = strm.position() - start;
 		strm.seek(start).UNWRAP();
@@ -2128,7 +2143,9 @@ namespace SourceExplorer
 			    [&](const data_ref_span_t &ref_span)
 			    {
 				    data_reader_t reader(ref_span);
-				    if (game.unicode)
+				    if (game.cruf && game.unicode)
+					    return lak::to_u16string(reader.read_any_c_str<char8_t>());
+				    else if (game.unicode)
 					    return reader.read_any_c_str<char16_t>();
 				    else
 					    return lak::to_u16string(reader.read_any_c_str<char>());
@@ -2399,7 +2416,7 @@ namespace SourceExplorer
 			uint8_t mask = dstrm.read_u8().UNWRAP();
 			for (size_t j = 0; j < 8; ++j)
 			{
-				if (0x1 & (mask >> (8 - j)))
+				if (0x1 & (mask >> (7 - j)))
 				{
 					bitmap[i * j].a = 0x00;
 				}
@@ -4511,20 +4528,49 @@ namespace SourceExplorer
 				}
 			}
 
-			if ((flags & image_flag_t::RLET) != image_flag_t::none)
-				padding = (size.x * ColorModeSize(graphics_mode)) % 2;
-			else if (game.two_five_plus_game)
-				padding = (size.x * ColorModeSize(graphics_mode)) % 2;
-			else if (game.ccn)
-				padding = uint16_t(
-				  lak::slack<size_t>(size.x * ColorModeSize(graphics_mode), 4));
-			else if (game.old_game)
-				padding = (size.x * ColorModeSize(graphics_mode)) % 2;
-			else if (game.product_build < 280)
-				padding = ((size.x * ColorModeSize(graphics_mode)) % 2) *
-				          ColorModeSize(graphics_mode);
-			else
-				padding = (size.x % 2) * ColorModeSize(graphics_mode);
+			switch (graphics_mode)
+			{
+				case graphics_mode_t::RGBA32:
+				case graphics_mode_t::BGRA32:
+					padding = 0U;
+					break;
+				case graphics_mode_t::RGB24:
+				case graphics_mode_t::BGR24:
+					if ((flags & image_flag_t::RLET) != image_flag_t::none)
+						padding = (size.x * 3U) % 2;
+					else if (game.two_five_plus_game)
+						padding = (size.x * 3U) % 2;
+					else if (game.ccn)
+						padding = uint16_t(lak::slack<size_t>(size.x * 3U, 4));
+					else if (game.old_game)
+						padding = ((size.x * 3U) % 2) * 3U;
+					else if (game.product_build < 280)
+						padding = ((size.x * 3U) % 2) * 3U;
+					else
+						padding = (size.x % 2) * 3U;
+					break;
+				case graphics_mode_t::RGB16:
+				case graphics_mode_t::RGB15:
+					padding = 0U;
+					break;
+				case graphics_mode_t::RGB8:
+					if ((flags & image_flag_t::RLET) != image_flag_t::none)
+						padding = size.x % 2;
+					else if (game.two_five_plus_game)
+						padding = size.x % 2;
+					else if (game.ccn)
+						padding = uint16_t(lak::slack<size_t>(size.x, 4));
+					else if (game.old_game)
+						padding = size.x % 2;
+					else if (game.product_build < 280)
+						padding = size.x % 2;
+					else
+						padding = size.x % 2;
+					break;
+				case graphics_mode_t::JPEG:
+					padding = 0U;
+					break;
+			}
 
 			if (game.ccn)
 				alpha_padding = 0;
@@ -4960,36 +5006,50 @@ namespace SourceExplorer
 
 			const auto start = strm.position();
 
-			entry.read_init(game);
-
-			RES_TRY(entry.read_head(game, strm, header_size, /* has_handle */ true)
-			          .RES_ADD_TRACE("sound::item_t::read"));
-
-			data_reader_t hstrm{entry.raw_head()};
-			CHECK_REMAINING(hstrm, header_size);
-			TRY_ASSIGN(checksum =, hstrm.read_u32());
-			TRY_ASSIGN(references =, hstrm.read_u32());
-			TRY_ASSIGN(decomp_len =, hstrm.read_u32());
-			TRY_ASSIGN(type =, hstrm.read_u32());
-			TRY_ASSIGN(reserved =, hstrm.read_u32());
-			TRY_ASSIGN(name_len =, hstrm.read_u32());
-
-			if (type == 0x21)
+			if (game.old_game)
 			{
-				RES_TRY(entry
-				          .read_body(game,
-				                     strm,
-				                     /* compressed */ false,
-				                     {decomp_len})
-				          .RES_ADD_TRACE("sound::item_t::read"));
+				entry.read(game, strm, false);
+				RES_TRY_ASSIGN(data_reader_t hstrm =, entry.decode_body(header_size));
+				CHECK_REMAINING(hstrm, header_size);
+				TRY_ASSIGN(checksum =, hstrm.read_u32());
+				TRY_ASSIGN(references =, hstrm.read_u32());
+				TRY_ASSIGN(decomp_len =, hstrm.read_u32());
+				TRY_ASSIGN(type =, hstrm.read_u32());
+				TRY_ASSIGN(reserved =, hstrm.read_u32());
+				TRY_ASSIGN(name_len =, hstrm.read_u32());
 			}
 			else
 			{
-				RES_TRY(entry
-				          .read_body(game,
-				                     strm,
-				                     /* compressed */ false)
+				entry.read_init(game);
+
+				RES_TRY(entry.read_head(game, strm, header_size, /* has_handle */ true)
 				          .RES_ADD_TRACE("sound::item_t::read"));
+
+				data_reader_t hstrm{entry.raw_head()};
+				CHECK_REMAINING(hstrm, header_size);
+				TRY_ASSIGN(checksum =, hstrm.read_u32());
+				TRY_ASSIGN(references =, hstrm.read_u32());
+				TRY_ASSIGN(decomp_len =, hstrm.read_u32());
+				TRY_ASSIGN(type =, hstrm.read_u32());
+				TRY_ASSIGN(reserved =, hstrm.read_u32());
+				TRY_ASSIGN(name_len =, hstrm.read_u32());
+				if (type == 0x21)
+				{
+					RES_TRY(entry
+					          .read_body(game,
+					                     strm,
+					                     /* compressed */ false,
+					                     {decomp_len})
+					          .RES_ADD_TRACE("sound::item_t::read"));
+				}
+				else
+				{
+					RES_TRY(entry
+					          .read_body(game,
+					                     strm,
+					                     /* compressed */ false)
+					          .RES_ADD_TRACE("sound::item_t::read"));
+				}
 			}
 
 			const auto size = strm.position() - start;

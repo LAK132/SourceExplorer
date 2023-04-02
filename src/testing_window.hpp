@@ -109,8 +109,18 @@ struct test_window : public base_window<test_window>
 
 		if (SrcExp.loaded)
 		{
-			ImGui::Text("\"%s\" Successfully Loaded",
-			            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+			if (SrcExp.loaded_successfully)
+			{
+				ImGui::Text("\"%s\" Successfully Loaded",
+				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+			}
+			else
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, 0xFF8080FF);
+				ImGui::Text("Loading \"%s\" Failed, Showing Partial Load",
+				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+				ImGui::PopStyleColor();
+			}
 
 			if (ImGui::Button("Try Dump Images"))
 			{
@@ -175,7 +185,8 @@ struct test_window : public base_window<test_window>
 
 		if (SrcExp.exe.attempt)
 		{
-			SrcExp.loaded = false;
+			SrcExp.loaded              = false;
+			SrcExp.loaded_successfully = false;
 
 			if (auto result{se::OpenGame(SrcExp)}; result.is_err())
 			{
@@ -211,16 +222,19 @@ struct test_window : public base_window<test_window>
 
 				if (!is_known_bad_game) all_testing_files.clear();
 
-				SrcExp.exe.attempt = false;
-				SrcExp.exe.valid   = false;
+				SrcExp.loaded              = se::open_broken_games;
+				SrcExp.loaded_successfully = false;
+				SrcExp.exe.attempt         = false;
+				SrcExp.exe.valid           = false;
 			}
 			else
 			{
 				last_error.clear();
 
-				SrcExp.loaded      = true;
-				SrcExp.exe.attempt = false;
-				SrcExp.exe.valid   = false;
+				SrcExp.loaded              = true;
+				SrcExp.loaded_successfully = true;
+				SrcExp.exe.attempt         = false;
+				SrcExp.exe.valid           = false;
 			}
 		}
 
