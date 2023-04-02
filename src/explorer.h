@@ -463,6 +463,21 @@ namespace SourceExplorer
 
 	struct item_entry_t : public basic_entry_t
 	{
+		bool new_item = false;
+
+		void read_init(game_t &game);
+
+		error_t read_head(game_t &game,
+		                  data_reader_t &strm,
+		                  size_t size,
+		                  bool has_handle = true);
+
+		error_t read_body(game_t &game,
+		                  data_reader_t &strm,
+		                  bool compressed,
+		                  lak::optional<size_t> size = lak::nullopt);
+
+		// calls read_init, read_head and read_body automatically
 		error_t read(game_t &game,
 		             data_reader_t &strm,
 		             bool compressed,
@@ -1145,6 +1160,13 @@ namespace SourceExplorer
 	{
 		struct item_t : public basic_item_t
 		{
+			uint32_t checksum;
+			uint32_t references;
+			uint32_t decomp_len;
+			uint32_t type;
+			uint32_t reserved;
+			uint32_t name_len;
+
 			error_t read(game_t &game, data_reader_t &strm);
 			error_t view(source_explorer_t &srcexp) const;
 		};

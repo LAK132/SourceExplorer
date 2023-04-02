@@ -16,3 +16,5 @@ imgui.ini
 *.7z
 *.log
 *.out
+
+ATTACH-TO-ISSUE*.txt

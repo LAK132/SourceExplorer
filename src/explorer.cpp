@@ -1742,6 +1742,7 @@ namespace SourceExplorer
 				ImGui::Text("New Entry");
 			ImGui::Text("Position: 0x%zX", position());
 			ImGui::Text("Size: 0x%zX", ref_span.size());
+			ImGui::Text("End: 0x%zX", position() + ref_span.size());
 
 			ImGui::Text("ID: 0x%zX", (size_t)ID);
 			ImGui::Text("Mode: MODE%zu", (size_t)mode);
@@ -1749,30 +1750,32 @@ namespace SourceExplorer
 			ImGui::Text("Head Position: 0x%zX", head.position());
 			ImGui::Text("Head Expected Size: 0x%zX", head.expected_size);
 			ImGui::Text("Head Size: 0x%zX", head.data.size());
+			ImGui::Text("Head End: 0x%zX", head.position() + head.data.size());
 
 			ImGui::Text("Body Position: 0x%zX", body.position());
 			ImGui::Text("Body Expected Size: 0x%zX", body.expected_size);
 			ImGui::Text("Body Size: 0x%zX", body.data.size());
+			ImGui::Text("Body End: 0x%zX", body.position() + body.data.size());
 		}
 
 		if (ImGui::Button("View Memory")) srcexp.view = this;
 	}
 
-	error_t item_entry_t::read(game_t &game,
-	                           data_reader_t &strm,
-	                           bool compressed,
-	                           size_t header_size,
-	                           bool has_handle)
+	void item_entry_t::read_init(game_t &game)
+	{
+		old  = game.old_game;
+		mode = encoding_t::mode0;
+	}
+
+	error_t item_entry_t::read_head(game_t &game,
+	                                data_reader_t &strm,
+	                                size_t size,
+	                                bool has_handle)
 	{
 		FUNCTION_CHECKPOINT("item_entry_t::");
 
-		DEBUG("Compressed: ", compressed);
-		DEBUG("Header Size: ", header_size);
+		DEBUG("Header Size: ", size);
 
-		const auto start = strm.position();
-
-		old  = game.old_game;
-		mode = encoding_t::mode0;
 		if (has_handle)
 		{
 			TRY_ASSIGN(handle =, strm.read_u32());
@@ -1781,19 +1784,30 @@ namespace SourceExplorer
 			handle = 0xFF'FF'FF'FF;
 		DEBUG("Handle: ", handle);
 
-		TRY_ASSIGN(const uint32_t peekaboo =, strm.peek_u32());
-		const bool new_item = peekaboo == 0xFF'FF'FF'FF;
+		new_item = strm.peek_u32().unwrap_or(0U) == 0xFF'FF'FF'FF;
+		if (!game.old_game && size > 0)
+		{
+			TRY_ASSIGN(head.data =, strm.read_ref_span(size));
+			head.expected_size = 0;
+		}
+
+		return lak::ok_t{};
+	}
+
+	error_t item_entry_t::read_body(game_t &game,
+	                                data_reader_t &strm,
+	                                bool compressed,
+	                                lak::optional<size_t> size)
+	{
+		FUNCTION_CHECKPOINT("item_entry_t::");
+
+		DEBUG("Compressed: ", compressed);
+
 		if (new_item)
 		{
 			DEBUG(LAK_BRIGHT_YELLOW "New Item" LAK_SGR_RESET);
 			mode       = encoding_t::mode4;
 			compressed = false;
-		}
-
-		if (!game.old_game && header_size > 0)
-		{
-			TRY_ASSIGN(head.data =, strm.read_ref_span(header_size));
-			head.expected_size = 0;
 		}
 
 		if (game.old_game || compressed)
@@ -1805,7 +1819,11 @@ namespace SourceExplorer
 		DEBUG("Body Expected Size: ", body.expected_size);
 
 		size_t data_size = 0;
-		if (game.old_game)
+		if (size)
+		{
+			data_size = *size;
+		}
+		else if (game.old_game)
 		{
 			const size_t old_start = strm.position();
 			// Figure out exactly how long the compressed data is
@@ -1835,11 +1853,28 @@ namespace SourceExplorer
 			DEBUG("Data Size: ", data_size);
 		}
 
+		CHECK_REMAINING(strm, data_size);
 		TRY_ASSIGN(body.data =, strm.read_ref_span(data_size));
 		DEBUG("Data Size: ", body.data.size());
 
 		// hack because one of MMF1.5 or tinf_uncompress is a bitch
 		if (game.old_game) mode = encoding_t::mode1;
+
+		return lak::ok_t{};
+	}
+
+	error_t item_entry_t::read(game_t &game,
+	                           data_reader_t &strm,
+	                           bool compressed,
+	                           size_t header_size,
+	                           bool has_handle)
+	{
+		FUNCTION_CHECKPOINT("item_entry_t::");
+
+		const auto start = strm.position();
+		read_init(game);
+		read_head(game, strm, header_size, has_handle);
+		read_body(game, strm, compressed);
 
 		const auto size = strm.position() - start;
 		strm.seek(start).UNWRAP();
@@ -1859,16 +1894,19 @@ namespace SourceExplorer
 				ImGui::Text("New Entry");
 			ImGui::Text("Position: 0x%zX", position());
 			ImGui::Text("Size: 0x%zX", ref_span.size());
+			ImGui::Text("End: 0x%zX", position() + ref_span.size());
 
 			ImGui::Text("Handle: 0x%zX", (size_t)handle);
 
 			ImGui::Text("Head Position: 0x%zX", head.position());
 			ImGui::Text("Head Expected Size: 0x%zX", head.expected_size);
 			ImGui::Text("Head Size: 0x%zX", head.data.size());
+			ImGui::Text("Head End: 0x%zX", head.position() + head.data.size());
 
 			ImGui::Text("Body Position: 0x%zX", body.position());
 			ImGui::Text("Body Expected Size: 0x%zX", body.expected_size);
 			ImGui::Text("Body Size: 0x%zX", body.data.size());
+			ImGui::Text("Body End: 0x%zX", body.position() + body.data.size());
 		}
 
 		if (ImGui::Button("View Memory")) srcexp.view = this;
@@ -4918,12 +4956,65 @@ namespace SourceExplorer
 		error_t item_t::read(game_t &game, data_reader_t &strm)
 		{
 			FUNCTION_CHECKPOINT("sound::item_t::");
-			return entry.read(game, strm, false, 0x18);
+			const size_t header_size = 0x18;
+
+			const auto start = strm.position();
+
+			entry.read_init(game);
+
+			RES_TRY(entry.read_head(game, strm, header_size, /* has_handle */ true)
+			          .RES_ADD_TRACE("sound::item_t::read"));
+
+			data_reader_t hstrm{entry.raw_head()};
+			CHECK_REMAINING(hstrm, header_size);
+			TRY_ASSIGN(checksum =, hstrm.read_u32());
+			TRY_ASSIGN(references =, hstrm.read_u32());
+			TRY_ASSIGN(decomp_len =, hstrm.read_u32());
+			TRY_ASSIGN(type =, hstrm.read_u32());
+			TRY_ASSIGN(reserved =, hstrm.read_u32());
+			TRY_ASSIGN(name_len =, hstrm.read_u32());
+
+			if (type == 0x21)
+			{
+				RES_TRY(entry
+				          .read_body(game,
+				                     strm,
+				                     /* compressed */ false,
+				                     {decomp_len})
+				          .RES_ADD_TRACE("sound::item_t::read"));
+			}
+			else
+			{
+				RES_TRY(entry
+				          .read_body(game,
+				                     strm,
+				                     /* compressed */ false)
+				          .RES_ADD_TRACE("sound::item_t::read"));
+			}
+
+			const auto size = strm.position() - start;
+			strm.seek(start).UNWRAP();
+			entry.ref_span = strm.read_ref_span(size).UNWRAP();
+			DEBUG("Ref Span Size: ", entry.ref_span.size());
+
+			return lak::ok_t{};
 		}
 
 		error_t item_t::view(source_explorer_t &srcexp) const
 		{
-			return basic_view(srcexp, "Sound");
+			LAK_TREE_NODE(
+			  "0x%zX %s##%zX", (size_t)entry.ID, "Sound", entry.position())
+			{
+				entry.view(srcexp);
+				ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
+				ImGui::Text("References: 0x%zX", (size_t)references);
+				ImGui::Text("Decompressed Length: 0x%zX", (size_t)decomp_len);
+				ImGui::Text("Type: 0x%zX", (size_t)type);
+				ImGui::Text("Reserved: 0x%zX", (size_t)reserved);
+				ImGui::Text("Name Length: 0x%zX", (size_t)name_len);
+			}
+
+			return lak::ok_t{};
 		}
 
 		error_t end_t::view(source_explorer_t &srcexp) const
