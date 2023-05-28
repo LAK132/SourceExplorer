@@ -144,7 +144,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		static float left_size  = content_size.x / 2;
 		static float right_size = content_size.x / 2;
 
-		lak::HoriSplitter(left_size, right_size, content_size.x);
+		lak::VertSplitter(left_size, right_size, content_size.x);
 
 		ImGui::BeginChild(
 		  "Left", {left_size, -1}, true, ImGuiWindowFlags_NoSavedSettings);
