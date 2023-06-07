@@ -14,6 +14,12 @@ option('lak_enable_windowing',
 	yield: true,
 )
 
+option('lak_run_windowing_tests',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
 option('sdl2_from_source',
 	type: 'boolean',
 	value: true,
