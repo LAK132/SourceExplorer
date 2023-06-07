@@ -37,274 +37,209 @@ SOFTWARE.
 
 #include <misc/cpp/imgui_stdlib.cpp>
 
-namespace lak
+bool lak::input_text(const char *str_id,
+                     char *buf,
+                     size_t buf_size,
+                     ImGuiInputTextFlags flags,
+                     ImGuiInputTextCallback callback,
+                     void *user_data)
 {
-	bool input_text(const char *str_id,
-	                char *buf,
-	                size_t buf_size,
-	                ImGuiInputTextFlags flags,
-	                ImGuiInputTextCallback callback,
-	                void *user_data)
+	bool result;
+	ImGui::PushID(str_id);
+	result = ImGui::InputTextEx(
+	  "", "", buf, (int)buf_size, ImVec2(-1, 0), flags, callback, user_data);
+	ImGui::PopID();
+	return result;
+}
+
+bool lak::input_text(const char *str_id,
+                     lak::astring *str,
+                     ImGuiInputTextFlags flags,
+                     ImGuiInputTextCallback callback,
+                     void *user_data)
+{
+	IM_ASSERT(!(flags & ImGuiInputTextFlags_CallbackResize));
+	flags |= ImGuiInputTextFlags_CallbackResize;
+
+	InputTextCallback_UserData cb_user_data;
+	cb_user_data.Str                   = str;
+	cb_user_data.ChainCallback         = callback;
+	cb_user_data.ChainCallbackUserData = user_data;
+
+	return lak::input_text(str_id,
+	                       (char *)str->c_str(),
+	                       str->capacity() + 1,
+	                       flags,
+	                       InputTextCallback,
+	                       &cb_user_data);
+}
+
+struct path_cache
+{
+	lak::fs::path folder;
+	bool folder_has_parent;
+	lak::fs::path folder_parent;
+	lak::fs::path file;
+
+	lak::error_code_result<bool> refresh(const lak::fs::path &path)
 	{
-		bool result;
-		ImGui::PushID(str_id);
-		result = ImGui::InputTextEx(
-		  "", "", buf, (int)buf_size, ImVec2(-1, 0), flags, callback, user_data);
-		ImGui::PopID();
-		return result;
+		if (auto norm = lak::normalised(path); norm != full())
+		{
+			auto deepest = lak::deepest_folder(norm);
+			if (deepest.is_err()) return lak::err_t{deepest.unsafe_unwrap_err()};
+			const auto [_folder, _file] = deepest.unsafe_unwrap();
+
+			file = _file;
+
+			if (_folder != folder)
+			{
+				folder            = _folder;
+				folder_has_parent = lak::has_parent(folder);
+				folder_parent     = lak::parent(folder);
+				return lak::ok_t{true};
+			}
+		}
+
+		return lak::ok_t{false};
 	}
 
-	bool input_text(const char *str_id,
-	                lak::astring *str,
-	                ImGuiInputTextFlags flags,
-	                ImGuiInputTextCallback callback,
-	                void *user_data)
+	lak::fs::path full() { return lak::normalised(folder / file); }
+};
+
+bool lak::path_navigator(fs::path &path, std::error_code &ec, ImVec2 size)
+{
+	static path_cache cache;
+	static std::vector<fs::path> folders;
+	static std::vector<fs::path> files;
+
+	if (path.empty()) path = fs::current_path();
+	if (auto refreshed = cache.refresh(path); refreshed.is_err())
 	{
-		IM_ASSERT(!(flags & ImGuiInputTextFlags_CallbackResize));
-		flags |= ImGuiInputTextFlags_CallbackResize;
+		ec = refreshed.unsafe_unwrap_err().value;
+		return false;
+	}
+	else if (refreshed.unwrap())
+	{
+		// Folder path changed
 
-		InputTextCallback_UserData cb_user_data;
-		cb_user_data.Str                   = str;
-		cb_user_data.ChainCallback         = callback;
-		cb_user_data.ChainCallbackUserData = user_data;
+		std::deque<fs::path> temp_folders;
+		std::deque<fs::path> temp_files;
 
-		return lak::input_text(str_id,
-		                       (char *)str->c_str(),
-		                       str->capacity() + 1,
-		                       flags,
-		                       InputTextCallback,
-		                       &cb_user_data);
+		for (const auto &entry : fs::directory_iterator(cache.folder))
+		{
+			if (entry.is_directory())
+				temp_folders.emplace_back(entry);
+			else
+				temp_files.emplace_back(entry);
+		}
+
+		folders = {temp_folders.begin(), temp_folders.end()};
+		files   = {temp_files.begin(), temp_files.end()};
+
+		std::sort(folders.begin(), folders.end());
+		std::sort(files.begin(), files.end());
 	}
 
-	struct path_cache
+	if (ImGui::BeginChild(
+	      "##path_navigator", size, false, ImGuiWindowFlags_NoSavedSettings))
 	{
-		fs::path folder;
-		bool folder_has_parent;
-		fs::path folder_parent;
-		fs::path file;
-
-		lak::result<bool, std::error_code> refresh(const fs::path &path)
+		if (ImGui::Selectable("../"))
 		{
-			if (auto norm = lak::normalised(path); norm != full())
-			{
-				auto deepest = lak::deepest_folder(norm);
-				if (deepest.is_err()) return lak::err_t{deepest.unwrap_err()};
-				const auto [_folder, _file] = deepest.unwrap();
-
-				file = _file;
-
-				if (_folder != folder)
-				{
-					folder            = _folder;
-					folder_has_parent = lak::has_parent(folder);
-					folder_parent     = lak::parent(folder);
-					return lak::ok_t{true};
-				}
-			}
-
-			return lak::ok_t{false};
+			path = lak::normalised(lak::parent(cache.folder) / cache.file);
 		}
 
-		fs::path full() { return lak::normalised(folder / file); }
-	};
+		ImGui::Separator();
 
-	bool path_navigator(fs::path &path, std::error_code &ec, ImVec2 size)
+		for (const auto &folder : folders)
+		{
+			const auto str = lak::to_u8string(folder.filename()) + u8'/';
+			if (ImGui::Selectable(reinterpret_cast<const char *>(str.c_str())))
+			{
+				// User selected a folder
+				path = folder / cache.file;
+			}
+		}
+
+		ImGui::Separator();
+
+		for (const auto &file : files)
+		{
+			if (ImGui::Selectable(reinterpret_cast<const char *>(
+			      lak::to_u8string(file.filename()).c_str())))
+			{
+				// User selected a file
+				path = file;
+			}
+		}
+	}
+	ImGui::EndChild();
+
+	return path != cache.full();
+}
+
+lak::error_code_result<lak::file_open_error> lak::open_file(fs::path &path,
+                                                            bool save,
+                                                            ImVec2 size)
+{
+	static path_cache cache;
+	static lak::astring file_str;
+	static lak::astring folder_str;
+	if (path.empty()) path = fs::current_path();
+
+	if (auto refreshed = cache.refresh(path); refreshed.is_err())
 	{
-		static path_cache cache;
-		static std::vector<fs::path> folders;
-		static std::vector<fs::path> files;
-
-		if (path.empty()) path = fs::current_path();
-		if (auto refreshed = cache.refresh(path); refreshed.is_err())
-		{
-			ec = refreshed.unwrap_err();
-			return false;
-		}
-		else if (refreshed.unwrap())
-		{
-			// Folder path changed
-
-			std::deque<fs::path> temp_folders;
-			std::deque<fs::path> temp_files;
-
-			for (const auto &entry : fs::directory_iterator(cache.folder))
-			{
-				if (entry.is_directory())
-					temp_folders.emplace_back(entry);
-				else
-					temp_files.emplace_back(entry);
-			}
-
-			folders = {temp_folders.begin(), temp_folders.end()};
-			files   = {temp_files.begin(), temp_files.end()};
-
-			std::sort(folders.begin(), folders.end());
-			std::sort(files.begin(), files.end());
-		}
-
-		if (ImGui::BeginChild(
-		      "##path_navigator", size, false, ImGuiWindowFlags_NoSavedSettings))
-		{
-			if (ImGui::Selectable("../"))
-			{
-				path = lak::normalised(lak::parent(cache.folder) / cache.file);
-			}
-
-			ImGui::Separator();
-
-			for (const auto &folder : folders)
-			{
-				const auto str = lak::to_u8string(folder.filename()) + u8'/';
-				if (ImGui::Selectable(reinterpret_cast<const char *>(str.c_str())))
-				{
-					// User selected a folder
-					path = folder / cache.file;
-				}
-			}
-
-			ImGui::Separator();
-
-			for (const auto &file : files)
-			{
-				if (ImGui::Selectable(reinterpret_cast<const char *>(
-				      lak::to_u8string(file.filename()).c_str())))
-				{
-					// User selected a file
-					path = file;
-				}
-			}
-		}
-		ImGui::EndChild();
-
-		return path != cache.full();
+		return lak::err_t{refreshed.unwrap_err()};
+	}
+	else if (refreshed.unwrap())
+	{
+		file_str   = lak::as_astring(cache.file.u8string()).to_string();
+		folder_str = lak::as_astring(cache.folder.u8string()).to_string();
 	}
 
-	lak::result<file_open_error, std::error_code> open_file(fs::path &path,
-	                                                        bool save,
-	                                                        ImVec2 size)
+	if (DEFER(ImGui::EndChild()); ImGui::BeginChild(
+	      "##open_file", size, true, ImGuiWindowFlags_NoSavedSettings))
 	{
-		static path_cache cache;
-		static lak::astring file_str;
-		static lak::astring folder_str;
-		if (path.empty()) path = fs::current_path();
+		lak::input_text("Directory", &folder_str);
+		if (ImGui::IsItemDeactivatedAfterEdit()) path = folder_str / cache.file;
 
-		if (auto refreshed = cache.refresh(path); refreshed.is_err())
+		ImGui::Separator();
+
+		const ImVec2 viewSize = ImVec2(0,
+		                               -((ImGui::GetStyle().ItemSpacing.y +
+		                                  ImGui::GetFrameHeightWithSpacing()) *
+		                                 2));
+
+		std::error_code ec;
+		if (auto full = cache.full(); path_navigator(full, ec, viewSize))
 		{
-			return lak::err_t{refreshed.unwrap_err()};
-		}
-		else if (refreshed.unwrap())
-		{
-			file_str   = lak::as_astring(cache.file.u8string()).to_string();
-			folder_str = lak::as_astring(cache.folder.u8string()).to_string();
-		}
-
-		if (DEFER(ImGui::EndChild()); ImGui::BeginChild(
-		      "##open_file", size, true, ImGuiWindowFlags_NoSavedSettings))
-		{
-			lak::input_text("Directory", &folder_str);
-			if (ImGui::IsItemDeactivatedAfterEdit()) path = folder_str / cache.file;
-
-			ImGui::Separator();
-
-			const ImVec2 viewSize = ImVec2(0,
-			                               -((ImGui::GetStyle().ItemSpacing.y +
-			                                  ImGui::GetFrameHeightWithSpacing()) *
-			                                 2));
-
-			std::error_code ec;
-			if (auto full = cache.full(); path_navigator(full, ec, viewSize))
-			{
-				if (auto result = cache.refresh(full); result.is_err())
-					ec = result.unwrap_err();
-				path     = cache.full();
-				file_str = lak::as_astring(lak::to_u8string(cache.file)).to_string();
-				folder_str =
-				  lak::as_astring(lak::to_u8string(cache.folder)).to_string();
-			}
-			if (ec) return lak::err_t{ec};
-
-			ImGui::Separator();
-
-			lak::input_text("File", &file_str);
-			if (ImGui::IsItemDeactivatedAfterEdit()) path = cache.folder / file_str;
-
-			ImGui::Separator();
-
-			if (fs::is_directory(cache.folder) && !cache.file.filename().empty())
-			{
-				if (save)
-				{
-					if (ImGui::Button("Save"))
-					{
-						path = cache.full();
-						return lak::ok_t{file_open_error::VALID};
-					}
-
-					ImGui::SameLine();
-				}
-				else if (fs::is_regular_file(cache.full()))
-				{
-					if (ImGui::Button("Open"))
-					{
-						path = cache.full();
-						return lak::ok_t{file_open_error::VALID};
-					}
-
-					ImGui::SameLine();
-				}
-			}
-
-			if (ImGui::Button("Cancel"))
-			{
-				return lak::ok_t{file_open_error::CANCELED};
-			}
-		}
-
-		return lak::ok_t{file_open_error::INCOMPLETE};
-	}
-
-	lak::result<file_open_error, std::error_code> open_folder(fs::path &path,
-	                                                          ImVec2 size)
-	{
-		static path_cache cache;
-		static lak::astring folder_str;
-		if (path.empty()) path = fs::current_path();
-		if (auto refreshed = cache.refresh(path); refreshed.is_err())
-		{
-			return lak::err_t{refreshed.unwrap_err()};
-		}
-		else if (refreshed.unwrap())
-		{
+			if (auto result = cache.refresh(full); result.is_err())
+				ec = result.unsafe_unwrap_err().value;
+			path       = cache.full();
+			file_str   = lak::as_astring(lak::to_u8string(cache.file)).to_string();
 			folder_str = lak::as_astring(lak::to_u8string(cache.folder)).to_string();
 		}
+		if (ec) return lak::err_t<lak::error_code_error>{ec};
 
-		if (DEFER(ImGui::EndChild()); ImGui::BeginChild(
-		      "##open_folder", size, true, ImGuiWindowFlags_NoSavedSettings))
+		ImGui::Separator();
+
+		lak::input_text("File", &file_str);
+		if (ImGui::IsItemDeactivatedAfterEdit()) path = cache.folder / file_str;
+
+		ImGui::Separator();
+
+		if (fs::is_directory(cache.folder) && !cache.file.filename().empty())
 		{
-			lak::input_text("Directory", &folder_str);
-			if (ImGui::IsItemDeactivatedAfterEdit()) path = folder_str / cache.file;
-
-			ImGui::Separator();
-
-			const ImVec2 viewSize = ImVec2(0,
-			                               -((ImGui::GetStyle().ItemSpacing.y +
-			                                  ImGui::GetFrameHeightWithSpacing()) *
-			                                 2));
-			std::error_code ec;
-			if (auto full = cache.full(); path_navigator(full, ec, viewSize))
+			if (save)
 			{
-				if (auto result = cache.refresh(full); result.is_err())
-					ec = result.unwrap_err();
-				cache.file.clear();
-				path = cache.full();
-				folder_str =
-				  lak::as_astring(lak::to_u8string(cache.folder)).to_string();
+				if (ImGui::Button("Save"))
+				{
+					path = cache.full();
+					return lak::ok_t{file_open_error::VALID};
+				}
+
+				ImGui::SameLine();
 			}
-			if (ec) return lak::err_t{ec};
-
-			ImGui::Separator();
-
-			if (fs::is_directory(cache.full()))
+			else if (fs::is_regular_file(cache.full()))
 			{
 				if (ImGui::Button("Open"))
 				{
@@ -314,59 +249,119 @@ namespace lak
 
 				ImGui::SameLine();
 			}
-
-			if (ImGui::Button("Cancel"))
-			{
-				return lak::ok_t{file_open_error::CANCELED};
-			}
 		}
 
-		return lak::ok_t{file_open_error::INCOMPLETE};
-	}
-
-	lak::result<file_open_error, std::error_code> open_file_modal(fs::path &path,
-	                                                              bool save)
-	{
-		const char *name = save ? "Save File" : "Open File";
-
-		ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
-		if (ImGui::BeginPopupModal(
-		      name, nullptr, ImGuiWindowFlags_NoSavedSettings))
+		if (ImGui::Button("Cancel"))
 		{
-			DEFER(ImGui::EndPopup());
-			auto result = open_file(path, save);
-			if (!(result.is_ok() && result.unwrap() == file_open_error::INCOMPLETE))
-			{
-				ImGui::CloseCurrentPopup();
-				return result;
-			}
+			return lak::ok_t{file_open_error::CANCELED};
 		}
-
-		if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
-
-		return lak::ok_t{file_open_error::INCOMPLETE};
 	}
 
-	lak::result<file_open_error, std::error_code> open_folder_modal(
-	  fs::path &path)
+	return lak::ok_t{file_open_error::INCOMPLETE};
+}
+
+lak::error_code_result<lak::file_open_error> lak::open_folder(fs::path &path,
+                                                              ImVec2 size)
+{
+	static path_cache cache;
+	static lak::astring folder_str;
+	if (path.empty()) path = fs::current_path();
+	if (auto refreshed = cache.refresh(path); refreshed.is_err())
 	{
-		const char name[] = "Open Folder";
+		return lak::err_t{refreshed.unwrap_err()};
+	}
+	else if (refreshed.unwrap())
+	{
+		folder_str = lak::as_astring(lak::to_u8string(cache.folder)).to_string();
+	}
 
-		ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
-		if (ImGui::BeginPopupModal(
-		      name, nullptr, ImGuiWindowFlags_NoSavedSettings))
+	if (DEFER(ImGui::EndChild()); ImGui::BeginChild(
+	      "##open_folder", size, true, ImGuiWindowFlags_NoSavedSettings))
+	{
+		lak::input_text("Directory", &folder_str);
+		if (ImGui::IsItemDeactivatedAfterEdit()) path = folder_str / cache.file;
+
+		ImGui::Separator();
+
+		const ImVec2 viewSize = ImVec2(0,
+		                               -((ImGui::GetStyle().ItemSpacing.y +
+		                                  ImGui::GetFrameHeightWithSpacing()) *
+		                                 2));
+		std::error_code ec;
+		if (auto full = cache.full(); path_navigator(full, ec, viewSize))
 		{
-			DEFER(ImGui::EndPopup());
-			auto result = open_folder(path);
-			if (!(result.is_ok() && result.unwrap() == file_open_error::INCOMPLETE))
+			if (auto result = cache.refresh(full); result.is_err())
+				ec = result.unsafe_unwrap_err().value;
+			cache.file.clear();
+			path       = cache.full();
+			folder_str = lak::as_astring(lak::to_u8string(cache.folder)).to_string();
+		}
+		if (ec) return lak::err_t<lak::error_code_error>{ec};
+
+		ImGui::Separator();
+
+		if (fs::is_directory(cache.full()))
+		{
+			if (ImGui::Button("Open"))
 			{
-				ImGui::CloseCurrentPopup();
-				return result;
+				path = cache.full();
+				return lak::ok_t{file_open_error::VALID};
 			}
+
+			ImGui::SameLine();
 		}
 
-		if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
-
-		return lak::ok_t{file_open_error::INCOMPLETE};
+		if (ImGui::Button("Cancel"))
+		{
+			return lak::ok_t{file_open_error::CANCELED};
+		}
 	}
+
+	return lak::ok_t{file_open_error::INCOMPLETE};
+}
+
+lak::error_code_result<lak::file_open_error> lak::open_file_modal(
+  fs::path &path, bool save)
+{
+	const char *name = save ? "Save File" : "Open File";
+
+	ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
+	if (ImGui::BeginPopupModal(name, nullptr, ImGuiWindowFlags_NoSavedSettings))
+	{
+		DEFER(ImGui::EndPopup());
+		auto result = lak::open_file(path, save);
+		if (!(result.is_ok() &&
+		      result.unsafe_unwrap() == file_open_error::INCOMPLETE))
+		{
+			ImGui::CloseCurrentPopup();
+			return result;
+		}
+	}
+
+	if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
+
+	return lak::ok_t{file_open_error::INCOMPLETE};
+}
+
+lak::error_code_result<lak::file_open_error> lak::open_folder_modal(
+  fs::path &path)
+{
+	const char name[] = "Open Folder";
+
+	ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
+	if (ImGui::BeginPopupModal(name, nullptr, ImGuiWindowFlags_NoSavedSettings))
+	{
+		DEFER(ImGui::EndPopup());
+		auto result = open_folder(path);
+		if (!(result.is_ok() &&
+		      result.unsafe_unwrap() == file_open_error::INCOMPLETE))
+		{
+			ImGui::CloseCurrentPopup();
+			return result;
+		}
+	}
+
+	if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
+
+	return lak::ok_t{file_open_error::INCOMPLETE};
 }

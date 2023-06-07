@@ -17,13 +17,14 @@ struct test_window : public base_window<test_window>
 		debug_menu();
 	}
 
-	static bool refresh_testing_files()
+	static lak::file_open_error refresh_testing_files()
 	{
 		SrcExp.testing_files.clear();
 
 		std::error_code ec;
 		for (const auto &entry :
 		     fs::recursive_directory_iterator{SrcExp.testing.path, ec})
+		{
 			if (entry.is_regular_file(ec))
 				if (const auto path{entry.path()}, extension{path.extension()};
 				    extension == ".exe" || extension == ".EXE" ||
@@ -33,33 +34,34 @@ struct test_window : public base_window<test_window>
 				    extension == ".ugh" || extension == ".UGH")
 					SrcExp.testing_files.push_back(path);
 
-		if (ec) ERROR(ec);
+			if (ec) break;
+		}
 
-		return bool(ec);
+		if (ec)
+		{
+			ERROR(ec);
+			return lak::file_open_error::INVALID;
+		}
+
+		return lak::file_open_error::VALID;
 	}
 
 	static void main_region()
 	{
-		if (SrcExp.testing.attempt || !SrcExp.testing.valid)
+		if (SrcExp.testing.bad()) SrcExp.testing.make_attempt();
+
+		if (SrcExp.testing.attempt)
 		{
-			SrcExp.testing.attempt = true;
-			SrcExp.testing.valid   = false;
+			se::AttemptFolder(SrcExp.testing, &refresh_testing_files);
 
-			se::Attempt(SrcExp.testing, &se::FolderLoader, &refresh_testing_files);
-
-			if (SrcExp.testing.valid)
+			if (SrcExp.testing.bad())
 			{
-				SrcExp.testing.attempt = false;
-			}
-			else if (!SrcExp.testing.attempt)
-			{
-				// User cancelled
 				se_main_mode = se_main_mode_t::normal;
 				return;
 			}
 		}
-		else
-			base_window::main_region();
+
+		if (SrcExp.testing.good()) base_window::main_region();
 	}
 
 	inline static lak::array<fs::path> all_testing_files;

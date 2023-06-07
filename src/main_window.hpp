@@ -38,7 +38,7 @@ struct main_window : public base_window<main_window>
 			                    nullptr))
 			{
 				DEBUG(SrcExp.baby_mode ? "Open And Dump" : "Open");
-				SrcExp.exe.attempt |= true;
+				SrcExp.exe.make_attempt();
 			}
 
 			if (ImGui::MenuItem("Dump Sorted Images...",
@@ -48,53 +48,53 @@ struct main_window : public base_window<main_window>
 			                      !SrcExp.state.two_five_plus_game))
 			{
 				DEBUG("Dump Sorted Images");
-				SrcExp.sorted_images.attempt |= true;
+				SrcExp.sorted_images.make_attempt();
 			}
 
 			if (ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.baby_mode))
 			{
 				DEBUG("Dump Images");
-				SrcExp.images.attempt |= true;
+				SrcExp.images.make_attempt();
 			}
 
 			if (ImGui::MenuItem("Dump Sounds...", nullptr, false, !SrcExp.baby_mode))
 			{
 				DEBUG("Dump Sounds");
-				SrcExp.sounds.attempt |= true;
+				SrcExp.sounds.make_attempt();
 			}
 
 			if (ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp.baby_mode))
 			{
 				DEBUG("Dump Music");
-				SrcExp.music.attempt |= true;
+				SrcExp.music.make_attempt();
 			}
 
 			if (ImGui::MenuItem(
 			      "Dump Shaders...", nullptr, false, !SrcExp.baby_mode))
 			{
 				DEBUG("Dump Shader");
-				SrcExp.shaders.attempt |= true;
+				SrcExp.shaders.make_attempt();
 			}
 
 			if (ImGui::MenuItem(
 			      "Dump Binary Files...", nullptr, false, !SrcExp.baby_mode))
 			{
 				DEBUG("Dump Binary Files");
-				SrcExp.binary_files.attempt |= true;
+				SrcExp.binary_files.make_attempt();
 			}
 
 			if (ImGui::MenuItem(
 			      "Dump App Icon...", nullptr, false, !SrcExp.baby_mode))
 			{
 				DEBUG("Dump App Icon");
-				SrcExp.appicon.attempt |= true;
+				SrcExp.appicon.make_attempt();
 			}
 
 			ImGui::Separator();
 			if (ImGui::MenuItem("Save Error Log..."))
 			{
 				DEBUG("Save Error Log");
-				SrcExp.error_log.attempt |= true;
+				SrcExp.error_log.make_attempt();
 			}
 			ImGui::EndMenu();
 		}
@@ -226,7 +226,8 @@ struct main_window : public base_window<main_window>
 				MEMORY,
 				IMAGE,
 				AUDIO,
-				LISK
+				LISK,
+				DEBUG_LOG,
 			};
 			static int selected = 0;
 			ImGui::RadioButton("Memory", &selected, MEMORY);
@@ -236,6 +237,8 @@ struct main_window : public base_window<main_window>
 			ImGui::RadioButton("Audio", &selected, AUDIO);
 			ImGui::SameLine();
 			ImGui::RadioButton("Lisk", &selected, LISK);
+			ImGui::SameLine();
+			ImGui::RadioButton("Log", &selected, DEBUG_LOG);
 
 			static bool crypto = false;
 			ImGui::Checkbox("Crypto", &crypto);
@@ -253,11 +256,24 @@ struct main_window : public base_window<main_window>
 
 			switch (selected)
 			{
-				case MEMORY: base_window::memory_explorer(mem_update); break;
-				case IMAGE: base_window::image_explorer(image_update); break;
-				case AUDIO: base_window::audio_explorer(audio_update); break;
-				case LISK: lisk_editor::draw(); break;
-				default: selected = 0; break;
+				case MEMORY:
+					base_window::memory_explorer(mem_update);
+					break;
+				case IMAGE:
+					base_window::image_explorer(image_update);
+					break;
+				case AUDIO:
+					base_window::audio_explorer(audio_update);
+					break;
+				case LISK:
+					lisk_editor::draw();
+					break;
+				case DEBUG_LOG:
+					base_window::log_explorer();
+					break;
+				default:
+					selected = 0;
+					break;
 			}
 		}
 	}

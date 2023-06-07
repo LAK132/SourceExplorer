@@ -137,10 +137,10 @@ namespace SourceExplorer
 		frame_bank      = 0x224D, // Means FRAMEHANDLES might be broken. Actually
 		                          // probably the Frame Bank
 		chunk224F    = 0x224F,
-		title2       = 0x2251, // "StringChunk" ?
-		chunk2253    = 0x2253, // 16 bytes
-		object_names = 0x2254, // 2.5+ games only (?), array of null
-		                       // terminated strings. "Empty"
+		title2       = 0x2251,    // "StringChunk" ?
+		chunk2253    = 0x2253,    // 16 bytes
+		object_names = 0x2254,    // 2.5+ games only (?), array of null
+		                          // terminated strings. "Empty"
 		chunk2255                       = 0x2255,
 		two_five_plus_object_properties = 0x2256, // 2.5+ games only (?)
 		chunk2257                       = 0x2257, // 4 bytes

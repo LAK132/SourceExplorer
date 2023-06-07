@@ -25,6 +25,7 @@
 #include "dump.h"
 #include "main.h"
 
+#include "binary_analysis_window.hpp"
 #include "byte_pairs_window.hpp"
 #include "main_window.hpp"
 #include "testing_window.hpp"
@@ -58,10 +59,19 @@ void MainScreen(float frame_time)
 			byte_pairs_window::draw(frame_time);
 			break;
 
-		case se_main_mode_t::testing: test_window::draw(frame_time); break;
+		case se_main_mode_t::binary_analysis:
+			binary_analysis_window::draw(frame_time);
+			break;
 
-		case se_main_mode_t::normal: [[fallthrough]];
-		default: main_window::draw(frame_time); break;
+		case se_main_mode_t::testing:
+			test_window::draw(frame_time);
+			break;
+
+		case se_main_mode_t::normal:
+			[[fallthrough]];
+		default:
+			main_window::draw(frame_time);
+			break;
 	}
 }
 
@@ -119,7 +129,7 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 			std::cout << "srcexp.exe [--help] [--nogl] [--onlyerr] "
 			             "[--listtests | --laktestall | --laktests \"test1;test2\"] "
 			             "[--test] [--skip-broken] [--open-broken] [--threaded] "
-			             "[<filepath>]\n";
+			             "[--analyse] [<filepath>]\n";
 			return lak::optional<int>(0);
 		}
 		else if (argv[arg] == lak::astring("--nogl"))
@@ -155,6 +165,10 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		else if (argv[arg] == lak::astring("--test"))
 		{
 			se_main_mode = se_main_mode_t::testing;
+		}
+		else if (argv[arg] == lak::astring("--analyse"))
+		{
+			se_main_mode = se_main_mode_t::binary_analysis;
 		}
 		else if (argv[arg] == lak::astring("--skip-broken"))
 		{
@@ -223,8 +237,8 @@ void basic_window_init(lak::window &window)
 	{
 		case lak::graphics_mode::OpenGL:
 		{
-			opengl_major = lak::opengl::get_uint(GL_MAJOR_VERSION);
-			opengl_minor = lak::opengl::get_uint(GL_MINOR_VERSION);
+			opengl_major = lak::opengl::get_uint(GL_MAJOR_VERSION).UNWRAP();
+			opengl_minor = lak::opengl::get_uint(GL_MINOR_VERSION).UNWRAP();
 		}
 		break;
 
@@ -237,7 +251,8 @@ void basic_window_init(lak::window &window)
 		}
 		break;
 
-		default: break;
+		default:
+			break;
 	}
 
 #ifdef LAK_USE_SDL
@@ -260,7 +275,8 @@ void basic_window_handle_event(lak::window &, lak::event &event)
 			SrcExp.exe.valid   = true;
 			SrcExp.exe.attempt = true;
 			break;
-		default: break;
+		default:
+			break;
 	}
 }
 

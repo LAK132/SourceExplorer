@@ -1,5 +1,5 @@
-#ifndef BYTE_PAIR_WINDOW_HPP
-#define BYTE_PAIR_WINDOW_HPP
+#ifndef BYTE_PAIRS_WINDOW_HPP
+#define BYTE_PAIRS_WINDOW_HPP
 
 #include "base_window.hpp"
 
@@ -10,35 +10,27 @@ struct byte_pairs_window : public base_window<byte_pairs_window>
 {
 	static void main_region()
 	{
-		auto load = [](se::file_state_t &file_state)
-		{
-			lak::debugger.clear();
-			auto code = lak::open_file_modal(file_state.path, false);
-			if (code.is_ok() && code.unwrap() == lak::file_open_error::VALID)
-			{
-				SrcExp.state      = se::game_t{};
-				SrcExp.state.file = se::make_data_ref_ptr(
-				  se::data_ref_ptr_t{},
-				  lak::read_file(file_state.path).EXPECT("failed to load file"));
-				ASSERT(SrcExp.state.file != nullptr);
-				return true;
-			}
-			return code.is_err() ||
-			       code.unwrap() != lak::file_open_error::INCOMPLETE;
-		};
+		if (SrcExp.exe.bad()) SrcExp.exe.make_attempt();
 
-		auto manip = []
+		if (SrcExp.exe.attempt)
 		{
-			DEBUG("File size: ", SrcExp.state.file->size());
-			SrcExp.loaded = true;
-			return true;
-		};
+			se::AttemptFile(
+			  SrcExp.exe,
+			  [](const fs::path &exe_path) -> lak::file_open_error
+			  {
+				  lak::debugger.clear();
+				  SrcExp.state      = se::game_t{};
+				  SrcExp.state.file = se::make_data_ref_ptr(
+				    se::data_ref_ptr_t{},
+				    lak::read_file(exe_path).EXPECT("failed to load file"));
+				  ASSERT(SrcExp.state.file != nullptr);
+				  DEBUG("File size: ", SrcExp.state.file->size());
+				  SrcExp.loaded = true;
+				  return lak::file_open_error::VALID;
+			  },
+			  false);
 
-		if (!SrcExp.loaded || SrcExp.exe.attempt)
-		{
-			SrcExp.exe.attempt = true;
-			se::Attempt(SrcExp.exe, load, manip);
-			if (!SrcExp.loaded && !SrcExp.exe.attempt)
+			if (SrcExp.exe.bad())
 			{
 				se_main_mode = se_main_mode_t::normal; // User cancelled
 				return;
@@ -46,8 +38,7 @@ struct byte_pairs_window : public base_window<byte_pairs_window>
 		}
 
 		if (SrcExp.loaded)
-			base_window::byte_pairs_memory_explorer(
-			  SrcExp.state.file->data(), SrcExp.state.file->size(), false);
+			base_window::byte_pairs_memory_explorer(*SrcExp.state.file, false);
 	}
 };
 

@@ -28,7 +28,8 @@ SOFTWARE.
 #include "explorer.h"
 #include "tostring.hpp"
 
-#include <lak/imgui/imgui.hpp>
+#include <lak/imgui/backend.hpp>
+#include <lak/imgui/widgets.hpp>
 #include <lak/strconv.hpp>
 #include <lak/tinflate.hpp>
 
@@ -63,6 +64,7 @@ enum struct se_main_mode_t : unsigned int
 {
 	normal,
 	byte_pairs,
+	binary_analysis,
 	testing,
 };
 

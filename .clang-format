@@ -13,7 +13,7 @@ AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 # AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: Inline
+AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: true
@@ -79,6 +79,7 @@ IncludeBlocks: Preserve
 IndentCaseLabels: true
 # IndentGotoLabels: false
 IndentPPDirectives: AfterHash
+IndentRequiresClause: false
 IndentWidth: 2
 IndentWrappedFunctionNames: false
 
@@ -102,6 +103,9 @@ PenaltyReturnTypeOnItsOwnLine: 350
 PointerAlignment: Right
 
 ReflowComments: true
+
+RequiresClausePosition: OwnLine
+RequiresExpressionIndentation: OuterScope
 
 SortIncludes: true
 SortUsingDeclarations: true

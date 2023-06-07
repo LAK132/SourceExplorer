@@ -45,9 +45,9 @@ namespace SourceExplorer
 
 	using dump_function_t = void(source_explorer_t &, std::atomic<float> &);
 
-	bool DumpStuff(source_explorer_t &srcexp,
-	               const char *str_id,
-	               dump_function_t *func);
+	lak::file_open_error DumpStuff(source_explorer_t &srcexp,
+	                               const char *str_id,
+	                               dump_function_t *func);
 
 	void DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed);
 	void DumpSortedImages(source_explorer_t &srcexp,
@@ -62,24 +62,111 @@ namespace SourceExplorer
 	void SaveBinaryBlock(source_explorer_t &srcexp,
 	                     std::atomic<float> &completed);
 
-	template<typename LOAD, typename MANIP>
-	void Attempt(file_state_t &file_state, LOAD load, MANIP manip)
+	template<lak::concepts::invocable_result_of<lak::file_open_error,
+	                                            file_state_t &> LOAD,
+	         typename FINALISE>
+	requires(lak::concepts::invocable_result_of<FINALISE,
+	                                            lak::file_open_error,
+	                                            const std::filesystem::path &> ||
+	         lak::concepts::invocable_result_of<FINALISE, lak::file_open_error>)
+	void Attempt(file_state_t &file_state, LOAD load, FINALISE finalise)
 	{
+		if (!file_state.attempt) return;
+
 		if (!file_state.valid)
 		{
-			if (load(file_state))
-				if (!file_state.valid) // User cancelled
+			switch (load(file_state))
+			{
+				case lak::file_open_error::VALID:
+					file_state.valid = true;
+					break;
+
+				case lak::file_open_error::CANCELED:
+					[[fallthrough]];
+				case lak::file_open_error::INVALID:
+					file_state.valid   = false;
 					file_state.attempt = false;
+					return;
+
+				case lak::file_open_error::INCOMPLETE:
+					break;
+
+				default:
+				{
+					ASSERT_NYI();
+					break;
+				}
+			}
 		}
 
-		if (file_state.valid && manip())
+		if (file_state.valid)
 		{
-			file_state.valid   = false;
-			file_state.attempt = false;
+			lak::file_open_error result;
+			if constexpr (lak::is_invocable_v<FINALISE,
+			                                  const std::filesystem::path &>)
+				result = finalise(file_state.path);
+			else
+				result = finalise();
+			switch (result)
+			{
+				case lak::file_open_error::VALID:
+					file_state.attempt = false;
+					break;
+
+				case lak::file_open_error::CANCELED:
+					[[fallthrough]];
+				case lak::file_open_error::INVALID:
+					file_state.valid   = false;
+					file_state.attempt = false;
+					return;
+
+				case lak::file_open_error::INCOMPLETE:
+					break;
+
+				default:
+				{
+					ASSERT_NYI();
+					break;
+				}
+			}
 		}
 	}
 
-	bool FolderLoader(file_state_t &file_state);
+	template<typename FINALISE>
+	void AttemptFile(file_state_t &file_state, FINALISE finalise, bool save)
+	{
+		Attempt(
+		  file_state,
+		  [save](file_state_t &file_state) -> lak::file_open_error
+		  {
+			  return lak::open_file_modal(file_state.path, save)
+			    .unwrap_or(
+			      [](const lak::error_code_error &ec) -> lak::file_open_error
+			      {
+				      ERROR(ec);
+				      return lak::file_open_error::INVALID;
+			      });
+		  },
+		  finalise);
+	}
+
+	template<typename FINALISE>
+	void AttemptFolder(file_state_t &file_state, FINALISE finalise)
+	{
+		Attempt(
+		  file_state,
+		  [](file_state_t &file_state) -> lak::file_open_error
+		  {
+			  return lak::open_folder_modal(file_state.path)
+			    .unwrap_or(
+			      [](const lak::error_code_error &ec) -> lak::file_open_error
+			      {
+				      ERROR(ec);
+				      return lak::file_open_error::INVALID;
+			      });
+		  },
+		  finalise);
+	}
 
 	void AttemptExe(source_explorer_t &srcexp);
 	void AttemptImages(source_explorer_t &srcexp);

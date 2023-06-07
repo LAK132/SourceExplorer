@@ -31,7 +31,8 @@
 #include <lak/binary_writer.hpp>
 #include <lak/debug.hpp>
 #include <lak/file.hpp>
-#include <lak/imgui/imgui.hpp>
+#include <lak/imgui/backend.hpp>
+#include <lak/imgui/widgets.hpp>
 #include <lak/opengl/state.hpp>
 #include <lak/opengl/texture.hpp>
 #include <lak/result.hpp>
@@ -102,21 +103,36 @@ namespace SourceExplorer
 				return strm << "Invalid PE Signature";
 			case error_type::invalid_game_signature:
 				return strm << "Invalid Game Header";
-			case error_type::invalid_state: return strm << "Invalid State";
-			case error_type::invalid_mode: return strm << "Invalid Mode";
-			case error_type::invalid_chunk: return strm << "Invalid Chunk";
-			case error_type::no_mode0: return strm << "No MODE0";
-			case error_type::no_mode1: return strm << "No MODE1";
-			case error_type::no_mode2: return strm << "No MODE2";
-			case error_type::no_mode3: return strm << "No MODE3";
-			case error_type::out_of_data: return strm << "Out Of Data";
-			case error_type::inflate_failed: return strm << "Inflate Failed";
-			case error_type::decrypt_failed: return strm << "Decrypt Failed";
-			case error_type::no_mode0_decoder: return strm << "No MODE0 Decoder";
-			case error_type::no_mode1_decoder: return strm << "No MODE1 Decoder";
-			case error_type::no_mode2_decoder: return strm << "No MODE2 Decoder";
-			case error_type::no_mode3_decoder: return strm << "No MODE3 Decoder";
-			default: return strm << "Invalid Error Code";
+			case error_type::invalid_state:
+				return strm << "Invalid State";
+			case error_type::invalid_mode:
+				return strm << "Invalid Mode";
+			case error_type::invalid_chunk:
+				return strm << "Invalid Chunk";
+			case error_type::no_mode0:
+				return strm << "No MODE0";
+			case error_type::no_mode1:
+				return strm << "No MODE1";
+			case error_type::no_mode2:
+				return strm << "No MODE2";
+			case error_type::no_mode3:
+				return strm << "No MODE3";
+			case error_type::out_of_data:
+				return strm << "Out Of Data";
+			case error_type::inflate_failed:
+				return strm << "Inflate Failed";
+			case error_type::decrypt_failed:
+				return strm << "Decrypt Failed";
+			case error_type::no_mode0_decoder:
+				return strm << "No MODE0 Decoder";
+			case error_type::no_mode1_decoder:
+				return strm << "No MODE1 Decoder";
+			case error_type::no_mode2_decoder:
+				return strm << "No MODE2 Decoder";
+			case error_type::no_mode3_decoder:
+				return strm << "No MODE3 Decoder";
+			default:
+				return strm << "Invalid Error Code";
 		}
 	}
 
@@ -218,11 +234,11 @@ namespace SourceExplorer
 		lak::span<byte_t> _parent_span     = {};
 		lak::array<byte_t> _data           = {};
 
-		_data_ref()                  = default;
-		_data_ref(const _data_ref &) = default;
-		_data_ref(_data_ref &&)      = default;
+		_data_ref()                             = default;
+		_data_ref(const _data_ref &)            = default;
+		_data_ref(_data_ref &&)                 = default;
 		_data_ref &operator=(const _data_ref &) = default;
-		_data_ref &operator=(_data_ref &&) = default;
+		_data_ref &operator=(_data_ref &&)      = default;
 
 		_data_ref(lak::array<byte_t> data)
 		: _parent(), _parent_span(), _data(lak::move(data))
@@ -258,7 +274,6 @@ namespace SourceExplorer
 
 	static data_ref_ptr_t make_data_ref_ptr(lak::array<byte_t> data)
 	{
-		FUNCTION_CHECKPOINT();
 		return std::make_shared<_data_ref>(lak::move(data));
 	}
 
@@ -267,7 +282,6 @@ namespace SourceExplorer
 	                                        size_t count,
 	                                        lak::array<byte_t> data)
 	{
-		FUNCTION_CHECKPOINT();
 		return std::make_shared<_data_ref>(parent, offset, count, lak::move(data));
 	}
 
@@ -275,8 +289,8 @@ namespace SourceExplorer
 	{
 		data_ref_ptr_t _source;
 
-		data_ref_span_t()                        = default;
-		data_ref_span_t(const data_ref_span_t &) = default;
+		data_ref_span_t()                                   = default;
+		data_ref_span_t(const data_ref_span_t &)            = default;
 		data_ref_span_t &operator=(const data_ref_span_t &) = default;
 
 		data_ref_span_t(data_ref_ptr_t src,
@@ -287,6 +301,19 @@ namespace SourceExplorer
 		        : lak::span<byte_t>()),
 		  _source(src)
 		{
+		}
+
+		data_ref_span_t ref_subspan(size_t offset = 0,
+		                            size_t count  = lak::dynamic_extent) const
+		{
+			if (!_source) return {};
+			return data_ref_span_t(
+			  _source, size_t(data() - _source->data()) + offset, count);
+		}
+
+		data_ref_span_t source_span() const
+		{
+			return _source ? data_ref_span_t{_source} : data_ref_span_t{};
 		}
 
 		data_ref_span_t parent_span() const
@@ -324,7 +351,6 @@ namespace SourceExplorer
 	static data_ref_ptr_t make_data_ref_ptr(data_ref_span_t parent,
 	                                        lak::array<byte_t> data)
 	{
-		FUNCTION_CHECKPOINT();
 		if (!parent._source)
 			return make_data_ref_ptr(lak::move(data));
 		else
@@ -336,7 +362,6 @@ namespace SourceExplorer
 
 	static data_ref_ptr_t copy_data_ref_ptr(data_ref_span_t parent)
 	{
-		FUNCTION_CHECKPOINT();
 		if (!parent._source)
 			return {};
 		else
@@ -362,7 +387,6 @@ namespace SourceExplorer
 
 		data_ref_span_t peek_remaining_ref_span(size_t max_size = SIZE_MAX)
 		{
-			FUNCTION_CHECKPOINT("data_reader_t::");
 			ASSERT(_source);
 			const size_t offset = remaining().begin() - _source->_data.data();
 			const size_t size   = std::min(remaining().size(), max_size);
@@ -373,7 +397,6 @@ namespace SourceExplorer
 
 		lak::result<data_ref_span_t> read_ref_span(size_t size)
 		{
-			FUNCTION_CHECKPOINT("data_reader_t::");
 			if (!_source) return lak::err_t{};
 			if (size > remaining().size()) return lak::err_t{};
 			const size_t offset = remaining().begin() - _source->_data.data();
@@ -383,7 +406,6 @@ namespace SourceExplorer
 
 		data_ref_span_t read_remaining_ref_span(size_t max_size = SIZE_MAX)
 		{
-			FUNCTION_CHECKPOINT("data_reader_t::");
 			ASSERT(_source);
 			const size_t offset = remaining().begin() - _source->_data.data();
 			const size_t size   = std::min(remaining().size(), max_size);
@@ -395,20 +417,17 @@ namespace SourceExplorer
 
 		lak::result<data_ref_ptr_t> read_ref_ptr(size_t size)
 		{
-			FUNCTION_CHECKPOINT("data_reader_t::");
 			return read_ref_span(size).map(copy_data_ref_ptr);
 		}
 
 		data_ref_ptr_t copy_remaining()
 		{
-			FUNCTION_CHECKPOINT("data_reader_t::");
 			return copy_data_ref_ptr(read_remaining_ref_span());
 		}
 
 		data_ref_ptr_t read_remaining_ref_ptr(size_t max_size,
 		                                      lak::array<byte_t> data)
 		{
-			FUNCTION_CHECKPOINT("data_reader_t::");
 			ASSERT(_source);
 			const size_t offset = remaining().begin() - _source->_data.data();
 			const size_t size   = std::min(remaining().size(), max_size);
@@ -1358,6 +1377,20 @@ namespace SourceExplorer
 		fs::path path;
 		bool valid;
 		bool attempt;
+
+		// bad() = file is neither valid nor being attempted
+		// !bad() = file is either valid or is being attempted
+		bool bad() const { return !valid && !attempt; }
+
+		// good() = file is valid and not being attempted
+		// !good() = file is either invalid or being attempted
+		bool good() const { return valid && !attempt; }
+
+		void make_attempt()
+		{
+			valid   = false;
+			attempt = true;
+		}
 	};
 
 	struct source_explorer_t

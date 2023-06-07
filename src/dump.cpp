@@ -38,6 +38,8 @@ SOFTWARE.
 #include <lak/tasks.hpp>
 #include <lak/visit.hpp>
 
+#include <algorithm>
+#include <execution>
 #include <unordered_set>
 
 #ifdef GetObject
@@ -132,9 +134,9 @@ lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
 	}
 }
 
-bool se::DumpStuff(source_explorer_t &srcexp,
-                   const char *str_id,
-                   dump_function_t *func)
+lak::file_open_error se::DumpStuff(source_explorer_t &srcexp,
+                                   const char *str_id,
+                                   dump_function_t *func)
 {
 	static lak::await<se::error_t> awaiter;
 	static std::atomic<float> completed = 0.0f;
@@ -148,7 +150,7 @@ bool se::DumpStuff(source_explorer_t &srcexp,
 
 	if (auto result = awaiter(functor); result.is_ok())
 	{
-		return true;
+		return lak::file_open_error::VALID;
 	}
 	else
 	{
@@ -174,17 +176,18 @@ bool se::DumpStuff(source_explorer_t &srcexp,
 				{
 					ImGui::OpenPopup(str_id);
 				}
-				return false;
+				return lak::file_open_error::INCOMPLETE;
 			}
 			break;
 
 			case lak::await_error::failed:
+				return lak::file_open_error::INVALID;
+
 			default:
 			{
 				ASSERT_NYI();
-				return false;
+				return lak::file_open_error::INVALID;
 			}
-			break;
 		}
 	}
 }
@@ -200,6 +203,17 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
 	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
 	                                       : lak::tasks(1)};
 
+	auto do_dump = [](source_explorer_t &srcexp,
+	                  const se::image::item_t &item) -> se::error_t
+	{
+		RES_TRY_ASSIGN(lak::image4_t image =,
+		               item.image(srcexp.dump_color_transparent)
+		                 .RES_ADD_TRACE("Image ", item.entry.handle, " Failed"));
+		fs::path filename =
+		  srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
+		return SaveImage(image, filename).RES_ADD_TRACE("Save Failed");
+	};
+
 	const size_t count = srcexp.state.game.image_bank->items.size();
 	std::atomic_size_t completed_index = 0;
 	size_t loop_index                  = 0;
@@ -208,16 +222,10 @@ void se::DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed)
 		++loop_index;
 		SCOPED_CHECKPOINT(
 		  "Image ", loop_index, "/", count, " (", item.entry.handle, ")");
-
 		tasks.push(
 		  [&]
 		  {
-			  lak::image4_t image =
-			    item.image(srcexp.dump_color_transparent)
-			      .EXPECT("Image ", item.entry.handle, " Failed");
-			  fs::path filename =
-			    srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
-			  SaveImage(image, filename).IF_ERR("Save failed:");
+			  do_dump(srcexp, item).IF_ERR("Dump Failed");
 			  completed = (float)((double)(++completed_index) / (double)count);
 		  });
 	}
@@ -617,11 +625,21 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 
 			  switch (type)
 			  {
-				  case sound_mode_t::wave: name += u8".wav"; break;
-				  case sound_mode_t::midi: name += u8".midi"; break;
-				  case sound_mode_t::oggs: name += u8".ogg"; break;
-				  case sound_mode_t::xm: name += u8".xm"; break;
-				  default: name += u8".mp3"; break;
+				  case sound_mode_t::wave:
+					  name += u8".wav";
+					  break;
+				  case sound_mode_t::midi:
+					  name += u8".midi";
+					  break;
+				  case sound_mode_t::oggs:
+					  name += u8".ogg";
+					  break;
+				  case sound_mode_t::xm:
+					  name += u8".xm";
+					  break;
+				  default:
+					  name += u8".mp3";
+					  break;
 			  }
 
 			  DEBUG("Sound ", (size_t)item.entry.ID);
@@ -705,9 +723,15 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 
 			  switch (type)
 			  {
-				  case sound_mode_t::wave: name += u8".wav"; break;
-				  case sound_mode_t::midi: name += u8".midi"; break;
-				  default: name += u8".mp3"; break;
+				  case sound_mode_t::wave:
+					  name += u8".wav";
+					  break;
+				  case sound_mode_t::midi:
+					  name += u8".midi";
+					  break;
+				  default:
+					  name += u8".mp3";
+					  break;
 			  }
 
 			  fs::path filename = srcexp.music.path / name;
@@ -812,80 +836,18 @@ void se::SaveBinaryBlock(source_explorer_t &srcexp, std::atomic<float> &)
 	}
 }
 
-template<typename FUNCTOR>
-void AttemptFile(se::file_state_t &file_state,
-                 FUNCTOR functor,
-                 bool save = false)
-{
-	se::Attempt(
-	  file_state,
-	  [save](se::file_state_t &file_state)
-	  {
-		  if (auto result = lak::open_file_modal(file_state.path, save);
-		      result.is_ok())
-		  {
-			  if (auto code = result.unwrap();
-			      code == lak::file_open_error::INCOMPLETE)
-			  {
-				  // Not finished.
-				  return false;
-			  }
-			  else
-			  {
-				  file_state.valid = code == lak::file_open_error::VALID;
-				  return true;
-			  }
-		  }
-		  else
-		  {
-			  file_state.valid = false;
-			  return true;
-		  }
-	  },
-	  functor);
-}
-
-bool se::FolderLoader(se::file_state_t &file_state)
-{
-	std::error_code ec;
-	if (auto result = lak::open_folder_modal(file_state.path); result.is_ok())
-	{
-		if (auto code = result.unwrap(); code == lak::file_open_error::INCOMPLETE)
-		{
-			// Not finished.
-			return false;
-		}
-		else
-		{
-			file_state.valid = code == lak::file_open_error::VALID;
-			return true;
-		}
-	}
-	else
-	{
-		file_state.valid = false;
-		return true;
-	}
-}
-
-template<typename FUNCTOR>
-void AttemptFolder(se::file_state_t &file_state, FUNCTOR functor)
-{
-	se::Attempt(file_state, &se::FolderLoader, functor);
-}
-
 void se::AttemptExe(source_explorer_t &srcexp)
 {
 	lak::debugger.clear();
 	srcexp.loaded = false;
 	AttemptFile(
 	  srcexp.exe,
-	  [&srcexp]
+	  [&srcexp]() -> lak::file_open_error
 	  {
 		  if (auto result = OpenGame(srcexp); result.is_err())
 		  {
 			  ASSERT(result.unwrap_err() == lak::await_error::running);
-			  return false;
+			  return lak::file_open_error::INCOMPLETE;
 		  }
 		  else if (result.unwrap().is_err())
 		  {
@@ -894,7 +856,7 @@ void se::AttemptExe(source_explorer_t &srcexp)
 			  //         .RES_ADD_TRACE("AttemptExe failed")
 			  //         .unwrap_err());
 			  srcexp.loaded = true;
-			  return true;
+			  return lak::file_open_error::INVALID;
 		  }
 		  else
 		  {
@@ -1001,9 +963,18 @@ void se::AttemptExe(source_explorer_t &srcexp)
 					  }
 				  }
 			  }
-			  return true;
+			  return lak::file_open_error::VALID;
 		  }
-	  });
+	  },
+	  false);
+}
+
+void se::AttemptDatabase(source_explorer_t &srcexp)
+{
+	AttemptFile(
+	  srcexp.database,
+	  [&srcexp] { return DumpStuff(srcexp, "Saving database", &DumpDatabase); },
+	  true);
 }
 
 void se::AttemptImages(source_explorer_t &srcexp)

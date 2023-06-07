@@ -1,8 +1,10 @@
 #ifndef BASE_WINDOW_HPP
 #define BASE_WINDOW_HPP
 
-#include <lak/imgui/imgui.hpp>
+#include <lak/imgui/backend.hpp>
+#include <lak/imgui/widgets.hpp>
 #include <lak/opengl/texture.hpp>
+#include <lak/span_manip.hpp>
 #include <lak/string_literals.hpp>
 
 #include "main.h"
@@ -12,35 +14,122 @@
 template<typename DERIVED>
 struct base_window
 {
+	struct memory_view
+	{
+		uint64_t view_begin = 0;
+		uint64_t view_size  = lak::dynamic_extent;
+		bool fixed_size     = true;
+
+		bool draw(se::data_ref_span_t &view_data, bool force_update)
+		{
+			return draw(view_data.source_span(), view_data, force_update);
+		}
+
+		bool draw(const se::data_ref_span_t &parent_data,
+		          se::data_ref_span_t &view_data,
+		          bool force_update)
+		{
+			return draw(static_cast<lak::span<byte_t>>(parent_data),
+			            static_cast<lak::span<byte_t> &>(view_data),
+			            force_update);
+		}
+
+		bool draw(lak::span<byte_t> parent_data,
+		          lak::span<byte_t> &view_data,
+		          bool force_update)
+		{
+			ImGui::PushID((const void *)this);
+			DEFER(ImGui::PopID());
+
+			uint64_t view_end = view_begin + view_size;
+
+			const uint64_t range_min = 0;
+			uint64_t range_max       = parent_data.size();
+
+			bool updated = force_update;
+
+			ImGui::Checkbox("Fixed Size", &fixed_size);
+			ImGui::SameLine();
+			if (ImGui::Button("Reset View"))
+			{
+				view_begin = 0;
+				view_end   = range_max;
+				view_size  = range_max;
+				updated    = true;
+			}
+
+			uint64_t old_size = view_end - view_begin;
+			if (ImGui::DragScalar("View Begin",
+			                      ImGuiDataType_U64,
+			                      &view_begin,
+			                      1.0f,
+			                      &range_min,
+			                      &range_max))
+			{
+				view_begin = std::min(view_begin, range_max);
+				if (fixed_size)
+					view_end = std::min(view_begin + old_size, range_max);
+				else
+					view_end = std::min(std::max(view_begin, view_end), range_max);
+				view_size = view_end - view_begin;
+
+				updated = true;
+			}
+
+			if (fixed_size)
+			{
+				if (uint64_t max_size = range_max - view_begin;
+				    ImGui::DragScalar("View Size",
+				                      ImGuiDataType_U64,
+				                      &view_size,
+				                      1.0f,
+				                      &range_min,
+				                      &max_size))
+				{
+					view_end = view_begin + view_size;
+
+					updated = true;
+				}
+			}
+			else
+			{
+				if (ImGui::DragScalar("View End",
+				                      ImGuiDataType_U64,
+				                      &view_end,
+				                      1.0f,
+				                      &range_min,
+				                      &range_max))
+				{
+					view_end = std::min(view_end, range_max);
+					if (fixed_size)
+						view_begin =
+						  std::min(view_end - std::min(old_size, view_end), range_max);
+					else
+						view_begin = std::min(view_begin, range_max);
+					view_size = view_end - view_begin;
+
+					updated = true;
+				}
+			}
+
+			updated |= view_data.empty() != parent_data.empty();
+
+			if (updated)
+			{
+				view_begin = std::min(view_begin, range_max);
+				view_end   = std::min(std::max(view_begin, view_end), range_max);
+				view_size  = view_end - view_begin;
+				view_data  = parent_data.subspan(view_begin, view_size);
+			}
+
+			return updated;
+		}
+	};
+
 	static void credits()
 	{
 		ImGui::PushID("Credits");
-		LAK_TREE_NODE("ImGui")
-		{
-			ImGui::Text(R"(https://github.com/ocornut/imgui
-
-The MIT License (MIT)
-
-Copyright (c) 2014-2018 Omar Cornut
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.)");
-		}
+		LAK_TREE_NODE("ImGui") { ImGui::Text("https://github.com/ocornut/imgui"); }
 		LAK_TREE_NODE("gl3w") { ImGui::Text("https://github.com/skaslev/gl3w"); }
 #ifdef LAK_USE_SDL
 		LAK_TREE_NODE("SDL2") { ImGui::Text("https://www.libsdl.org/"); }
@@ -55,6 +144,8 @@ SOFTWARE.)");
 			ImGui::Text(
 			  "https://github.com/nothings/stb/blob/master/stb_image_write.h");
 		}
+		LAK_TREE_NODE("glm") { ImGui::Text("https://github.com/g-truc/glm"); }
+		LAK_TREE_NODE("lak") { ImGui::Text("https://github.com/LAK132/lak"); }
 		LAK_TREE_NODE("Anaconda/Chowdren")
 		{
 			ImGui::Text(R"(https://github.com/Matt-Esch/anaconda
@@ -97,6 +188,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		return mode_check(se_main_mode_t::normal, "Normal Mode") |
 		       mode_check(se_main_mode_t::byte_pairs, "Byte Pairs") |
+		       mode_check(se_main_mode_t::binary_analysis, "Binary Analysis") |
 		       mode_check(se_main_mode_t::testing, "Testing");
 	}
 #ifdef LAK_COMPILER_MSVC
@@ -167,84 +259,22 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		                    scale * (float)texture.size().y));
 	}
 
-	static void image_memory_explorer(const byte_t *data,
-	                                  size_t size,
-	                                  bool update)
+	static void image_memory_explorer_impl(lak::span<byte_t> data,
+	                                       lak::vec2u64_t &image_size,
+	                                       lak::vec3u64_t &block_skip,
+	                                       int &colour_size,
+	                                       lak::opengl::texture &texture,
+	                                       float &scale,
+	                                       bool &update)
 	{
-		static bool reset_on_update      = false;
-		static lak::vec2u64_t image_size = {256, 256};
-		static lak::vec3u64_t block_skip = {0, 0, 0};
-		static lak::image4_t image{lak::vec2s_t(image_size)};
-		static lak::opengl::texture texture(GL_TEXTURE_2D);
-		static float scale            = 1.0f;
-		static uint64_t from          = 0;
-		static uint64_t to            = SIZE_MAX;
-		static int colour_size        = 3;
-		static const byte_t *old_data = data;
-
-		if (data == nullptr && old_data == nullptr) return;
-
-		if (data != nullptr && data != old_data)
 		{
-			old_data = data;
-			update   = true;
-		}
-
-		if (update)
-		{
-			if (reset_on_update)
+			if (ImGui::Button("Reset View"))
 			{
 				image_size = {256, 256};
-				block_skip = {0, 0, 0};
-				image.resize(lak::vec2s_t(image_size));
+				block_skip = {0, 1, 0};
+				update     = true;
 			}
 
-			if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
-			    data == SrcExp.state.file->data())
-			{
-				auto ref_span = SrcExp.view->ref_span;
-				while (ref_span._source && ref_span._source != SrcExp.state.file)
-					ref_span = ref_span.parent_span();
-				if (!ref_span.empty())
-				{
-					from = ref_span.position().UNWRAP();
-					to   = from + ref_span.size();
-				}
-				else
-				{
-					from = 0;
-					to   = SIZE_MAX;
-				}
-			}
-			else
-			{
-				from = 0;
-				to   = SIZE_MAX;
-			}
-		}
-
-		update |= !texture.get();
-
-		{
-			ImGui::Checkbox("Reset Configuration On Update", &reset_on_update);
-
-			static bool count_mode = true;
-			ImGui::Checkbox("Fixed Size", &count_mode);
-			uint64_t count = to - from;
-
-			if (ImGui::DragScalar("From", ImGuiDataType_U64, &from, 1.0f))
-			{
-				if (count_mode)
-					to = from + count;
-				else if (from > to)
-					to = from;
-				update = true;
-			}
-			if (ImGui::DragScalar("To", ImGuiDataType_U64, &to, 1.0f))
-			{
-				if (from > to) from = to;
-				update = true;
-			}
 			const static uint64_t sizeMin = 0;
 			const static uint64_t sizeMax = 10000;
 			if (ImGui::DragScalarN("Image Size (Width/Height)",
@@ -255,7 +285,6 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			                       &sizeMin,
 			                       &sizeMax))
 			{
-				image.resize(lak::vec2s_t(image_size));
 				update = true;
 			}
 			if (ImGui::DragScalarN("For Every/Times/Skip",
@@ -274,19 +303,18 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			}
 		}
 
-		ImGui::Separator();
-
-		if (from > to) from = to;
-		if (from > size) from = size;
-		if (to > size) to = size;
+		update |= !texture.get();
 
 		if (update)
 		{
+			static lak::image4_t image{}; // static so we can reuse the memory
+			image.resize(image_size);
+
 			image.fill({0, 0, 0, 255});
 
-			const auto begin = old_data;
-			const auto end   = begin + to;
-			auto it          = begin + from;
+			const auto begin = data.begin();
+			const auto end   = data.end();
+			auto it          = begin;
 
 			auto get_next = [&,
 			                 i      = size_t(0),
@@ -350,94 +378,85 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		if (texture.get())
 		{
+			ImGui::Separator();
 			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
 			ImGui::Separator();
 			DERIVED::view_image(texture, scale);
 		}
 	}
 
-	static void byte_pairs_memory_explorer(const byte_t *data,
-	                                       size_t size,
-	                                       bool update)
+	static void image_memory_explorer(lak::span<byte_t> data, bool update)
 	{
-		static lak::image<GLfloat> image(lak::vec2s_t(256, 256));
+		static lak::vec2u64_t image_size = {256, 256};
+		static lak::vec3u64_t block_skip = {0, 1, 0};
 		static lak::opengl::texture texture(GL_TEXTURE_2D);
-		static float scale            = 1.0f;
-		static uint64_t from          = 0;
-		static uint64_t to            = SIZE_MAX;
-		static const byte_t *old_data = data;
+		static float scale                  = 1.0f;
+		static int colour_size              = 3;
+		static lak::span<byte_t> old_data   = data;
+		static lak::span<byte_t> image_data = data;
 
-		if (data == nullptr && old_data == nullptr) return;
+		if (data.empty() && old_data.empty()) return;
 
-		if (data != nullptr && data != old_data)
+		if (!data.empty() && !lak::same_span<byte_t>(data, old_data))
 		{
-			old_data = data;
-			update   = true;
+			old_data   = data;
+			image_data = data;
+			update     = true;
 		}
 
-		if (update)
-		{
-			if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
-			    data == SrcExp.state.file->data())
-			{
-				auto ref_span = SrcExp.view->ref_span;
-				while (ref_span._source && ref_span._source != SrcExp.state.file)
-					ref_span = ref_span.parent_span();
-				if (!ref_span.empty())
-				{
-					from = ref_span.position().UNWRAP();
-					to   = from + ref_span.size();
-				}
-				else
-				{
-					from = 0;
-					to   = SIZE_MAX;
-				}
-			}
-			else
-			{
-				from = 0;
-				to   = SIZE_MAX;
-			}
-		}
+		// if (update)
+		// {
+		// 	if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
+		// 	    data == SrcExp.state.file->data())
+		// 	{
+		// 		auto ref_span = SrcExp.view->ref_span;
+		// 		while (ref_span._source && ref_span._source != SrcExp.state.file)
+		// 			ref_span = ref_span.parent_span();
+		// 		if (!ref_span.empty())
+		// 		{
+		// 			from = ref_span.position().UNWRAP();
+		// 			to   = from + ref_span.size();
+		// 		}
+		// 		else
+		// 		{
+		// 			from = 0;
+		// 			to   = SIZE_MAX;
+		// 		}
+		// 	}
+		// 	else
+		// 	{
+		// 		from = 0;
+		// 		to   = SIZE_MAX;
+		// 	}
+		// }
 
-		update |= !texture.get();
-
-		{
-			static bool count_mode = true;
-			ImGui::Checkbox("Fixed Size", &count_mode);
-			uint64_t count = to - from;
-
-			if (ImGui::DragScalar("From", ImGuiDataType_U64, &from, 1.0f))
-			{
-				if (count_mode)
-					to = from + count;
-				else if (from > to)
-					to = from;
-				update = true;
-			}
-			if (ImGui::DragScalar("To", ImGuiDataType_U64, &to, 1.0f))
-			{
-				if (from > to) from = to;
-				update = true;
-			}
-		}
+		static memory_view view;
+		update |= view.draw(data, image_data, update);
 
 		ImGui::Separator();
 
-		if (from > to) from = to;
-		if (from > size) from = size;
-		if (to > size) to = size;
+		image_memory_explorer_impl(
+		  image_data, image_size, block_skip, colour_size, texture, scale, update);
+	}
+
+	static void byte_pairs_memory_explorer_impl(lak::span<byte_t> data,
+	                                            lak::opengl::texture &texture,
+	                                            float &scale,
+	                                            bool &update)
+	{
+		update |= !texture.get();
 
 		if (update)
 		{
+			static lak::image<GLfloat> image{lak::vec2s_t{256, 256}};
+
 			image.fill(0.0f);
 
-			const auto begin = old_data;
-			const auto end   = begin + to;
-			auto it          = begin + from;
+			const auto begin = data.begin();
+			const auto end   = data.end();
+			auto it          = begin;
 
-			const GLfloat step = 1.0f / ((to - from) / image.contig_size());
+			const GLfloat step = 1.0f / (data.size() / float(image.contig_size()));
 			for (uint8_t prev = (it != end ? uint8_t(*it) : 0); it != end;
 			     prev         = uint8_t(*(it++)))
         image[{prev, uint8_t(*it)}] += step;
@@ -460,8 +479,57 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		{
 			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
 			ImGui::Separator();
-			base_window::view_image(texture, scale);
+			DERIVED::view_image(texture, scale);
 		}
+	}
+
+	static void byte_pairs_memory_explorer(lak::span<byte_t> data, bool update)
+	{
+		static lak::opengl::texture texture(GL_TEXTURE_2D);
+		static float scale                  = 1.0f;
+		static lak::span<byte_t> old_data   = data;
+		static lak::span<byte_t> image_data = data;
+
+		if (data.empty() && old_data.empty()) return;
+
+		if (!data.empty() && !lak::same_span<byte_t>(data, old_data))
+		{
+			old_data = data;
+			update   = true;
+		}
+
+		// if (update)
+		// {
+		// 	if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
+		// 	    data == SrcExp.state.file->data())
+		// 	{
+		// 		auto ref_span = SrcExp.view->ref_span;
+		// 		while (ref_span._source && ref_span._source != SrcExp.state.file)
+		// 			ref_span = ref_span.parent_span();
+		// 		if (!ref_span.empty())
+		// 		{
+		// 			from = ref_span.position().UNWRAP();
+		// 			to   = from + ref_span.size();
+		// 		}
+		// 		else
+		// 		{
+		// 			from = 0;
+		// 			to   = SIZE_MAX;
+		// 		}
+		// 	}
+		// 	else
+		// 	{
+		// 		from = 0;
+		// 		to   = SIZE_MAX;
+		// 	}
+		// }
+
+		static memory_view view;
+		update |= view.draw(data, image_data, update);
+
+		ImGui::Separator();
+
+		byte_pairs_memory_explorer_impl(image_data, texture, scale, update);
 	}
 
 	static bool crypto()
@@ -482,14 +550,57 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		return updated;
 	}
 
+	enum memory_explorer_content_mode : int
+	{
+		VIEW_DATA_BINARY,
+		VIEW_DATA_BYTE_PAIRS,
+		VIEW_DATA_IMAGE,
+	};
+
+	static void memory_explorer_impl(MemoryEditor &editor,
+	                                 memory_explorer_content_mode &content_mode,
+	                                 lak::span<byte_t> data,
+	                                 bool &update)
+	{
+		update |=
+		  ImGui::RadioButton("Binary", (int *)&content_mode, VIEW_DATA_BINARY);
+		ImGui::SameLine();
+		update |= ImGui::RadioButton(
+		  "Byte Pairs", (int *)&content_mode, VIEW_DATA_BYTE_PAIRS);
+		ImGui::SameLine();
+		update |=
+		  ImGui::RadioButton("Data Image", (int *)&content_mode, VIEW_DATA_IMAGE);
+		ImGui::Separator();
+
+		switch (content_mode)
+		{
+			case VIEW_DATA_BINARY:
+				editor.DrawContents(reinterpret_cast<uint8_t *>(data.data()),
+				                    data.size());
+				break;
+
+			case VIEW_DATA_BYTE_PAIRS:
+				byte_pairs_memory_explorer(data, update);
+				break;
+
+			case VIEW_DATA_IMAGE:
+				image_memory_explorer(data, update);
+				break;
+
+			default:
+				content_mode = VIEW_DATA_BINARY;
+				break;
+		}
+	}
+
 	static void memory_explorer(bool &update)
 	{
 		if (!SrcExp.state.file) return;
 
-		static const se::basic_entry_t *last = nullptr;
-		static int data_mode                 = 0;
-		static int content_mode              = 0;
-		static bool raw                      = true;
+		static const se::basic_entry_t *last             = nullptr;
+		static int data_mode                             = 0;
+		static memory_explorer_content_mode content_mode = VIEW_DATA_BINARY;
+		static bool raw                                  = true;
 		update |= last != SrcExp.view;
 
 		update |= ImGui::RadioButton("EXE", &data_mode, 0);
@@ -501,42 +612,23 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		update |= ImGui::RadioButton("Magic Key", &data_mode, 3);
 		ImGui::Separator();
 
-		if (data_mode != 3)
+		if (data_mode > 3) data_mode = 0;
+
+		if (data_mode == 1 || data_mode == 2)
 		{
-			if (data_mode != 0)
-			{
-				update |= ImGui::Checkbox("Raw", &raw);
-				ImGui::SameLine();
-			}
-			update |= ImGui::RadioButton("Binary", &content_mode, 0);
+			update |= ImGui::Checkbox("Raw", &raw);
 			ImGui::SameLine();
-			update |= ImGui::RadioButton("Byte Pairs", &content_mode, 1);
-			ImGui::SameLine();
-			update |= ImGui::RadioButton("Data Image", &content_mode, 2);
-			ImGui::SameLine();
-			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
-			ImGui::Separator();
 		}
 
 		if (data_mode == 0) // EXE
 		{
-			if (content_mode == 1)
+			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
+			ImGui::SameLine();
+			memory_explorer_impl(
+			  SrcExp.editor, content_mode, *SrcExp.state.file, update);
+
+			if (content_mode == VIEW_DATA_BINARY)
 			{
-				byte_pairs_memory_explorer(
-				  SrcExp.state.file->data(), SrcExp.state.file->size(), update);
-			}
-			else if (content_mode == 2)
-			{
-				image_memory_explorer(
-				  SrcExp.state.file->data(), SrcExp.state.file->size(), update);
-			}
-			else
-			{
-				if (content_mode != 0) content_mode = 0;
-				if (update) SrcExp.buffer = se::data_ref_span_t(SrcExp.state.file);
-				SrcExp.editor.DrawContents(
-				  reinterpret_cast<uint8_t *>(SrcExp.buffer.data()),
-				  SrcExp.buffer.size());
 				if (update && SrcExp.view != nullptr)
 				{
 					SCOPED_CHECKPOINT(__func__, "::EXE");
@@ -573,24 +665,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				            })
 				          .UNWRAP();
 
-			if (content_mode == 1)
-			{
-				byte_pairs_memory_explorer(
-				  SrcExp.buffer.data(), SrcExp.buffer.size(), update);
-			}
-			else if (content_mode == 2)
-			{
-				image_memory_explorer(
-				  SrcExp.buffer.data(), SrcExp.buffer.size(), update);
-			}
-			else
-			{
-				if (content_mode != 0) content_mode = 0;
-				SrcExp.editor.DrawContents(
-				  reinterpret_cast<uint8_t *>(SrcExp.buffer.data()),
-				  SrcExp.buffer.size());
-				if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
-			}
+			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
+			ImGui::SameLine();
+			memory_explorer_impl(SrcExp.editor, content_mode, SrcExp.buffer, update);
+			if (content_mode == VIEW_DATA_BINARY && update)
+				SrcExp.editor.GotoAddrAndHighlight(0, 0);
 		}
 		else if (data_mode == 2) // Body
 		{
@@ -606,32 +685,17 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				            })
 				          .UNWRAP();
 
-			if (content_mode == 1)
-			{
-				byte_pairs_memory_explorer(
-				  SrcExp.buffer.data(), SrcExp.buffer.size(), update);
-			}
-			else if (content_mode == 2)
-			{
-				image_memory_explorer(
-				  SrcExp.buffer.data(), SrcExp.buffer.size(), update);
-			}
-			else
-			{
-				if (content_mode != 0) content_mode = 0;
-				SrcExp.editor.DrawContents(
-				  reinterpret_cast<uint8_t *>(SrcExp.buffer.data()),
-				  SrcExp.buffer.size());
-				if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
-			}
+			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
+			ImGui::SameLine();
+			memory_explorer_impl(SrcExp.editor, content_mode, SrcExp.buffer, update);
+			if (content_mode == VIEW_DATA_BINARY && update)
+				SrcExp.editor.GotoAddrAndHighlight(0, 0);
 		}
 		else if (data_mode == 3) // _magic_key
 		{
 			SrcExp.editor.DrawContents(&(se::_magic_key[0]), se::_magic_key.size());
 			if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
 		}
-		else
-			data_mode = 0;
 
 		last   = SrcExp.view;
 		update = false;
@@ -793,16 +857,22 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			// spec.freq = audio_data.byte_rate;
 			switch (audio_data.format)
 			{
-				case 0x0001: spec.format = AUDIO_S16; break;
-				case 0x0003: spec.format = AUDIO_F32; break;
+				case 0x0001:
+					spec.format = AUDIO_S16;
+					break;
+				case 0x0003:
+					spec.format = AUDIO_F32;
+					break;
 				case 0x0006:
 					spec.format = AUDIO_S8; /*8bit A-law*/
 					break;
 				case 0x0007:
 					spec.format = AUDIO_S8; /*abit mu-law*/
 					break;
-				case 0xFFFE: /*subformat*/ break;
-				default: break;
+				case 0xFFFE:              /*subformat*/
+					break;
+				default:
+					break;
 			}
 			spec.channels = static_cast<Uint8>(audio_data.channel_count);
 			spec.samples  = 2048;
@@ -851,10 +921,18 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		ImGui::SameLine();
 		switch (audio_data.type)
 		{
-			case se::sound_mode_t::wave: ImGui::Text("WAV"); break;
-			case se::sound_mode_t::midi: ImGui::Text("MIDI"); break;
-			case se::sound_mode_t::oggs: ImGui::Text("OGG"); break;
-			default: ImGui::Text("Unknown"); break;
+			case se::sound_mode_t::wave:
+				ImGui::Text("WAV");
+				break;
+			case se::sound_mode_t::midi:
+				ImGui::Text("MIDI");
+				break;
+			case se::sound_mode_t::oggs:
+				ImGui::Text("OGG");
+				break;
+			default:
+				ImGui::Text("Unknown");
+				break;
 		}
 		ImGui::Text("Data Size: 0x%zX", (size_t)audio_data.data.size());
 		ImGui::Text("Format: 0x%zX", (size_t)audio_data.format);
@@ -867,6 +945,34 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		last   = SrcExp.view;
 		update = false;
+	}
+
+	static void log_explorer()
+	{
+		static lak::u8string log_str;
+		static const char *log_cstr = nullptr;
+
+		if (ImGui::Button("Refresh"))
+		{
+			log_str  = lak::debugger.str();
+			log_cstr = (const char *)log_str.c_str();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Clear"))
+		{
+			lak::debugger.clear();
+			log_str.clear();
+			log_cstr = nullptr;
+		}
+
+		if (log_cstr != nullptr && log_str.size() > 0)
+		{
+			if (ImGui::BeginChild("view debug log"))
+			{
+				ImGui::TextUnformatted(log_cstr, log_cstr + log_str.size());
+			}
+			ImGui::EndChild();
+		}
 	}
 
 	static void draw(float frame_time)
