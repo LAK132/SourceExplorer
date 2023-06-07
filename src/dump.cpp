@@ -969,14 +969,6 @@ void se::AttemptExe(source_explorer_t &srcexp)
 	  false);
 }
 
-void se::AttemptDatabase(source_explorer_t &srcexp)
-{
-	AttemptFile(
-	  srcexp.database,
-	  [&srcexp] { return DumpStuff(srcexp, "Saving database", &DumpDatabase); },
-	  true);
-}
-
 void se::AttemptImages(source_explorer_t &srcexp)
 {
 	AttemptFolder(srcexp.images,

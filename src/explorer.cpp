@@ -1129,7 +1129,8 @@ namespace SourceExplorer
 
 		if (mode == lak::graphics_mode::OpenGL)
 		{
-			auto old_texture = lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D);
+			// auto old_texture =
+			//   lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D).UNWRAP();
 
 			lak::opengl::texture result(GL_TEXTURE_2D);
 			result.bind()
@@ -1145,7 +1146,7 @@ namespace SourceExplorer
 			         GL_UNSIGNED_BYTE,
 			         bitmap.data());
 
-			glBindTexture(GL_TEXTURE_2D, old_texture);
+			// glBindTexture(GL_TEXTURE_2D, old_texture);
 
 			return result;
 		}
