@@ -1222,8 +1222,8 @@ namespace SourceExplorer
 			for (size_t y = 0; y < bitmap.size().y; ++y)
 				for (size_t x = 0; x < bitmap.size().x; ++x)
 				{
-					result.at(x, y).r =
-					  uint8_t(std::min<uint64_t>(bitmap[lak::vec2s_t{x, y}] * 256, 255));
+					result.at(x, y).r = uint8_t(std::min<uint64_t>(
+					  uint64_t(bitmap[lak::vec2s_t{x, y}] * 256), 255));
 					result.at(x, y).g = 0;
 					result.at(x, y).b = 0;
 					result.at(x, y).a = 255;
