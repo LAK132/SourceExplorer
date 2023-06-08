@@ -1,6 +1,8 @@
 #ifndef ENCRYPTION_H
 #define ENCRYPTION_H
 
+#include <lak/compiler.hpp>
+
 #if (defined(LAK_COMPILER_GNUC) || defined(LAK_COMPILER_CLANG) ||             \
      defined(LAK_COMPILER_MSVC)) &&                                           \
   defined(LAK_ARCH_X86_COMPAT)
