@@ -1148,7 +1148,7 @@ namespace SourceExplorer
 	texture_t CreateTexture(const lak::image4_t &bitmap,
 	                        const lak::graphics_mode mode)
 	{
-		FUNCTION_CHECKPOINT();
+		// FUNCTION_CHECKPOINT();
 
 		if (mode == lak::graphics_mode::OpenGL)
 		{
@@ -1159,7 +1159,7 @@ namespace SourceExplorer
 			result.bind()
 			  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
 			  .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+			  .apply(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
 			  .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
 			  .build(0,
 			         GL_RGBA,
@@ -1190,7 +1190,7 @@ namespace SourceExplorer
 	texture_t CreateTexture(const lak::image<float> &bitmap,
 	                        const lak::graphics_mode mode)
 	{
-		FUNCTION_CHECKPOINT();
+		// FUNCTION_CHECKPOINT();
 
 		if (mode == lak::graphics_mode::OpenGL)
 		{
@@ -1201,7 +1201,7 @@ namespace SourceExplorer
 			result.bind()
 			  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
 			  .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+			  .apply(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
 			  .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
 			  .build(0,
 			         GL_RED,

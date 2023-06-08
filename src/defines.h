@@ -330,6 +330,23 @@ namespace SourceExplorer
 	//
 	// Image Properties
 	//
+	enum class pixel_layout_t : uint8_t
+	{
+		mono,
+		r,
+		rg,
+		rgb,
+		bgr,
+		rgbx,
+		bgrx,
+		xrgb,
+		xbgr,
+		bayer_rggb,
+		bayer_bggr,
+		bayer_grbg,
+		bayer_gbrg,
+	};
+
 	enum class graphics_mode_t : uint8_t
 	{
 		RGBA32,

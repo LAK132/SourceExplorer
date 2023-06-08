@@ -6,15 +6,39 @@
 #include "dump.h"
 #include "main.h"
 
+void ImGui::ShowDemoWindow(bool *p_open);
+
 struct binary_analysis_window : public base_window<binary_analysis_window>
 {
 	inline static bool force_update_memory;
 	inline static se::data_ref_span_t view_data;
+	inline static bool demo_window = false;
+
+	static void file_menu()
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Open...", nullptr))
+			{
+				DEBUG("Open");
+				SrcExp.exe.make_attempt();
+			}
+
+			ImGui::Checkbox("Demo Window", &demo_window);
+
+			ImGui::EndMenu();
+		}
+	}
+
+	static void menu_bar(float)
+	{
+		file_menu();
+		base_window::mode_select_menu();
+		base_window::debug_menu();
+	}
 
 	static void main_region()
 	{
-		if (SrcExp.exe.bad()) SrcExp.exe.make_attempt();
-
 		if (SrcExp.exe.attempt)
 		{
 			se::AttemptFile(
@@ -40,6 +64,10 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 			base_window::main_region();
 
 			if (force_update_memory) force_update_memory = false;
+		}
+		else
+		{
+			if (demo_window) ImGui::ShowDemoWindow(&demo_window);
 		}
 	}
 

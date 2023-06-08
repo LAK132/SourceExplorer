@@ -1,6 +1,7 @@
 #ifndef BASE_WINDOW_HPP
 #define BASE_WINDOW_HPP
 
+#include <lak/bit_reader.hpp>
 #include <lak/imgui/backend.hpp>
 #include <lak/imgui/widgets.hpp>
 #include <lak/opengl/texture.hpp>
@@ -254,6 +255,13 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 	static void view_image(const se::texture_t &texture, const float scale)
 	{
+		ImGui::BeginChild("Image View",
+		                  ImVec2(0, 0),
+		                  false,
+		                  ImGuiWindowFlags_NoSavedSettings |
+		                    ImGuiWindowFlags_AlwaysVerticalScrollbar |
+		                    ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+
 		if (std::holds_alternative<lak::opengl::texture>(texture))
 		{
 			const auto &img = std::get<lak::opengl::texture>(texture);
@@ -289,12 +297,15 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		{
 			ERROR("Invalid texture type");
 		}
+
+		ImGui::EndChild();
 	}
 
 	static void image_memory_explorer_impl(lak::span<byte_t> data,
 	                                       lak::vec2u64_t &image_size,
 	                                       lak::vec3u64_t &block_skip,
-	                                       int &colour_size,
+	                                       lak::span<int, 4> rgbx_bit_count,
+	                                       se::pixel_layout_t &pixel_layout,
 	                                       se::texture_t &texture,
 	                                       float &scale,
 	                                       bool &update)
@@ -309,30 +320,143 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 			const static uint64_t sizeMin = 0;
 			const static uint64_t sizeMax = 10000;
-			if (ImGui::DragScalarN("Image Size (Width/Height)",
-			                       ImGuiDataType_U64,
-			                       &image_size,
-			                       2,
-			                       1.0f,
-			                       &sizeMin,
-			                       &sizeMax))
+			update |= ImGui::DragScalarN("Image Size (Width/Height)",
+			                             ImGuiDataType_U64,
+			                             &image_size,
+			                             2,
+			                             1.0f,
+			                             &sizeMin,
+			                             &sizeMax);
+
+			ImGui::Separator();
+
+			if (ImGui::Button("MONO8"))
 			{
-				update = true;
+				rgbx_bit_count[0U] = 8U;
+				rgbx_bit_count[1U] = 0U;
+				rgbx_bit_count[2U] = 0U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::mono;
+				update             = true;
 			}
-			if (ImGui::DragScalarN("For Every/Times/Skip",
-			                       ImGuiDataType_U64,
-			                       &block_skip,
-			                       3,
-			                       0.1f,
-			                       &sizeMin,
-			                       &sizeMax))
+			ImGui::SameLine();
+			if (ImGui::Button("RGB15"))
 			{
-				update = true;
+				rgbx_bit_count[0U] = 5U;
+				rgbx_bit_count[1U] = 5U;
+				rgbx_bit_count[2U] = 5U;
+				rgbx_bit_count[3U] = 1U;
+				pixel_layout       = se::pixel_layout_t::rgbx;
+				update             = true;
 			}
-			if (ImGui::SliderInt("Colour Size", &colour_size, 1, 4))
+			ImGui::SameLine();
+			if (ImGui::Button("RGB16"))
 			{
-				update = true;
+				rgbx_bit_count[0U] = 5U;
+				rgbx_bit_count[1U] = 6U;
+				rgbx_bit_count[2U] = 5U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::rgb;
+				update             = true;
 			}
+			ImGui::SameLine();
+			if (ImGui::Button("RGB24"))
+			{
+				rgbx_bit_count[0U] = 8U;
+				rgbx_bit_count[1U] = 8U;
+				rgbx_bit_count[2U] = 8U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::rgb;
+				update             = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("BGR24"))
+			{
+				rgbx_bit_count[0U] = 8U;
+				rgbx_bit_count[1U] = 8U;
+				rgbx_bit_count[2U] = 8U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::bgr;
+				update             = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("RGBX32"))
+			{
+				rgbx_bit_count[0U] = 8U;
+				rgbx_bit_count[1U] = 8U;
+				rgbx_bit_count[2U] = 8U;
+				rgbx_bit_count[3U] = 8U;
+				pixel_layout       = se::pixel_layout_t::rgbx;
+				update             = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("RGGB10"))
+			{
+				rgbx_bit_count[0U] = 10U;
+				rgbx_bit_count[1U] = 10U;
+				rgbx_bit_count[2U] = 10U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				update             = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("RGGB12"))
+			{
+				rgbx_bit_count[0U] = 12U;
+				rgbx_bit_count[1U] = 12U;
+				rgbx_bit_count[2U] = 12U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				update             = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("RGGB14"))
+			{
+				rgbx_bit_count[0U] = 14U;
+				rgbx_bit_count[1U] = 14U;
+				rgbx_bit_count[2U] = 14U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				update             = true;
+			}
+
+			update |=
+			  ImGui::DragInt4("RGBX Bit Count", rgbx_bit_count.data(), 0.05f, 0, 14);
+
+			int layout = static_cast<int>(pixel_layout);
+			// update |= ImGui::SliderInt("Layout",
+			//                            &layout,
+			//                            (int)se::pixel_layout_t::mono,
+			//                            (int)se::pixel_layout_t::bayer_rggb);
+			update |= ImGui::Combo("Channel Layout",
+			                       &layout,
+			                       "Monochrome\0"
+			                       "R\0"
+			                       "RG\0"
+			                       "RGB\0"
+			                       "BGR\0"
+			                       "RGBX\0"
+			                       "BGRX\0"
+			                       "XRGB\0"
+			                       "XBGR\0"
+			                       "Bayer RGGB\0"
+			                       "Bayer BGGR\0"
+			                       "Bayer GRBG\0"
+			                       "Bayer GBRG\0"
+			                       "\0");
+			pixel_layout = static_cast<se::pixel_layout_t>(layout);
+
+			ImGui::Separator();
+
+			const static uint64_t skipMax = 1000000;
+			update |=
+			  ImGui::DragScalarN("For Every X * Y Pixels Skip Z Bytes (X/Y/Z)",
+			                     ImGuiDataType_U64,
+			                     &block_skip,
+			                     3,
+			                     0.05f,
+			                     &sizeMin,
+			                     &skipMax);
 		}
 
 		update |= std::holds_alternative<std::monostate>(texture);
@@ -345,53 +469,206 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 			image.fill({0, 0, 0, 255});
 
-			const auto begin = data.begin();
-			const auto end   = data.end();
-			auto it          = begin;
+			lak::bit_reader reader{data};
 
-			auto get_next = [&,
-			                 i      = size_t(0),
-			                 stride = uint64_t(block_skip.x) *
-			                          uint64_t(block_skip.y)]() mutable -> uint8_t
+			auto read = [&](uint8_t bit_count) -> uint8_t
 			{
-				const uint8_t value = static_cast<uint8_t>(*(it++));
-				if (stride > 0 && ((i + 1) % stride) == 0U) it += block_skip.z;
-				++i;
-				return value;
+				return uint8_t(reader.read_bits(bit_count).unwrap_or(0U) >>
+				               (bit_count - std::min<uint8_t>(bit_count, 8U)));
 			};
+			auto read_r = [&]() -> uint8_t
+			{ return read(uint8_t(rgbx_bit_count[0U])); };
+			auto read_g = [&]() -> uint8_t
+			{ return read(uint8_t(rgbx_bit_count[1U])); };
+			auto read_b = [&]() -> uint8_t
+			{ return read(uint8_t(rgbx_bit_count[2U])); };
+			auto read_x = [&]() -> uint8_t
+			{ return read(uint8_t(rgbx_bit_count[3U])); };
 
-			if (colour_size < 1) colour_size = 1;
-			switch (colour_size)
+			const size_t to_read = block_skip.x * block_skip.y;
+			const size_t to_skip = block_skip.z;
+			const bool do_skips  = to_read != 0 && to_skip != 0;
+
+			switch (pixel_layout)
 			{
-				case 1:
-					for (size_t i = 0; i < image.contig_size() && it < end; ++i)
+				case se::pixel_layout_t::mono:
+					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
-						const auto rgb{get_next()};
-						image[i] =
-						  lak::color4_t(rgb, rgb, rgb, static_cast<uint8_t>(0xFFU));
+						auto mono{read_r()};
+						image[i].r = mono;
+						image[i].g = mono;
+						image[i].b = mono;
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
 					}
 					break;
-				case 2:
-					for (size_t i = 0; i < image.contig_size() && it < end; ++i)
+
+				case se::pixel_layout_t::r:
+					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
-						uint16_t rgb = static_cast<uint16_t>(get_next()) << 8U;
-						rgb |= static_cast<uint16_t>(get_next());
-						image[i] = lak::color4_t(
-						  static_cast<uint8_t>((rgb & 0xF800) >> 8), // 1111 1000 0000 0000
-						  static_cast<uint8_t>((rgb & 0x07E0) >> 3), // 0000 0111 1110 0000
-						  static_cast<uint8_t>((rgb & 0x001F) << 3), // 0000 0000 0001 1111
-						  static_cast<uint8_t>(0xFFU));
+						image[i].r = read_r();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
 					}
 					break;
+
+				case se::pixel_layout_t::rg:
+					for (size_t i = 0; i < image.contig_size(); ++i)
+					{
+						image[i].r = read_r();
+						image[i].g = read_g();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+					}
+					break;
+
+				case se::pixel_layout_t::rgb:
+					for (size_t i = 0; i < image.contig_size(); ++i)
+					{
+						image[i].r = read_r();
+						image[i].g = read_g();
+						image[i].b = read_b();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+					}
+					break;
+
+				case se::pixel_layout_t::bgr:
+					for (size_t i = 0; i < image.contig_size(); ++i)
+					{
+						image[i].b = read_b();
+						image[i].g = read_g();
+						image[i].r = read_r();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+					}
+					break;
+
+				case se::pixel_layout_t::rgbx:
+					for (size_t i = 0; i < image.contig_size(); ++i)
+					{
+						image[i].r = read_r();
+						image[i].g = read_g();
+						image[i].b = read_b();
+						read_x();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+					}
+					break;
+
+				case se::pixel_layout_t::bgrx:
+					for (size_t i = 0; i < image.contig_size(); ++i)
+					{
+						image[i].b = read_b();
+						image[i].g = read_g();
+						image[i].r = read_r();
+						read_x();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+					}
+					break;
+
+				case se::pixel_layout_t::xrgb:
+					for (size_t i = 0; i < image.contig_size(); ++i)
+					{
+						read_x();
+						image[i].r = read_r();
+						image[i].g = read_g();
+						image[i].b = read_b();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+					}
+					break;
+
+				case se::pixel_layout_t::xbgr:
+					for (size_t i = 0; i < image.contig_size(); ++i)
+					{
+						read_x();
+						image[i].b = read_b();
+						image[i].g = read_g();
+						image[i].r = read_r();
+						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+					}
+					break;
+
+				case se::pixel_layout_t::bayer_rggb:
+					for (size_t y = 0, i = 0; y < image.size().y; ++y)
+					{
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).r = read_r();
+							image.at(lak::vec2s_t{x, y}).g = read_g();
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).g =
+							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
+							image.at(lak::vec2s_t{x, y}).b = read_b();
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+					}
+					break;
+
+				case se::pixel_layout_t::bayer_bggr:
+					for (size_t y = 0, i = 0; y < image.size().y; ++y)
+					{
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).b = read_b();
+							image.at(lak::vec2s_t{x, y}).g = read_g();
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).g =
+							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
+							image.at(lak::vec2s_t{x, y}).r = read_r();
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+					}
+					break;
+
+				case se::pixel_layout_t::bayer_grbg:
+					for (size_t y = 0, i = 0; y < image.size().y; ++y)
+					{
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).g = read_g();
+							image.at(lak::vec2s_t{x, y}).r = read_r();
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).b = read_b();
+							image.at(lak::vec2s_t{x, y}).g =
+							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+					}
+					break;
+
+				case se::pixel_layout_t::bayer_gbrg:
+					for (size_t y = 0, i = 0; y < image.size().y; ++y)
+					{
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).g = read_g();
+							image.at(lak::vec2s_t{x, y}).b = read_b();
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+						for (size_t x = 0; x < image.size().x; ++x, ++i)
+						{
+							image.at(lak::vec2s_t{x, y}).r = read_r();
+							image.at(lak::vec2s_t{x, y}).g =
+							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
+							if (do_skips && (i + 1) % to_read == 0)
+								reader.skip_bytes(to_skip);
+						}
+					}
+					break;
+
 				default:
-					for (size_t i = 0; i < image.contig_size() && it < end; ++i)
-					{
-						const uint8_t r = get_next();
-						const uint8_t g = get_next();
-						const uint8_t b = get_next();
-						image[i] = lak::color4_t(r, g, b, static_cast<uint8_t>(0xFFU));
-						it += colour_size - 3;
-					}
+					ASSERT_NYI();
 					break;
 			}
 
@@ -412,10 +689,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		static lak::vec2u64_t image_size = {256, 256};
 		static lak::vec3u64_t block_skip = {0, 1, 0};
 		static se::texture_t texture;
-		static float scale                  = 1.0f;
-		static int colour_size              = 3;
-		static lak::span<byte_t> old_data   = data;
-		static lak::span<byte_t> image_data = data;
+		static float scale                       = 1.0f;
+		static lak::array<int, 4> rgbx_bit_count = {8, 8, 8, 0};
+		static se::pixel_layout_t pixel_layout   = se::pixel_layout_t::rgb;
+		static lak::span<byte_t> old_data        = data;
+		static lak::span<byte_t> image_data      = data;
 
 		if (data.empty() && old_data.empty()) return;
 
@@ -457,8 +735,14 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		ImGui::Separator();
 
-		image_memory_explorer_impl(
-		  image_data, image_size, block_skip, colour_size, texture, scale, update);
+		image_memory_explorer_impl(image_data,
+		                           image_size,
+		                           block_skip,
+		                           rgbx_bit_count,
+		                           pixel_layout,
+		                           texture,
+		                           scale,
+		                           update);
 	}
 
 	static void byte_pairs_memory_explorer_impl(lak::span<byte_t> data,
@@ -884,7 +1168,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				case 0x0007:
 					spec.format = AUDIO_S8; /*abit mu-law*/
 					break;
-				case 0xFFFE: /*subformat*/
+				case 0xFFFE:              /*subformat*/
 					break;
 				default:
 					break;
