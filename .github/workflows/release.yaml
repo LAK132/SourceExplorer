@@ -13,18 +13,17 @@ jobs:
       tag: ${{ steps.get_tag.outputs.TAG }}
     runs-on: windows-2022
     steps:
-      - run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
+      - run: echo "TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
         shell: bash
         id: get_tag
-      - uses: actions/create-release@v1
+      - uses: softprops/action-gh-release@v1
         id: create_release
         with:
+          token: ${{ github.token }}
           draft: false
           prerelease: true
-          release_name: Source Explorer ${{ github.ref }}
+          name: Source Explorer ${{ github.ref }}
           tag_name: ${{ github.ref }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
   build:
     needs: create-release
@@ -72,16 +71,13 @@ jobs:
 
       - if: startsWith(matrix.os, 'windows')
         run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ runner.os }}-${{ matrix.arch }}.zip
+          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ runner.os }}-${{ matrix.arch }}.zip
       # - if: startsWith(matrix.os, 'ubuntu')
       #   run: make .deb and .zip
       # - if: startsWith(matrix.os, 'macos')
       #   run: make .dmg and .zip
-      - uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      - uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: Source-Explorer-${{ runner.os }}-${{ matrix.arch }}.zip
-          asset_name: Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ runner.os }}-${{ matrix.arch }}.zip
-          asset_content_type: application/zip
+          token: ${{ github.token }}
+          fail_on_unmatched_files: true
+          files: Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ runner.os }}-${{ matrix.arch }}.zip
