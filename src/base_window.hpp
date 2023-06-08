@@ -485,8 +485,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			auto read_x = [&]() -> uint8_t
 			{ return read(uint8_t(rgbx_bit_count[3U])); };
 
-			const size_t to_read = block_skip.x * block_skip.y;
-			const size_t to_skip = block_skip.z;
+			const size_t to_read = size_t(block_skip.x * block_skip.y);
+			const size_t to_skip = size_t(block_skip.z);
 			const bool do_skips  = to_read != 0 && to_skip != 0;
 
 			switch (pixel_layout)
