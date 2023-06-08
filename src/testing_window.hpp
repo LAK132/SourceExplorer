@@ -70,7 +70,7 @@ struct test_window : public base_window<test_window>
 
 	static void left_region()
 	{
-		ImGui::Text(lak::as_astring(SrcExp.testing.path.u8string().c_str()));
+		ImGui::Text("%s", lak::as_astring(SrcExp.testing.path.u8string().c_str()));
 
 		if (ImGui::Button("Refresh Folder")) refresh_testing_files();
 
@@ -180,7 +180,7 @@ struct test_window : public base_window<test_window>
 			ImGui::Text("Working Path \"%s\"",
 			            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
 
-			if (!last_error.empty()) ImGui::Text(last_error.c_str());
+			if (!last_error.empty()) ImGui::Text("%s", last_error.c_str());
 
 			ImGui::Text("Not Loaded");
 		}

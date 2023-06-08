@@ -691,18 +691,26 @@ namespace SourceExplorer
 	{
 		switch (mode)
 		{
-			case graphics_mode_t::RGBA32: return ColorFrom32bitRGBA(strm);
-			case graphics_mode_t::BGRA32: return ColorFrom32bitBGRA(strm);
+			case graphics_mode_t::RGBA32:
+				return ColorFrom32bitRGBA(strm);
+			case graphics_mode_t::BGRA32:
+				return ColorFrom32bitBGRA(strm);
 
-			case graphics_mode_t::RGB24: return ColorFrom24bitRGB(strm);
-			case graphics_mode_t::BGR24: return ColorFrom24bitBGR(strm);
+			case graphics_mode_t::RGB24:
+				return ColorFrom24bitRGB(strm);
+			case graphics_mode_t::BGR24:
+				return ColorFrom24bitBGR(strm);
 
-			case graphics_mode_t::RGB16: return ColorFrom16bitRGB(strm);
-			case graphics_mode_t::RGB15: return ColorFrom15bitRGB(strm);
+			case graphics_mode_t::RGB16:
+				return ColorFrom16bitRGB(strm);
+			case graphics_mode_t::RGB15:
+				return ColorFrom15bitRGB(strm);
 
-			case graphics_mode_t::RGB8: return ColorFrom8bitI(strm, palette);
+			case graphics_mode_t::RGB8:
+				return ColorFrom8bitI(strm, palette);
 
-			default: return ColorFrom24bitBGR(strm);
+			default:
+				return ColorFrom24bitBGR(strm);
 		}
 	}
 
@@ -940,19 +948,26 @@ namespace SourceExplorer
 	{
 		switch (mode)
 		{
-			case graphics_mode_t::RGBA32: return ColorsFrom32bitRGBA(colors, strm);
-			case graphics_mode_t::BGRA32: return ColorsFrom32bitBGRA(colors, strm);
+			case graphics_mode_t::RGBA32:
+				return ColorsFrom32bitRGBA(colors, strm);
+			case graphics_mode_t::BGRA32:
+				return ColorsFrom32bitBGRA(colors, strm);
 
-			case graphics_mode_t::RGB24: return ColorsFrom24bitRGB(colors, strm);
-			case graphics_mode_t::BGR24: return ColorsFrom24bitBGR(colors, strm);
+			case graphics_mode_t::RGB24:
+				return ColorsFrom24bitRGB(colors, strm);
+			case graphics_mode_t::BGR24:
+				return ColorsFrom24bitBGR(colors, strm);
 
-			case graphics_mode_t::RGB16: return ColorsFrom16bitRGB(colors, strm);
-			case graphics_mode_t::RGB15: return ColorsFrom15bitRGB(colors, strm);
+			case graphics_mode_t::RGB16:
+				return ColorsFrom16bitRGB(colors, strm);
+			case graphics_mode_t::RGB15:
+				return ColorsFrom15bitRGB(colors, strm);
 
 			case graphics_mode_t::RGB8:
 				return ColorsFrom8bitI(colors, strm, palette);
 
-			default: return ColorsFrom24bitBGR(colors, strm);
+			default:
+				return ColorsFrom24bitBGR(colors, strm);
 		}
 	}
 
@@ -960,18 +975,26 @@ namespace SourceExplorer
 	{
 		switch (mode)
 		{
-			case graphics_mode_t::RGBA32: return 4;
-			case graphics_mode_t::BGRA32: return 4;
+			case graphics_mode_t::RGBA32:
+				return 4;
+			case graphics_mode_t::BGRA32:
+				return 4;
 
-			case graphics_mode_t::RGB24: return 3;
-			case graphics_mode_t::BGR24: return 3;
+			case graphics_mode_t::RGB24:
+				return 3;
+			case graphics_mode_t::BGR24:
+				return 3;
 
-			case graphics_mode_t::RGB16: return 2;
-			case graphics_mode_t::RGB15: return 2;
+			case graphics_mode_t::RGB16:
+				return 2;
+			case graphics_mode_t::RGB15:
+				return 2;
 
-			case graphics_mode_t::RGB8: return 1;
+			case graphics_mode_t::RGB8:
+				return 1;
 
-			default: return 3;
+			default:
+				return 3;
 		}
 	}
 
@@ -1208,121 +1231,218 @@ namespace SourceExplorer
 	{
 		switch (ID)
 		{
-			case chunk_t::entry: return "Entry (ERROR)";
+			case chunk_t::entry:
+				return "Entry (ERROR)";
 
-			case chunk_t::vitalise_preview: return "Vitalise Preview";
+			case chunk_t::vitalise_preview:
+				return "Vitalise Preview";
 
-			case chunk_t::header: return "Header";
-			case chunk_t::title: return "Title";
-			case chunk_t::author: return "Author";
-			case chunk_t::menu: return "Menu";
-			case chunk_t::extra_path: return "Extra Path";
-			case chunk_t::extensions: return "Extensions (deprecated)";
-			case chunk_t::object_bank: return "Object Bank";
+			case chunk_t::header:
+				return "Header";
+			case chunk_t::title:
+				return "Title";
+			case chunk_t::author:
+				return "Author";
+			case chunk_t::menu:
+				return "Menu";
+			case chunk_t::extra_path:
+				return "Extra Path";
+			case chunk_t::extensions:
+				return "Extensions (deprecated)";
+			case chunk_t::object_bank:
+				return "Object Bank";
 
-			case chunk_t::global_events: return "Global Events (deprecated)";
-			case chunk_t::frame_handles: return "Frame Handles";
-			case chunk_t::extra_data: return "Extra Data";
+			case chunk_t::global_events:
+				return "Global Events (deprecated)";
+			case chunk_t::frame_handles:
+				return "Frame Handles";
+			case chunk_t::extra_data:
+				return "Extra Data";
 			case chunk_t::additional_extensions:
 				return "Additional Extensions (deprecated)";
-			case chunk_t::project_path: return "Project Path";
-			case chunk_t::output_path: return "Output Path";
-			case chunk_t::app_doc: return "App Doc";
-			case chunk_t::other_extension: return "Other Extension(s)";
-			case chunk_t::global_values: return "Global Values";
-			case chunk_t::global_strings: return "Global Strings";
-			case chunk_t::extensions_list: return "Extensions List";
-			case chunk_t::icon: return "Icon";
-			case chunk_t::demo_version: return "Demo Version";
-			case chunk_t::security_number: return "Security Number";
-			case chunk_t::binary_files: return "Binary Files";
-			case chunk_t::menu_images: return "Menu Images";
-			case chunk_t::about: return "About";
-			case chunk_t::copyright: return "Copyright";
-			case chunk_t::global_value_names: return "Global Value Names";
-			case chunk_t::global_string_names: return "Global String Names";
-			case chunk_t::movement_extensions: return "Movement Extensions";
+			case chunk_t::project_path:
+				return "Project Path";
+			case chunk_t::output_path:
+				return "Output Path";
+			case chunk_t::app_doc:
+				return "App Doc";
+			case chunk_t::other_extension:
+				return "Other Extension(s)";
+			case chunk_t::global_values:
+				return "Global Values";
+			case chunk_t::global_strings:
+				return "Global Strings";
+			case chunk_t::extensions_list:
+				return "Extensions List";
+			case chunk_t::icon:
+				return "Icon";
+			case chunk_t::demo_version:
+				return "Demo Version";
+			case chunk_t::security_number:
+				return "Security Number";
+			case chunk_t::binary_files:
+				return "Binary Files";
+			case chunk_t::menu_images:
+				return "Menu Images";
+			case chunk_t::about:
+				return "About";
+			case chunk_t::copyright:
+				return "Copyright";
+			case chunk_t::global_value_names:
+				return "Global Value Names";
+			case chunk_t::global_string_names:
+				return "Global String Names";
+			case chunk_t::movement_extensions:
+				return "Movement Extensions";
 			// case chunk_t::UNKNOWN8: return "UNKNOWN8";
-			case chunk_t::object_bank2: return "Object Bank 2";
-			case chunk_t::exe_only: return "EXE Only";
-			case chunk_t::protection: return "Protection";
-			case chunk_t::shaders: return "Shaders";
-			case chunk_t::shaders2: return "Shaders 2";
-			case chunk_t::extended_header: return "Extended Header";
-			case chunk_t::spacer: return "Spacer";
-			case chunk_t::frame_bank: return "Frame Bank";
-			case chunk_t::chunk224F: return "Chunk 224F";
-			case chunk_t::title2: return "Title2";
+			case chunk_t::object_bank2:
+				return "Object Bank 2";
+			case chunk_t::exe_only:
+				return "EXE Only";
+			case chunk_t::protection:
+				return "Protection";
+			case chunk_t::shaders:
+				return "Shaders";
+			case chunk_t::shaders2:
+				return "Shaders 2";
+			case chunk_t::extended_header:
+				return "Extended Header";
+			case chunk_t::spacer:
+				return "Spacer";
+			case chunk_t::frame_bank:
+				return "Frame Bank";
+			case chunk_t::chunk224F:
+				return "Chunk 224F";
+			case chunk_t::title2:
+				return "Title2";
 
-			case chunk_t::chunk2253: return "Chunk 2253";
-			case chunk_t::object_names: return "Object Names";
-			case chunk_t::chunk2255: return "Chunk 2255 (Empty?)";
+			case chunk_t::chunk2253:
+				return "Chunk 2253";
+			case chunk_t::object_names:
+				return "Object Names";
+			case chunk_t::chunk2255:
+				return "Chunk 2255 (Empty?)";
 			case chunk_t::two_five_plus_object_properties:
 				return "Object Properties (2.5+)";
-			case chunk_t::chunk2257: return "Chunk 2257 (4 bytes?)";
-			case chunk_t::font_meta: return "TrueType Fonts Meta";
-			case chunk_t::font_chunk: return "TrueType Fonts Chunk";
+			case chunk_t::chunk2257:
+				return "Chunk 2257 (4 bytes?)";
+			case chunk_t::font_meta:
+				return "TrueType Fonts Meta";
+			case chunk_t::font_chunk:
+				return "TrueType Fonts Chunk";
 
-			case chunk_t::frame: return "Frame";
-			case chunk_t::frame_header: return "Frame Header";
-			case chunk_t::frame_name: return "Frame Name";
-			case chunk_t::frame_password: return "Frame Password";
-			case chunk_t::frame_palette: return "Frame Palette";
-			case chunk_t::frame_object_instances: return "Frame Object Instances";
-			case chunk_t::frame_fade_in_frame: return "Frame Fade In Frame";
-			case chunk_t::frame_fade_out_frame: return "Frame Fade Out Frame";
-			case chunk_t::frame_fade_in: return "Frame Fade In";
-			case chunk_t::frame_fade_out: return "Frame Fade Out";
-			case chunk_t::frame_events: return "Frame Events";
-			case chunk_t::frame_play_header: return "Frame Play Header";
-			case chunk_t::frame_additional_items: return "Frame Additional Item";
+			case chunk_t::frame:
+				return "Frame";
+			case chunk_t::frame_header:
+				return "Frame Header";
+			case chunk_t::frame_name:
+				return "Frame Name";
+			case chunk_t::frame_password:
+				return "Frame Password";
+			case chunk_t::frame_palette:
+				return "Frame Palette";
+			case chunk_t::frame_object_instances:
+				return "Frame Object Instances";
+			case chunk_t::frame_fade_in_frame:
+				return "Frame Fade In Frame";
+			case chunk_t::frame_fade_out_frame:
+				return "Frame Fade Out Frame";
+			case chunk_t::frame_fade_in:
+				return "Frame Fade In";
+			case chunk_t::frame_fade_out:
+				return "Frame Fade Out";
+			case chunk_t::frame_events:
+				return "Frame Events";
+			case chunk_t::frame_play_header:
+				return "Frame Play Header";
+			case chunk_t::frame_additional_items:
+				return "Frame Additional Item";
 			case chunk_t::frame_additional_items_instances:
 				return "Frame Additional Item Instance";
-			case chunk_t::frame_layers: return "Frame Layers";
-			case chunk_t::frame_virtual_size: return "Frame Virtical Size";
-			case chunk_t::demo_file_path: return "Frame Demo File Path";
-			case chunk_t::random_seed: return "Frame Random Seed";
-			case chunk_t::frame_layer_effect: return "Frame Layer Effect";
-			case chunk_t::frame_bluray: return "Frame BluRay Options";
-			case chunk_t::movement_timer_base: return "Frame Movement Timer Base";
-			case chunk_t::mosaic_image_table: return "Frame Mosaic Image Table";
-			case chunk_t::frame_effects: return "Frame Effects";
-			case chunk_t::frame_iphone_options: return "Frame iPhone Options";
-			case chunk_t::frame_chunk334C: return "Frame CHUNK 334C";
+			case chunk_t::frame_layers:
+				return "Frame Layers";
+			case chunk_t::frame_virtual_size:
+				return "Frame Virtical Size";
+			case chunk_t::demo_file_path:
+				return "Frame Demo File Path";
+			case chunk_t::random_seed:
+				return "Frame Random Seed";
+			case chunk_t::frame_layer_effect:
+				return "Frame Layer Effect";
+			case chunk_t::frame_bluray:
+				return "Frame BluRay Options";
+			case chunk_t::movement_timer_base:
+				return "Frame Movement Timer Base";
+			case chunk_t::mosaic_image_table:
+				return "Frame Mosaic Image Table";
+			case chunk_t::frame_effects:
+				return "Frame Effects";
+			case chunk_t::frame_iphone_options:
+				return "Frame iPhone Options";
+			case chunk_t::frame_chunk334C:
+				return "Frame CHUNK 334C";
 
-			case chunk_t::pa_error: return "PA (ERROR)";
+			case chunk_t::pa_error:
+				return "PA (ERROR)";
 
-			case chunk_t::object_header: return "Object Header";
-			case chunk_t::object_name: return "Object Name";
-			case chunk_t::object_properties: return "Object Properties";
-			case chunk_t::object_chunk4447: return "Object CHUNK 4447";
-			case chunk_t::object_effect: return "Object Effect";
+			case chunk_t::object_header:
+				return "Object Header";
+			case chunk_t::object_name:
+				return "Object Name";
+			case chunk_t::object_properties:
+				return "Object Properties";
+			case chunk_t::object_chunk4447:
+				return "Object CHUNK 4447";
+			case chunk_t::object_effect:
+				return "Object Effect";
 
-			case chunk_t::image_handles: return "Image Handles";
-			case chunk_t::font_handles: return "Font Handles";
-			case chunk_t::sound_handles: return "Sound Handles";
-			case chunk_t::music_handles: return "Music Handles";
+			case chunk_t::image_handles:
+				return "Image Handles";
+			case chunk_t::font_handles:
+				return "Font Handles";
+			case chunk_t::sound_handles:
+				return "Sound Handles";
+			case chunk_t::music_handles:
+				return "Music Handles";
 
-			case chunk_t::image_bank: return "Image Bank";
-			case chunk_t::font_bank: return "Font Bank";
-			case chunk_t::sound_bank: return "Sound Bank";
-			case chunk_t::music_bank: return "Music Bank";
+			case chunk_t::image_bank:
+				return "Image Bank";
+			case chunk_t::font_bank:
+				return "Font Bank";
+			case chunk_t::sound_bank:
+				return "Sound Bank";
+			case chunk_t::music_bank:
+				return "Music Bank";
 
-			case chunk_t::last: return "Last";
+			case chunk_t::last:
+				return "Last";
 
-			case chunk_t::_default: [[fallthrough]];
-			case chunk_t::vitalise: [[fallthrough]];
-			case chunk_t::unicode: [[fallthrough]];
-			case chunk_t::_new: [[fallthrough]];
-			case chunk_t::old: [[fallthrough]];
-			case chunk_t::frame_state: [[fallthrough]];
-			case chunk_t::image_state: [[fallthrough]];
-			case chunk_t::font_state: [[fallthrough]];
-			case chunk_t::sound_state: [[fallthrough]];
-			case chunk_t::music_state: [[fallthrough]];
-			case chunk_t::no_child: [[fallthrough]];
-			case chunk_t::skip: [[fallthrough]];
-			default: return "INVALID";
+			case chunk_t::_default:
+				[[fallthrough]];
+			case chunk_t::vitalise:
+				[[fallthrough]];
+			case chunk_t::unicode:
+				[[fallthrough]];
+			case chunk_t::_new:
+				[[fallthrough]];
+			case chunk_t::old:
+				[[fallthrough]];
+			case chunk_t::frame_state:
+				[[fallthrough]];
+			case chunk_t::image_state:
+				[[fallthrough]];
+			case chunk_t::font_state:
+				[[fallthrough]];
+			case chunk_t::sound_state:
+				[[fallthrough]];
+			case chunk_t::music_state:
+				[[fallthrough]];
+			case chunk_t::no_child:
+				[[fallthrough]];
+			case chunk_t::skip:
+				[[fallthrough]];
+			default:
+				return "INVALID";
 		}
 	}
 
@@ -1330,24 +1450,42 @@ namespace SourceExplorer
 	{
 		switch (type)
 		{
-			case object_type_t::quick_backdrop: return "Quick Backdrop";
-			case object_type_t::backdrop: return "Backdrop";
-			case object_type_t::active: return "Active";
-			case object_type_t::text: return "Text";
-			case object_type_t::question: return "Question";
-			case object_type_t::score: return "Score";
-			case object_type_t::lives: return "Lives";
-			case object_type_t::counter: return "Counter";
-			case object_type_t::RTF: return "RTF";
-			case object_type_t::sub_application: return "Sub Application";
-			case object_type_t::player: return "Player";
-			case object_type_t::keyboard: return "Keyboard";
-			case object_type_t::create: return "Create";
-			case object_type_t::timer: return "Timer";
-			case object_type_t::game: return "Game";
-			case object_type_t::speaker: return "Speaker";
-			case object_type_t::system: return "System";
-			default: return "Unknown/Invalid";
+			case object_type_t::quick_backdrop:
+				return "Quick Backdrop";
+			case object_type_t::backdrop:
+				return "Backdrop";
+			case object_type_t::active:
+				return "Active";
+			case object_type_t::text:
+				return "Text";
+			case object_type_t::question:
+				return "Question";
+			case object_type_t::score:
+				return "Score";
+			case object_type_t::lives:
+				return "Lives";
+			case object_type_t::counter:
+				return "Counter";
+			case object_type_t::RTF:
+				return "RTF";
+			case object_type_t::sub_application:
+				return "Sub Application";
+			case object_type_t::player:
+				return "Player";
+			case object_type_t::keyboard:
+				return "Keyboard";
+			case object_type_t::create:
+				return "Create";
+			case object_type_t::timer:
+				return "Timer";
+			case object_type_t::game:
+				return "Game";
+			case object_type_t::speaker:
+				return "Speaker";
+			case object_type_t::system:
+				return "System";
+			default:
+				return "Unknown/Invalid";
 		}
 	}
 
@@ -1355,11 +1493,16 @@ namespace SourceExplorer
 	{
 		switch (type)
 		{
-			case object_parent_type_t::none: return "None";
-			case object_parent_type_t::frame: return "Frame";
-			case object_parent_type_t::frame_item: return "Frame Item";
-			case object_parent_type_t::qualifier: return "Qualifier";
-			default: return "Invalid";
+			case object_parent_type_t::none:
+				return "None";
+			case object_parent_type_t::frame:
+				return "Frame";
+			case object_parent_type_t::frame_item:
+				return "Frame Item";
+			case object_parent_type_t::qualifier:
+				return "Qualifier";
+			default:
+				return "Invalid";
 		}
 	}
 
@@ -1403,7 +1546,8 @@ namespace SourceExplorer
 		switch (mode)
 		{
 			case encoding_t::mode3:
-			case encoding_t::mode2: return Decrypt(encoded, id, mode);
+			case encoding_t::mode2:
+				return Decrypt(encoded, id, mode);
 			case encoding_t::mode1:
 				return lak::ok_t{
 				  lak::ok_or_err(Inflate(encoded, false, false)
@@ -1936,7 +2080,8 @@ namespace SourceExplorer
 		{
 			switch (mode)
 			{
-				case encoding_t::mode0: return lak::ok_t{body.data};
+				case encoding_t::mode0:
+					return lak::ok_t{body.data};
 
 				case encoding_t::mode1:
 				{
@@ -1967,7 +2112,8 @@ namespace SourceExplorer
 				case encoding_t::mode3:
 					return lak::err_t{error(error_type::no_mode3_decoder)};
 
-				default: return lak::err_t{error(error_type::invalid_mode)};
+				default:
+					return lak::err_t{error(error_type::invalid_mode)};
 			}
 		}
 		else
@@ -1982,7 +2128,8 @@ namespace SourceExplorer
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
 
-				case encoding_t::mode3: [[fallthrough]];
+				case encoding_t::mode3:
+					[[fallthrough]];
 				case encoding_t::mode2:
 				{
 					return Decrypt(body.data, ID, mode)
@@ -1999,7 +2146,8 @@ namespace SourceExplorer
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
 
-				case encoding_t::mode0: [[fallthrough]];
+				case encoding_t::mode0:
+					[[fallthrough]];
 				default:
 				{
 					if (body.data.size() > 0 && uint8_t(body.data[0]) == 0x78)
@@ -2046,7 +2194,8 @@ namespace SourceExplorer
 					return lak::err_t{error(error_type::no_mode2_decoder)};
 				case encoding_t::mode3:
 					return lak::err_t{error(error_type::no_mode3_decoder)};
-				default: return lak::err_t{error(error_type::invalid_mode)};
+				default:
+					return lak::err_t{error(error_type::invalid_mode)};
 			}
 		}
 		else
@@ -2072,8 +2221,10 @@ namespace SourceExplorer
 					         { DEBUG("Size: ", ref_span.size()); });
 				}
 
-				case encoding_t::mode4: [[fallthrough]];
-				case encoding_t::mode0: [[fallthrough]];
+				case encoding_t::mode4:
+					[[fallthrough]];
+				case encoding_t::mode0:
+					[[fallthrough]];
 				default:
 				{
 					if (head.data.size() > 0 && uint8_t(head.data[0]) == 0x78)
@@ -2115,7 +2266,8 @@ namespace SourceExplorer
 		{
 			switch (entry.mode)
 			{
-				case encoding_t::mode0: [[fallthrough]];
+				case encoding_t::mode0:
+					[[fallthrough]];
 				case encoding_t::mode1:
 					return entry.decode_body()
 					  .map(
@@ -3435,7 +3587,7 @@ namespace SourceExplorer
 			// :TODO: refactor out this lambda
 
 			[[maybe_unused]] auto err =
-			  [&, this]() -> error_t
+			  [&]() -> error_t
 			{
 				for (bool not_finished = true; not_finished;)
 				{
@@ -3483,13 +3635,15 @@ namespace SourceExplorer
 							  end->read(game, strm).RES_ADD_TRACE("object::item_t::read"));
 							[[fallthrough]];
 
-						default: not_finished = false; break;
+						default:
+							not_finished = false;
+							break;
 					}
 				}
 
 				return lak::ok_t{};
 			}()
-			                   .IF_ERR("Failed To Read Child Chunks");
+			             .IF_ERR("Failed To Read Child Chunks");
 
 			return lak::ok_t{};
 		}
@@ -3598,9 +3752,9 @@ namespace SourceExplorer
 
 			size_t max_tries = 0U;
 
-			auto read_all_items = [&, this]() -> error_t
+			auto read_all_items = [&]() -> error_t
 			{
-				auto read_item = [&, this](auto &item) -> error_t
+				auto read_item = [&](auto &item) -> error_t
 				{
 					return item.read(game, reader)
 					  .IF_ERR("Failed To Read Item ",
@@ -3613,7 +3767,7 @@ namespace SourceExplorer
 				for (auto &item : items)
 				{
 					RES_TRY(read_item(item).or_else(
-					  [&, this](const auto &err) -> error_t
+					  [&](const auto &err) -> error_t
 					  {
 						  if (max_tries == 0) return lak::err_t{err};
 						  ERROR(err);
@@ -3629,7 +3783,7 @@ namespace SourceExplorer
 			};
 
 			RES_TRY(read_all_items().or_else(
-			  [&, this](const auto &err) -> error_t
+			  [&](const auto &err) -> error_t
 			  {
 				  if (skip_broken_items) return lak::ok_t{};
 				  return lak::err_t{err};
@@ -3807,9 +3961,12 @@ namespace SourceExplorer
 						}
 						break;
 
-					case object_parent_type_t::none: [[fallthrough]];
-					case object_parent_type_t::qualifier: [[fallthrough]];
-					default: break;
+					case object_parent_type_t::none:
+						[[fallthrough]];
+					case object_parent_type_t::qualifier:
+						[[fallthrough]];
+					default:
+						break;
 				}
 			}
 
@@ -4152,7 +4309,9 @@ namespace SourceExplorer
 						  end->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
 						[[fallthrough]];
 
-					default: not_finished = false; break;
+					default:
+						not_finished = false;
+						break;
 				}
 			}
 
@@ -4327,9 +4486,9 @@ namespace SourceExplorer
 
 			size_t max_tries = 0U;
 
-			auto read_all_items = [&, this]() -> error_t
+			auto read_all_items = [&]() -> error_t
 			{
-				auto read_item = [&, this](auto &item) -> error_t
+				auto read_item = [&](auto &item) -> error_t
 				{
 					return item.read(game, strm)
 					  .IF_ERR("Failed To Read Item ", items.size())
@@ -4340,18 +4499,17 @@ namespace SourceExplorer
 				       (chunk_t)strm.peek_u16().UNWRAP() == chunk_t::frame)
 				{
 					item_t item;
-					RES_TRY(
-					  read_item(item)
-					    .if_ok([&, this](auto &&) { items.push_back(lak::move(item)); })
-					    .or_else(
-					      [&, this](const auto &err) -> error_t
-					      {
-						      if (max_tries == 0) return lak::err_t{err};
-						      ERROR(err);
-						      DEBUG("Continuing...");
-						      --max_tries;
-						      return lak::ok_t{};
-					      }));
+					RES_TRY(read_item(item)
+					          .if_ok([&](auto &&) { items.push_back(lak::move(item)); })
+					          .or_else(
+					            [&](const auto &err) -> error_t
+					            {
+						            if (max_tries == 0) return lak::err_t{err};
+						            ERROR(err);
+						            DEBUG("Continuing...");
+						            --max_tries;
+						            return lak::ok_t{};
+					            }));
 
 					game.bank_completed =
 					  float(double(strm.position() - start_pos) / double(strm.size()));
@@ -4360,7 +4518,7 @@ namespace SourceExplorer
 			};
 
 			RES_TRY(read_all_items().or_else(
-			  [&, this](const auto &err) -> error_t
+			  [&](const auto &err) -> error_t
 			  {
 				  if (skip_broken_items) return lak::ok_t{};
 				  return lak::err_t{err};
@@ -4418,7 +4576,9 @@ namespace SourceExplorer
 						flags         = image_flag_t::none;
 						break;
 
-					default: WARNING("Unknown Graphics Mode: ", gmode); break;
+					default:
+						WARNING("Unknown Graphics Mode: ", gmode);
+						break;
 				}
 
 				data_position = 0;
@@ -4482,12 +4642,24 @@ namespace SourceExplorer
 				TRY_ASSIGN(const uint8_t gmode =, istrm.read_u8());
 				switch (gmode)
 				{
-					case 2: graphics_mode = graphics_mode_t::RGB8; break;
-					case 3: graphics_mode = graphics_mode_t::RGB8; break;
-					case 4: graphics_mode = graphics_mode_t::BGR24; break;
-					case 6: graphics_mode = graphics_mode_t::RGB15; break;
-					case 7: graphics_mode = graphics_mode_t::RGB16; break;
-					case 8: graphics_mode = graphics_mode_t::BGRA32; break;
+					case 2:
+						graphics_mode = graphics_mode_t::RGB8;
+						break;
+					case 3:
+						graphics_mode = graphics_mode_t::RGB8;
+						break;
+					case 4:
+						graphics_mode = graphics_mode_t::BGR24;
+						break;
+					case 6:
+						graphics_mode = graphics_mode_t::RGB15;
+						break;
+					case 7:
+						graphics_mode = graphics_mode_t::RGB16;
+						break;
+					case 8:
+						graphics_mode = graphics_mode_t::BGRA32;
+						break;
 				}
 				TRY_ASSIGN(flags = (image_flag_t), istrm.read_u8());
 #if 0
@@ -4812,9 +4984,9 @@ namespace SourceExplorer
 
 			size_t max_tries = max_item_read_fails;
 
-			auto read_all_items = [&, this]() -> error_t
+			auto read_all_items = [&]() -> error_t
 			{
-				auto read_item = [&, this](auto &item) -> error_t
+				auto read_item = [&](auto &item) -> error_t
 				{
 					return item.read(game, reader)
 					  .IF_ERR("Failed To Read Item ",
@@ -4827,7 +4999,7 @@ namespace SourceExplorer
 				for (auto &item : items)
 				{
 					RES_TRY(read_item(item).or_else(
-					  [&, this](const auto &err) -> error_t
+					  [&](const auto &err) -> error_t
 					  {
 						  if (max_tries == 0) return lak::err_t{err};
 						  ERROR(err);
@@ -4843,7 +5015,7 @@ namespace SourceExplorer
 			};
 
 			RES_TRY(read_all_items().or_else(
-			  [&, this](const auto &err) -> error_t
+			  [&](const auto &err) -> error_t
 			  {
 				  if (skip_broken_items) return lak::ok_t{};
 				  return lak::err_t{err};
@@ -4920,9 +5092,9 @@ namespace SourceExplorer
 
 			size_t max_tries = max_item_read_fails;
 
-			auto read_all_items = [&, this]() -> error_t
+			auto read_all_items = [&]() -> error_t
 			{
-				auto read_item = [&, this](auto &item) -> error_t
+				auto read_item = [&](auto &item) -> error_t
 				{
 					return item.read(game, reader)
 					  .IF_ERR("Failed To Read Item ",
@@ -4935,7 +5107,7 @@ namespace SourceExplorer
 				for (auto &item : items)
 				{
 					RES_TRY(read_item(item).or_else(
-					  [&, this](const auto &err) -> error_t
+					  [&](const auto &err) -> error_t
 					  {
 						  if (max_tries == 0) return lak::err_t{err};
 						  ERROR(err);
@@ -4951,7 +5123,7 @@ namespace SourceExplorer
 			};
 
 			RES_TRY(read_all_items().or_else(
-			  [&, this](const auto &err) -> error_t
+			  [&](const auto &err) -> error_t
 			  {
 				  if (skip_broken_items) return lak::ok_t{};
 				  return lak::err_t{err};
@@ -5009,7 +5181,7 @@ namespace SourceExplorer
 
 			if (game.old_game)
 			{
-				entry.read(game, strm, false);
+				RES_TRY(entry.read(game, strm, false));
 				RES_TRY_ASSIGN(data_reader_t hstrm =, entry.decode_body(header_size));
 				CHECK_REMAINING(hstrm, header_size);
 				TRY_ASSIGN(checksum =, hstrm.read_u32());
@@ -5101,9 +5273,9 @@ namespace SourceExplorer
 
 			size_t max_tries = max_item_read_fails;
 
-			auto read_all_items = [&, this]() -> error_t
+			auto read_all_items = [&]() -> error_t
 			{
-				auto read_item = [&, this](auto &item) -> error_t
+				auto read_item = [&](auto &item) -> error_t
 				{
 					return item.read(game, reader)
 					  .IF_ERR("Failed To Read Item ",
@@ -5116,7 +5288,7 @@ namespace SourceExplorer
 				for (auto &item : items)
 				{
 					RES_TRY(read_item(item).or_else(
-					  [&, this](const auto &err) -> error_t
+					  [&](const auto &err) -> error_t
 					  {
 						  if (max_tries == 0) return lak::err_t{err};
 						  ERROR(err);
@@ -5132,7 +5304,7 @@ namespace SourceExplorer
 			};
 
 			RES_TRY(read_all_items().or_else(
-			  [&, this](const auto &err) -> error_t
+			  [&](const auto &err) -> error_t
 			  {
 				  if (skip_broken_items) return lak::ok_t{};
 				  return lak::err_t{err};
@@ -5209,9 +5381,9 @@ namespace SourceExplorer
 
 			size_t max_tries = max_item_read_fails;
 
-			auto read_all_items = [&, this]() -> error_t
+			auto read_all_items = [&]() -> error_t
 			{
-				auto read_item = [&, this](auto &item) -> error_t
+				auto read_item = [&](auto &item) -> error_t
 				{
 					return item.read(game, reader)
 					  .IF_ERR("Failed To Read Item ",
@@ -5224,7 +5396,7 @@ namespace SourceExplorer
 				for (auto &item : items)
 				{
 					RES_TRY(read_item(item).or_else(
-					  [&, this](const auto &err) -> error_t
+					  [&](const auto &err) -> error_t
 					  {
 						  if (max_tries == 0) return lak::err_t{err};
 						  ERROR(err);
@@ -5240,7 +5412,7 @@ namespace SourceExplorer
 			};
 
 			RES_TRY(read_all_items().or_else(
-			  [&, this](const auto &err) -> error_t
+			  [&](const auto &err) -> error_t
 			  {
 				  if (skip_broken_items) return lak::ok_t{};
 				  return lak::err_t{err};

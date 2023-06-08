@@ -119,7 +119,8 @@ struct base_window
 				view_begin = std::min(view_begin, range_max);
 				view_end   = std::min(std::max(view_begin, view_end), range_max);
 				view_size  = view_end - view_begin;
-				view_data  = parent_data.subspan(view_begin, view_size);
+				view_data  = parent_data.subspan(static_cast<size_t>(view_begin),
+                                        static_cast<size_t>(view_size));
 			}
 
 			return updated;
@@ -308,7 +309,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		if (update)
 		{
 			static lak::image4_t image{}; // static so we can reuse the memory
-			image.resize(image_size);
+			image.resize({static_cast<size_t>(image_size.x),
+			              static_cast<size_t>(image_size.y)});
 
 			image.fill({0, 0, 0, 255});
 
@@ -712,6 +714,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 	static void audio_explorer(bool &update)
 	{
+// #ifdef LAK_ARCH_ARM64
+#if 0
+		LAK_UNUSED(update);
+// getting an issue with operator"" _view not compiling correctly
+#else
 		struct audio_data_t
 		{
 			lak::u8string name;
@@ -843,7 +850,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			}
 		}
 
-#if defined(LAK_USE_SDL)
+#	if defined(LAK_USE_SDL)
 		static size_t audio_size = 0;
 		static bool playing      = false;
 		static SDL_AudioSpec audio_spec;
@@ -869,7 +876,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				case 0x0007:
 					spec.format = AUDIO_S8; /*abit mu-law*/
 					break;
-				case 0xFFFE:              /*subformat*/
+				case 0xFFFE: /*subformat*/
 					break;
 				default:
 					break;
@@ -913,7 +920,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			                                (double)audio_size));
 		else
 			ImGui::ProgressBar(0);
-#endif
+#	endif
 
 		ImGui::Text("Name: %s",
 		            reinterpret_cast<const char *>(audio_data.name.c_str()));
@@ -945,6 +952,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		last   = SrcExp.view;
 		update = false;
+#endif
 	}
 
 	static void log_explorer()
@@ -954,7 +962,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		if (ImGui::Button("Refresh"))
 		{
-			log_str  = lak::debugger.str();
+			log_str  = lak::to_u8string(lak::debugger.str());
 			log_cstr = (const char *)log_str.c_str();
 		}
 		ImGui::SameLine();

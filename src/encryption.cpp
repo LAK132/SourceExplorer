@@ -5,6 +5,11 @@
 bool encryption_table::init(lak::span<const uint8_t, 0x100U> magic_key,
                             const char magic_char)
 {
+#ifndef SE_HAS_INTRIN
+	LAK_UNUSED(magic_key);
+	LAK_UNUSED(magic_char);
+	ASSERT_NYI();
+#else
 	std::iota(decode_buffer.u32, decode_buffer.u32 + 256U, 0U);
 	// u32 never exceeds the max value of u8 (255)
 
@@ -45,10 +50,15 @@ bool encryption_table::init(lak::span<const uint8_t, 0x100U> magic_key,
 
 	valid = true;
 	return true;
+#endif
 }
 
 bool encryption_table::decode(lak::span<byte_t> chunk) const
 {
+#ifndef SE_HAS_INTRIN
+	LAK_UNUSED(chunk);
+	ASSERT_NYI();
+#else
 	if (!valid) return false;
 
 	decode_buffer_t buffer;
@@ -64,10 +74,15 @@ bool encryption_table::decode(lak::span<byte_t> chunk) const
 		elem ^= buffer.u8[4U * uint8_t(buffer.u32[i] + buffer.u32[i2])];
 	}
 	return true;
+#endif
 }
 
 std::vector<uint8_t> KeyString(const std::u16string &str)
 {
+#ifndef SE_HAS_INTRIN
+	LAK_UNUSED(str);
+	ASSERT_NYI();
+#else
 	std::vector<uint8_t> result;
 	result.reserve(str.size() * 2U);
 	for (const char16_t code : str)
@@ -77,4 +92,5 @@ std::vector<uint8_t> KeyString(const std::u16string &str)
 			result.emplace_back(static_cast<uint8_t>((code >> 8U) & 0xFFU));
 	}
 	return result;
+#endif
 }
