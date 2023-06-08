@@ -8,6 +8,8 @@
 
 #include <lak/profile.hpp>
 
+#include <cinttypes>
+
 struct main_window : public base_window<main_window>
 {
 	static void help_text()
