@@ -498,7 +498,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 						image[i].r = mono;
 						image[i].g = mono;
 						image[i].b = mono;
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -506,7 +507,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						image[i].r = read_r();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -515,7 +517,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					{
 						image[i].r = read_r();
 						image[i].g = read_g();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -525,7 +528,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 						image[i].r = read_r();
 						image[i].g = read_g();
 						image[i].b = read_b();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -535,7 +539,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 						image[i].b = read_b();
 						image[i].g = read_g();
 						image[i].r = read_r();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -546,7 +551,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 						image[i].g = read_g();
 						image[i].b = read_b();
 						read_x();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -557,7 +563,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 						image[i].g = read_g();
 						image[i].r = read_r();
 						read_x();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -568,7 +575,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 						image[i].r = read_r();
 						image[i].g = read_g();
 						image[i].b = read_b();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -579,7 +587,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 						image[i].b = read_b();
 						image[i].g = read_g();
 						image[i].r = read_r();
-						if (do_skips && (i + 1) % to_read == 0) reader.skip_bytes(to_skip);
+						if (do_skips && (i + 1) % to_read == 0)
+							reader.skip_bytes(to_skip).discard();
 					}
 					break;
 
@@ -591,7 +600,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							image.at(lak::vec2s_t{x, y}).r = read_r();
 							image.at(lak::vec2s_t{x, y}).g = read_g();
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
 						{
@@ -599,7 +608,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
 							image.at(lak::vec2s_t{x, y}).b = read_b();
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 					}
 					break;
@@ -612,7 +621,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							image.at(lak::vec2s_t{x, y}).b = read_b();
 							image.at(lak::vec2s_t{x, y}).g = read_g();
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
 						{
@@ -620,7 +629,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
 							image.at(lak::vec2s_t{x, y}).r = read_r();
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 					}
 					break;
@@ -633,7 +642,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							image.at(lak::vec2s_t{x, y}).g = read_g();
 							image.at(lak::vec2s_t{x, y}).r = read_r();
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
 						{
@@ -641,7 +650,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							image.at(lak::vec2s_t{x, y}).g =
 							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 					}
 					break;
@@ -654,7 +663,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							image.at(lak::vec2s_t{x, y}).g = read_g();
 							image.at(lak::vec2s_t{x, y}).b = read_b();
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
 						{
@@ -662,7 +671,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 							image.at(lak::vec2s_t{x, y}).g =
 							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
 							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip);
+								reader.skip_bytes(to_skip).discard();
 						}
 					}
 					break;
