@@ -252,19 +252,50 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		ImGui::EndChild();
 	}
 
-	static void view_image(const lak::opengl::texture &texture,
-	                       const float scale)
+	static void view_image(const se::texture_t &texture, const float scale)
 	{
-		ImGui::Image((ImTextureID)(uintptr_t)texture.get(),
-		             ImVec2(scale * (float)texture.size().x,
-		                    scale * (float)texture.size().y));
+		if (std::holds_alternative<lak::opengl::texture>(texture))
+		{
+			const auto &img = std::get<lak::opengl::texture>(texture);
+			if (!img.get() || SrcExp.graphics_mode != lak::graphics_mode::OpenGL)
+			{
+				ImGui::Text("No image selected.");
+			}
+			else
+			{
+				ImGui::Image(
+				  (ImTextureID)(uintptr_t)img.get(),
+				  ImVec2(scale * (float)img.size().x, scale * (float)img.size().y));
+			}
+		}
+		else if (std::holds_alternative<texture_color32_t>(texture))
+		{
+			const auto &img = std::get<texture_color32_t>(texture);
+			if (!img.pixels || SrcExp.graphics_mode != lak::graphics_mode::Software)
+			{
+				ImGui::Text("No image selected.");
+			}
+			else
+			{
+				ImGui::Image((ImTextureID)(uintptr_t)&img,
+				             ImVec2(scale * (float)img.w, scale * (float)img.h));
+			}
+		}
+		else if (std::holds_alternative<std::monostate>(texture))
+		{
+			ImGui::Text("No image selected.");
+		}
+		else
+		{
+			ERROR("Invalid texture type");
+		}
 	}
 
 	static void image_memory_explorer_impl(lak::span<byte_t> data,
 	                                       lak::vec2u64_t &image_size,
 	                                       lak::vec3u64_t &block_skip,
 	                                       int &colour_size,
-	                                       lak::opengl::texture &texture,
+	                                       se::texture_t &texture,
 	                                       float &scale,
 	                                       bool &update)
 	{
@@ -304,7 +335,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			}
 		}
 
-		update |= !texture.get();
+		update |= std::holds_alternative<std::monostate>(texture);
 
 		if (update)
 		{
@@ -364,21 +395,10 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					break;
 			}
 
-			texture.bind()
-			  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-			  .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-			  .build(0,
-			         GL_RGBA,
-			         (lak::vec2<GLsizei>)image.size(),
-			         0,
-			         GL_RGBA,
-			         GL_UNSIGNED_BYTE,
-			         image.data());
+			texture = se::CreateTexture(image, SrcExp.graphics_mode);
 		}
 
-		if (texture.get())
+		if (!std::holds_alternative<std::monostate>(texture))
 		{
 			ImGui::Separator();
 			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
@@ -391,7 +411,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	{
 		static lak::vec2u64_t image_size = {256, 256};
 		static lak::vec3u64_t block_skip = {0, 1, 0};
-		static lak::opengl::texture texture(GL_TEXTURE_2D);
+		static se::texture_t texture;
 		static float scale                  = 1.0f;
 		static int colour_size              = 3;
 		static lak::span<byte_t> old_data   = data;
@@ -442,11 +462,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	}
 
 	static void byte_pairs_memory_explorer_impl(lak::span<byte_t> data,
-	                                            lak::opengl::texture &texture,
+	                                            se::texture_t &texture,
 	                                            float &scale,
 	                                            bool &update)
 	{
-		update |= !texture.get();
+		update |= std::holds_alternative<std::monostate>(texture);
 
 		if (update)
 		{
@@ -463,21 +483,10 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			     prev         = uint8_t(*(it++)))
         image[{prev, uint8_t(*it)}] += step;
 
-			texture.bind()
-			  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-			  .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-			  .build(0,
-			         GL_RED,
-			         (lak::vec2<GLsizei>)image.size(),
-			         0,
-			         GL_RED,
-			         GL_FLOAT,
-			         image.data());
+			texture = se::CreateTexture(image, SrcExp.graphics_mode);
 		}
 
-		if (texture.get())
+		if (!std::holds_alternative<std::monostate>(texture))
 		{
 			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
 			ImGui::Separator();
@@ -487,7 +496,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 	static void byte_pairs_memory_explorer(lak::span<byte_t> data, bool update)
 	{
-		static lak::opengl::texture texture(GL_TEXTURE_2D);
+		static se::texture_t texture;
 		static float scale                  = 1.0f;
 		static lak::span<byte_t> old_data   = data;
 		static lak::span<byte_t> image_data = data;

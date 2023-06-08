@@ -1438,6 +1438,9 @@ namespace SourceExplorer
 	texture_t CreateTexture(const lak::image4_t &bitmap,
 	                        const lak::graphics_mode mode);
 
+	texture_t CreateTexture(const lak::image<float> &bitmap,
+	                        const lak::graphics_mode mode);
+
 	void ViewImage(source_explorer_t &srcexp, const float scale = 1.0f);
 
 	const char *GetTypeString(const basic_entry_t &entry);

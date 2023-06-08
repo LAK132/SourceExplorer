@@ -1187,6 +1187,56 @@ namespace SourceExplorer
 		}
 	}
 
+	texture_t CreateTexture(const lak::image<float> &bitmap,
+	                        const lak::graphics_mode mode)
+	{
+		FUNCTION_CHECKPOINT();
+
+		if (mode == lak::graphics_mode::OpenGL)
+		{
+			// auto old_texture =
+			//   lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D).UNWRAP();
+
+			lak::opengl::texture result(GL_TEXTURE_2D);
+			result.bind()
+			  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
+			  .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+			  .apply(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+			  .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+			  .build(0,
+			         GL_RED,
+			         (lak::vec2<GLsizei>)bitmap.size(),
+			         0,
+			         GL_RED,
+			         GL_FLOAT,
+			         bitmap.data());
+
+			// glBindTexture(GL_TEXTURE_2D, old_texture);
+
+			return result;
+		}
+		else if (mode == lak::graphics_mode::Software)
+		{
+			texture_color32_t result;
+			result.init(bitmap.size().x, bitmap.size().y);
+			for (size_t y = 0; y < bitmap.size().y; ++y)
+				for (size_t x = 0; x < bitmap.size().x; ++x)
+				{
+					result.at(x, y).r =
+					  uint8_t(std::min<uint64_t>(bitmap[lak::vec2s_t{x, y}] * 256, 255));
+					result.at(x, y).g = 0;
+					result.at(x, y).b = 0;
+					result.at(x, y).a = 255;
+				}
+			return result;
+		}
+		else
+		{
+			FATAL("Unknown graphics mode: ", (uintmax_t)mode);
+			// return std::monostate{};
+		}
+	}
+
 	void ViewImage(source_explorer_t &srcexp, const float scale)
 	{
 		// :TODO: Select palette
