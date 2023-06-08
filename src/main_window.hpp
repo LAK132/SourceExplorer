@@ -6,6 +6,8 @@
 
 #include "main.h"
 
+#include <lak/profile.hpp>
+
 struct main_window : public base_window<main_window>
 {
 	static void help_text()
@@ -115,9 +117,12 @@ struct main_window : public base_window<main_window>
 					ImGui::Text("Using Softraster");
 					break;
 
-				default: break;
+				default:
+					break;
 			}
 			ImGui::Text("Frame rate %f", std::round(1.0f / frame_time));
+			ImGui::Text("Perf Freq  0x%016" PRIX64, lak::performance_frequency());
+			ImGui::Text("Perf Count 0x%016" PRIX64, lak::performance_counter());
 			base_window::credits();
 			base_window::mode_select();
 			if (ImGui::Button("Crash")) FATAL("Force Crashed");

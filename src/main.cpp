@@ -193,6 +193,10 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		}
 	}
 
+#ifdef LAK_OS_APPLE
+	basic_window_force_software = true;
+#endif
+
 	basic_window_target_framerate      = 30;
 	basic_window_opengl_settings.major = 3;
 	basic_window_opengl_settings.minor = 2;

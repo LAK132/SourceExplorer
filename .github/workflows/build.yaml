@@ -12,8 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # os: [windows-2022, ubuntu-20.04, macos-12]
-        os: [windows-2022]
+        os: [windows-2022, ubuntu-20.04, macos-12]
         arch: [x86, x64]
         exclude:
           - os: macos-12
