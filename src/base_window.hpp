@@ -714,8 +714,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 	static void audio_explorer(bool &update)
 	{
-// #ifdef LAK_ARCH_ARM64
-#if 0
+#ifdef LAK_ARCH_ARM64
 		LAK_UNUSED(update);
 // getting an issue with operator"" _view not compiling correctly
 #else
