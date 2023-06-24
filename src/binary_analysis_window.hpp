@@ -37,7 +37,7 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 		base_window::debug_menu();
 	}
 
-	static void main_region()
+	static void main_region(float frame_time)
 	{
 		if (SrcExp.exe.attempt)
 		{
@@ -61,7 +61,7 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 
 		if (SrcExp.loaded)
 		{
-			base_window::main_region();
+			base_window::main_region(frame_time);
 
 			if (force_update_memory) force_update_memory = false;
 		}
@@ -71,7 +71,7 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 		}
 	}
 
-	static void left_region()
+	static void left_region(float)
 	{
 		static base_window::memory_view view;
 		force_update_memory |=
@@ -82,10 +82,11 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 		                    SrcExp.buffer.size());
 	}
 
-	static void right_region()
+	static void right_region(float)
 	{
 		static MemoryEditor editor;
-		static base_window::memory_explorer_content_mode content_mode;
+		static base_window::memory_explorer_content_mode content_mode =
+		  base_window::memory_explorer_content_mode::VIEW_DATA_BINARY;
 		base_window::memory_explorer_impl(
 		  editor, content_mode, SrcExp.buffer, force_update_memory);
 	}

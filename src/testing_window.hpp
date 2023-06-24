@@ -46,7 +46,7 @@ struct test_window : public base_window<test_window>
 		return lak::file_open_error::VALID;
 	}
 
-	static void main_region()
+	static void main_region(float frame_time)
 	{
 		if (SrcExp.testing.bad()) SrcExp.testing.make_attempt();
 
@@ -61,14 +61,14 @@ struct test_window : public base_window<test_window>
 			}
 		}
 
-		if (SrcExp.testing.good()) base_window::main_region();
+		if (SrcExp.testing.good()) base_window::main_region(frame_time);
 	}
 
 	inline static lak::array<fs::path> all_testing_files;
 	inline static size_t testing_files_count = 0U;
 	inline static lak::astring last_error;
 
-	static void left_region()
+	static void left_region(float)
 	{
 		ImGui::Text("%s", lak::as_astring(SrcExp.testing.path.u8string().c_str()));
 
@@ -98,7 +98,7 @@ struct test_window : public base_window<test_window>
 		}
 	}
 
-	static void right_region()
+	static void right_region(float frame_time)
 	{
 		if (!SrcExp.exe.attempt && !all_testing_files.empty())
 		{
@@ -173,7 +173,7 @@ struct test_window : public base_window<test_window>
 				}
 			}
 
-			base_window<main_window>::main_region();
+			base_window<main_window>::main_region(frame_time);
 		}
 		else
 		{

@@ -3,7 +3,6 @@ project(
   ['c', 'cpp'],
   default_options: [
     'b_vscrt=static_from_buildtype',
-    # 'b_sanitize=address',
   ],
 )
 
@@ -118,9 +117,6 @@ executable(
     stb,
   ],
   dependencies: [
-    lak_dep,
-  ],
-  link_args: [
-    lak_libs,
+    binex_core_dep,
   ],
 )

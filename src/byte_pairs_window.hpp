@@ -8,7 +8,7 @@
 
 struct byte_pairs_window : public base_window<byte_pairs_window>
 {
-	static void main_region()
+	static void main_region(float)
 	{
 		if (SrcExp.exe.bad()) SrcExp.exe.make_attempt();
 

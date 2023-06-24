@@ -167,7 +167,7 @@ struct main_window : public base_window<main_window>
 		base_window::debug_menu();
 	}
 
-	static void left_region()
+	static void left_region(float)
 	{
 		if (SrcExp.loaded)
 		{
@@ -224,7 +224,7 @@ struct main_window : public base_window<main_window>
 		}
 	}
 
-	static void right_region()
+	static void right_region(float)
 	{
 		if (SrcExp.loaded)
 		{
@@ -285,11 +285,11 @@ struct main_window : public base_window<main_window>
 		}
 	}
 
-	static void main_region()
+	static void main_region(float frame_time)
 	{
 		if (!SrcExp.baby_mode && SrcExp.loaded)
 		{
-			base_window::main_region();
+			base_window::main_region(frame_time);
 		}
 		else
 		{

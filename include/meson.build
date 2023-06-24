@@ -9,6 +9,5 @@ stb = static_library(
 
 subdir('lisk/src')
 
-lak_subprj = subproject('lak')
-lak_dep = lak_subprj.get_variable('lak_dep')
-lak_libs = lak_subprj.get_variable('system_libraries')
+binex_subprj = subproject('binex')
+binex_core_dep = binex_subprj.get_variable('binex_core_dep')

@@ -8,12 +8,14 @@
 #include <lak/span_manip.hpp>
 #include <lak/string_literals.hpp>
 
+#include <binex/basic_window.hpp>
+
 #include "main.h"
 
 #include "explorer.h"
 
 template<typename DERIVED>
-struct base_window
+struct base_window : bex::basic_window<DERIVED>
 {
 	struct memory_view
 	{
@@ -225,32 +227,6 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	{
 		mode_select_menu();
 		debug_menu();
-	}
-
-	static void left_region() {}
-
-	static void right_region() {}
-
-	static void main_region()
-	{
-		const auto content_size{ImGui::GetContentRegionAvail()};
-
-		static float left_size  = content_size.x / 2;
-		static float right_size = content_size.x / 2;
-
-		lak::VertSplitter(left_size, right_size, content_size.x);
-
-		ImGui::BeginChild(
-		  "Left", {left_size, -1}, true, ImGuiWindowFlags_NoSavedSettings);
-		DERIVED::left_region();
-		ImGui::EndChild();
-
-		ImGui::SameLine();
-
-		ImGui::BeginChild(
-		  "Right", {right_size, -1}, true, ImGuiWindowFlags_NoSavedSettings);
-		DERIVED::right_region();
-		ImGui::EndChild();
 	}
 
 	static void view_image(const se::texture_t &texture, const float scale)
@@ -1282,17 +1258,6 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			}
 			ImGui::EndChild();
 		}
-	}
-
-	static void draw(float frame_time)
-	{
-		if (ImGui::BeginMenuBar())
-		{
-			DERIVED::menu_bar(frame_time);
-			ImGui::EndMenuBar();
-		}
-
-		DERIVED::main_region();
 	}
 };
 
