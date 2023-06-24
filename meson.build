@@ -114,9 +114,11 @@ executable(
   ]),
   link_with: [
     lisk,
-    stb,
   ],
   dependencies: [
     binex_core_dep,
+    stb_image_dep,
+    stb_image_write_dep,
+    imgui_color_text_edit_dep,
   ],
 )
