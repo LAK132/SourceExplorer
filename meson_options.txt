@@ -39,6 +39,30 @@ option('lak_backend',
   yield: false,
 )
 
+option('lak_enable_softrender',
+	type: 'boolean',
+	value: true,
+	yield: true,
+)
+
+option('lak_enable_opengl',
+	type: 'boolean',
+	value: true,
+	yield: true,
+)
+
+option('lak_enable_vulkan',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
+option('lak_enable_metal',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
 # llvm options
 
 option('lak_enable_llvm',
