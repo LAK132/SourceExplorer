@@ -318,7 +318,6 @@ namespace SourceExplorer
 
 		data_ref_span_t parent_span() const
 		{
-			FUNCTION_CHECKPOINT("data_ref_span_t::");
 			if (!_source || !_source->_parent) return {};
 			return data_ref_span_t(_source->_parent,
 			                       _source->_parent_span.begin() -
@@ -342,7 +341,6 @@ namespace SourceExplorer
 
 		void reset()
 		{
-			FUNCTION_CHECKPOINT("data_ref_span_t::");
 			static_cast<lak::span<byte_t> &>(*this) = {};
 			_source.reset();
 		}
@@ -688,8 +686,8 @@ namespace SourceExplorer
 	struct extended_header_t : public basic_chunk_t
 	{
 		uint32_t flags;
-		uint32_t build_type;
-		uint32_t build_flags;
+		build_type_t build_type;
+		build_flags_t build_flags;
 		uint16_t screen_ratio_tolerance;
 		uint16_t screen_angle;
 
@@ -1158,6 +1156,7 @@ namespace SourceExplorer
 	{
 		struct item_t : public basic_item_t
 		{
+			error_t read(game_t &game, data_reader_t &strm);
 			error_t view(source_explorer_t &srcexp) const;
 		};
 

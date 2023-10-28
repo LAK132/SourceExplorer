@@ -1620,8 +1620,12 @@ namespace SourceExplorer
 		FUNCTION_CHECKPOINT();
 
 		lak::array<byte_t, 0x8000> buffer;
-		auto inflater =
-		  lak::deflate_iterator(compressed, buffer, !skip_header, anaconda);
+		auto inflater = lak::deflate_iterator(
+		  compressed,
+		  buffer,
+		  !skip_header ? lak::deflate_iterator::header_t::zlib
+		               : lak::deflate_iterator::header_t::none,
+		  anaconda);
 
 		lak::array<byte_t> output;
 		output.reserve(buffer.size());
@@ -1705,10 +1709,11 @@ namespace SourceExplorer
 		FUNCTION_CHECKPOINT();
 
 		lak::array<byte_t, 0x8000> buffer;
-		auto inflater = lak::deflate_iterator(strm.remaining(),
-		                                      buffer,
-		                                      /* parse_header */ false,
-		                                      /* anaconda */ true);
+		auto inflater =
+		  lak::deflate_iterator(strm.remaining(),
+		                        buffer,
+		                        lak::deflate_iterator::header_t::none,
+		                        /* anaconda */ true);
 
 		lak::array<byte_t> output;
 		if (auto err = inflater.read(
@@ -1870,7 +1875,7 @@ namespace SourceExplorer
 
 	error_t chunk_entry_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("chunk_entry_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		const auto strm_ref_span = strm.peek_remaining_ref_span();
 
@@ -1982,7 +1987,7 @@ namespace SourceExplorer
 	                                size_t size,
 	                                bool has_handle)
 	{
-		FUNCTION_CHECKPOINT("item_entry_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		DEBUG("Header Size: ", size);
 
@@ -2009,7 +2014,7 @@ namespace SourceExplorer
 	                                bool compressed,
 	                                lak::optional<size_t> size)
 	{
-		FUNCTION_CHECKPOINT("item_entry_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		DEBUG("Compressed: ", compressed);
 
@@ -2079,7 +2084,7 @@ namespace SourceExplorer
 	                           size_t header_size,
 	                           bool has_handle)
 	{
-		FUNCTION_CHECKPOINT("item_entry_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		const auto start = strm.position();
 		read_init(game);
@@ -2124,7 +2129,7 @@ namespace SourceExplorer
 
 	result_t<data_ref_span_t> basic_entry_t::decode_body(size_t max_size) const
 	{
-		FUNCTION_CHECKPOINT("basic_entry_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		if (old)
 		{
@@ -2230,7 +2235,7 @@ namespace SourceExplorer
 
 	result_t<data_ref_span_t> basic_entry_t::decode_head(size_t max_size) const
 	{
-		FUNCTION_CHECKPOINT("basic_entry_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		if (old)
 		{
@@ -2362,7 +2367,7 @@ namespace SourceExplorer
 
 	error_t basic_chunk_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("basic_chunk_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 		error_t result = entry.read(game, strm);
 		return result;
 	}
@@ -2380,7 +2385,7 @@ namespace SourceExplorer
 
 	error_t basic_item_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("basic_item_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 		error_t result = entry.read(game, strm, true);
 		return result;
 	}
@@ -2398,7 +2403,7 @@ namespace SourceExplorer
 
 	error_t string_chunk_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("string_chunk_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("string_chunk_t::read"));
 
@@ -2443,7 +2448,7 @@ namespace SourceExplorer
 
 	error_t strings_chunk_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("strings_chunk_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("string_chunk_t::read"));
 
@@ -2574,7 +2579,7 @@ namespace SourceExplorer
 
 	error_t icon_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("icon_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("icon_t::read"));
 
@@ -2664,7 +2669,7 @@ namespace SourceExplorer
 
 	error_t binary_file_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("binary_file_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		TRY_ASSIGN(const auto str_len =, strm.read_u16());
 
@@ -2702,7 +2707,7 @@ namespace SourceExplorer
 
 	error_t binary_files_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("binary_files_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("binary_files_t::read"));
 
@@ -2783,7 +2788,7 @@ namespace SourceExplorer
 
 	error_t extended_header_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("extended_header_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("extended_header_t::read"));
 
@@ -2794,8 +2799,10 @@ namespace SourceExplorer
 		data_reader_t estrm(span);
 
 		TRY_ASSIGN(flags =, estrm.read_u32());
-		TRY_ASSIGN(build_type =, estrm.read_u32());
-		TRY_ASSIGN(build_flags =, estrm.read_u32());
+		TRY_ASSIGN(uint32_t _build_type =, estrm.read_u32());
+		build_type = static_cast<build_type_t>(_build_type);
+		TRY_ASSIGN(uint32_t _build_flags =, estrm.read_u32());
+		build_flags = static_cast<build_flags_t>(_build_flags);
 		TRY_ASSIGN(screen_ratio_tolerance =, estrm.read_u16());
 		TRY_ASSIGN(screen_angle =, estrm.read_u16());
 
@@ -2839,7 +2846,7 @@ namespace SourceExplorer
 
 	error_t chunk_2253_item_t::read(game_t &, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("chunk2253_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		CHECK_REMAINING(strm, 16U);
 
@@ -2860,7 +2867,7 @@ namespace SourceExplorer
 
 	error_t chunk_2253_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("chunk2253_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("chunk_2253_t::read"));
 
@@ -2918,7 +2925,7 @@ namespace SourceExplorer
 	error_t two_five_plus_object_properties_t::read(game_t &game,
 	                                                data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("two_five_plus_object_properties_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		game.two_five_plus_game = true;
 
@@ -2967,7 +2974,7 @@ namespace SourceExplorer
 
 	error_t object_properties_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("object_properties_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("object_properties_t::read"));
 
@@ -3013,7 +3020,7 @@ namespace SourceExplorer
 
 	error_t truetype_fonts_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("truetype_fonts_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("truetype_fonts_t::read"));
 
@@ -3061,7 +3068,7 @@ namespace SourceExplorer
 
 		error_t shape_t::read(game_t &, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::shape_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			TRY_ASSIGN(border_size =, strm.read_u16());
 			TRY_ASSIGN(border_color.r =, strm.read_u8());
@@ -3144,7 +3151,7 @@ namespace SourceExplorer
 
 		error_t quick_backdrop_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::quick_backdrop_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(entry.read(game, strm)
 			          .RES_ADD_TRACE("object::quick_backdrop_t::read"));
@@ -3207,7 +3214,7 @@ namespace SourceExplorer
 
 		error_t backdrop_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::backdrop_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(
 			  entry.read(game, strm).RES_ADD_TRACE("object::backdrop_t::read"));
@@ -3265,7 +3272,7 @@ namespace SourceExplorer
 
 		error_t animation_direction_t::read(game_t &, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::animation_direction_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEBUG("Position: ", strm.position(), "/", strm.size());
 
@@ -3333,7 +3340,7 @@ namespace SourceExplorer
 
 		error_t animation_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::animation_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEBUG("Position: ", strm.position(), "/", strm.size());
 
@@ -3385,7 +3392,7 @@ namespace SourceExplorer
 
 		error_t animation_header_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::animation_header_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			const size_t begin = strm.position();
 
@@ -3453,7 +3460,7 @@ namespace SourceExplorer
 
 		error_t common_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::common_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("object::common_t::read"));
 
@@ -3617,7 +3624,7 @@ namespace SourceExplorer
 
 		error_t item_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::item_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("object::item_t::read"));
 
@@ -3786,7 +3793,7 @@ namespace SourceExplorer
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("object::bank_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEFER(game.bank_completed = 0.0f);
 
@@ -3882,7 +3889,7 @@ namespace SourceExplorer
 
 		error_t palette_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("frame::palette_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::palette_t::read"));
 
@@ -3940,7 +3947,7 @@ namespace SourceExplorer
 
 		error_t object_instance_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("frame::object_instance_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			TRY_ASSIGN(info =, strm.read_u16());
 			TRY_ASSIGN(handle =, strm.read_u16());
@@ -4025,7 +4032,7 @@ namespace SourceExplorer
 
 		error_t object_instances_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("frame::object_instances_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(entry.read(game, strm)
 			          .RES_ADD_TRACE("frame::object_instances_t::read"));
@@ -4125,7 +4132,7 @@ namespace SourceExplorer
 
 		error_t random_seed_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("frame::random_seed_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(
 			  entry.read(game, strm).RES_ADD_TRACE("frame::random_seed_t::read"));
@@ -4191,7 +4198,7 @@ namespace SourceExplorer
 
 		error_t item_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("frame::item_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::item_t::read"));
 
@@ -4501,7 +4508,7 @@ namespace SourceExplorer
 
 		error_t handles_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("frame::handles_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::handles_t::read"));
 
@@ -4524,7 +4531,7 @@ namespace SourceExplorer
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("frame::bank_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEFER(game.bank_completed = 0.0f);
 
@@ -4600,7 +4607,12 @@ namespace SourceExplorer
 	{
 		error_t item_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("image::item_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
+
+			bool optimised_image =
+			  game.game.extended_header &&
+			  ((game.game.extended_header->build_flags &
+			    build_flags_t::optimize_image_size) != build_flags_t::none);
 
 			const auto strm_start = strm.position();
 			if (game.ccn)
@@ -4646,7 +4658,7 @@ namespace SourceExplorer
 			else
 			{
 				data_ref_span_t span;
-				if (game.two_five_plus_game)
+				if (optimised_image)
 				{
 					const size_t header_size = 36;
 					RES_TRY(entry.read(game, strm, false, header_size)
@@ -4685,7 +4697,7 @@ namespace SourceExplorer
 					TRY_ASSIGN(checksum =, istrm.read_u32());
 				}
 				TRY_ASSIGN(reference =, istrm.read_u32());
-				if (game.two_five_plus_game) TRY(istrm.skip(4));
+				if (optimised_image) TRY(istrm.skip(4));
 				TRY_ASSIGN(data_size =, istrm.read_u32());
 				TRY_ASSIGN(size.x =, istrm.read_u16());
 				TRY_ASSIGN(size.y =, istrm.read_u16());
@@ -4733,7 +4745,7 @@ namespace SourceExplorer
 
 				if (!game.old_game) transparent = ColorFrom32bitRGBA(istrm).UNWRAP();
 
-				if (game.two_five_plus_game)
+				if (optimised_image)
 				{
 					ASSERT_EQUAL(strm.position(), data_position);
 					TRY_ASSIGN(entry.body.data =, strm.read_ref_span(data_size));
@@ -4761,7 +4773,7 @@ namespace SourceExplorer
 				case graphics_mode_t::BGR24:
 					if ((flags & image_flag_t::RLET) != image_flag_t::none)
 						padding = (size.x * 3U) % 2;
-					else if (game.two_five_plus_game)
+					else if (optimised_image)
 						padding = (size.x * 3U) % 2;
 					else if (game.ccn)
 						padding = uint16_t(lak::slack<size_t>(size.x * 3U, 4));
@@ -4779,7 +4791,7 @@ namespace SourceExplorer
 				case graphics_mode_t::RGB8:
 					if ((flags & image_flag_t::RLET) != image_flag_t::none)
 						padding = size.x % 2;
-					else if (game.two_five_plus_game)
+					else if (optimised_image)
 						padding = size.x % 2;
 					else if (game.ccn)
 						padding = uint16_t(lak::slack<size_t>(size.x, 4));
@@ -4871,7 +4883,7 @@ namespace SourceExplorer
 
 		result_t<data_ref_span_t> item_t::image_data() const
 		{
-			FUNCTION_CHECKPOINT("image::item_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			RES_TRY_ASSIGN(
 			  auto span =,
@@ -4921,7 +4933,7 @@ namespace SourceExplorer
 		result_t<lak::image4_t> item_t::image(
 		  const bool color_transparent, const lak::color4_t palette[256]) const
 		{
-			FUNCTION_CHECKPOINT("image::image_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			lak::image4_t img = {};
 
@@ -5009,7 +5021,7 @@ namespace SourceExplorer
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("image::bank_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEFER(game.bank_completed = 0.0f);
 
@@ -5114,6 +5126,52 @@ namespace SourceExplorer
 
 	namespace font
 	{
+		error_t item_t::read(game_t &game, data_reader_t &strm)
+		{
+			if (game.cruf)
+			{
+				// u32 height
+				// u32 width
+				// u32 escapement
+				// u32 orientation
+				// u32 weight
+				// u8 italic
+				// u8 underline
+				// u8 strikeout
+				// u8 charset
+				// u8 out_precision
+				// u8 clip_precision
+				// u8 quality
+				// u8 pitch_and_family
+				// char * 32 face_name
+
+				entry.read_init(game);
+				RES_TRY(entry.read_head(game, strm, 0U, true));
+				RES_TRY(entry.read_body(game,
+				                        strm,
+				                        false,
+				                        {/* height */ 4 +
+				                         /* width */ 4 +
+				                         /* escapement */ 4 +
+				                         /* orientation */ 4 +
+				                         /* weight */ 4 +
+				                         /* italic */ 1 +
+				                         /* underline */ 1 +
+				                         /* strikeout */ 1 +
+				                         /* charset */ 1 +
+				                         /* out_precision */ 1 +
+				                         /* clip_precision */ 1 +
+				                         /* quality */ 1 +
+				                         /* pitch_and_family */ 1 +
+				                         /* face_name */ 32}));
+				return lak::ok_t{};
+			}
+			else
+			{
+				return basic_item_t::read(game, strm);
+			}
+		}
+
 		error_t item_t::view(source_explorer_t &srcexp) const
 		{
 			return basic_view(srcexp, "Font");
@@ -5126,7 +5184,7 @@ namespace SourceExplorer
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("font::bank_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEFER(game.bank_completed = 0.0f);
 
@@ -5224,7 +5282,7 @@ namespace SourceExplorer
 	{
 		error_t item_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("sound::item_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 			const size_t header_size = 0x18;
 
 			const auto start = strm.position();
@@ -5307,7 +5365,7 @@ namespace SourceExplorer
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("sound::bank_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEFER(game.bank_completed = 0.0f);
 
@@ -5415,7 +5473,7 @@ namespace SourceExplorer
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
 		{
-			FUNCTION_CHECKPOINT("music::bank_t::");
+			MEMBER_FUNCTION_CHECKPOINT();
 
 			DEFER(game.bank_completed = 0.0f);
 
@@ -5516,7 +5574,7 @@ namespace SourceExplorer
 
 	error_t header_t::read(game_t &game, data_reader_t &strm)
 	{
-		FUNCTION_CHECKPOINT("header_t::");
+		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("header_t::read"));
 

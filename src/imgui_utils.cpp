@@ -32,6 +32,8 @@ SOFTWARE.
 #include <lak/defer.hpp>
 #include <lak/file.hpp>
 
+#include <lak/imgui/widgets.hpp>
+
 #include <algorithm>
 #include <deque>
 
@@ -321,47 +323,53 @@ lak::error_code_result<lak::file_open_error> lak::open_folder(fs::path &path,
 }
 
 lak::error_code_result<lak::file_open_error> lak::open_file_modal(
-  fs::path &path, bool save)
+  fs::path &path, bool save, const std::string &filter)
 {
-	const char *name = save ? "Save File" : "Open File";
+	const std::string name = save ? "Save File" : "Open File";
 
-	ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
-	if (ImGui::BeginPopupModal(name, nullptr, ImGuiWindowFlags_NoSavedSettings))
+	if (!ImGui::IsPopupOpen((name + "###" + name).c_str()))
 	{
-		DEFER(ImGui::EndPopup());
-		auto result = lak::open_file(path, save);
-		if (!(result.is_ok() &&
-		      result.unsafe_unwrap() == file_open_error::INCOMPLETE))
+		if (save)
 		{
-			ImGui::CloseCurrentPopup();
-			return result;
+			if (!lak::file_dialog->Save(name, name, filter, path.string()))
+				ASSERT_UNREACHABLE();
+		}
+		else
+		{
+			if (!lak::file_dialog->Open(name, name, filter, false, path.string()))
+				ASSERT_UNREACHABLE();
 		}
 	}
 
-	if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
+	if (lak::file_dialog->IsDone(name))
+	{
+		const bool has_result = lak::file_dialog->HasResult();
+		if (has_result) path = lak::file_dialog->GetResult();
+		lak::file_dialog->Close();
+		return lak::ok_t{has_result ? lak::file_open_error::VALID
+		                            : lak::file_open_error::CANCELED};
+	}
 
-	return lak::ok_t{file_open_error::INCOMPLETE};
+	return lak::ok_t{lak::file_open_error::INCOMPLETE};
 }
 
 lak::error_code_result<lak::file_open_error> lak::open_folder_modal(
   fs::path &path)
 {
-	const char name[] = "Open Folder";
+	const std::string name = "Open Folder";
 
-	ImGui::SetNextWindowSizeConstraints({300, 500}, {1000, 14000});
-	if (ImGui::BeginPopupModal(name, nullptr, ImGuiWindowFlags_NoSavedSettings))
+	if (!ImGui::IsPopupOpen((name + "###" + name).c_str()))
+		if (!lak::file_dialog->Open(name, name, "", false, path.string()))
+			ASSERT_UNREACHABLE();
+
+	if (lak::file_dialog->IsDone(name))
 	{
-		DEFER(ImGui::EndPopup());
-		auto result = open_folder(path);
-		if (!(result.is_ok() &&
-		      result.unsafe_unwrap() == file_open_error::INCOMPLETE))
-		{
-			ImGui::CloseCurrentPopup();
-			return result;
-		}
+		const bool has_result = lak::file_dialog->HasResult();
+		if (has_result) path = lak::file_dialog->GetResult();
+		lak::file_dialog->Close();
+		return lak::ok_t{has_result ? lak::file_open_error::VALID
+		                            : lak::file_open_error::CANCELED};
 	}
 
-	if (!ImGui::IsPopupOpen(name)) ImGui::OpenPopup(name);
-
-	return lak::ok_t{file_open_error::INCOMPLETE};
+	return lak::ok_t{lak::file_open_error::INCOMPLETE};
 }
