@@ -52,6 +52,121 @@ namespace SourceExplorer
 	};
 
 	//
+	// Extended header
+	//
+
+	enum class something_flags_t : uint32_t
+	{
+		none                        = 0,
+		kee_screen_ratio            = 1U << 0U,
+		unknown1                    = 1U << 1U,
+		anti_aliasing_when_resizing = 1U << 2U,
+		unknown2                    = 1U << 3U,
+		unknown3                    = 1U << 4U,
+		right_to_left_reading       = 1U << 5U,
+		unknown4                    = 1U << 6U,
+		right_to_left_layout        = 1U << 7U,
+		unknown5                    = 1U << 8U,
+		unknown6                    = 1U << 9U,
+		unknown7                    = 1U << 10U,
+		unknown8                    = 1U << 11U,
+		unknown9                    = 1U << 12U,
+		unknown10                   = 1U << 13U,
+		unknown11                   = 1U << 14U,
+		unknown12                   = 1U << 15U,
+		unknown13                   = 1U << 16U,
+		unknown14                   = 1U << 17U,
+		unknown15                   = 1U << 18U,
+		unknown16                   = 1U << 19U,
+		unknown17                   = 1U << 20U,
+		unknown18                   = 1U << 21U,
+		dont_optimize_strings       = 1U << 22U,
+		unknown19                   = 1U << 23U,
+		unknown20                   = 1U << 24U,
+		unknown21                   = 1U << 25U,
+		dont_ignore_destroy         = 1U << 26U,
+		disable_time                = 1U << 27U,
+		reduce_cpu_usage            = 1U << 28U,
+		unknown22                   = 1U << 29U,
+		premultiplies_alpha         = 1U << 30U,
+		optimize_play_sample        = 1U << 31U,
+	};
+
+	inline something_flags_t operator|(const something_flags_t A,
+	                                   const something_flags_t B)
+	{
+		return (something_flags_t)((uint32_t)A | (uint32_t)B);
+	}
+
+	inline something_flags_t operator&(const something_flags_t A,
+	                                   const something_flags_t B)
+	{
+		return (something_flags_t)((uint32_t)A & (uint32_t)B);
+	}
+
+	enum class build_type_t : uint32_t
+	{
+		windows_exe          = 0,
+		windows_screen_saver = 1,
+		sub_application      = 2,
+
+		uwp_project = 33,
+
+		java_sub_application    = 3,
+		java_application        = 4,
+		java_internet_applet    = 5,
+		java_web_start          = 6,
+		java_for_mobile_devices = 7,
+		java_mac_application    = 9,
+		java_for_blackberry     = 11,
+
+		adobe_flash = 10,
+
+		xna_windows_project = 18,
+		xna_xbox_project    = 19,
+		xna_phone_project   = 20,
+
+		html5_devel = 27,
+		html5_final = 28,
+
+		android_ouya_application = 12,
+		android_app_bundle       = 34,
+
+		ios_application = 13,
+		ios_xcode_devel = 14,
+		ios_xcode_final = 15,
+
+		nintendo_switch = 74,
+		xbox_one        = 75,
+		playstation     = 78,
+	};
+
+	enum class build_flags_t : uint32_t
+	{
+		none                        = 0,
+		compression_level_max       = 1 << 0,
+		compress_sounds             = 1 << 1,
+		include_external_files      = 1 << 2,
+		no_auto_image_filters       = 1 << 3,
+		no_auto_sound_filters       = 1 << 4,
+		unknown1                    = 1 << 5,
+		unknown2                    = 1 << 6,
+		unknown3                    = 1 << 7,
+		dont_display_build_warnings = 1 << 8,
+		optimize_image_size         = 1 << 9,
+	};
+
+	inline build_flags_t operator|(const build_flags_t A, const build_flags_t B)
+	{
+		return (build_flags_t)((uint32_t)A | (uint32_t)B);
+	}
+
+	inline build_flags_t operator&(const build_flags_t A, const build_flags_t B)
+	{
+		return (build_flags_t)((uint32_t)A & (uint32_t)B);
+	}
+
+	//
 	// Old Data Chunks
 	//
 	enum class old_chunk_type_t : uint16_t
