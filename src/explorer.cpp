@@ -80,6 +80,12 @@ namespace SourceExplorer
 
 		DEBUG("File Size: ", srcexp.state.file->size());
 
+		if (srcexp.state.file->size() == 0)
+		{
+			ERROR("Empty File");
+			return lak::err_t{error(error_type::out_of_data)};
+		}
+
 		if (auto err = ParsePEHeader(strm).RES_ADD_TRACE(
 		      "LoadGame: while parsing PE header at: ", strm.position());
 		    err.is_err())
