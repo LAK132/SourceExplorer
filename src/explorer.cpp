@@ -2806,7 +2806,7 @@ namespace SourceExplorer
 		TRY_ASSIGN(screen_ratio_tolerance =, estrm.read_u16());
 		TRY_ASSIGN(screen_angle =, estrm.read_u16());
 
-		game.compat |= build_type >= 0x10000000;
+		game.compat |= (size_t)build_type >= 0x10000000;
 
 		return lak::ok_t{};
 	}
