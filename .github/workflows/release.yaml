@@ -13,7 +13,7 @@ jobs:
       tag: ${{ steps.get_tag.outputs.TAG }}
     runs-on: windows-2022
     steps:
-      - run: echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      - run: echo "TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
         shell: bash
         id: get_tag
       - uses: softprops/action-gh-release@v1
@@ -22,7 +22,7 @@ jobs:
           token: ${{ github.token }}
           draft: false
           prerelease: true
-          name: Source Explorer ${{ github.ref }}
+          name: Source Explorer ${{ github.ref_name }}
           tag_name: ${{ github.ref }}
 
   build:
