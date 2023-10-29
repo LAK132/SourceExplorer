@@ -78,8 +78,8 @@ namespace lak
 	                                                         ImVec2 size = {0,
 	                                                                        0});
 
-	lak::error_code_result<lak::file_open_error> open_file_modal(fs::path &path,
-	                                                             bool save);
+	lak::error_code_result<lak::file_open_error> open_file_modal(
+	  fs::path &path, bool save, const std::string &filter = ".*");
 
 	lak::error_code_result<lak::file_open_error> open_folder_modal(
 	  fs::path &path);
