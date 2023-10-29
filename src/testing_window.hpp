@@ -67,6 +67,8 @@ struct test_window : public base_window<test_window>
 	inline static lak::array<fs::path> all_testing_files;
 	inline static size_t testing_files_count = 0U;
 	inline static lak::astring last_error;
+	inline static lak::array<fs::path> failed_files;
+	inline static bool list_failed_files = false;
 
 	static void left_region(float)
 	{
@@ -80,6 +82,17 @@ struct test_window : public base_window<test_window>
 		{
 			all_testing_files   = SrcExp.testing_files;
 			testing_files_count = all_testing_files.size();
+			list_failed_files   = false;
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Find Broken"))
+		{
+			all_testing_files   = SrcExp.testing_files;
+			testing_files_count = all_testing_files.size();
+			failed_files.clear();
+			list_failed_files = true;
 		}
 
 		for (const auto &path : SrcExp.testing_files)
@@ -107,6 +120,21 @@ struct test_window : public base_window<test_window>
 			SrcExp.exe.valid   = true;
 			SrcExp.exe.path    = lak::move(all_testing_files.back());
 			all_testing_files.pop_back();
+		}
+
+		if (!failed_files.empty())
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, 0xFF8080FF);
+			for (const auto &failed : failed_files)
+				ImGui::Text("Failed: \"%s\"",
+				            lak::as_astring(failed.u8string().c_str()));
+			ImGui::PopStyleColor();
+
+			if (SrcExp.exe.attempt)
+				ImGui::Text("Attempting: \"%s\"",
+				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+
+			if (ImGui::Button("Clear")) failed_files.clear();
 		}
 
 		if (SrcExp.loaded)
@@ -220,9 +248,15 @@ struct test_window : public base_window<test_window>
 				                 "\" failed: ",
 				                 result.unsafe_unwrap().unsafe_unwrap_err()));
 
-				const bool is_known_bad_game = SrcExp.state.ccn;
-
-				if (!is_known_bad_game) all_testing_files.clear();
+				if (list_failed_files)
+				{
+					failed_files.push_back(SrcExp.exe.path);
+				}
+				else
+				{
+					const bool is_known_bad_game = SrcExp.state.ccn;
+					if (!is_known_bad_game) all_testing_files.clear();
+				}
 
 				SrcExp.loaded              = se::open_broken_games;
 				SrcExp.loaded_successfully = false;
