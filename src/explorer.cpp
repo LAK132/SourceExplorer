@@ -3487,6 +3487,12 @@ namespace SourceExplorer
 			// used for offsets.
 			const size_t begin = cstrm.position();
 
+			if (!game.old_game && game.product_build <= 281)
+			{
+				ERROR(":TODO: HACK FIX FOR 281 CRASH");
+				return lak::ok_t{};
+			}
+
 			TRY_ASSIGN(size =, cstrm.read_u32());
 
 			DEBUG("Size: ", size);
@@ -3905,6 +3911,12 @@ namespace SourceExplorer
 
 			data_reader_t pstrm(span);
 
+			if (!game.old_game && game.product_build <= 281)
+			{
+				ERROR(":TODO: HACK FIX FOR 281 CRASH");
+				return lak::ok_t{};
+			}
+
 			TRY_ASSIGN(unknown =, pstrm.read_u32());
 
 			CHECK_REMAINING(pstrm, colors.size() * 4);
@@ -4046,6 +4058,12 @@ namespace SourceExplorer
 			RES_TRY_ASSIGN(
 			  auto span =,
 			  entry.decode_body().RES_ADD_TRACE("frame::object_instances_t::read"));
+
+			if (!game.old_game && game.product_build <= 281)
+			{
+				ERROR(":TODO: HACK FIX FOR 281 CRASH");
+				return lak::ok_t{};
+			}
 
 			data_reader_t hstrm(span);
 
