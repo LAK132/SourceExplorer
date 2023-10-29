@@ -222,7 +222,7 @@ namespace SourceExplorer
 	{
 		FUNCTION_CHECKPOINT();
 
-		uint16_t exe_sig = strm.read_u16().UNWRAP();
+		TRY_ASSIGN(uint16_t exe_sig =, strm.read_u16());
 		DEBUG("EXE Signature: ", exe_sig);
 		if (exe_sig != WIN_EXE_SIG)
 		{
