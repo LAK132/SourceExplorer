@@ -40,7 +40,7 @@ namespace SourceExplorer
 {
 	bool force_compat          = false;
 	bool skip_broken_items     = false;
-	bool open_broken_games     = false;
+	bool open_broken_games     = true;
 	size_t max_item_read_fails = 3;
 	encryption_table decryptor;
 	std::vector<uint8_t> _magic_key;
