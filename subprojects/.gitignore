@@ -3,6 +3,7 @@ lua/
 lua-5.4.4/
 glm*.wrap
 imgui*.wrap
+lak.wrap
 lmdb*.wrap
 SDL2*.wrap
 stb*.wrap
