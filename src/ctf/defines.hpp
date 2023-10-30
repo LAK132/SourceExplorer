@@ -43,6 +43,17 @@ namespace SourceExplorer
 	//
 	// Product code
 	//
+
+	// Klik & Play (KNP)
+	// Click and Create (CNC)
+	// The Games Factory (TGF)    v1.00 -> v1.06
+	// The Games Factory 2 (TGF2) 239 -> 258.2
+	// Multimedia Fusion 1.5 (MMF1.5) v1.0 -> v1.2 -> v1.5 (119)
+	// Multimedia Fusion 2 (MMF2) 239 -> 258.2
+	// Clickteam Fusion 2.5 (CTF2.5) 280 -> 288.1
+	// Clickteam Fusion 2.5+ (CTF2.5+)
+	// Fusion 3
+
 	enum class product_code_t : uint16_t
 	{
 		CNCV1VER = 0x0207,

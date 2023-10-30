@@ -24,7 +24,7 @@ SOFTWARE.
 #ifndef SOURCE_EXPLORER_DUMP_H
 #define SOURCE_EXPLORER_DUMP_H
 
-#include "explorer.h"
+#include "ctf/explorer.hpp"
 
 #include <atomic>
 #include <tuple>

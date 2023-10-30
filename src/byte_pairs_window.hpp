@@ -23,7 +23,7 @@ struct byte_pairs_window : public base_window<byte_pairs_window>
 				  SrcExp.state.file = se::make_data_ref_ptr(
 				    se::data_ref_ptr_t{},
 				    lak::read_file(exe_path).EXPECT("failed to load file"));
-				  ASSERT(SrcExp.state.file != nullptr);
+				  ASSERT(!!SrcExp.state.file);
 				  DEBUG("File size: ", SrcExp.state.file->size());
 				  SrcExp.loaded = true;
 				  return lak::file_open_error::VALID;

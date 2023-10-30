@@ -27,12 +27,14 @@ SOFTWARE.
 #endif
 #include <stb_image_write.h>
 
+#include "ctf/explorer.hpp"
 #include "dump.h"
-#include "explorer.h"
 #include "tostring.hpp"
 
+#include <lak/array.hpp>
 #include <lak/char_utils.hpp>
 #include <lak/result.hpp>
+#include <lak/string.hpp>
 #include <lak/string_literals.hpp>
 #include <lak/string_utils.hpp>
 #include <lak/tasks.hpp>
@@ -305,14 +307,14 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 
 	using namespace std::string_literals;
 
-	auto HandleName = [](const std::unique_ptr<string_chunk_t> &name,
+	auto HandleName = [](const lak::unique_ptr<string_chunk_t> &name,
 	                     auto handle,
-	                     std::u16string extra = u"")
+	                     lak::u16string extra = u""_str) -> lak::u16string
 	{
-		std::u32string str;
+		lak::u32string str;
 		if (extra.size() > 0) str += lak::to_u32string(extra + u" ");
 		if (name) str += U"'" + lak::to_u32string(name->value) + U"'";
-		std::u32string result;
+		lak::u32string result;
 		for (auto &c : str)
 			if (c == U' ' || c == U'(' || c == U')' || c == U'[' || c == U']' ||
 			    c == U'+' || c == U'-' || c == U'=' || c == U'_' || c == '\'' ||
@@ -321,8 +323,8 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 				result += c;
 		while (!result.empty() && lak::is_whitespace(result.back()))
 			result.pop_back();
-		return u"["s + se::to_u16string(handle) + (result.empty() ? u"]" : u"] ") +
-		       lak::to_u16string(result);
+		return u"["_str + se::to_u16string(handle) +
+		       (result.empty() ? u"]" : u"] ") + lak::to_u16string(result);
 	};
 
 	fs::path root_path     = srcexp.sorted_images.path;
@@ -336,7 +338,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 	{
 		SCOPED_CHECKPOINT(
 		  "Image ", image_index, "/", image_count, " (", image.entry.handle, ")");
-		std::u16string image_name = se::to_u16string(image.entry.handle) + u".png";
+		lak::u16string image_name = se::to_u16string(image.entry.handle) + u".png";
 		fs::path image_path       = unsorted_path / image_name;
 		(void)SaveImage(image.image(srcexp.dump_color_transparent).UNWRAP(),
 		                image_path);
@@ -354,7 +356,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 		                  " (",
 		                  frame.name->u8string(),
 		                  ")");
-		std::u16string frame_name = HandleName(frame.name, frame_index);
+		lak::u16string frame_name = HandleName(frame.name, frame_index);
 		fs::path frame_path       = root_path / frame_name;
 		fs::create_directories(frame_path / "[unsorted]", err);
 		if (err)
@@ -375,7 +377,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 				      lak::as_ptr(se::GetObject(srcexp.state, object.handle).ok());
 				    obj)
 				{
-					std::u16string object_name = HandleName(
+					lak::u16string object_name = HandleName(
 					  obj->name,
 					  obj->handle,
 					  u"[" +
@@ -400,7 +402,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 							{
 								SCOPED_CHECKPOINT("Image (", imghandle, ")");
 								used_images.insert(imghandle);
-								std::u16string image_name =
+								lak::u16string image_name =
 								  se::to_u16string(imghandle) + u".png";
 								fs::path image_path = frame_path / "[unsorted]" / image_name;
 
@@ -428,11 +430,11 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 							}
 							for (const auto &imgname : imgnames)
 							{
-								std::u16string unsorted_image_name =
+								lak::u16string unsorted_image_name =
 								  se::to_u16string(imghandle) + u".png";
 								fs::path unsorted_image_path =
 								  frame_path / "[unsorted]" / unsorted_image_name;
-								std::u16string image_name = imgname + u".png";
+								lak::u16string image_name = imgname + u".png";
 								fs::path image_path       = object_path / image_name;
 								if (const auto *i =
 								      lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
@@ -479,7 +481,7 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &)
 	stbi_write_func *func = [](void *context, void *png, int len)
 	{
 		auto [out, image] =
-		  *static_cast<std::tuple<std::ofstream *, lak::image4_t *> *>(context);
+		  *static_cast<lak::tuple<std::ofstream *, lak::image4_t *> *>(context);
 		lak::binary_array_writer strm;
 		strm.reserve(0x16);
 		strm.write_u16(0); // reserved
@@ -498,7 +500,7 @@ void se::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &)
 		out->write((const char *)png, len);
 	};
 
-	auto context = std::tuple<std::ofstream *, lak::image4_t *>(&file, &bitmap);
+	auto context = lak::tuple<std::ofstream *, lak::image4_t *>(&file, &bitmap);
 	stbi_write_png_to_func(func,
 	                       &context,
 	                       (int)bitmap.size().x,
@@ -537,7 +539,7 @@ void se::DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed)
 			    "Item ", item.entry.handle, " Body Failed To Decode"));
 			  lak::array<byte_t> result;
 
-			  std::u8string name =
+			  lak::u8string name =
 			    u8"[" + se::to_u8string(item.entry.handle) + u8"] ";
 			  sound_mode_t type;
 
@@ -684,7 +686,7 @@ void se::DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed)
 			  data_reader_t sound(item.entry.decode_body().EXPECT(
 			    "Item ", item.entry.handle, " Body Failed To Decode"));
 
-			  std::u8string name =
+			  lak::u8string name =
 			    u8"[" + se::to_u8string(item.entry.handle) + u8"] ";
 			  sound_mode_t type;
 
@@ -757,7 +759,7 @@ void se::DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed)
 	data_reader_t strm(srcexp.state.game.shaders->entry.decode_body().UNWRAP());
 
 	uint32_t count = strm.read_u32().UNWRAP();
-	std::vector<uint32_t> offsets;
+	lak::array<uint32_t> offsets;
 	offsets.reserve(count);
 
 	while (count-- > 0) offsets.push_back(strm.read_u32().UNWRAP());

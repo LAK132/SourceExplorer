@@ -227,6 +227,8 @@ struct test_window : public base_window<test_window>
 
 					if (testing_files_count > 0U)
 					{
+						ImGui::Text("Test Set Progress:");
+						ImGui::SameLine();
 						ImGui::ProgressBar(
 						  float(double(testing_files_count - all_testing_files.size()) /
 						        testing_files_count));

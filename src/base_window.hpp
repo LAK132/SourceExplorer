@@ -12,7 +12,7 @@
 
 #include "main.h"
 
-#include "explorer.h"
+#include "ctf/explorer.hpp"
 
 template<typename DERIVED>
 struct base_window : bex::basic_window<DERIVED>
@@ -238,34 +238,34 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		                    ImGuiWindowFlags_AlwaysVerticalScrollbar |
 		                    ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 
-		if (std::holds_alternative<lak::opengl::texture>(texture))
+		if (const auto glimg = texture.template get<lak::opengl::texture>(); glimg)
 		{
-			const auto &img = std::get<lak::opengl::texture>(texture);
-			if (!img.get() || SrcExp.graphics_mode != lak::graphics_mode::OpenGL)
+			if (!glimg->get() || SrcExp.graphics_mode != lak::graphics_mode::OpenGL)
 			{
 				ImGui::Text("No image selected.");
 			}
 			else
 			{
-				ImGui::Image(
-				  (ImTextureID)(uintptr_t)img.get(),
-				  ImVec2(scale * (float)img.size().x, scale * (float)img.size().y));
+				ImGui::Image((ImTextureID)(uintptr_t)glimg->get(),
+				             ImVec2(scale * (float)glimg->size().x,
+				                    scale * (float)glimg->size().y));
 			}
 		}
-		else if (std::holds_alternative<texture_color32_t>(texture))
+		else if (const auto srimg = texture.template get<texture_color32_t>();
+		         srimg)
 		{
-			const auto &img = std::get<texture_color32_t>(texture);
-			if (!img.pixels || SrcExp.graphics_mode != lak::graphics_mode::Software)
+			if (!srimg->pixels ||
+			    SrcExp.graphics_mode != lak::graphics_mode::Software)
 			{
 				ImGui::Text("No image selected.");
 			}
 			else
 			{
-				ImGui::Image((ImTextureID)(uintptr_t)&img,
-				             ImVec2(scale * (float)img.w, scale * (float)img.h));
+				ImGui::Image((ImTextureID)(uintptr_t)&srimg,
+				             ImVec2(scale * (float)srimg->w, scale * (float)srimg->h));
 			}
 		}
-		else if (std::holds_alternative<std::monostate>(texture))
+		else if (texture.template holds<lak::monostate>())
 		{
 			ImGui::Text("No image selected.");
 		}
@@ -435,7 +435,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			                     &skipMax);
 		}
 
-		update |= std::holds_alternative<std::monostate>(texture);
+		update |= texture.template holds<lak::monostate>();
 
 		if (update)
 		{
@@ -660,7 +660,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			texture = se::CreateTexture(image, SrcExp.graphics_mode);
 		}
 
-		if (!std::holds_alternative<std::monostate>(texture))
+		if (!texture.template holds<lak::monostate>())
 		{
 			ImGui::Separator();
 			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
@@ -735,7 +735,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	                                            float &scale,
 	                                            bool &update)
 	{
-		update |= std::holds_alternative<std::monostate>(texture);
+		update |= texture.template holds<lak::monostate>();
 
 		if (update)
 		{
@@ -755,7 +755,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			texture = se::CreateTexture(image, SrcExp.graphics_mode);
 		}
 
-		if (!std::holds_alternative<std::monostate>(texture))
+		if (!texture.template holds<lak::monostate>())
 		{
 			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
 			ImGui::Separator();

@@ -1,7 +1,7 @@
-srcexp = files([
+subdir('ctf')
+
+srcexp = srcexp_ctf + files([
   'dump.cpp',
-  'encryption.cpp',
-  'explorer.cpp',
   'imgui_utils.cpp',
   'lisk_editor.cpp',
   'lisk_impl.cpp',

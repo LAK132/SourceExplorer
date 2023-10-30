@@ -9,8 +9,7 @@
 #	define SE_HAS_INTRIN
 #endif
 
-#include "explorer.h"
-
+#include <lak/array.hpp>
 #include <lak/span.hpp>
 
 #include <assert.h>
@@ -20,8 +19,6 @@
 #endif
 #include <iostream>
 #include <stdint.h>
-#include <utility>
-#include <vector>
 
 #ifdef SE_HAS_INTRIN
 union alignas(__m128i) m128i_t
@@ -66,6 +63,6 @@ struct encryption_table
 	bool decode(lak::span<byte_t> chunk) const;
 };
 
-std::vector<uint8_t> KeyString(const std::u16string &str);
+lak::array<uint8_t> KeyString(const lak::u16string &str);
 
 #endif

@@ -1,4 +1,6 @@
-#include "encryption.h"
+#include "encryption.hpp"
+
+#include <lak/utility.hpp>
 
 #include <numeric>
 
@@ -45,7 +47,7 @@ bool encryption_table::init(lak::span<const uint8_t, 0x100U> magic_key,
 
 		i2 += static_cast<uint8_t>((hash ^ *key) + decode_buffer.u32[i]);
 
-		std::swap(decode_buffer.u32[i], decode_buffer.u32[i2]);
+		lak::swap(decode_buffer.u32[i], decode_buffer.u32[i2]);
 	}
 
 	valid = true;
@@ -70,27 +72,29 @@ bool encryption_table::decode(lak::span<byte_t> chunk) const
 	{
 		++i;
 		i2 += (uint8_t)buffer.u32[i];
-		std::swap(buffer.u32[i], buffer.u32[i2]);
+		lak::swap(buffer.u32[i], buffer.u32[i2]);
 		elem ^= buffer.u8[4U * uint8_t(buffer.u32[i] + buffer.u32[i2])];
 	}
 	return true;
 #endif
 }
 
-std::vector<uint8_t> KeyString(const std::u16string &str)
+lak::array<uint8_t> KeyString(const lak::u16string &str)
 {
 #ifndef SE_HAS_INTRIN
 	LAK_UNUSED(str);
 	ASSERT_NYI();
 #else
-	std::vector<uint8_t> result;
+	lak::array<uint8_t> result;
 	result.reserve(str.size() * 2U);
-	for (const char16_t code : str)
-	{
-		if (code & 0xFFU) result.emplace_back(static_cast<uint8_t>(code & 0xFFU));
-		if ((code >> 8U) & 0xFFU)
-			result.emplace_back(static_cast<uint8_t>((code >> 8U) & 0xFFU));
-	}
+	for (const byte_t &b : lak::span<const byte_t>(lak::span(str)))
+		if (uint8_t(b) != 0) result.push_back(uint8_t(b));
+	// for (const char16_t code : str)
+	// {
+	// 	if (code & 0xFFU) result.emplace_back(static_cast<uint8_t>(code &
+	// 0xFFU)); 	if ((code >> 8U) & 0xFFU)
+	// 		result.emplace_back(static_cast<uint8_t>((code >> 8U) & 0xFFU));
+	// }
 	return result;
 #endif
 }

@@ -25,7 +25,7 @@ SOFTWARE.
 #include <imgui_memory_editor.h>
 #include <misc/cpp/imgui_stdlib.h>
 
-#include "explorer.h"
+#include "ctf/explorer.hpp"
 #include "tostring.hpp"
 
 #include <lak/imgui/backend.hpp>
