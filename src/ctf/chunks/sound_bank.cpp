@@ -97,6 +97,12 @@ namespace SourceExplorer
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("sound::bank_t::read"));
 
+			if (game.ccn)
+			{
+				WARNING(":TODO: HACK FIX FOR CCN SOUND BANK");
+				return lak::ok_t{};
+			}
+
 			data_reader_t reader(entry.raw_body());
 
 			TRY_ASSIGN(const auto item_count =, reader.read_u32());

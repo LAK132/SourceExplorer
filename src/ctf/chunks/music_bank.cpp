@@ -26,11 +26,23 @@ namespace SourceExplorer
 
 			data_reader_t reader(entry.raw_body());
 
-			TRY_ASSIGN(const auto item_count =, reader.read_u32());
+			uint32_t item_count = 0;
+			if (reader.read_u32().if_ok_copy_to(item_count).is_err())
+			{
+				TRY_ASSIGN(item_count =, reader.read_u16());
+				if (item_count == 0U)
+					return lak::ok_t{};
+				else
+					return lak::err_t{error(error_type::out_of_data)};
+			}
 
 			items.resize(item_count);
 
 			DEBUG("Music Bank Size: ", items.size());
+
+			if (item_count == 0) return lak::ok_t{};
+
+			TRY(reader.skip(2));
 
 			size_t max_tries = max_item_read_fails;
 

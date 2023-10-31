@@ -8,10 +8,10 @@ namespace SourceExplorer
 	{
 		MEMBER_FUNCTION_CHECKPOINT();
 
-		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("string_chunk_t::read"));
+		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("strings_chunk_t::read"));
 
 		RES_TRY_ASSIGN(auto span =,
-		               entry.decode_body().RES_ADD_TRACE("string_chunk_t::read"));
+		               entry.decode_body().RES_ADD_TRACE("strings_chunk_t::read"));
 
 		data_reader_t sstrm(span);
 

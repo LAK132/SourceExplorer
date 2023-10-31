@@ -135,6 +135,8 @@ struct test_window : public base_window<test_window>
 				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
 
 			if (ImGui::Button("Clear")) failed_files.clear();
+
+			ImGui::Separator();
 		}
 
 		if (SrcExp.loaded)

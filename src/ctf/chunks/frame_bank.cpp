@@ -92,7 +92,7 @@ namespace SourceExplorer
 			}
 			TRY_ASSIGN(parent_type = (object_parent_type_t), strm.read_u16());
 			TRY_ASSIGN(parent_handle =, strm.read_u16()); // object info (?)
-			if (!game.old_game)
+			if (!game.old_game && !game.cruf)
 			{
 				TRY_ASSIGN(layer =, strm.read_u16());
 				TRY_ASSIGN(unknown =, strm.read_u16());

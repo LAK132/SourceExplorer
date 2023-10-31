@@ -8,7 +8,7 @@ namespace SourceExplorer
 	{
 		error_t item_t::read(game_t &game, data_reader_t &strm)
 		{
-			if (game.cruf)
+			if (game.ccn)
 			{
 				// u32 height
 				// u32 width
@@ -43,7 +43,8 @@ namespace SourceExplorer
 				                         /* clip_precision */ 1 +
 				                         /* quality */ 1 +
 				                         /* pitch_and_family */ 1 +
-				                         /* face_name */ 32}));
+				                         /* face_name */ 32 +
+				                         /* unknown */ 0x2C}));
 				return lak::ok_t{};
 			}
 			else

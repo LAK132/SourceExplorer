@@ -48,7 +48,6 @@
 #include "two_five_plus_object_properties.hpp"
 #include "vitalise_preview.hpp"
 
-
 namespace SourceExplorer
 {
 	struct header_t : public basic_chunk_t
