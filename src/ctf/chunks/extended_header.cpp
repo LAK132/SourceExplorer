@@ -38,7 +38,9 @@ namespace SourceExplorer
 
 			ImGui::Text("Flags: 0x%zX", (size_t)flags);
 			ImGui::Text("Build Type: 0x%zX", (size_t)build_type);
-			ImGui::Text("Build Flags: 0x%zX", (size_t)build_flags);
+			ImGui::Text("Build Flags: %s (0x%zX)",
+			            GetBuildFlagsString(build_flags).c_str(),
+			            (size_t)build_flags);
 			ImGui::Text("Screen Ratio Tolerance: 0x%zX",
 			            (size_t)screen_ratio_tolerance);
 			ImGui::Text("Screen Angle: 0x%zX", (size_t)screen_angle);

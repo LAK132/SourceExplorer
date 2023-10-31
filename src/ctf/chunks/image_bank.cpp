@@ -13,11 +13,15 @@ namespace SourceExplorer
 			bool optimised_image =
 			  game.game.extended_header &&
 			  ((game.game.extended_header->build_flags &
-			    build_flags_t::optimize_image_size) != build_flags_t::none);
+			    build_flags_t::optimize_image_size) != build_flags_t::none) &&
+			  ((game.game.extended_header->build_flags & build_flags_t::unknown3) ==
+			   build_flags_t::none);
 
 			const auto strm_start = strm.position();
 			if (game.ccn)
 			{
+				CHECKPOINT();
+
 				RES_TRY(entry.read(game, strm, true, 10)
 				          .RES_ADD_TRACE("image::item_t::read"));
 
@@ -61,7 +65,9 @@ namespace SourceExplorer
 				data_ref_span_t span;
 				if (optimised_image)
 				{
-					const size_t header_size = 36;
+					CHECKPOINT();
+
+					const size_t header_size = 0x24;
 					RES_TRY(entry.read(game, strm, false, header_size)
 					          .RES_ADD_TRACE("image::item_t::read"));
 
@@ -76,6 +82,8 @@ namespace SourceExplorer
 				}
 				else
 				{
+					CHECKPOINT();
+
 					RES_TRY(
 					  entry.read(game, strm, true).RES_ADD_TRACE("image::item_t::read"));
 

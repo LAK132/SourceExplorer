@@ -1603,6 +1603,46 @@ namespace SourceExplorer
 		return result;
 	}
 
+	lak::astring GetBuildFlagsString(build_flags_t flags)
+	{
+		lak::astring result;
+
+		if (flags == build_flags_t::none)
+			result = "none";
+		else
+		{
+			if ((flags & build_flags_t::compression_level_max) !=
+			    build_flags_t::none)
+				result += "compression_level_max | ";
+			if ((flags & build_flags_t::compress_sounds) != build_flags_t::none)
+				result += "compress_sounds | ";
+			if ((flags & build_flags_t::include_external_files) !=
+			    build_flags_t::none)
+				result += "include_external_files | ";
+			if ((flags & build_flags_t::no_auto_image_filters) !=
+			    build_flags_t::none)
+				result += "no_auto_image_filters | ";
+			if ((flags & build_flags_t::no_auto_sound_filters) !=
+			    build_flags_t::none)
+				result += "no_auto_sound_filters | ";
+			if ((flags & build_flags_t::unknown1) != build_flags_t::none)
+				result += "unknown1 | ";
+			if ((flags & build_flags_t::unknown2) != build_flags_t::none)
+				result += "unknown2 | ";
+			if ((flags & build_flags_t::unknown3) != build_flags_t::none)
+				result += "unknown3 | ";
+			if ((flags & build_flags_t::dont_display_build_warnings) !=
+			    build_flags_t::none)
+				result += "dont_display_build_warnings | ";
+			if ((flags & build_flags_t::optimize_image_size) != build_flags_t::none)
+				result += "optimize_image_size | ";
+
+			result.resize(result.size() - 3);
+		}
+
+		return result;
+	}
+
 	result_t<data_ref_span_t> Decode(data_ref_span_t encoded,
 	                                 chunk_t id,
 	                                 encoding_t mode)

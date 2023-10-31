@@ -336,6 +336,8 @@ namespace SourceExplorer
 
 	lak::astring GetImageFlagString(image_flag_t flags);
 
+	lak::astring GetBuildFlagsString(build_flags_t flags);
+
 	result_t<data_ref_span_t> Decode(data_ref_span_t encoded,
 	                                 chunk_t ID,
 	                                 encoding_t mode);
