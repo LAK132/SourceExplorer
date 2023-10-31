@@ -221,6 +221,20 @@ namespace SourceExplorer
 		return decryptor.decode(chunk);
 	}
 
+	result_t<image_section_header_t> ParseImageSectionHeader(data_reader_t &strm)
+	{
+		FUNCTION_CHECKPOINT();
+
+		image_section_header_t result;
+		size_t start = strm.position();
+		TRY_ASSIGN(result.name =, strm.read_c_str<char>());
+		TRY(strm.seek(start + 0x10));
+		TRY_ASSIGN(result.size =, strm.read_u32());
+		TRY_ASSIGN(result.addr =, strm.read_u32());
+		TRY(strm.seek(start + 0x28));
+		return lak::move_ok(result);
+	}
+
 	error_t ParsePEHeader(data_reader_t &strm)
 	{
 		FUNCTION_CHECKPOINT();
@@ -263,35 +277,27 @@ namespace SourceExplorer
 		strm.skip(optional_header + data_dir).UNWRAP();
 		DEBUG("Pos: ", strm.position());
 
-		uint64_t pos = 0;
+		uint64_t game_start = 0;
 		for (uint16_t i = 0; i < num_header_sections; ++i)
 		{
 			SCOPED_CHECKPOINT("Section ", i + 1, "/", num_header_sections);
 			size_t start = strm.position();
-			auto name    = strm.read_c_str<char>().UNWRAP();
-			DEBUG("Name: ", name);
-			if (name == ".extra")
-			{
-				strm.seek(start + 0x14).UNWRAP();
-				pos = strm.read_s32().UNWRAP();
-				break;
-			}
-			else if (i >= num_header_sections - 1)
-			{
-				strm.seek(start + 0x10).UNWRAP();
-				uint32_t size = strm.read_u32().UNWRAP();
-				uint32_t addr = strm.read_u32().UNWRAP();
-				DEBUG("Size: ", size);
-				DEBUG("Addr: ", addr);
-				pos = size + addr;
-				break;
-			}
-			strm.seek(start + 0x28).UNWRAP();
-			DEBUG("Pos: ", strm.position());
+			DEBUG("Start: ", start);
+			RES_TRY_ASSIGN(auto image_section =,
+			               ParseImageSectionHeader(strm).RES_ADD_TRACE(
+			                 "while parsing PE header at: ", strm.position()));
+			DEBUG("Name: ", image_section.name);
+			DEBUG("Size: ", image_section.size);
+			DEBUG("Addr: ", image_section.addr);
+			if (image_section.addr == 0 && image_section.size != 0)
+				game_start += image_section.size;
+			else if (image_section.addr + image_section.size > game_start)
+				game_start = image_section.addr + image_section.size;
 		}
 
-		CHECK_POSITION(strm, pos); // necessary check for cast to size_t
-		TRY(strm.seek(static_cast<size_t>(pos)));
+		DEBUG("Jumping To: ", game_start);
+		CHECK_POSITION(strm, game_start); // necessary check for cast to size_t
+		TRY(strm.seek(static_cast<size_t>(game_start)));
 
 		return lak::ok_t{};
 	}

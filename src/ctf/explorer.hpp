@@ -64,6 +64,13 @@ namespace SourceExplorer
 {
 	extern size_t max_item_read_fails;
 
+	struct image_section_header_t
+	{
+		lak::astring name;
+		uint32_t size;
+		uint32_t addr;
+	};
+
 	struct game_t
 	{
 		static std::atomic<float> completed;
@@ -165,6 +172,9 @@ namespace SourceExplorer
 	error_t LoadGame(source_explorer_t &srcexp);
 
 	void GetEncryptionKey(game_t &game_state);
+
+	result_t<image_section_header_t> ParseImageSectionHeader(
+	  data_reader_t &strm);
 
 	error_t ParsePEHeader(data_reader_t &strm);
 
