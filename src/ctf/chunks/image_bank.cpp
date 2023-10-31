@@ -10,12 +10,8 @@ namespace SourceExplorer
 		{
 			MEMBER_FUNCTION_CHECKPOINT();
 
-			bool optimised_image =
-			  game.game.extended_header &&
-			  ((game.game.extended_header->build_flags &
-			    build_flags_t::optimize_image_size) != build_flags_t::none) &&
-			  ((game.game.extended_header->build_flags & build_flags_t::unknown3) ==
-			   build_flags_t::none);
+			TRY_ASSIGN(uint64_t optimised_image_test =, strm.peek_u64());
+			bool optimised_image = (optimised_image_test >> 32) == 0xFF'FF'FF'FF;
 
 			const auto strm_start = strm.position();
 			if (game.ccn)
