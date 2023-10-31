@@ -140,7 +140,11 @@ namespace SourceExplorer
 			RES_TRY(read_all_items().or_else(
 			  [&](const auto &err) -> error_t
 			  {
-				  if (skip_broken_items) return lak::ok_t{};
+				  if (skip_broken_items)
+				  {
+					  ERROR(err);
+					  return lak::ok_t{};
+				  }
 				  return lak::err_t{err};
 			  }));
 
