@@ -113,6 +113,7 @@ lak::await_result<se::error_t> se::OpenGame(source_explorer_t &srcexp)
 					}
 					ImGui::ProgressBar(srcexp.state.completed);
 					ImGui::ProgressBar(srcexp.state.bank_completed);
+					ImGui::ProgressBar(srcexp.state.item_completed);
 					ImGui::EndPopup();
 				}
 				else

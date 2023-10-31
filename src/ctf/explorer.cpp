@@ -49,6 +49,7 @@ namespace SourceExplorer
 	uint8_t _magic_char;
 	std::atomic<float> game_t::completed      = 0.0f;
 	std::atomic<float> game_t::bank_completed = 0.0f;
+	std::atomic<float> game_t::item_completed = 0.0f;
 
 	using namespace std::string_literals;
 
@@ -69,6 +70,7 @@ namespace SourceExplorer
 
 		srcexp.state.completed      = 0.0f;
 		srcexp.state.bank_completed = 0.0f;
+		srcexp.state.item_completed = 0.0f;
 
 		srcexp.state        = game_t{};
 		srcexp.state.compat = force_compat;

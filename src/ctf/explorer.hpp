@@ -75,6 +75,7 @@ namespace SourceExplorer
 	{
 		static std::atomic<float> completed;
 		static std::atomic<float> bank_completed;
+		static std::atomic<float> item_completed;
 
 		lak::astring game_path;
 		lak::astring game_dir;

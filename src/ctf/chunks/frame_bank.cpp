@@ -331,175 +331,189 @@ namespace SourceExplorer
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("frame::item_t::read"));
 
-			DEFER(game.bank_completed = 0.0f);
+			DEFER(game.item_completed = 0.0f);
 
 			data_reader_t reader(entry.raw_body());
 
-			for (bool not_finished = true; not_finished;)
+			auto read_all_items = [&]() -> error_t
 			{
-				game.bank_completed =
-				  float(double(reader.position()) / double(reader.size()));
-
-				if (reader.remaining().size() < 2) break;
-
-				switch ((chunk_t)reader.peek_u16().UNWRAP())
+				for (bool not_finished = true; not_finished;)
 				{
-					case chunk_t::frame_name:
-						name = lak::unique_ptr<string_chunk_t>::make();
-						RES_TRY(
-						  name->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
-						break;
+					game.item_completed =
+					  float(double(reader.position()) / double(reader.size()));
 
-					case chunk_t::frame_header:
-						header = lak::unique_ptr<header_t>::make();
-						RES_TRY(
-						  header->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
-						break;
+					if (reader.remaining().size() < 2) break;
 
-					case chunk_t::frame_password:
-						password = lak::unique_ptr<password_t>::make();
-						RES_TRY(password->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+					switch ((chunk_t)reader.peek_u16().UNWRAP())
+					{
+						case chunk_t::frame_name:
+							name = lak::unique_ptr<string_chunk_t>::make();
+							RES_TRY(
+							  name->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_palette:
-						palette = lak::unique_ptr<palette_t>::make();
-						RES_TRY(palette->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_header:
+							header = lak::unique_ptr<header_t>::make();
+							RES_TRY(header->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_object_instances:
-						object_instances = lak::unique_ptr<object_instances_t>::make();
-						RES_TRY(object_instances->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_password:
+							password = lak::unique_ptr<password_t>::make();
+							RES_TRY(password->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_fade_in_frame:
-						fade_in_frame = lak::unique_ptr<fade_in_frame_t>::make();
-						RES_TRY(fade_in_frame->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_palette:
+							palette = lak::unique_ptr<palette_t>::make();
+							RES_TRY(palette->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_fade_out_frame:
-						fade_out_frame = lak::unique_ptr<fade_out_frame_t>::make();
-						RES_TRY(fade_out_frame->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_object_instances:
+							object_instances = lak::unique_ptr<object_instances_t>::make();
+							RES_TRY(object_instances->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_fade_in:
-						fade_in = lak::unique_ptr<fade_in_t>::make();
-						RES_TRY(fade_in->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_fade_in_frame:
+							fade_in_frame = lak::unique_ptr<fade_in_frame_t>::make();
+							RES_TRY(fade_in_frame->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_fade_out:
-						fade_out = lak::unique_ptr<fade_out_t>::make();
-						RES_TRY(fade_out->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_fade_out_frame:
+							fade_out_frame = lak::unique_ptr<fade_out_frame_t>::make();
+							RES_TRY(fade_out_frame->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_events:
-						events = lak::unique_ptr<events_t>::make();
-						RES_TRY(
-						  events->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_fade_in:
+							fade_in = lak::unique_ptr<fade_in_t>::make();
+							RES_TRY(fade_in->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_play_header:
-						play_head = lak::unique_ptr<play_header_r>::make();
-						RES_TRY(play_head->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_fade_out:
+							fade_out = lak::unique_ptr<fade_out_t>::make();
+							RES_TRY(fade_out->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_additional_items:
-						additional_item = lak::unique_ptr<additional_item_t>::make();
-						RES_TRY(additional_item->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_events:
+							events = lak::unique_ptr<events_t>::make();
+							RES_TRY(events->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_additional_items_instances:
-						additional_item_instance =
-						  lak::unique_ptr<additional_item_instance_t>::make();
-						RES_TRY(additional_item_instance->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_play_header:
+							play_head = lak::unique_ptr<play_header_r>::make();
+							RES_TRY(play_head->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_layers:
-						layers = lak::unique_ptr<layers_t>::make();
-						RES_TRY(
-						  layers->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_additional_items:
+							additional_item = lak::unique_ptr<additional_item_t>::make();
+							RES_TRY(additional_item->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_virtual_size:
-						virtual_size = lak::unique_ptr<virtual_size_t>::make();
-						RES_TRY(virtual_size->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_additional_items_instances:
+							additional_item_instance =
+							  lak::unique_ptr<additional_item_instance_t>::make();
+							RES_TRY(additional_item_instance->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::demo_file_path:
-						demo_file_path = lak::unique_ptr<demo_file_path_t>::make();
-						RES_TRY(demo_file_path->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_layers:
+							layers = lak::unique_ptr<layers_t>::make();
+							RES_TRY(layers->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::random_seed:
-						random_seed = lak::unique_ptr<random_seed_t>::make();
-						RES_TRY(random_seed->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_virtual_size:
+							virtual_size = lak::unique_ptr<virtual_size_t>::make();
+							RES_TRY(virtual_size->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_layer_effect:
-						layer_effect = lak::unique_ptr<layer_effect_t>::make();
-						RES_TRY(layer_effect->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::demo_file_path:
+							demo_file_path = lak::unique_ptr<demo_file_path_t>::make();
+							RES_TRY(demo_file_path->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_bluray:
-						blueray = lak::unique_ptr<blueray_t>::make();
-						RES_TRY(blueray->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::random_seed:
+							random_seed = lak::unique_ptr<random_seed_t>::make();
+							RES_TRY(random_seed->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::movement_timer_base:
-						movement_time_base = lak::unique_ptr<movement_time_base_t>::make();
-						RES_TRY(movement_time_base->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_layer_effect:
+							layer_effect = lak::unique_ptr<layer_effect_t>::make();
+							RES_TRY(layer_effect->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::mosaic_image_table:
-						mosaic_image_table = lak::unique_ptr<mosaic_image_table_t>::make();
-						RES_TRY(mosaic_image_table->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_bluray:
+							blueray = lak::unique_ptr<blueray_t>::make();
+							RES_TRY(blueray->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_effects:
-						effects = lak::unique_ptr<effects_t>::make();
-						RES_TRY(effects->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::movement_timer_base:
+							movement_time_base =
+							  lak::unique_ptr<movement_time_base_t>::make();
+							RES_TRY(movement_time_base->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_iphone_options:
-						iphone_options = lak::unique_ptr<iphone_options_t>::make();
-						RES_TRY(iphone_options->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::mosaic_image_table:
+							mosaic_image_table =
+							  lak::unique_ptr<mosaic_image_table_t>::make();
+							RES_TRY(mosaic_image_table->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::frame_chunk334C:
-						chunk334C = lak::unique_ptr<chunk_334C_t>::make();
-						RES_TRY(chunk334C->read(game, reader)
-						          .RES_ADD_TRACE("frame::item_t::read"));
-						break;
+						case chunk_t::frame_effects:
+							effects = lak::unique_ptr<effects_t>::make();
+							RES_TRY(effects->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					case chunk_t::last:
-						end = lak::unique_ptr<last_t>::make();
-						RES_TRY(
-						  end->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
-						[[fallthrough]];
+						case chunk_t::frame_iphone_options:
+							iphone_options = lak::unique_ptr<iphone_options_t>::make();
+							RES_TRY(iphone_options->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
 
-					default:
-						not_finished = false;
-						break;
+						case chunk_t::frame_chunk334C:
+							chunk334C = lak::unique_ptr<chunk_334C_t>::make();
+							RES_TRY(chunk334C->read(game, reader)
+							          .RES_ADD_TRACE("frame::item_t::read"));
+							break;
+
+						case chunk_t::last:
+							end = lak::unique_ptr<last_t>::make();
+							RES_TRY(
+							  end->read(game, reader).RES_ADD_TRACE("frame::item_t::read"));
+							[[fallthrough]];
+
+						default:
+							not_finished = false;
+							break;
+					}
 				}
-			}
+
+				return lak::ok_t{};
+			};
+
+			RES_TRY(read_all_items().or_else(
+			  [&](const auto &err) -> error_t
+			  {
+				  if (skip_broken_items) return lak::ok_t{};
+				  return lak::err_t{err};
+			  }));
 
 			if (!reader.empty())
 			{
