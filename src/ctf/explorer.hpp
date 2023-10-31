@@ -179,7 +179,9 @@ namespace SourceExplorer
 
 	error_t ParsePEHeader(data_reader_t &strm);
 
-	error_t ParseGameHeader(data_reader_t &strm, game_t &game_state);
+	error_t ParseGameHeader(data_reader_t &strm,
+	                        game_t &game_state,
+	                        bool exe_game);
 
 	result_t<size_t> ParsePackData(data_reader_t &strm, game_t &game_state);
 

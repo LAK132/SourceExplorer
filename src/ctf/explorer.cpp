@@ -91,20 +91,38 @@ namespace SourceExplorer
 			return lak::err_t{error(error_type::out_of_data)};
 		}
 
-		if (auto err = ParsePEHeader(strm).RES_ADD_TRACE(
-		      "LoadGame: while parsing PE header at: ", strm.position());
-		    err.is_err())
+		bool exe_game = false;
+		TRY_ASSIGN(uint32_t magic =, strm.peek_u32());
+		if ((magic & 0xFFFF) == WIN_EXE_SIG)
 		{
-			DEBUG(err.unsafe_unwrap_err());
-			DEBUG("Assuming Separate .dat File Is Being Loaded");
-			TRY(strm.seek(0x0));
+			// MZ (.exe)
+			RES_TRY(ParsePEHeader(strm).RES_ADD_TRACE(
+			  "LoadGame: while parsing PE header at: ", strm.position()));
+			DEBUG("Successfully Parsed PE Header");
+			exe_game = true;
+		}
+		else if (magic == 0x77'77'77'77)
+		{
+			// wwww
+		}
+		else if (magic == 0x55'4D'41'50)
+		{
+			// PAMU
+		}
+		else if (magic == 0x45'4D'41'50)
+		{
+			// PAME
+		}
+		else if (magic == 0x46'55'52'43)
+		{
+			// CRUF
 		}
 		else
 		{
-			DEBUG("Successfully Parsed PE Header");
+			WARNING("Unknown Magic Value (", magic, ")");
 		}
 
-		RES_TRY(ParseGameHeader(strm, srcexp.state)
+		RES_TRY(ParseGameHeader(strm, srcexp.state, exe_game)
 		          .RES_ADD_TRACE("LoadGame: while parsing game header at: ",
 		                         strm.position()));
 
@@ -304,7 +322,9 @@ namespace SourceExplorer
 		return lak::ok_t{};
 	}
 
-	error_t ParseGameHeader(data_reader_t &strm, game_t &game_state)
+	error_t ParseGameHeader(data_reader_t &strm,
+	                        game_t &game_state,
+	                        bool exe_game)
 	{
 		FUNCTION_CHECKPOINT();
 
@@ -335,14 +355,33 @@ namespace SourceExplorer
 			uint64_t pack_magic = strm.peek_u64().UNWRAP();
 			DEBUG("Pack Magic: ", pack_magic);
 
-			if (first_short == (uint16_t)chunk_t::header ||
-			    pame_magic == HEADER_GAME)
+			if (first_short == (uint16_t)chunk_t::header)
 			{
 				DEBUG("Old Game");
 				game_state.old_game = true;
 				game_state.state    = {};
 				game_state.state.push_back(chunk_t::old);
 				break;
+			}
+			else if (pame_magic == HEADER_GAME)
+			{
+				if (exe_game)
+				{
+					DEBUG("Old Game");
+					game_state.old_game = true;
+					game_state.state    = {};
+					game_state.state.push_back(chunk_t::old);
+					break;
+				}
+				else
+				{
+					DEBUG("New Game (Old ccn)");
+					game_state.old_game = false;
+					game_state.ccn      = false;
+					game_state.state    = {};
+					game_state.state.push_back(chunk_t::_new);
+					break;
+				}
 			}
 			else if (pack_magic == HEADER_PACK)
 			{
