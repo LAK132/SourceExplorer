@@ -40,10 +40,6 @@ namespace SourceExplorer
 
 			DEBUG("Music Bank Size: ", items.size());
 
-			if (item_count == 0) return lak::ok_t{};
-
-			TRY(reader.skip(2));
-
 			size_t max_tries = max_item_read_fails;
 
 			auto read_all_items = [&]() -> error_t
