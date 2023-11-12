@@ -133,15 +133,18 @@ namespace SourceExplorer
 	}
 
 	template<typename FINALISE>
-	void AttemptFile(file_state_t &file_state, FINALISE finalise, bool save)
+	void AttemptFile(file_state_t &file_state,
+	                 FINALISE finalise,
+	                 bool save,
+	                 const std::string &filter = {})
 	{
 		Attempt(
 		  file_state,
-		  [save](file_state_t &file_state) -> lak::file_open_error
+		  [save, filter](file_state_t &file_state) -> lak::file_open_error
 		  {
-			  return lak::open_file_modal(file_state.path, save)
+			  return lak::open_file_modal(file_state.path, save, filter)
 			    .unwrap_or(
-			      [](const lak::error_code_error &ec) -> lak::file_open_error
+			      [](const std::error_code &ec) -> lak::file_open_error
 			      {
 				      ERROR(ec);
 				      return lak::file_open_error::INVALID;
@@ -159,7 +162,7 @@ namespace SourceExplorer
 		  {
 			  return lak::open_folder_modal(file_state.path)
 			    .unwrap_or(
-			      [](const lak::error_code_error &ec) -> lak::file_open_error
+			      [](const std::error_code &ec) -> lak::file_open_error
 			      {
 				      ERROR(ec);
 				      return lak::file_open_error::INVALID;

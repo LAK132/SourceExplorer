@@ -93,29 +93,29 @@ namespace SourceExplorer
 
 		bool exe_game = false;
 		TRY_ASSIGN(uint32_t magic =, strm.peek_u32());
-		if ((magic & 0xFFFF) == WIN_EXE_SIG)
+		if ((magic & 0xFFFF) == u8"MZ"_magic_le)
 		{
-			// MZ (.exe)
+			// .exe
 			RES_TRY(ParsePEHeader(strm).RES_ADD_TRACE(
 			  "LoadGame: while parsing PE header at: ", strm.position()));
 			DEBUG("Successfully Parsed PE Header");
 			exe_game = true;
 		}
-		else if (magic == 0x77'77'77'77)
+		else if (magic == u8"wwww"_magic_le)
 		{
-			// wwww
+			//
 		}
-		else if (magic == 0x55'4D'41'50)
+		else if (magic == u8"PAMU"_magic_le)
 		{
-			// PAMU
+			//
 		}
-		else if (magic == 0x45'4D'41'50)
+		else if (magic == u8"PAME"_magic_le)
 		{
-			// PAME
+			//
 		}
-		else if (magic == 0x46'55'52'43)
+		else if (magic == u8"CRUF"_magic_le)
 		{
-			// CRUF
+			//
 		}
 		else
 		{
@@ -352,9 +352,6 @@ namespace SourceExplorer
 			uint32_t pame_magic = strm.peek_u32().UNWRAP();
 			DEBUG("PAME Magic: ", pame_magic);
 
-			uint64_t pack_magic = strm.peek_u64().UNWRAP();
-			DEBUG("Pack Magic: ", pack_magic);
-
 			if (first_short == (uint16_t)chunk_t::header)
 			{
 				DEBUG("Old Game");
@@ -363,7 +360,7 @@ namespace SourceExplorer
 				game_state.state.push_back(chunk_t::old);
 				break;
 			}
-			else if (pame_magic == HEADER_GAME)
+			else if (pame_magic == u8"PAME"_magic_le)
 			{
 				if (exe_game)
 				{
@@ -383,7 +380,7 @@ namespace SourceExplorer
 					break;
 				}
 			}
-			else if (pack_magic == HEADER_PACK)
+			else if (pame_magic == u8"wwww"_magic_le)
 			{
 				DEBUG("New Game");
 				game_state.old_game = false;
@@ -395,7 +392,7 @@ namespace SourceExplorer
 				    .RES_ADD_TRACE("while parsing game header at: ", strm.position()));
 				break;
 			}
-			else if (pame_magic == HEADER_UNIC)
+			else if (pame_magic == u8"PAMU"_magic_le)
 			{
 				DEBUG("New Game (ccn)");
 				game_state.old_game = false;
@@ -404,7 +401,7 @@ namespace SourceExplorer
 				game_state.state.push_back(chunk_t::_new);
 				break;
 			}
-			else if (pame_magic == HEADER_CRUF)
+			else if (pame_magic == u8"CRUF"_magic_le)
 			{
 				DEBUG("CRUF Game");
 				game_state.old_game = false;
@@ -434,20 +431,18 @@ namespace SourceExplorer
 				                                       "u16, ",
 				                                       0x7F7F,
 				                                       "u16, ",
-				                                       HEADER_GAME,
+				                                       u8"PAME"_magic_le,
 				                                       "u32, ",
-				                                       HEADER_UNIC,
+				                                       u8"PAMU"_magic_le,
 				                                       "u32, ",
-				                                       HEADER_CRUF,
+				                                       u8"CRUF"_magic_le,
 				                                       "u32, ",
-				                                       HEADER_PACK,
-				                                       "u64, Found ",
+				                                       u8"wwww"_magic_le,
+				                                       "u32, Found ",
 				                                       first_short,
 				                                       "u16/",
 				                                       pame_magic,
-				                                       "u32/",
-				                                       pack_magic,
-				                                       "u64"))};
+				                                       "u32"))};
 			}
 
 			if (pos > strm.size())
@@ -463,16 +458,16 @@ namespace SourceExplorer
 		DEBUG("Header: ", header);
 
 		game_state.unicode = false;
-		if (header == HEADER_UNIC || header == HEADER_CRUF)
+		if (header == u8"PAMU"_magic_le || header == u8"CRUF"_magic_le)
 		{
 			game_state.unicode  = true;
 			game_state.old_game = false;
 		}
-		else if (header != HEADER_GAME)
+		else if (header != u8"PAME"_magic_le)
 		{
 			return lak::err_t{
 			  error(error_type::invalid_game_signature,
-			        lak::streamify(TRACE_EXPECTED(HEADER_GAME, header),
+			        lak::streamify(TRACE_EXPECTED(u8"PAME"_magic_le, header),
 			                       ", at ",
 			                       (strm.position() - 4)))};
 		}
@@ -519,7 +514,7 @@ namespace SourceExplorer
 
 			TRY_ASSIGN(header =, strm.read_u32());
 			DEBUG("Head: ", header);
-			unicode = header == HEADER_UNIC;
+			unicode = header == u8"PAMU"_magic_le;
 			if (unicode)
 			{
 				DEBUG("Unicode Game");
@@ -567,7 +562,8 @@ namespace SourceExplorer
 		TRY_ASSIGN(header =, strm.read_u32());
 		DEBUG("Header: ", header);
 
-		bool has_bingo = (header != HEADER_GAME) && (header != HEADER_UNIC);
+		bool has_bingo =
+		  (header != u8"PAME"_magic_le) && (header != u8"PAMU"_magic_le);
 		DEBUG("Has Bingo: ", (has_bingo ? "true" : "false"));
 
 		CHECK_POSITION(strm, off); // necessary check for cast to size_t
@@ -633,7 +629,7 @@ namespace SourceExplorer
 		TRY_ASSIGN(header =, strm.peek_u32()); // PAMU sometimes
 		DEBUG("Header: ", header);
 
-		if (header != HEADER_GAME && header != HEADER_UNIC)
+		if (header != u8"PAME"_magic_le && header != u8"PAMU"_magic_le)
 			strm.skip(0x4).UNWRAP();
 
 		return lak::ok_t{strm.position()};
@@ -1512,6 +1508,8 @@ namespace SourceExplorer
 			case chunk_t::music_handles:
 				return "Music Handles";
 
+			case chunk_t::bank_offsets:
+				return "Bank Offsets";
 			case chunk_t::image_bank:
 				return "Image Bank";
 			case chunk_t::font_bank:
@@ -1520,6 +1518,9 @@ namespace SourceExplorer
 				return "Sound Bank";
 			case chunk_t::music_bank:
 				return "Music Bank";
+
+			case chunk_t::fusion_3_seed:
+				return "Fusion 3 Seed";
 
 			case chunk_t::last:
 				return "Last";

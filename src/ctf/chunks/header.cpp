@@ -219,6 +219,10 @@ namespace SourceExplorer
 					RES_TRY(init_chunk(frame_handles).RES_ADD_TRACE("header_t::read"));
 					break;
 
+				case chunk_t::bank_offsets:
+					RES_TRY(init_chunk(bank_offsets).RES_ADD_TRACE("header_t::read"));
+					break;
+
 				case chunk_t::frame_bank:
 					RES_TRY(init_chunk(frame_bank).RES_ADD_TRACE("header_t::read"));
 					break;
@@ -259,6 +263,10 @@ namespace SourceExplorer
 
 				case chunk_t::font_bank:
 					RES_TRY(init_chunk(font_bank).RES_ADD_TRACE("header_t::read"));
+					break;
+
+				case chunk_t::fusion_3_seed:
+					RES_TRY(init_chunk(fusion_3_seed).RES_ADD_TRACE("header_t::read"));
 					break;
 
 				case chunk_t::last:
@@ -331,6 +339,7 @@ namespace SourceExplorer
 			RES_TRY(global_values.view(srcexp).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(global_value_names.view(srcexp).RES_ADD_TRACE("header_t::view"));
 
+			RES_TRY(bank_offsets.view(srcexp).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(frame_handles.view(srcexp).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(frame_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(object_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
@@ -369,6 +378,8 @@ namespace SourceExplorer
 				                        .c_str())
 				          .RES_ADD_TRACE("header_t::view"));
 			}
+
+			RES_TRY(fusion_3_seed.view(srcexp).RES_ADD_TRACE("header_t::view"));
 
 			RES_TRY(last.view(srcexp).RES_ADD_TRACE("header_t::view"));
 		}

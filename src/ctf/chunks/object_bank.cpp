@@ -638,9 +638,11 @@ namespace SourceExplorer
 							end = lak::unique_ptr<last_t>::make();
 							RES_TRY(
 							  end->read(game, strm).RES_ADD_TRACE("object::item_t::read"));
-							[[fallthrough]];
+							not_finished = false;
+							break;
 
 						default:
+							WARNING("Unknown Chunk: ", (size_t)chunk_id);
 							not_finished = false;
 							break;
 					}

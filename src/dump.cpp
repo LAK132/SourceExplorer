@@ -255,11 +255,12 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 		return;
 	}
 
-	auto LinkImages = [](const fs::path &From, const fs::path &To)
-	  -> lak::error_codes<lak::error_code_error, lak::u8string>
+	auto LinkImages =
+	  [](const fs::path &From,
+	     const fs::path &To) -> lak::error_codes<std::error_code, lak::u8string>
 	{
-		auto errno_map = [](lak::error_code_error err)
-		  -> lak::variant<lak::error_code_error, lak::u8string>
+		auto errno_map =
+		  [](std::error_code err) -> lak::variant<std::error_code, lak::u8string>
 		{ return lak::var_t<0>(err); };
 
 		return lak::path_exists(From)
@@ -267,7 +268,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 		  .map_err(errno_map)
 		  .map_expect_value(
 		    true,
-		    [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string>
+		    [&](auto &&) -> lak::variant<std::error_code, lak::u8string>
 		    { return lak::var_t<1>(lak::streamify(From, " does not exist")); })
 		  .and_then(
 		    [&](auto &&)
@@ -278,7 +279,7 @@ void se::DumpSortedImages(se::source_explorer_t &srcexp,
 		    })
 		  .map_expect_value(
 		    false,
-		    [&](auto &&) -> lak::variant<lak::error_code_error, lak::u8string>
+		    [&](auto &&) -> lak::variant<std::error_code, lak::u8string>
 		    { return lak::var_t<1>(lak::streamify(From, " already exist")); })
 		  .and_then(
 		    [&](auto &&)
@@ -969,7 +970,9 @@ void se::AttemptExe(source_explorer_t &srcexp)
 			  return lak::file_open_error::VALID;
 		  }
 	  },
-	  false);
+	  false,
+	  "CTF{.exe,.ccn,.dat,.gam,.ugh},"
+	  ".*");
 }
 
 void se::AttemptImages(source_explorer_t &srcexp)

@@ -1,6 +1,7 @@
 srcexp_ctf_chunks = files([
 	'additional_extensions.cpp',
 	'application_doc.cpp',
+	'bank_offsets.cpp',
 	'basic.cpp',
 	'binary_files.cpp',
 	'chunk_224F.cpp',
@@ -17,6 +18,7 @@ srcexp_ctf_chunks = files([
 	'extensions.cpp',
 	'font_bank.cpp',
 	'frame_bank.cpp',
+	'fusion_3_seed.cpp',
 	'global_events.cpp',
 	'global_string_names.cpp',
 	'global_strings.cpp',

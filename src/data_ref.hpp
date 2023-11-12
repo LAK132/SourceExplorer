@@ -53,7 +53,6 @@ namespace SourceExplorer
 
 	static data_ref_ptr_t make_data_ref_ptr(lak::array<byte_t> data)
 	{
-		// FUNCTION_CHECKPOINT();
 		return lak::shared_ptr<_data_ref>::make(lak::move(data));
 	}
 
@@ -62,14 +61,13 @@ namespace SourceExplorer
 	                                        size_t count,
 	                                        lak::array<byte_t> data)
 	{
-		// FUNCTION_CHECKPOINT();
 		return lak::shared_ptr<_data_ref>::make(
 		  parent, offset, count, lak::move(data));
 	}
 
 	struct data_ref_span_t : lak::span<byte_t>
 	{
-		data_ref_ptr_t _source;
+		data_ref_ptr_t _source = {};
 
 		data_ref_span_t()                                   = default;
 		data_ref_span_t(const data_ref_span_t &)            = default;
@@ -100,7 +98,6 @@ namespace SourceExplorer
 
 		data_ref_span_t parent_span() const
 		{
-			// MEMBER_FUNCTION_CHECKPOINT();
 			if (!_source || !_source->_parent) return {};
 			return data_ref_span_t(_source->_parent,
 			                       _source->_parent_span.begin() -
@@ -110,14 +107,12 @@ namespace SourceExplorer
 
 		lak::result<size_t> position() const
 		{
-			// MEMBER_FUNCTION_CHECKPOINT();
 			if (!_source) return lak::err_t{};
 			return lak::ok_t{size_t(data() - _source->data())};
 		}
 
 		lak::result<size_t> root_position() const
 		{
-			// MEMBER_FUNCTION_CHECKPOINT();
 			if (!_source) return lak::err_t{};
 			if (!_source->_parent)
 				return lak::ok_t{size_t(data() - _source->data())};
@@ -126,7 +121,6 @@ namespace SourceExplorer
 
 		void reset()
 		{
-			// MEMBER_FUNCTION_CHECKPOINT();
 			static_cast<lak::span<byte_t> &>(*this) = {};
 			_source.reset();
 		}
@@ -135,7 +129,6 @@ namespace SourceExplorer
 	static data_ref_ptr_t make_data_ref_ptr(data_ref_span_t parent,
 	                                        lak::array<byte_t> data)
 	{
-		// FUNCTION_CHECKPOINT();
 		if (!parent._source)
 			return SourceExplorer::make_data_ref_ptr(lak::move(data));
 		else
@@ -147,7 +140,6 @@ namespace SourceExplorer
 
 	static data_ref_ptr_t copy_data_ref_ptr(data_ref_span_t parent)
 	{
-		// FUNCTION_CHECKPOINT();
 		if (!parent._source)
 			return {};
 		else

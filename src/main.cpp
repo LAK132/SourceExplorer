@@ -259,7 +259,7 @@ void basic_window_init(lak::window &window)
 			break;
 	}
 
-	lak::ConfigureFileDialog(window.graphics());
+	lak::init_file_modal(window.graphics());
 
 #ifdef LAK_USE_SDL
 	if (SDL_Init(SDL_INIT_AUDIO)) ERROR("Failed to initialise SDL audio");
@@ -313,7 +313,7 @@ void basic_window_loop(lak::window &window, uint64_t counter_delta)
 	}
 
 	ImGui::ImplRender(imgui_context);
-	lak::FlushFileDialogTextures();
+	lak::flush_file_modal();
 }
 
 int basic_window_quit(lak::window &)

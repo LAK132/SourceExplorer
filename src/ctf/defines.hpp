@@ -30,17 +30,6 @@ static const uint32_t WIN_PE_SIG = 0x00'00'45'50;
 namespace SourceExplorer
 {
 	//
-	// Game Headers
-	//
-	static const uint64_t HEADER_PACK = 0x12'47'87'49'77'77'77'77;
-	// PAMU
-	static const uint32_t HEADER_UNIC = 0x55'4D'41'50;
-	// PAME
-	static const uint32_t HEADER_GAME = 0x45'4D'41'50;
-	// CRUF
-	static const uint32_t HEADER_CRUF = 0x46'55'52'43;
-
-	//
 	// Product code
 	//
 
@@ -318,10 +307,14 @@ namespace SourceExplorer
 		music_handles = 0x5558,
 
 		// Bank Chunks (0x66XX)
-		image_bank = 0x6666,
-		font_bank  = 0x6667,
-		sound_bank = 0x6668,
-		music_bank = 0x6669,
+		bank_offsets = 0x6665,
+		image_bank   = 0x6666,
+		font_bank    = 0x6667,
+		sound_bank   = 0x6668,
+		music_bank   = 0x6669,
+
+		//
+		fusion_3_seed = 0x7EEE,
 
 		// Last Chunk
 		last = 0x7F7F

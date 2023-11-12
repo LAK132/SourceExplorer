@@ -207,7 +207,7 @@ struct main_window : public base_window<main_window>
 			ImGui::Text("Unicode Game: %s", SrcExp.state.unicode ? "Yes" : "No");
 			ImGui::Text("Compat Game: %s", SrcExp.state.compat ? "Yes" : "No");
 			ImGui::Text("CCN Game: %s", SrcExp.state.ccn ? "Yes" : "No");
-			ImGui::Text("CRUF Game: %s", SrcExp.state.cruf ? "Yes" : "No");
+			ImGui::Text("3.0 (CRUF) Game: %s", SrcExp.state.cruf ? "Yes" : "No");
 			ImGui::Text("2.5+ Game: %s",
 			            SrcExp.state.two_five_plus_game ? "Yes" : "No");
 			ImGui::Text("Product Version: %zu",

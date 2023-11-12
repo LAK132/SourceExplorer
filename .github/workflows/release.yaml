@@ -65,6 +65,8 @@ jobs:
       - if: startsWith(matrix.os, 'macos')
         run: |
           brew install meson ninja
+          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
 
       - run: meson setup build --buildtype debugoptimized
       - run: meson compile -C build srcexp

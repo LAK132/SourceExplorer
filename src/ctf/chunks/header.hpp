@@ -3,6 +3,7 @@
 
 #include "additional_extensions.hpp"
 #include "application_doc.hpp"
+#include "bank_offsets.hpp"
 #include "basic.hpp"
 #include "binary_files.hpp"
 #include "chunk_224F.hpp"
@@ -19,6 +20,7 @@
 #include "extensions.hpp"
 #include "font_bank.hpp"
 #include "frame_bank.hpp"
+#include "fusion_3_seed.hpp"
 #include "global_events.hpp"
 #include "global_string_names.hpp"
 #include "global_strings.hpp"
@@ -90,6 +92,7 @@ namespace SourceExplorer
 		chunk_ptr<global_values_t> global_values;
 		chunk_ptr<global_value_names_t> global_value_names;
 
+		chunk_ptr<bank_offsets_t> bank_offsets;
 		chunk_ptr<frame::handles_t> frame_handles;
 		chunk_ptr<frame::bank_t> frame_bank;
 		chunk_ptr<object::bank_t> object_bank;
@@ -113,6 +116,8 @@ namespace SourceExplorer
 		lak::array<basic_chunk_t> unknown_chunks;
 		lak::array<strings_chunk_t> unknown_strings;
 		lak::array<compressed_chunk_t> unknown_compressed;
+
+		chunk_ptr<fusion_3_seed_t> fusion_3_seed;
 
 		chunk_ptr<last_t> last;
 
