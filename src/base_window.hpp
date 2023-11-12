@@ -190,10 +190,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			return result;
 		};
 
-		return mode_check(se_main_mode_t::normal, "Normal Mode") |
-		       mode_check(se_main_mode_t::byte_pairs, "Byte Pairs") |
-		       mode_check(se_main_mode_t::binary_analysis, "Binary Analysis") |
-		       mode_check(se_main_mode_t::testing, "Testing");
+		return bool(
+		  int(mode_check(se_main_mode_t::normal, "Normal Mode")) |
+		  mode_check(se_main_mode_t::byte_pairs, "Byte Pairs") |
+		  mode_check(se_main_mode_t::binary_analysis, "Binary Analysis") |
+		  mode_check(se_main_mode_t::testing, "Testing"));
 	}
 #ifdef LAK_COMPILER_MSVC
 #	pragma warning(pop)
