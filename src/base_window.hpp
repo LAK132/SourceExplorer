@@ -9,6 +9,7 @@
 #include <lak/string_literals.hpp>
 
 #include <binex/basic_window.hpp>
+#include <binex/widgets.hpp>
 
 #include "main.h"
 
@@ -17,12 +18,8 @@
 template<typename DERIVED>
 struct base_window : bex::basic_window<DERIVED>
 {
-	struct memory_view
+	struct memory_view : public bex::memory_region_selector
 	{
-		uint64_t view_begin = 0;
-		uint64_t view_size  = lak::dynamic_extent;
-		bool fixed_size     = true;
-
 		bool draw(se::data_ref_span_t &view_data, bool force_update)
 		{
 			return draw(view_data.source_span(), view_data, force_update);
@@ -37,97 +34,7 @@ struct base_window : bex::basic_window<DERIVED>
 			            force_update);
 		}
 
-		bool draw(lak::span<byte_t> parent_data,
-		          lak::span<byte_t> &view_data,
-		          bool force_update)
-		{
-			ImGui::PushID((const void *)this);
-			DEFER(ImGui::PopID());
-
-			uint64_t view_end = view_begin + view_size;
-
-			const uint64_t range_min = 0;
-			uint64_t range_max       = parent_data.size();
-
-			bool updated = force_update;
-
-			ImGui::Checkbox("Fixed Size", &fixed_size);
-			ImGui::SameLine();
-			if (ImGui::Button("Reset View"))
-			{
-				view_begin = 0;
-				view_end   = range_max;
-				view_size  = range_max;
-				updated    = true;
-			}
-
-			uint64_t old_size = view_end - view_begin;
-			if (ImGui::DragScalar("View Begin",
-			                      ImGuiDataType_U64,
-			                      &view_begin,
-			                      1.0f,
-			                      &range_min,
-			                      &range_max))
-			{
-				view_begin = std::min(view_begin, range_max);
-				if (fixed_size)
-					view_end = std::min(view_begin + old_size, range_max);
-				else
-					view_end = std::min(std::max(view_begin, view_end), range_max);
-				view_size = view_end - view_begin;
-
-				updated = true;
-			}
-
-			if (fixed_size)
-			{
-				if (uint64_t max_size = range_max - view_begin;
-				    ImGui::DragScalar("View Size",
-				                      ImGuiDataType_U64,
-				                      &view_size,
-				                      1.0f,
-				                      &range_min,
-				                      &max_size))
-				{
-					view_end = view_begin + view_size;
-
-					updated = true;
-				}
-			}
-			else
-			{
-				if (ImGui::DragScalar("View End",
-				                      ImGuiDataType_U64,
-				                      &view_end,
-				                      1.0f,
-				                      &range_min,
-				                      &range_max))
-				{
-					view_end = std::min(view_end, range_max);
-					if (fixed_size)
-						view_begin =
-						  std::min(view_end - std::min(old_size, view_end), range_max);
-					else
-						view_begin = std::min(view_begin, range_max);
-					view_size = view_end - view_begin;
-
-					updated = true;
-				}
-			}
-
-			updated |= view_data.empty() != parent_data.empty();
-
-			if (updated)
-			{
-				view_begin = std::min(view_begin, range_max);
-				view_end   = std::min(std::max(view_begin, view_end), range_max);
-				view_size  = view_end - view_begin;
-				view_data  = parent_data.subspan(static_cast<size_t>(view_begin),
-                                        static_cast<size_t>(view_size));
-			}
-
-			return updated;
-		}
+		using bex::memory_region_selector::draw;
 	};
 
 	static void credits()
