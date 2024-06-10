@@ -396,9 +396,19 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				pixel_layout       = se::pixel_layout_t::bayer_rggb;
 				update             = true;
 			}
+			ImGui::SameLine();
+			if (ImGui::Button("RGGB16"))
+			{
+				rgbx_bit_count[0U] = 16U;
+				rgbx_bit_count[1U] = 16U;
+				rgbx_bit_count[2U] = 16U;
+				rgbx_bit_count[3U] = 0U;
+				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				update             = true;
+			}
 
 			update |=
-			  ImGui::DragInt4("RGBX Bit Count", rgbx_bit_count.data(), 0.05f, 0, 14);
+			  ImGui::DragInt4("RGBX Bit Count", rgbx_bit_count.data(), 0.05f, 0, 16);
 
 			int layout = static_cast<int>(pixel_layout);
 			// update |= ImGui::SliderInt("Layout",
