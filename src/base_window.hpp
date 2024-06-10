@@ -883,6 +883,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		static memory_explorer_content_mode content_mode = VIEW_DATA_BINARY;
 		static bool raw                                  = true;
 		update |= last != SrcExp.view;
+		DEFER(last = SrcExp.view);
+		DEFER(update = false);
 
 		update |= ImGui::RadioButton("EXE", &data_mode, 0);
 		ImGui::SameLine();
@@ -977,9 +979,6 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			SrcExp.editor.DrawContents(&(se::_magic_key[0]), se::_magic_key.size());
 			if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
 		}
-
-		last   = SrcExp.view;
-		update = false;
 	}
 
 	static void image_explorer(bool &update)
