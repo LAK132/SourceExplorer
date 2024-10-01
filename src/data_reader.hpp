@@ -7,7 +7,7 @@
 #include <lak/debug.hpp>
 #include <lak/result.hpp>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	struct data_reader_t : public lak::binary_reader
 	{

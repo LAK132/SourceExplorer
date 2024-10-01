@@ -3,7 +3,7 @@
 
 #include "basic.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	struct exe_t : public basic_chunk_t
 	{

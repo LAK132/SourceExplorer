@@ -3,7 +3,7 @@
 
 #include "basic.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	namespace music
 	{

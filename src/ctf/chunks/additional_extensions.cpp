@@ -2,7 +2,7 @@
 
 #include "../explorer.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	error_t additional_extensions_t::view(source_explorer_t &srcexp) const
 	{

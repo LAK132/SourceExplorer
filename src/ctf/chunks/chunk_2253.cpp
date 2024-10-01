@@ -2,7 +2,7 @@
 
 #include "../explorer.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	error_t chunk_2253_item_t::read(game_t &, data_reader_t &strm)
 	{

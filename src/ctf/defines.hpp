@@ -27,7 +27,7 @@ static const uint8_t WIN_EXE_PNT = 0x3C;
 // PE Signature
 static const uint32_t WIN_PE_SIG = 0x00'00'45'50;
 
-namespace SourceExplorer
+namespace srcexp
 {
 	//
 	// Product code

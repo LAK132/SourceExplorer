@@ -3,7 +3,7 @@
 
 #include "basic.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	struct other_extension_t : public basic_chunk_t
 	{

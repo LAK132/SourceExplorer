@@ -2,7 +2,7 @@
 
 #include "../explorer.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	error_t truetype_fonts_meta_t::view(source_explorer_t &srcexp) const
 	{

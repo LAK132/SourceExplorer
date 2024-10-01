@@ -14,14 +14,14 @@ struct byte_pairs_window : public base_window<byte_pairs_window>
 
 		if (SrcExp.exe.attempt)
 		{
-			se::AttemptFile(
+			srcexp::AttemptFile(
 			  SrcExp.exe,
 			  [](const fs::path &exe_path) -> lak::file_open_error
 			  {
 				  lak::debugger.clear();
-				  SrcExp.state      = se::game_t{};
-				  SrcExp.state.file = se::make_data_ref_ptr(
-				    se::data_ref_ptr_t{},
+				  SrcExp.state      = srcexp::game_t{};
+				  SrcExp.state.file = srcexp::make_data_ref_ptr(
+				    srcexp::data_ref_ptr_t{},
 				    lak::read_file(exe_path).EXPECT("failed to load file"));
 				  ASSERT(!!SrcExp.state.file);
 				  DEBUG("File size: ", SrcExp.state.file->size());

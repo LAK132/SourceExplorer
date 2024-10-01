@@ -22,7 +22,7 @@
 
 namespace fs = std::filesystem;
 
-namespace SourceExplorer
+namespace srcexp
 {
 	enum struct error_type : uint32_t
 	{
@@ -129,10 +129,10 @@ namespace SourceExplorer
 			      " Bytes Remaining, Expected ",                                    \
 			      expected);                                                        \
 			return lak::err_t{                                                      \
-			  SourceExplorer::error(SourceExplorer::error_type::out_of_data,        \
-			                        lak::streamify(STRM.remaining().size(),         \
-			                                       " Bytes Remaining, Expected ",   \
-			                                       expected))};                     \
+			  srcexp::error(srcexp::error_type::out_of_data,                        \
+			                lak::streamify(STRM.remaining().size(),                 \
+			                               " Bytes Remaining, Expected ",           \
+			                               expected))};                             \
 		}                                                                         \
 	} while (false)
 
@@ -146,10 +146,10 @@ namespace SourceExplorer
 			      " Bytes Availible, Expected ",                                    \
 			      expected);                                                        \
 			return lak::err_t{                                                      \
-			  SourceExplorer::error(SourceExplorer::error_type::out_of_data,        \
-			                        lak::streamify(STRM.remaining().size(),         \
-			                                       " Bytes Availible, Expected ",   \
-			                                       expected))};                     \
+			  srcexp::error(srcexp::error_type::out_of_data,                        \
+			                lak::streamify(STRM.remaining().size(),                 \
+			                               " Bytes Availible, Expected ",           \
+			                               expected))};                             \
 		}                                                                         \
 	} while (false)
 

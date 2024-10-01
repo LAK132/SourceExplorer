@@ -3,7 +3,7 @@
 
 #include "../common.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	struct basic_entry_t
 	{

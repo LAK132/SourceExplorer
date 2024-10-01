@@ -5,7 +5,7 @@
 #include <lak/memory.hpp>
 #include <lak/span.hpp>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	struct _data_ref
 	{
@@ -130,7 +130,7 @@ namespace SourceExplorer
 	                                        lak::array<byte_t> data)
 	{
 		if (!parent._source)
-			return SourceExplorer::make_data_ref_ptr(lak::move(data));
+			return srcexp::make_data_ref_ptr(lak::move(data));
 		else
 			return lak::shared_ptr<_data_ref>::make(parent._source,
 			                                        parent.position().unwrap(),
@@ -143,7 +143,7 @@ namespace SourceExplorer
 		if (!parent._source)
 			return {};
 		else
-			return SourceExplorer::make_data_ref_ptr(
+			return srcexp::make_data_ref_ptr(
 			  parent, lak::array<byte_t>(parent.begin(), parent.end()));
 	}
 }

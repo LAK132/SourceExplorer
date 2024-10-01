@@ -46,7 +46,7 @@
 #	define MAXDIRLEN 512
 #endif
 
-se::source_explorer_t SrcExp;
+srcexp::source_explorer_t SrcExp;
 int opengl_major, opengl_minor;
 se_main_mode_t se_main_mode = se_main_mode_t::normal;
 
@@ -172,11 +172,11 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		}
 		else if (argv[arg] == lak::astring("--skip-broken"))
 		{
-			se::skip_broken_items = true;
+			srcexp::skip_broken_items = true;
 		}
 		else if (argv[arg] == lak::astring("--open-broken"))
 		{
-			se::open_broken_games = true;
+			srcexp::open_broken_games = true;
 		}
 		else if (argv[arg] == lak::astring("--threaded"))
 		{

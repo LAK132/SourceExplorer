@@ -60,7 +60,7 @@
 #include <stdint.h>
 #include <unordered_map>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	extern size_t max_item_read_fails;
 

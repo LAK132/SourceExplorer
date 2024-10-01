@@ -14,7 +14,7 @@ void lak::swap<lak::array<lak::u16string>>(
 
 #include <unordered_map>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	namespace object
 	{

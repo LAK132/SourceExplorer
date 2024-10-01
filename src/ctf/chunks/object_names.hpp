@@ -5,7 +5,7 @@
 
 #include "strings.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	struct object_names_t : public strings_chunk_t
 	{

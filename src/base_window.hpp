@@ -20,13 +20,13 @@ struct base_window : bex::basic_window<DERIVED>
 {
 	struct memory_view : public bex::memory_region_selector
 	{
-		bool draw(se::data_ref_span_t &view_data, bool force_update)
+		bool draw(srcexp::data_ref_span_t &view_data, bool force_update)
 		{
 			return draw(view_data.source_span(), view_data, force_update);
 		}
 
-		bool draw(const se::data_ref_span_t &parent_data,
-		          se::data_ref_span_t &view_data,
+		bool draw(const srcexp::data_ref_span_t &parent_data,
+		          srcexp::data_ref_span_t &view_data,
 		          bool force_update)
 		{
 			return draw(static_cast<lak::span<byte_t>>(parent_data),
@@ -137,7 +137,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		debug_menu();
 	}
 
-	static void view_image(const se::texture_t &texture, const float scale)
+	static void view_image(const srcexp::texture_t &texture, const float scale)
 	{
 		ImGui::BeginChild("Image View",
 		                  ImVec2(0, 0),
@@ -189,8 +189,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	                                       lak::vec2u64_t &image_size,
 	                                       lak::vec3u64_t &block_skip,
 	                                       lak::span<int, 4> rgbx_bit_count,
-	                                       se::pixel_layout_t &pixel_layout,
-	                                       se::texture_t &texture,
+	                                       srcexp::pixel_layout_t &pixel_layout,
+	                                       srcexp::texture_t &texture,
 	                                       float &scale,
 	                                       bool &update)
 	{
@@ -220,7 +220,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 0U;
 				rgbx_bit_count[2U] = 0U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::mono;
+				pixel_layout       = srcexp::pixel_layout_t::mono;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -230,7 +230,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 5U;
 				rgbx_bit_count[2U] = 5U;
 				rgbx_bit_count[3U] = 1U;
-				pixel_layout       = se::pixel_layout_t::rgbx;
+				pixel_layout       = srcexp::pixel_layout_t::rgbx;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -240,7 +240,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 6U;
 				rgbx_bit_count[2U] = 5U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::rgb;
+				pixel_layout       = srcexp::pixel_layout_t::rgb;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -250,7 +250,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 8U;
 				rgbx_bit_count[2U] = 8U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::rgb;
+				pixel_layout       = srcexp::pixel_layout_t::rgb;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -260,7 +260,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 8U;
 				rgbx_bit_count[2U] = 8U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::bgr;
+				pixel_layout       = srcexp::pixel_layout_t::bgr;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -270,7 +270,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 8U;
 				rgbx_bit_count[2U] = 8U;
 				rgbx_bit_count[3U] = 8U;
-				pixel_layout       = se::pixel_layout_t::rgbx;
+				pixel_layout       = srcexp::pixel_layout_t::rgbx;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -280,7 +280,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 10U;
 				rgbx_bit_count[2U] = 10U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -290,7 +290,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 12U;
 				rgbx_bit_count[2U] = 12U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -300,7 +300,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 14U;
 				rgbx_bit_count[2U] = 14U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
 				update             = true;
 			}
 			ImGui::SameLine();
@@ -310,7 +310,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				rgbx_bit_count[1U] = 16U;
 				rgbx_bit_count[2U] = 16U;
 				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = se::pixel_layout_t::bayer_rggb;
+				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
 				update             = true;
 			}
 
@@ -320,8 +320,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			int layout = static_cast<int>(pixel_layout);
 			// update |= ImGui::SliderInt("Layout",
 			//                            &layout,
-			//                            (int)se::pixel_layout_t::mono,
-			//                            (int)se::pixel_layout_t::bayer_rggb);
+			//                            (int)srcexp::pixel_layout_t::mono,
+			//                            (int)srcexp::pixel_layout_t::bayer_rggb);
 			update |= ImGui::Combo("Channel Layout",
 			                       &layout,
 			                       "Monochrome\0"
@@ -338,7 +338,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			                       "Bayer GRBG\0"
 			                       "Bayer GBRG\0"
 			                       "\0");
-			pixel_layout = static_cast<se::pixel_layout_t>(layout);
+			pixel_layout = static_cast<srcexp::pixel_layout_t>(layout);
 
 			ImGui::Separator();
 
@@ -385,7 +385,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 			switch (pixel_layout)
 			{
-				case se::pixel_layout_t::mono:
+				case srcexp::pixel_layout_t::mono:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						auto mono{read_r()};
@@ -397,7 +397,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::r:
+				case srcexp::pixel_layout_t::r:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						image[i].r = read_r();
@@ -406,7 +406,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::rg:
+				case srcexp::pixel_layout_t::rg:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						image[i].r = read_r();
@@ -416,7 +416,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::rgb:
+				case srcexp::pixel_layout_t::rgb:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						image[i].r = read_r();
@@ -427,7 +427,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::bgr:
+				case srcexp::pixel_layout_t::bgr:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						image[i].b = read_b();
@@ -438,7 +438,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::rgbx:
+				case srcexp::pixel_layout_t::rgbx:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						image[i].r = read_r();
@@ -450,7 +450,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::bgrx:
+				case srcexp::pixel_layout_t::bgrx:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						image[i].b = read_b();
@@ -462,7 +462,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::xrgb:
+				case srcexp::pixel_layout_t::xrgb:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						read_x();
@@ -474,7 +474,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::xbgr:
+				case srcexp::pixel_layout_t::xbgr:
 					for (size_t i = 0; i < image.contig_size(); ++i)
 					{
 						read_x();
@@ -486,7 +486,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::bayer_rggb:
+				case srcexp::pixel_layout_t::bayer_rggb:
 					for (size_t y = 0, i = 0; y < image.size().y; ++y)
 					{
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
@@ -507,7 +507,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::bayer_bggr:
+				case srcexp::pixel_layout_t::bayer_bggr:
 					for (size_t y = 0, i = 0; y < image.size().y; ++y)
 					{
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
@@ -528,7 +528,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::bayer_grbg:
+				case srcexp::pixel_layout_t::bayer_grbg:
 					for (size_t y = 0, i = 0; y < image.size().y; ++y)
 					{
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
@@ -549,7 +549,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					}
 					break;
 
-				case se::pixel_layout_t::bayer_gbrg:
+				case srcexp::pixel_layout_t::bayer_gbrg:
 					for (size_t y = 0, i = 0; y < image.size().y; ++y)
 					{
 						for (size_t x = 0; x < image.size().x; ++x, ++i)
@@ -575,7 +575,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					break;
 			}
 
-			texture = se::CreateTexture(image, SrcExp.graphics_mode);
+			texture = srcexp::CreateTexture(image, SrcExp.graphics_mode);
 		}
 
 		if (!texture.template holds<lak::monostate>())
@@ -591,12 +591,12 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	{
 		static lak::vec2u64_t image_size = {256, 256};
 		static lak::vec3u64_t block_skip = {0, 1, 0};
-		static se::texture_t texture;
-		static float scale                       = 1.0f;
-		static lak::array<int, 4> rgbx_bit_count = {8, 8, 8, 0};
-		static se::pixel_layout_t pixel_layout   = se::pixel_layout_t::rgb;
-		static lak::span<byte_t> old_data        = data;
-		static lak::span<byte_t> image_data      = data;
+		static srcexp::texture_t texture;
+		static float scale                         = 1.0f;
+		static lak::array<int, 4> rgbx_bit_count   = {8, 8, 8, 0};
+		static srcexp::pixel_layout_t pixel_layout = srcexp::pixel_layout_t::rgb;
+		static lak::span<byte_t> old_data          = data;
+		static lak::span<byte_t> image_data        = data;
 
 		if (data.empty() && old_data.empty()) return;
 
@@ -649,7 +649,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	}
 
 	static void byte_pairs_memory_explorer_impl(lak::span<byte_t> data,
-	                                            se::texture_t &texture,
+	                                            srcexp::texture_t &texture,
 	                                            float &scale,
 	                                            bool &update)
 	{
@@ -670,7 +670,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			     prev         = uint8_t(*(it++)))
         image[{prev, uint8_t(*it)}] += step;
 
-			texture = se::CreateTexture(image, SrcExp.graphics_mode);
+			texture = srcexp::CreateTexture(image, SrcExp.graphics_mode);
 		}
 
 		if (!texture.template holds<lak::monostate>())
@@ -683,7 +683,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 	static void byte_pairs_memory_explorer(lak::span<byte_t> data, bool update)
 	{
-		static se::texture_t texture;
+		static srcexp::texture_t texture;
 		static float scale                  = 1.0f;
 		static lak::span<byte_t> old_data   = data;
 		static lak::span<byte_t> image_data = data;
@@ -733,16 +733,16 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	static bool crypto()
 	{
 		bool updated   = false;
-		int magic_char = se::_magic_char;
+		int magic_char = srcexp::_magic_char;
 		if (ImGui::InputInt("Magic Char (u8)", &magic_char))
 		{
-			se::_magic_char = static_cast<uint8_t>(magic_char);
-			se::GetEncryptionKey(SrcExp.state);
+			srcexp::_magic_char = static_cast<uint8_t>(magic_char);
+			srcexp::GetEncryptionKey(SrcExp.state);
 			updated = true;
 		}
 		if (ImGui::Button("Generate Crypto Key"))
 		{
-			se::GetEncryptionKey(SrcExp.state);
+			srcexp::GetEncryptionKey(SrcExp.state);
 			updated = true;
 		}
 		return updated;
@@ -795,7 +795,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 	{
 		if (!SrcExp.state.file) return;
 
-		static const se::basic_entry_t *last             = nullptr;
+		static const srcexp::basic_entry_t *last         = nullptr;
 		static int data_mode                             = 0;
 		static memory_explorer_content_mode content_mode = VIEW_DATA_BINARY;
 		static bool raw                                  = true;
@@ -854,16 +854,17 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		else if (data_mode == 1) // Head
 		{
 			if (update && SrcExp.view != nullptr)
-				SrcExp.buffer =
-				  raw ? SrcExp.view->head.data
-				      : SrcExp.view->decode_head()
-				          .or_else(
-				            [&](const auto &err) -> se::result_t<se::data_ref_span_t>
-				            {
-					            ERROR(err);
-					            return lak::ok_t{SrcExp.view->head.data};
-				            })
-				          .UNWRAP();
+				SrcExp.buffer = raw
+				                  ? SrcExp.view->head.data
+				                  : SrcExp.view->decode_head()
+				                      .or_else(
+				                        [&](const auto &err)
+				                          -> srcexp::result_t<srcexp::data_ref_span_t>
+				                        {
+					                        ERROR(err);
+					                        return lak::ok_t{SrcExp.view->head.data};
+				                        })
+				                      .UNWRAP();
 
 			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
 			ImGui::SameLine();
@@ -874,16 +875,17 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		else if (data_mode == 2) // Body
 		{
 			if (update && SrcExp.view != nullptr)
-				SrcExp.buffer =
-				  raw ? SrcExp.view->body.data
-				      : SrcExp.view->decode_body()
-				          .or_else(
-				            [&](const auto &err) -> se::result_t<se::data_ref_span_t>
-				            {
-					            ERROR(err);
-					            return lak::ok_t{SrcExp.view->body.data};
-				            })
-				          .UNWRAP();
+				SrcExp.buffer = raw
+				                  ? SrcExp.view->body.data
+				                  : SrcExp.view->decode_body()
+				                      .or_else(
+				                        [&](const auto &err)
+				                          -> srcexp::result_t<srcexp::data_ref_span_t>
+				                        {
+					                        ERROR(err);
+					                        return lak::ok_t{SrcExp.view->body.data};
+				                        })
+				                      .UNWRAP();
 
 			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
 			ImGui::SameLine();
@@ -893,7 +895,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		}
 		else if (data_mode == 3) // _magic_key
 		{
-			SrcExp.editor.DrawContents(&(se::_magic_key[0]), se::_magic_key.size());
+			SrcExp.editor.DrawContents(&(srcexp::_magic_key[0]),
+			                           srcexp::_magic_key.size());
 			if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
 		}
 	}
@@ -903,7 +906,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		static float scale = 1.0f;
 		ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
 		ImGui::Separator();
-		se::ViewImage(SrcExp, scale);
+		srcexp::ViewImage(SrcExp, scale);
 		update = false;
 	}
 
@@ -917,24 +920,24 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		{
 			lak::u8string name;
 			lak::u16string u16name;
-			se::sound_mode_t type    = (se::sound_mode_t)0;
-			uint32_t checksum        = 0;
-			uint32_t references      = 0;
-			uint32_t decomp_len      = 0;
-			uint32_t reserved        = 0;
-			uint32_t name_len        = 0;
-			uint16_t format          = 0;
-			uint16_t channel_count   = 0;
-			uint32_t sample_rate     = 0;
-			uint32_t byte_rate       = 0;
-			uint16_t block_align     = 0;
-			uint16_t bits_per_sample = 0;
-			uint16_t unknown         = 0;
-			uint32_t chunk_size      = 0;
+			srcexp::sound_mode_t type = (srcexp::sound_mode_t)0;
+			uint32_t checksum         = 0;
+			uint32_t references       = 0;
+			uint32_t decomp_len       = 0;
+			uint32_t reserved         = 0;
+			uint32_t name_len         = 0;
+			uint16_t format           = 0;
+			uint16_t channel_count    = 0;
+			uint32_t sample_rate      = 0;
+			uint32_t byte_rate        = 0;
+			uint16_t block_align      = 0;
+			uint16_t bits_per_sample  = 0;
+			uint16_t unknown          = 0;
+			uint32_t chunk_size       = 0;
 			lak::array<byte_t> data;
 		};
 
-		static const se::basic_entry_t *last = nullptr;
+		static const srcexp::basic_entry_t *last = nullptr;
 		update |= last != SrcExp.view;
 
 		static audio_data_t audio_data;
@@ -942,7 +945,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		{
 			CHECKPOINT();
 
-			se::data_reader_t audio(SrcExp.view->decode_body().UNWRAP());
+			srcexp::data_reader_t audio(SrcExp.view->decode_body().UNWRAP());
 			audio_data = audio_data_t{};
 			if (SrcExp.state.old_game)
 			{
@@ -950,14 +953,14 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				audio_data.checksum   = audio.read_u16().UNWRAP();
 				audio_data.references = audio.read_u32().UNWRAP();
 				audio_data.decomp_len = audio.read_u32().UNWRAP();
-				audio_data.type       = (se::sound_mode_t)audio.read_u32().UNWRAP();
-				audio_data.reserved   = audio.read_u32().UNWRAP();
-				audio_data.name_len   = audio.read_u32().UNWRAP();
+				audio_data.type     = (srcexp::sound_mode_t)audio.read_u32().UNWRAP();
+				audio_data.reserved = audio.read_u32().UNWRAP();
+				audio_data.name_len = audio.read_u32().UNWRAP();
 
 				audio_data.name =
 				  audio.read_exact_c_str<char8_t>(audio_data.name_len).UNWRAP();
 
-				if (audio_data.type == se::sound_mode_t::wave)
+				if (audio_data.type == srcexp::sound_mode_t::wave)
 				{
 					audio_data.format          = audio.read_u16().UNWRAP();
 					audio_data.channel_count   = audio.read_u16().UNWRAP();
@@ -973,14 +976,14 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			else
 			{
 				CHECKPOINT();
-				se::data_reader_t header(SrcExp.view->decode_head().UNWRAP());
+				srcexp::data_reader_t header(SrcExp.view->decode_head().UNWRAP());
 
 				audio_data.checksum   = header.read_u32().UNWRAP();
 				audio_data.references = header.read_u32().UNWRAP();
 				audio_data.decomp_len = header.read_u32().UNWRAP();
-				audio_data.type       = (se::sound_mode_t)header.read_u32().UNWRAP();
-				audio_data.reserved   = header.read_u32().UNWRAP();
-				audio_data.name_len   = header.read_u32().UNWRAP();
+				audio_data.type     = (srcexp::sound_mode_t)header.read_u32().UNWRAP();
+				audio_data.reserved = header.read_u32().UNWRAP();
+				audio_data.name_len = header.read_u32().UNWRAP();
 
 				if (SrcExp.state.unicode)
 				{
@@ -997,11 +1000,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 				if (const auto peek = audio.peek<char>(4).UNWRAP();
 				    lak::string_view(lak::span(peek)) == "OggS"_view)
-					audio_data.type = se::sound_mode_t::oggs;
+					audio_data.type = srcexp::sound_mode_t::oggs;
 				else if (lak::string_view(lak::span(peek)) != "RIFF"_view)
-					audio_data.type = se::sound_mode_t(-1);
+					audio_data.type = srcexp::sound_mode_t(-1);
 
-				if (audio_data.type == se::sound_mode_t::wave)
+				if (audio_data.type == srcexp::sound_mode_t::wave)
 				{
 					audio.skip(4).UNWRAP(); // "RIFF"
 					uint32_t size = audio.read_s32().UNWRAP() + 4;
@@ -1122,13 +1125,13 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		ImGui::SameLine();
 		switch (audio_data.type)
 		{
-			case se::sound_mode_t::wave:
+			case srcexp::sound_mode_t::wave:
 				ImGui::Text("WAV");
 				break;
-			case se::sound_mode_t::midi:
+			case srcexp::sound_mode_t::midi:
 				ImGui::Text("MIDI");
 				break;
-			case se::sound_mode_t::oggs:
+			case srcexp::sound_mode_t::oggs:
 				ImGui::Text("OGG");
 				break;
 			default:

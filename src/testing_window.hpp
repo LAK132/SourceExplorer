@@ -52,7 +52,7 @@ struct test_window : public base_window<test_window>
 
 		if (SrcExp.testing.attempt)
 		{
-			se::AttemptFolder(SrcExp.testing, &refresh_testing_files);
+			srcexp::AttemptFolder(SrcExp.testing, &refresh_testing_files);
 
 			if (SrcExp.testing.bad())
 			{
@@ -220,7 +220,7 @@ struct test_window : public base_window<test_window>
 			SrcExp.loaded              = false;
 			SrcExp.loaded_successfully = false;
 
-			if (auto result{se::OpenGame(SrcExp)}; result.is_err())
+			if (auto result{srcexp::OpenGame(SrcExp)}; result.is_err())
 			{
 				if (result.unwrap_err() == lak::await_error::running)
 				{
@@ -262,7 +262,7 @@ struct test_window : public base_window<test_window>
 					if (!is_known_bad_game) all_testing_files.clear();
 				}
 
-				SrcExp.loaded              = se::open_broken_games;
+				SrcExp.loaded              = srcexp::open_broken_games;
 				SrcExp.loaded_successfully = false;
 				SrcExp.exe.attempt         = false;
 				SrcExp.exe.valid           = false;
@@ -278,9 +278,9 @@ struct test_window : public base_window<test_window>
 			}
 		}
 
-		if (SrcExp.images.attempt) se::AttemptImages(SrcExp);
-		if (SrcExp.sounds.attempt) se::AttemptSounds(SrcExp);
-		if (SrcExp.music.attempt) se::AttemptMusic(SrcExp);
+		if (SrcExp.images.attempt) srcexp::AttemptImages(SrcExp);
+		if (SrcExp.sounds.attempt) srcexp::AttemptSounds(SrcExp);
+		if (SrcExp.music.attempt) srcexp::AttemptMusic(SrcExp);
 	}
 };
 

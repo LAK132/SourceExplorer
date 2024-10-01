@@ -3,7 +3,7 @@
 
 #include <lak/strconv.hpp>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	template<typename FROM>
 	inline lak::astring to_astring(FROM from)

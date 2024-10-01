@@ -8,7 +8,7 @@
 
 #include <lak/memory.hpp>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	namespace frame
 	{

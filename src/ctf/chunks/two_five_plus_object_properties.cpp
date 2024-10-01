@@ -2,7 +2,7 @@
 
 #include "../explorer.hpp"
 
-namespace SourceExplorer
+namespace srcexp
 {
 	error_t two_five_plus_object_properties_t::read(game_t &game,
 	                                                data_reader_t &strm)

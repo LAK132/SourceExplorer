@@ -54,10 +54,9 @@ SOFTWARE.
 #ifndef SOURCE_EXPLORER_MAIN_H
 #	define SOURCE_EXPLORER_MAIN_H
 
-namespace se = SourceExplorer;
 namespace fs = std::filesystem;
 
-extern se::source_explorer_t SrcExp;
+extern srcexp::source_explorer_t SrcExp;
 extern int opengl_major, opengl_minor;
 
 enum struct se_main_mode_t : unsigned int

@@ -5,7 +5,7 @@
 
 #include <lak/utility.hpp>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	namespace object
 	{
@@ -729,9 +729,9 @@ namespace SourceExplorer
 							{
 								auto h = animation.directions[i].handles[frame];
 								result[h].emplace_back(
-								  u"Animation-"_str + SourceExplorer::to_u16string(animIndex) +
-								  u" Direction-"_str + SourceExplorer::to_u16string(i) +
-								  u" Frame-"_str + SourceExplorer::to_u16string(frame));
+								  u"Animation-"_str + srcexp::to_u16string(animIndex) +
+								  u" Direction-"_str + srcexp::to_u16string(i) +
+								  u" Frame-"_str + srcexp::to_u16string(frame));
 							}
 						}
 					}

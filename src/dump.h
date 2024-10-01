@@ -29,7 +29,7 @@ SOFTWARE.
 #include <atomic>
 #include <tuple>
 
-namespace SourceExplorer
+namespace srcexp
 {
 	[[nodiscard]] error_t SaveImage(const lak::image4_t &image,
 	                                const fs::path &filename);

@@ -37,7 +37,7 @@
 #define TRACE_EXPECTED(EXPECTED, GOT)                                         \
 	lak::streamify("expected '", EXPECTED, "', got '", GOT, "'")
 
-namespace SourceExplorer
+namespace srcexp
 {
 	bool force_compat          = false;
 	bool skip_broken_items     = false;
