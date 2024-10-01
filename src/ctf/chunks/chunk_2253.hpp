@@ -12,7 +12,7 @@ namespace srcexp
 		uint16_t ID;
 
 		error_t read(game_t &game, data_reader_t &strm);
-		error_t view(source_explorer_t &srcexp) const;
+		error_t view(instance_t &inst) const;
 	};
 
 	struct chunk_2253_t : public basic_chunk_t
@@ -20,7 +20,7 @@ namespace srcexp
 		lak::array<chunk_2253_item_t> items;
 
 		error_t read(game_t &game, data_reader_t &strm);
-		error_t view(source_explorer_t &srcexp) const;
+		error_t view(instance_t &inst) const;
 	};
 }
 

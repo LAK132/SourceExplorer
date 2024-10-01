@@ -67,12 +67,12 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t item_t::view(source_explorer_t &srcexp) const
+		error_t item_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE(
 			  "0x%zX %s##%zX", (size_t)entry.ID, "Sound", entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 				ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
 				ImGui::Text("References: 0x%zX", (size_t)references);
 				ImGui::Text("Decompressed Length: 0x%zX", (size_t)decomp_len);
@@ -84,9 +84,9 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t end_t::view(source_explorer_t &srcexp) const
+		error_t end_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Sound Bank End");
+			return basic_view(inst, "Sound Bank End");
 		}
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
@@ -171,23 +171,23 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t bank_t::view(source_explorer_t &srcexp) const
+		error_t bank_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX Sound Bank (%zu Items)##%zX",
 			              (size_t)entry.ID,
 			              items.size(),
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).RES_ADD_TRACE("sound::bank_t::view"));
+					RES_TRY(item.view(inst).RES_ADD_TRACE("sound::bank_t::view"));
 				}
 
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).RES_ADD_TRACE("sound::bank_t::view"));
+					RES_TRY(end->view(inst).RES_ADD_TRACE("sound::bank_t::view"));
 				}
 			}
 

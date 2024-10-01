@@ -65,18 +65,18 @@ srcexp::error_t srcexp::SaveImage(const lak::image4_t &image,
 	return lak::ok_t{};
 }
 
-srcexp::error_t srcexp::SaveImage(source_explorer_t &srcexp,
+srcexp::error_t srcexp::SaveImage(instance_t &inst,
                                   uint16_t handle,
                                   const fs::path &filename,
                                   const frame::item_t *frame)
 {
-	return GetImage(srcexp.state, handle)
+	return GetImage(inst.state, handle)
 	  .RES_ADD_TRACE("failed to get image item")
 	  .and_then(
 	    [&](const auto &item)
 	    {
 		    return item
-		      .image(srcexp.dump_color_transparent,
+		      .image(inst.dump_color_transparent,
 		             (frame && frame->palette) ? frame->palette->colors.data()
 		                                       : nullptr)
 		      .RES_ADD_TRACE("failed to read image data");
@@ -84,11 +84,11 @@ srcexp::error_t srcexp::SaveImage(source_explorer_t &srcexp,
 	  .and_then([&](const auto &image) { return SaveImage(image, filename); });
 }
 
-lak::await_result<srcexp::error_t> srcexp::OpenGame(source_explorer_t &srcexp)
+lak::await_result<srcexp::error_t> srcexp::OpenGame(instance_t &inst)
 {
 	static lak::await<srcexp::error_t> awaiter;
 
-	if (auto result = awaiter(LoadGame, std::ref(srcexp)); result.is_ok())
+	if (auto result = awaiter(LoadGame, std::ref(inst)); result.is_ok())
 	{
 		return lak::ok_t{result.unwrap().RES_ADD_TRACE("OpenGame")};
 	}
@@ -110,9 +110,9 @@ lak::await_result<srcexp::error_t> srcexp::OpenGame(source_explorer_t &srcexp)
 						ImGui::Checkbox("Developer mode?",
 						                &lak::debugger.line_info_enabled);
 					}
-					ImGui::ProgressBar(srcexp.state.completed);
-					ImGui::ProgressBar(srcexp.state.bank_completed);
-					ImGui::ProgressBar(srcexp.state.item_completed);
+					ImGui::ProgressBar(inst.state.completed);
+					ImGui::ProgressBar(inst.state.bank_completed);
+					ImGui::ProgressBar(inst.state.item_completed);
 					ImGui::EndPopup();
 				}
 				else
@@ -136,7 +136,7 @@ lak::await_result<srcexp::error_t> srcexp::OpenGame(source_explorer_t &srcexp)
 	}
 }
 
-lak::file_open_error srcexp::DumpStuff(source_explorer_t &srcexp,
+lak::file_open_error srcexp::DumpStuff(instance_t &inst,
                                        const char *str_id,
                                        dump_function_t *func)
 {
@@ -146,7 +146,7 @@ lak::file_open_error srcexp::DumpStuff(source_explorer_t &srcexp,
 	auto functor = [&, func]() -> srcexp::error_t
 	{
 		completed = 0.0f;
-		func(srcexp, completed);
+		func(inst, completed);
 		return lak::ok_t{};
 	};
 
@@ -194,33 +194,32 @@ lak::file_open_error srcexp::DumpStuff(source_explorer_t &srcexp,
 	}
 }
 
-void srcexp::DumpImages(source_explorer_t &srcexp,
-                        std::atomic<float> &completed)
+void srcexp::DumpImages(instance_t &inst, std::atomic<float> &completed)
 {
-	if (!srcexp.state.game.image_bank)
+	if (!inst.state.game.image_bank)
 	{
 		ERROR("No Image Bank");
 		return;
 	}
 
-	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
-	                                       : lak::tasks(1)};
+	auto tasks{inst.allow_multithreading ? lak::tasks::hardware_max()
+	                                     : lak::tasks(1)};
 
-	auto do_dump = [](source_explorer_t &srcexp,
+	auto do_dump = [](instance_t &inst,
 	                  const srcexp::image::item_t &item) -> srcexp::error_t
 	{
 		RES_TRY_ASSIGN(lak::image4_t image =,
-		               item.image(srcexp.dump_color_transparent)
+		               item.image(inst.dump_color_transparent)
 		                 .RES_ADD_TRACE("Image ", item.entry.handle, " Failed"));
 		fs::path filename =
-		  srcexp.images.path / (std::to_string(item.entry.handle) + ".png");
+		  inst.images.path / (std::to_string(item.entry.handle) + ".png");
 		return SaveImage(image, filename).RES_ADD_TRACE("Save Failed");
 	};
 
-	const size_t count = srcexp.state.game.image_bank->items.size();
+	const size_t count = inst.state.game.image_bank->items.size();
 	std::atomic_size_t completed_index = 0;
 	size_t loop_index                  = 0;
-	for (const auto &item : srcexp.state.game.image_bank->items)
+	for (const auto &item : inst.state.game.image_bank->items)
 	{
 		++loop_index;
 		SCOPED_CHECKPOINT(
@@ -228,28 +227,28 @@ void srcexp::DumpImages(source_explorer_t &srcexp,
 		tasks.push(
 		  [&]
 		  {
-			  do_dump(srcexp, item).IF_ERR("Dump Failed");
+			  do_dump(inst, item).IF_ERR("Dump Failed");
 			  completed = (float)((double)(++completed_index) / (double)count);
 		  });
 	}
 }
 
-void srcexp::DumpSortedImages(srcexp::source_explorer_t &srcexp,
+void srcexp::DumpSortedImages(srcexp::instance_t &inst,
                               std::atomic<float> &completed)
 {
-	if (!srcexp.state.game.image_bank)
+	if (!inst.state.game.image_bank)
 	{
 		ERROR("No Image Bank");
 		return;
 	}
 
-	if (!srcexp.state.game.frame_bank)
+	if (!inst.state.game.frame_bank)
 	{
 		ERROR("No Frame Bank");
 		return;
 	}
 
-	if (!srcexp.state.game.object_bank)
+	if (!inst.state.game.object_bank)
 	{
 		ERROR("No Object Bank");
 		return;
@@ -329,28 +328,28 @@ void srcexp::DumpSortedImages(srcexp::source_explorer_t &srcexp,
 		       (result.empty() ? u"]" : u"] ") + lak::to_u16string(result);
 	};
 
-	fs::path root_path     = srcexp.sorted_images.path;
+	fs::path root_path     = inst.sorted_images.path;
 	fs::path unsorted_path = root_path / "[unsorted]";
 	fs::create_directories(unsorted_path);
 	std::error_code err;
 
 	size_t image_index       = 0;
-	const size_t image_count = srcexp.state.game.image_bank->items.size();
-	for (const auto &image : srcexp.state.game.image_bank->items)
+	const size_t image_count = inst.state.game.image_bank->items.size();
+	for (const auto &image : inst.state.game.image_bank->items)
 	{
 		SCOPED_CHECKPOINT(
 		  "Image ", image_index, "/", image_count, " (", image.entry.handle, ")");
 		lak::u16string image_name =
 		  srcexp::to_u16string(image.entry.handle) + u".png";
 		fs::path image_path = unsorted_path / image_name;
-		(void)SaveImage(image.image(srcexp.dump_color_transparent).UNWRAP(),
+		(void)SaveImage(image.image(inst.dump_color_transparent).UNWRAP(),
 		                image_path);
 		completed = (float)((double)++image_index / image_count);
 	}
 
 	size_t frame_index       = 0;
-	const size_t frame_count = srcexp.state.game.frame_bank->items.size();
-	for (const auto &frame : srcexp.state.game.frame_bank->items)
+	const size_t frame_count = inst.state.game.frame_bank->items.size();
+	for (const auto &frame : inst.state.game.frame_bank->items)
 	{
 		SCOPED_CHECKPOINT("Frame ",
 		                  frame_index,
@@ -377,7 +376,7 @@ void srcexp::DumpSortedImages(srcexp::source_explorer_t &srcexp,
 				if (used_objects.find(object.handle) != used_objects.end()) continue;
 				used_objects.insert(object.handle);
 				if (const auto *obj =
-				      lak::as_ptr(srcexp::GetObject(srcexp.state, object.handle).ok());
+				      lak::as_ptr(srcexp::GetObject(inst.state, object.handle).ok());
 				    obj)
 				{
 					lak::u16string object_name = HandleName(
@@ -398,7 +397,7 @@ void srcexp::DumpSortedImages(srcexp::source_explorer_t &srcexp,
 					{
 						if (imghandle == 0xFFFF) continue;
 						if (const auto *img =
-						      lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
+						      lak::as_ptr(GetImage(inst.state, imghandle).ok());
 						    img)
 						{
 							if (used_images.find(imghandle) == used_images.end())
@@ -412,7 +411,7 @@ void srcexp::DumpSortedImages(srcexp::source_explorer_t &srcexp,
 								// check if 8bit image
 								if (img->need_palette() && frame.palette)
 									(void)SaveImage(img
-									                  ->image(srcexp.dump_color_transparent,
+									                  ->image(inst.dump_color_transparent,
 									                          frame.palette->colors.data())
 									                  .UNWRAP(),
 									                image_path);
@@ -440,7 +439,7 @@ void srcexp::DumpSortedImages(srcexp::source_explorer_t &srcexp,
 								lak::u16string image_name = imgname + u".png";
 								fs::path image_path       = object_path / image_name;
 								if (const auto *i =
-								      lak::as_ptr(GetImage(srcexp.state, imghandle).ok());
+								      lak::as_ptr(GetImage(inst.state, imghandle).ok());
 								    i)
 									if (auto res = LinkImages(unsorted_image_path, image_path);
 									    res.is_err())
@@ -466,17 +465,17 @@ void srcexp::DumpSortedImages(srcexp::source_explorer_t &srcexp,
 	}
 }
 
-void srcexp::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &)
+void srcexp::DumpAppIcon(instance_t &inst, std::atomic<float> &)
 {
-	if (!srcexp.state.game.icon)
+	if (!inst.state.game.icon)
 	{
 		ERROR("No Icon");
 		return;
 	}
 
-	lak::image4_t &bitmap = srcexp.state.game.icon->bitmap;
+	lak::image4_t &bitmap = inst.state.game.icon->bitmap;
 
-	fs::path filename = srcexp.appicon.path / "favicon.ico";
+	fs::path filename = inst.appicon.path / "favicon.ico";
 	std::ofstream file(filename,
 	                   std::ios::binary | std::ios::out | std::ios::ate);
 	if (!file.is_open()) return;
@@ -515,22 +514,21 @@ void srcexp::DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &)
 	file.close();
 }
 
-void srcexp::DumpSounds(source_explorer_t &srcexp,
-                        std::atomic<float> &completed)
+void srcexp::DumpSounds(instance_t &inst, std::atomic<float> &completed)
 {
-	if (!srcexp.state.game.sound_bank)
+	if (!inst.state.game.sound_bank)
 	{
 		ERROR("No Sound Bank");
 		return;
 	}
 
-	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
-	                                       : lak::tasks(1)};
+	auto tasks{inst.allow_multithreading ? lak::tasks::hardware_max()
+	                                     : lak::tasks(1)};
 
-	const size_t count = srcexp.state.game.sound_bank->items.size();
+	const size_t count = inst.state.game.sound_bank->items.size();
 	std::atomic_size_t completed_index = 0;
 	size_t loop_index                  = 0;
-	for (const auto &item : srcexp.state.game.sound_bank->items)
+	for (const auto &item : inst.state.game.sound_bank->items)
 	{
 		++loop_index;
 		SCOPED_CHECKPOINT(
@@ -547,7 +545,7 @@ void srcexp::DumpSounds(source_explorer_t &srcexp,
 			    u8"[" + srcexp::to_u8string(item.entry.handle) + u8"] ";
 			  sound_mode_t type;
 
-			  if (srcexp.state.old_game)
+			  if (inst.state.old_game)
 			  {
 				  [[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
 				  [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
@@ -599,7 +597,7 @@ void srcexp::DumpSounds(source_explorer_t &srcexp,
 				  [[maybe_unused]] uint32_t reserved = header.read_u32().UNWRAP();
 				  uint32_t name_len                  = header.read_u32().UNWRAP();
 
-				  if (srcexp.state.unicode)
+				  if (inst.state.unicode)
 				  {
 					  name += lak::to_u8string(
 					    sound.read_exact_c_str<char16_t>(name_len).UNWRAP());
@@ -650,7 +648,7 @@ void srcexp::DumpSounds(source_explorer_t &srcexp,
 
 			  DEBUG("Sound ", (size_t)item.entry.ID);
 
-			  fs::path filename = srcexp.sounds.path / name;
+			  fs::path filename = inst.sounds.path / name;
 
 			  DEBUG("Saving '", lak::to_u8string(filename), "'");
 
@@ -664,22 +662,21 @@ void srcexp::DumpSounds(source_explorer_t &srcexp,
 	}
 }
 
-void srcexp::DumpMusic(source_explorer_t &srcexp,
-                       std::atomic<float> &completed)
+void srcexp::DumpMusic(instance_t &inst, std::atomic<float> &completed)
 {
-	if (!srcexp.state.game.music_bank)
+	if (!inst.state.game.music_bank)
 	{
 		ERROR("No Music Bank");
 		return;
 	}
 
-	auto tasks{srcexp.allow_multithreading ? lak::tasks::hardware_max()
-	                                       : lak::tasks(1)};
+	auto tasks{inst.allow_multithreading ? lak::tasks::hardware_max()
+	                                     : lak::tasks(1)};
 
-	const size_t count = srcexp.state.game.music_bank->items.size();
+	const size_t count = inst.state.game.music_bank->items.size();
 	std::atomic_size_t completed_index = 0;
 	size_t loop_index                  = 0;
-	for (const auto &item : srcexp.state.game.music_bank->items)
+	for (const auto &item : inst.state.game.music_bank->items)
 	{
 		++loop_index;
 		SCOPED_CHECKPOINT(
@@ -695,7 +692,7 @@ void srcexp::DumpMusic(source_explorer_t &srcexp,
 			    u8"[" + srcexp::to_u8string(item.entry.handle) + u8"] ";
 			  sound_mode_t type;
 
-			  if (srcexp.state.old_game)
+			  if (inst.state.old_game)
 			  {
 				  [[maybe_unused]] uint16_t checksum   = sound.read_u16().UNWRAP();
 				  [[maybe_unused]] uint32_t references = sound.read_u32().UNWRAP();
@@ -715,7 +712,7 @@ void srcexp::DumpMusic(source_explorer_t &srcexp,
 				  [[maybe_unused]] uint32_t reserved = sound.read_u32().UNWRAP();
 				  uint32_t name_len                  = sound.read_u32().UNWRAP();
 
-				  if (srcexp.state.unicode)
+				  if (inst.state.unicode)
 				  {
 					  name += lak::to_u8string(
 					    sound.read_exact_c_str<char16_t>(name_len).UNWRAP());
@@ -741,7 +738,7 @@ void srcexp::DumpMusic(source_explorer_t &srcexp,
 					  break;
 			  }
 
-			  fs::path filename = srcexp.music.path / name;
+			  fs::path filename = inst.music.path / name;
 
 			  if (!lak::save_file(filename, sound.remaining()))
 			  {
@@ -753,16 +750,15 @@ void srcexp::DumpMusic(source_explorer_t &srcexp,
 	}
 }
 
-void srcexp::DumpShaders(source_explorer_t &srcexp,
-                         std::atomic<float> &completed)
+void srcexp::DumpShaders(instance_t &inst, std::atomic<float> &completed)
 {
-	if (!srcexp.state.game.shaders)
+	if (!inst.state.game.shaders)
 	{
 		ERROR("No Shaders");
 		return;
 	}
 
-	data_reader_t strm(srcexp.state.game.shaders->entry.decode_body().UNWRAP());
+	data_reader_t strm(inst.state.game.shaders->entry.decode_body().UNWRAP());
 
 	uint32_t count = strm.read_u32().UNWRAP();
 	lak::array<uint32_t> offsets;
@@ -779,7 +775,7 @@ void srcexp::DumpShaders(source_explorer_t &srcexp,
 		[[maybe_unused]] uint32_t bank_tex     = strm.read_u32().UNWRAP();
 
 		strm.seek(offset + name_offset).UNWRAP();
-		fs::path filename = srcexp.shaders.path / strm.read_c_str<char>().UNWRAP();
+		fs::path filename = inst.shaders.path / strm.read_c_str<char>().UNWRAP();
 
 		strm.seek(offset + data_offset).UNWRAP();
 		lak::astring file = strm.read_c_str<char>().UNWRAP();
@@ -797,26 +793,25 @@ void srcexp::DumpShaders(source_explorer_t &srcexp,
 	}
 }
 
-void srcexp::DumpBinaryFiles(source_explorer_t &srcexp,
-                             std::atomic<float> &completed)
+void srcexp::DumpBinaryFiles(instance_t &inst, std::atomic<float> &completed)
 {
-	if (!srcexp.state.game.binary_files)
+	if (!inst.state.game.binary_files)
 	{
 		ERROR("No Binary Files");
 		return;
 	}
 
 	data_reader_t strm(
-	  srcexp.state.game.binary_files->entry.decode_body().UNWRAP());
+	  inst.state.game.binary_files->entry.decode_body().UNWRAP());
 
-	const size_t count = srcexp.state.game.binary_files->items.size();
+	const size_t count = inst.state.game.binary_files->items.size();
 	size_t index       = 0;
-	for (const auto &file : srcexp.state.game.binary_files->items)
+	for (const auto &file : inst.state.game.binary_files->items)
 	{
 		++index;
 		SCOPED_CHECKPOINT("Binary ", index, "/", count, " (", file.name, ")");
 		fs::path filename = lak::to_u16string(file.name);
-		filename          = srcexp.binary_files.path / filename.filename();
+		filename          = inst.binary_files.path / filename.filename();
 		DEBUG(filename);
 		if (!lak::save_file(filename, file.data))
 		{
@@ -826,33 +821,33 @@ void srcexp::DumpBinaryFiles(source_explorer_t &srcexp,
 	}
 }
 
-void srcexp::SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &)
+void srcexp::SaveErrorLog(instance_t &inst, std::atomic<float> &)
 {
-	if (!lak::save_file(srcexp.error_log.path, lak::debugger.str()))
+	if (!lak::save_file(inst.error_log.path, lak::debugger.str()))
 	{
-		ERROR("Failed To Save File '", srcexp.error_log.path, "'");
+		ERROR("Failed To Save File '", inst.error_log.path, "'");
 	}
 }
 
-void srcexp::SaveBinaryBlock(source_explorer_t &srcexp, std::atomic<float> &)
+void srcexp::SaveBinaryBlock(instance_t &inst, std::atomic<float> &)
 {
-	srcexp.binary_block.path += ".bin";
-	if (!lak::save_file(srcexp.binary_block.path,
-	                    lak::span<const byte_t>(srcexp.buffer)))
+	inst.binary_block.path += ".bin";
+	if (!lak::save_file(inst.binary_block.path,
+	                    lak::span<const byte_t>(inst.buffer)))
 	{
-		ERROR("Failed To Save File '", srcexp.binary_block.path, "'");
+		ERROR("Failed To Save File '", inst.binary_block.path, "'");
 	}
 }
 
-void srcexp::AttemptExe(source_explorer_t &srcexp)
+void srcexp::AttemptExe(instance_t &inst)
 {
 	lak::debugger.clear();
-	srcexp.loaded = false;
+	inst.loaded = false;
 	AttemptFile(
-	  srcexp.exe,
-	  [&srcexp]() -> lak::file_open_error
+	  inst.exe,
+	  [&inst]() -> lak::file_open_error
 	  {
-		  if (auto result = OpenGame(srcexp); result.is_err())
+		  if (auto result = OpenGame(inst); result.is_err())
 		  {
 			  ASSERT(result.unwrap_err() == lak::await_error::running);
 			  return lak::file_open_error::INCOMPLETE;
@@ -863,25 +858,24 @@ void srcexp::AttemptExe(source_explorer_t &srcexp)
 			  // ERROR(result.unwrap()
 			  //         .RES_ADD_TRACE("AttemptExe failed")
 			  //         .unwrap_err());
-			  srcexp.loaded = true;
+			  inst.loaded = true;
 			  return lak::file_open_error::INVALID;
 		  }
 		  else
 		  {
-			  srcexp.loaded = true;
-			  if (srcexp.baby_mode)
+			  inst.loaded = true;
+			  if (inst.baby_mode)
 			  {
 				  // Autotragically dump everything
 
 				  fs::path dump_dir =
-				    srcexp.exe.path.parent_path() / srcexp.exe.path.stem();
+				    inst.exe.path.parent_path() / inst.exe.path.stem();
 
 				  std::error_code er;
-				  if (srcexp.state.game.image_bank)
+				  if (inst.state.game.image_bank)
 				  {
-					  file_state_t &images = srcexp.state.two_five_plus_game
-					                           ? srcexp.images
-					                           : srcexp.sorted_images;
+					  file_state_t &images =
+					    inst.state.two_five_plus_game ? inst.images : inst.sorted_images;
 
 					  images.path = dump_dir / "images";
 					  if (fs::create_directories(images.path, er); er)
@@ -896,78 +890,78 @@ void srcexp::AttemptExe(source_explorer_t &srcexp)
 					  }
 				  }
 
-				  if (srcexp.state.game.icon)
+				  if (inst.state.game.icon)
 				  {
-					  srcexp.appicon.path = dump_dir / "icon";
-					  if (fs::create_directories(srcexp.appicon.path, er); er)
+					  inst.appicon.path = dump_dir / "icon";
+					  if (fs::create_directories(inst.appicon.path, er); er)
 					  {
 						  ERROR("Failed To Dump Icon");
 						  ERROR("File System Error: ", er.message());
 					  }
 					  else
 					  {
-						  srcexp.appicon.attempt = true;
-						  srcexp.appicon.valid   = true;
+						  inst.appicon.attempt = true;
+						  inst.appicon.valid   = true;
 					  }
 				  }
 
-				  if (srcexp.state.game.sound_bank)
+				  if (inst.state.game.sound_bank)
 				  {
-					  srcexp.sounds.path = dump_dir / "sounds";
-					  if (fs::create_directories(srcexp.sounds.path, er); er)
+					  inst.sounds.path = dump_dir / "sounds";
+					  if (fs::create_directories(inst.sounds.path, er); er)
 					  {
 						  ERROR("Failed To Dump Audio");
 						  ERROR("File System Error: ", er.message());
 					  }
 					  else
 					  {
-						  srcexp.sounds.attempt = true;
-						  srcexp.sounds.valid   = true;
+						  inst.sounds.attempt = true;
+						  inst.sounds.valid   = true;
 					  }
 				  }
 
-				  if (srcexp.state.game.music_bank)
+				  if (inst.state.game.music_bank)
 				  {
-					  srcexp.music.path = dump_dir / "music";
-					  if (fs::create_directories(srcexp.sounds.path, er); er)
+					  inst.music.path = dump_dir / "music";
+					  if (fs::create_directories(inst.sounds.path, er); er)
 					  {
 						  ERROR("Failed To Dump Audio");
 						  ERROR("File System Error: ", er.message());
 					  }
 					  else
 					  {
-						  srcexp.music.attempt = true;
-						  srcexp.music.valid   = true;
+						  inst.music.attempt = true;
+						  inst.music.valid   = true;
 					  }
 				  }
 
-				  if (srcexp.state.game.shaders)
+				  if (inst.state.game.shaders)
 				  {
-					  srcexp.shaders.path = dump_dir / "shaders";
-					  if (fs::create_directories(srcexp.shaders.path, er); er)
+					  inst.shaders.path = dump_dir / "shaders";
+					  if (fs::create_directories(inst.shaders.path, er); er)
 					  {
 						  ERROR("Failed To Dump Shaders");
 						  ERROR("File System Error: ", er.message());
 					  }
 					  else
 					  {
-						  srcexp.shaders.attempt = true;
-						  srcexp.shaders.valid   = true;
+						  inst.shaders.attempt = true;
+						  inst.shaders.valid   = true;
 					  }
 				  }
 
-				  if (srcexp.state.game.binary_files)
+				  if (inst.state.game.binary_files)
 				  {
-					  srcexp.binary_files.path = dump_dir / "binary_files";
-					  if (fs::create_directories(srcexp.binary_files.path, er); er)
+					  inst.binary_files.path = dump_dir / "binary_files";
+					  if (fs::create_directories(inst.binary_files.path, er); er)
 					  {
 						  ERROR("Failed To Dump Binary Files");
 						  ERROR("File System Error: ", er.message());
 					  }
 					  else
 					  {
-						  srcexp.binary_files.attempt = true;
-						  srcexp.binary_files.valid   = true;
+						  inst.binary_files.attempt = true;
+						  inst.binary_files.valid   = true;
 					  }
 				  }
 			  }
@@ -979,70 +973,70 @@ void srcexp::AttemptExe(source_explorer_t &srcexp)
 	  ".*");
 }
 
-void srcexp::AttemptImages(source_explorer_t &srcexp)
-{
-	AttemptFolder(srcexp.images,
-	              [&srcexp]
-	              { return DumpStuff(srcexp, "Saving images", &DumpImages); });
-}
-
-void srcexp::AttemptSortedImages(source_explorer_t &srcexp)
-{
-	AttemptFolder(
-	  srcexp.sorted_images,
-	  [&srcexp]
-	  { return DumpStuff(srcexp, "Saving sorted images", &DumpSortedImages); });
-}
-
-void srcexp::AttemptAppIcon(source_explorer_t &srcexp)
-{
-	AttemptFolder(
-	  srcexp.appicon,
-	  [&srcexp] { return DumpStuff(srcexp, "Saving app icon", &DumpAppIcon); });
-}
-
-void srcexp::AttemptSounds(source_explorer_t &srcexp)
-{
-	AttemptFolder(srcexp.sounds,
-	              [&srcexp]
-	              { return DumpStuff(srcexp, "Saving sounds", &DumpSounds); });
-}
-
-void srcexp::AttemptMusic(source_explorer_t &srcexp)
-{
-	AttemptFolder(srcexp.music,
-	              [&srcexp]
-	              { return DumpStuff(srcexp, "Saving music", &DumpMusic); });
-}
-
-void srcexp::AttemptShaders(source_explorer_t &srcexp)
-{
-	AttemptFolder(srcexp.shaders,
-	              [&srcexp]
-	              { return DumpStuff(srcexp, "Saving shaders", &DumpShaders); });
-}
-
-void srcexp::AttemptBinaryFiles(source_explorer_t &srcexp)
-{
-	AttemptFolder(
-	  srcexp.binary_files,
-	  [&srcexp]
-	  { return DumpStuff(srcexp, "Saving binary files", &DumpBinaryFiles); });
-}
-
-void srcexp::AttemptErrorLog(source_explorer_t &srcexp)
+void srcexp::AttemptDatabase(instance_t &inst)
 {
 	AttemptFile(
-	  srcexp.error_log,
-	  [&srcexp] { return DumpStuff(srcexp, "Saving error log", &SaveErrorLog); },
+	  inst.database,
+	  [&inst] { return DumpStuff(inst, "Saving database", &DumpDatabase); },
 	  true);
 }
 
-void srcexp::AttemptBinaryBlock(source_explorer_t &srcexp)
+void srcexp::AttemptImages(instance_t &inst)
+{
+	AttemptFolder(inst.images,
+	              [&inst]
+	              { return DumpStuff(inst, "Saving images", &DumpImages); });
+}
+
+void srcexp::AttemptAppIcon(instance_t &inst)
+{
+	AttemptFolder(inst.appicon,
+	              [&inst]
+	              { return DumpStuff(inst, "Saving app icon", &DumpAppIcon); });
+}
+
+void srcexp::AttemptSounds(instance_t &inst)
+{
+	AttemptFolder(inst.sounds,
+	              [&inst]
+	              { return DumpStuff(inst, "Saving sounds", &DumpSounds); });
+}
+
+void srcexp::AttemptMusic(instance_t &inst)
+{
+	AttemptFolder(inst.music,
+	              [&inst]
+	              { return DumpStuff(inst, "Saving music", &DumpMusic); });
+}
+
+void srcexp::AttemptShaders(instance_t &inst)
+{
+	AttemptFolder(inst.shaders,
+	              [&inst]
+	              { return DumpStuff(inst, "Saving shaders", &DumpShaders); });
+}
+
+void srcexp::AttemptBinaryFiles(instance_t &inst)
+{
+	AttemptFolder(
+	  inst.binary_files,
+	  [&inst]
+	  { return DumpStuff(inst, "Saving binary files", &DumpBinaryFiles); });
+}
+
+void srcexp::AttemptErrorLog(instance_t &inst)
 {
 	AttemptFile(
-	  srcexp.binary_block,
-	  [&srcexp]
-	  { return DumpStuff(srcexp, "Saving binary block", &SaveBinaryBlock); },
+	  inst.error_log,
+	  [&inst] { return DumpStuff(inst, "Saving error log", &SaveErrorLog); },
+	  true);
+}
+
+void srcexp::AttemptBinaryBlock(instance_t &inst)
+{
+	AttemptFile(
+	  inst.binary_block,
+	  [&inst]
+	  { return DumpStuff(inst, "Saving binary block", &SaveBinaryBlock); },
 	  true);
 }

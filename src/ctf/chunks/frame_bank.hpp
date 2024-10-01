@@ -14,12 +14,12 @@ namespace srcexp
 	{
 		struct header_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct password_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct palette_t : public basic_chunk_t
@@ -28,7 +28,7 @@ namespace srcexp
 			lak::array<lak::color4_t, 256> colors;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 
 			lak::image4_t image() const;
 		};
@@ -44,7 +44,7 @@ namespace srcexp
 			uint16_t unknown;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct object_instances_t : public basic_chunk_t
@@ -52,62 +52,62 @@ namespace srcexp
 			lak::array<object_instance_t> objects;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct fade_in_frame_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct fade_out_frame_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct fade_in_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct fade_out_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct events_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct play_header_r : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct additional_item_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct additional_item_instance_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct layers_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct virtual_size_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct demo_file_path_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct random_seed_t : public basic_chunk_t
@@ -115,42 +115,42 @@ namespace srcexp
 			int16_t value;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct layer_effect_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct blueray_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct movement_time_base_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct mosaic_image_table_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct effects_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct iphone_options_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct chunk_334C_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct item_t : public basic_chunk_t
@@ -182,7 +182,7 @@ namespace srcexp
 			lak::unique_ptr<last_t> end;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct handles_t : public basic_chunk_t
@@ -190,7 +190,7 @@ namespace srcexp
 			lak::array<uint16_t> handles;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct bank_t : public basic_chunk_t
@@ -198,7 +198,7 @@ namespace srcexp
 			lak::array<item_t> items;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 	}
 }

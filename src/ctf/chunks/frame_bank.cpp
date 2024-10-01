@@ -6,14 +6,14 @@ namespace srcexp
 {
 	namespace frame
 	{
-		error_t header_t::view(source_explorer_t &srcexp) const
+		error_t header_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Header");
+			return basic_view(inst, "Header");
 		}
 
-		error_t password_t::view(source_explorer_t &srcexp) const
+		error_t password_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Password");
+			return basic_view(inst, "Password");
 		}
 
 		error_t palette_t::read(game_t &game, data_reader_t &strm)
@@ -43,12 +43,12 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t palette_t::view(source_explorer_t &srcexp) const
+		error_t palette_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE(
 			  "0x%zX Frame Palette##%zX", (size_t)entry.ID, entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				uint8_t index = 0;
 				for (const auto &color : colors)
@@ -101,10 +101,10 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t object_instance_t::view(source_explorer_t &srcexp) const
+		error_t object_instance_t::view(instance_t &inst) const
 		{
 			lak::u8string str;
-			auto obj = GetObject(srcexp.state, handle);
+			auto obj = GetObject(inst.state, handle);
 			if (obj.is_ok() && obj.unwrap().name)
 				str += lak::to_u8string(obj.unwrap().name->value);
 
@@ -123,26 +123,26 @@ namespace srcexp
 
 				if (obj.is_ok())
 				{
-					RES_TRY(obj.unwrap().view(srcexp).RES_ADD_TRACE(
+					RES_TRY(obj.unwrap().view(inst).RES_ADD_TRACE(
 					  "frame::object_instance_t::view"));
 				}
 
 				switch (parent_type)
 				{
 					case object_parent_type_t::frame_item:
-						if (auto parent_obj = GetObject(srcexp.state, parent_handle);
+						if (auto parent_obj = GetObject(inst.state, parent_handle);
 						    parent_obj.is_ok())
 						{
-							RES_TRY(parent_obj.unwrap().view(srcexp).RES_ADD_TRACE(
+							RES_TRY(parent_obj.unwrap().view(inst).RES_ADD_TRACE(
 							  "frame::object_instance_t::view"));
 						}
 						break;
 
 					case object_parent_type_t::frame:
-						if (auto parent_obj = GetFrame(srcexp.state, parent_handle);
+						if (auto parent_obj = GetFrame(inst.state, parent_handle);
 						    parent_obj.is_ok())
 						{
-							RES_TRY(parent_obj.unwrap().view(srcexp).RES_ADD_TRACE(
+							RES_TRY(parent_obj.unwrap().view(inst).RES_ADD_TRACE(
 							  "frame::object_instance_t::view"));
 						}
 						break;
@@ -187,16 +187,16 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t object_instances_t::view(source_explorer_t &srcexp) const
+		error_t object_instances_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE(
 			  "0x%zX Object Instances##%zX", (size_t)entry.ID, entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				for (const auto &object : objects)
 				{
-					RES_TRY(object.view(srcexp).RES_ADD_TRACE(
+					RES_TRY(object.view(inst).RES_ADD_TRACE(
 					  "frame::object_instances_t::view"));
 				}
 			}
@@ -204,59 +204,59 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t fade_in_frame_t::view(source_explorer_t &srcexp) const
+		error_t fade_in_frame_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Fade In Frame");
+			return basic_view(inst, "Fade In Frame");
 		}
 
-		error_t fade_out_frame_t::view(source_explorer_t &srcexp) const
+		error_t fade_out_frame_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Fade Out Frame");
+			return basic_view(inst, "Fade Out Frame");
 		}
 
-		error_t fade_in_t::view(source_explorer_t &srcexp) const
+		error_t fade_in_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Fade In");
+			return basic_view(inst, "Fade In");
 		}
 
-		error_t fade_out_t::view(source_explorer_t &srcexp) const
+		error_t fade_out_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Fade Out");
+			return basic_view(inst, "Fade Out");
 		}
 
-		error_t events_t::view(source_explorer_t &srcexp) const
+		error_t events_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Events");
+			return basic_view(inst, "Events");
 		}
 
-		error_t play_header_r::view(source_explorer_t &srcexp) const
+		error_t play_header_r::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Play Head");
+			return basic_view(inst, "Play Head");
 		}
 
-		error_t additional_item_t::view(source_explorer_t &srcexp) const
+		error_t additional_item_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Additional Item");
+			return basic_view(inst, "Additional Item");
 		}
 
-		error_t additional_item_instance_t::view(source_explorer_t &srcexp) const
+		error_t additional_item_instance_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Additional Item Instance");
+			return basic_view(inst, "Additional Item Instance");
 		}
 
-		error_t layers_t::view(source_explorer_t &srcexp) const
+		error_t layers_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Layers");
+			return basic_view(inst, "Layers");
 		}
 
-		error_t virtual_size_t::view(source_explorer_t &srcexp) const
+		error_t virtual_size_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Virtual Size");
+			return basic_view(inst, "Virtual Size");
 		}
 
-		error_t demo_file_path_t::view(source_explorer_t &srcexp) const
+		error_t demo_file_path_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Demo File Path");
+			return basic_view(inst, "Demo File Path");
 		}
 
 		error_t random_seed_t::read(game_t &game, data_reader_t &strm)
@@ -278,51 +278,51 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t random_seed_t::view(source_explorer_t &srcexp) const
+		error_t random_seed_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE(
 			  "0x%zX Random Seed##%zX", (size_t)entry.ID, entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 				ImGui::Text("Value: %i", (int)value);
 			}
 
 			return lak::ok_t{};
 		}
 
-		error_t layer_effect_t::view(source_explorer_t &srcexp) const
+		error_t layer_effect_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Layer Effect");
+			return basic_view(inst, "Layer Effect");
 		}
 
-		error_t blueray_t::view(source_explorer_t &srcexp) const
+		error_t blueray_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Blueray");
+			return basic_view(inst, "Blueray");
 		}
 
-		error_t movement_time_base_t::view(source_explorer_t &srcexp) const
+		error_t movement_time_base_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Movement Time Base");
+			return basic_view(inst, "Movement Time Base");
 		}
 
-		error_t mosaic_image_table_t::view(source_explorer_t &srcexp) const
+		error_t mosaic_image_table_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Mosaic Image Table");
+			return basic_view(inst, "Mosaic Image Table");
 		}
 
-		error_t effects_t::view(source_explorer_t &srcexp) const
+		error_t effects_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Effects");
+			return basic_view(inst, "Effects");
 		}
 
-		error_t iphone_options_t::view(source_explorer_t &srcexp) const
+		error_t iphone_options_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "iPhone Options");
+			return basic_view(inst, "iPhone Options");
 		}
 
-		error_t chunk_334C_t::view(source_explorer_t &srcexp) const
+		error_t chunk_334C_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Chunk 334C");
+			return basic_view(inst, "Chunk 334C");
 		}
 
 		error_t item_t::read(game_t &game, data_reader_t &strm)
@@ -529,124 +529,122 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t item_t::view(source_explorer_t &srcexp) const
+		error_t item_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX '%s'##%zX",
 			              (size_t)entry.ID,
 			              (name ? lak::strconv<char>(name->value).c_str() : ""),
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				if (name)
 				{
-					RES_TRY(name->view(srcexp, "Name", true)
+					RES_TRY(name->view(inst, "Name", true)
 					          .RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (header)
 				{
-					RES_TRY(header->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(header->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (password)
 				{
-					RES_TRY(password->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(password->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (palette)
 				{
-					RES_TRY(palette->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(palette->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (object_instances)
 				{
-					RES_TRY(object_instances->view(srcexp).RES_ADD_TRACE(
-					  "frame::item_t::view"));
+					RES_TRY(
+					  object_instances->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (fade_in_frame)
 				{
 					RES_TRY(
-					  fade_in_frame->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					  fade_in_frame->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (fade_out_frame)
 				{
 					RES_TRY(
-					  fade_out_frame->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					  fade_out_frame->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (fade_in)
 				{
-					RES_TRY(fade_in->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(fade_in->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (fade_out)
 				{
-					RES_TRY(fade_out->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(fade_out->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (events)
 				{
-					RES_TRY(events->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(events->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (play_head)
 				{
-					RES_TRY(
-					  play_head->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(play_head->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (additional_item)
 				{
-					RES_TRY(additional_item->view(srcexp).RES_ADD_TRACE(
-					  "frame::item_t::view"));
+					RES_TRY(
+					  additional_item->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (layers)
 				{
-					RES_TRY(layers->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(layers->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (layer_effect)
 				{
 					RES_TRY(
-					  layer_effect->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					  layer_effect->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (virtual_size)
 				{
 					RES_TRY(
-					  virtual_size->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					  virtual_size->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (demo_file_path)
 				{
 					RES_TRY(
-					  demo_file_path->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					  demo_file_path->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (random_seed)
 				{
 					RES_TRY(
-					  random_seed->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					  random_seed->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (blueray)
 				{
-					RES_TRY(blueray->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(blueray->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (movement_time_base)
 				{
-					RES_TRY(movement_time_base->view(srcexp).RES_ADD_TRACE(
+					RES_TRY(movement_time_base->view(inst).RES_ADD_TRACE(
 					  "frame::item_t::view"));
 				}
 				if (mosaic_image_table)
 				{
-					RES_TRY(mosaic_image_table->view(srcexp).RES_ADD_TRACE(
+					RES_TRY(mosaic_image_table->view(inst).RES_ADD_TRACE(
 					  "frame::item_t::view"));
 				}
 				if (effects)
 				{
-					RES_TRY(effects->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(effects->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (iphone_options)
 				{
 					RES_TRY(
-					  iphone_options->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					  iphone_options->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (chunk334C)
 				{
-					RES_TRY(
-					  chunk334C->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(chunk334C->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).RES_ADD_TRACE("frame::item_t::view"));
+					RES_TRY(end->view(inst).RES_ADD_TRACE("frame::item_t::view"));
 				}
 			}
 
@@ -671,9 +669,9 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t handles_t::view(source_explorer_t &srcexp) const
+		error_t handles_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Frame Handles");
+			return basic_view(inst, "Frame Handles");
 		}
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
@@ -731,18 +729,18 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t bank_t::view(source_explorer_t &srcexp) const
+		error_t bank_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX Frame Bank (%zu Items)##%zX",
 			              (size_t)entry.ID,
 			              items.size(),
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).RES_ADD_TRACE("frame::bank_t::view"));
+					RES_TRY(item.view(inst).RES_ADD_TRACE("frame::bank_t::view"));
 				}
 			}
 

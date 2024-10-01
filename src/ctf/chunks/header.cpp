@@ -287,101 +287,97 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t header_t::view(source_explorer_t &srcexp) const
+	error_t header_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE("0x%zX Game Header##%zX", (size_t)entry.ID, entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 
+			RES_TRY(title.view(inst, "Title", true).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(
-			  title.view(srcexp, "Title", true).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(
-			  author.view(srcexp, "Author", true).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(copyright.view(srcexp, "Copyright", true)
+			  author.view(inst, "Author", true).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(copyright.view(inst, "Copyright", true)
 			          .RES_ADD_TRACE("header_t::view"));
-			RES_TRY(output_path.view(srcexp, "Output Path")
+			RES_TRY(
+			  output_path.view(inst, "Output Path").RES_ADD_TRACE("header_t::view"));
+			RES_TRY(project_path.view(inst, "Project Path")
 			          .RES_ADD_TRACE("header_t::view"));
-			RES_TRY(project_path.view(srcexp, "Project Path")
-			          .RES_ADD_TRACE("header_t::view"));
-			RES_TRY(about.view(srcexp, "About").RES_ADD_TRACE("header_t::view"));
+			RES_TRY(about.view(inst, "About").RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(vitalise_preview.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(menu.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(extension_path.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(extensions.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(extension_data.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(vitalise_preview.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(menu.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extension_path.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extensions.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extension_data.view(inst).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(
-			  additional_extensions.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(app_doc.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(other_extension.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(extension_list.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(icon.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(demo_version.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(security.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(binary_files.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(menu_images.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(
-			  movement_extensions.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(object_bank_2.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(exe.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(protection.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(shaders.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(shaders2.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(extended_header.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(spacer.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(chunk224F.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(title2.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			  additional_extensions.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(app_doc.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(other_extension.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extension_list.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(icon.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(demo_version.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(security.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(binary_files.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(menu_images.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(movement_extensions.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_bank_2.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(exe.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(protection.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(shaders.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(shaders2.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(extended_header.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(spacer.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(chunk224F.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(title2.view(inst).RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(global_events.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(global_strings.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(
-			  global_string_names.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(global_values.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(global_value_names.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_events.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_strings.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_string_names.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_values.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(global_value_names.view(inst).RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(bank_offsets.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(frame_handles.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(frame_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(object_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(image_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(sound_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(music_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(font_bank.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(bank_offsets.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(frame_handles.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(frame_bank.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_bank.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(image_bank.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(sound_bank.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(music_bank.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(font_bank.view(inst).RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(chunk2253.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(object_names.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(chunk2255.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(two_five_plus_object_properties.view(srcexp).RES_ADD_TRACE(
+			RES_TRY(chunk2253.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_names.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(chunk2255.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(two_five_plus_object_properties.view(inst).RES_ADD_TRACE(
 			  "header_t::view"));
-			RES_TRY(chunk2257.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(object_properties.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(
-			  truetype_fonts_meta.view(srcexp).RES_ADD_TRACE("header_t::view"));
-			RES_TRY(truetype_fonts.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(chunk2257.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(object_properties.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(truetype_fonts_meta.view(inst).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(truetype_fonts.view(inst).RES_ADD_TRACE("header_t::view"));
 
 			for (auto &unk : unknown_strings)
 			{
-				RES_TRY(unk.view(srcexp).RES_ADD_TRACE("header_t::view"));
+				RES_TRY(unk.view(inst).RES_ADD_TRACE("header_t::view"));
 			}
 
 			for (auto &unk : unknown_compressed)
 			{
-				RES_TRY(unk.view(srcexp).RES_ADD_TRACE("header_t::view"));
+				RES_TRY(unk.view(inst).RES_ADD_TRACE("header_t::view"));
 			}
 
 			for (auto &unk : unknown_chunks)
 			{
 				RES_TRY(unk
-				          .basic_view(srcexp,
+				          .basic_view(inst,
 				                      (lak::astring("Unknown ") +
 				                       std::to_string(unk.entry.position()))
 				                        .c_str())
 				          .RES_ADD_TRACE("header_t::view"));
 			}
 
-			RES_TRY(fusion_3_seed.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(fusion_3_seed.view(inst).RES_ADD_TRACE("header_t::view"));
 
-			RES_TRY(last.view(srcexp).RES_ADD_TRACE("header_t::view"));
+			RES_TRY(last.view(inst).RES_ADD_TRACE("header_t::view"));
 		}
 
 		return lak::ok_t{};

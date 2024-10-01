@@ -9,9 +9,9 @@ namespace srcexp
 {
 	namespace object
 	{
-		error_t effect_t::view(source_explorer_t &srcexp) const
+		error_t effect_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Effect");
+			return basic_view(inst, "Effect");
 		}
 
 		error_t shape_t::read(game_t &, data_reader_t &strm)
@@ -61,7 +61,7 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t shape_t::view(source_explorer_t &) const
+		error_t shape_t::view(instance_t &) const
 		{
 			LAK_TREE_NODE("Shape")
 			{
@@ -129,13 +129,13 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t quick_backdrop_t::view(source_explorer_t &srcexp) const
+		error_t quick_backdrop_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX Properties (Quick Backdrop)##%zX",
 			              (size_t)entry.ID,
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				ImGui::Text("Size: 0x%zX", (size_t)size);
 				ImGui::Text("Obstacle: 0x%zX", (size_t)obstacle);
@@ -144,16 +144,15 @@ namespace srcexp
 				  "Dimension: (%li, %li)", (long)dimension.x, (long)dimension.y);
 
 				RES_TRY(
-				  shape.view(srcexp).RES_ADD_TRACE("object::quick_backdrop_t::view"));
+				  shape.view(inst).RES_ADD_TRACE("object::quick_backdrop_t::view"));
 
 				ImGui::Text("Handle: 0x%zX", (size_t)shape.handle);
 				if (shape.handle < 0xFFFF)
 				{
-					RES_TRY(
-					  GetImage(srcexp.state, shape.handle)
-					    .RES_ADD_TRACE("object::quick_backdrop_t::view: bad image")
-					    .and_then([&](const auto &img) { return img.view(srcexp); })
-					    .RES_ADD_TRACE("object::quick_backdrop_t::view"));
+					RES_TRY(GetImage(inst.state, shape.handle)
+					          .RES_ADD_TRACE("object::quick_backdrop_t::view: bad image")
+					          .and_then([&](const auto &img) { return img.view(inst); })
+					          .RES_ADD_TRACE("object::quick_backdrop_t::view"));
 				}
 			}
 
@@ -192,12 +191,12 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t backdrop_t::view(source_explorer_t &srcexp) const
+		error_t backdrop_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE(
 			  "0x%zX Properties (Backdrop)##%zX", (size_t)entry.ID, entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				ImGui::Text("Size: 0x%zX", (size_t)size);
 				ImGui::Text("Obstacle: 0x%zX", (size_t)obstacle);
@@ -208,9 +207,9 @@ namespace srcexp
 				if (handle < 0xFFFF)
 				{
 					RES_TRY(
-					  GetImage(srcexp.state, handle)
+					  GetImage(inst.state, handle)
 					    .RES_ADD_TRACE("object::backdrop_t::view: bad image")
-					    .and_then([&](const auto &img) { return img.view(srcexp); })
+					    .and_then([&](const auto &img) { return img.view(inst); })
 					    .RES_ADD_TRACE("object::backdrop_t::view"));
 				}
 			}
@@ -250,7 +249,7 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t animation_direction_t::view(source_explorer_t &srcexp) const
+		error_t animation_direction_t::view(instance_t &inst) const
 		{
 			ImGui::Text("Min Speed: %d", (int)min_speed);
 			ImGui::Text("Max Speed: %d", (int)max_speed);
@@ -264,12 +263,12 @@ namespace srcexp
 				ImGui::PushID(index++);
 				DEFER(ImGui::PopID());
 
-				GetImage(srcexp.state, handle)
+				GetImage(inst.state, handle)
 				  .RES_ADD_TRACE("object::animation_direction_t::view: bad handle")
 				  .and_then(
 				    [&](auto &img)
 				    {
-					    return img.view(srcexp).RES_ADD_TRACE(
+					    return img.view(inst).RES_ADD_TRACE(
 					      "object::animation_direction_t::view: bad image");
 				    })
 				  .if_err(
@@ -319,7 +318,7 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t animation_t::view(source_explorer_t &srcexp) const
+		error_t animation_t::view(instance_t &inst) const
 		{
 			size_t index = 0;
 			for (const auto &direction : directions)
@@ -328,8 +327,8 @@ namespace srcexp
 				{
 					LAK_TREE_NODE("Animation Direction 0x%zX", index)
 					{
-						RES_TRY(direction.view(srcexp).RES_ADD_TRACE(
-						  "object::animation_t::view"));
+						RES_TRY(
+						  direction.view(inst).RES_ADD_TRACE("object::animation_t::view"));
 					}
 				}
 				++index;
@@ -379,7 +378,7 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t animation_header_t::view(source_explorer_t &srcexp) const
+		error_t animation_header_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("Animations")
 			{
@@ -395,7 +394,7 @@ namespace srcexp
 						LAK_TREE_NODE("Animation 0x%zX", index)
 						{
 							ImGui::Separator();
-							RES_TRY(animation.view(srcexp).RES_ADD_TRACE(
+							RES_TRY(animation.view(inst).RES_ADD_TRACE(
 							  "object::animation_header_t::view"));
 						}
 					}
@@ -511,12 +510,12 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t common_t::view(source_explorer_t &srcexp) const
+		error_t common_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE(
 			  "0x%zX Properties (Common)##%zX", (size_t)entry.ID, entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				if (mode == game_mode_t::_288 || mode == game_mode_t::_284)
 				{
@@ -563,7 +562,7 @@ namespace srcexp
 				if (animations)
 				{
 					RES_TRY(
-					  animations->view(srcexp).RES_ADD_TRACE("object::common_t::view"));
+					  animations->view(inst).RES_ADD_TRACE("object::common_t::view"));
 				}
 			}
 
@@ -655,7 +654,7 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t item_t::view(source_explorer_t &srcexp) const
+		error_t item_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX %s '%s'##%zX",
 			              (size_t)entry.ID,
@@ -663,7 +662,7 @@ namespace srcexp
 			              (name ? lak::strconv<char>(name->value).c_str() : ""),
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				ImGui::Text("Handle: 0x%zX", (size_t)handle);
 				ImGui::Text("Type: 0x%zX", (size_t)type);
@@ -672,32 +671,31 @@ namespace srcexp
 
 				if (name)
 				{
-					RES_TRY(name->view(srcexp, "Name", true)
+					RES_TRY(name->view(inst, "Name", true)
 					          .RES_ADD_TRACE("object::item_t::view"));
 				}
 
 				if (quick_backdrop)
 				{
-					RES_TRY(quick_backdrop->view(srcexp).RES_ADD_TRACE(
-					  "object::item_t::view"));
+					RES_TRY(
+					  quick_backdrop->view(inst).RES_ADD_TRACE("object::item_t::view"));
 				}
 				if (backdrop)
 				{
-					RES_TRY(
-					  backdrop->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
+					RES_TRY(backdrop->view(inst).RES_ADD_TRACE("object::item_t::view"));
 				}
 				if (common)
 				{
-					RES_TRY(common->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
+					RES_TRY(common->view(inst).RES_ADD_TRACE("object::item_t::view"));
 				}
 
 				if (effect)
 				{
-					RES_TRY(effect->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
+					RES_TRY(effect->view(inst).RES_ADD_TRACE("object::item_t::view"));
 				}
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).RES_ADD_TRACE("object::item_t::view"));
+					RES_TRY(end->view(inst).RES_ADD_TRACE("object::item_t::view"));
 				}
 			}
 
@@ -810,18 +808,18 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t bank_t::view(source_explorer_t &srcexp) const
+		error_t bank_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX Object Bank (%zu Items)##%zX",
 			              (size_t)entry.ID,
 			              items.size(),
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).RES_ADD_TRACE("object::bank_t::view"));
+					RES_TRY(item.view(inst).RES_ADD_TRACE("object::bank_t::view"));
 				}
 			}
 

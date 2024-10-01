@@ -29,7 +29,7 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t binary_files_item_t::view(source_explorer_t &) const
+	error_t binary_files_item_t::view(instance_t &) const
 	{
 		auto str = lak::as_astring(name);
 
@@ -64,19 +64,19 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t binary_files_t::view(source_explorer_t &srcexp) const
+	error_t binary_files_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE(
 		  "0x%zX Binary Files##%zX", (size_t)entry.ID, entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 
 			int index = 0;
 			for (const auto &item : items)
 			{
 				ImGui::PushID(index++);
 				DEFER(ImGui::PopID());
-				RES_TRY(item.view(srcexp).RES_ADD_TRACE("binary_files_t::view"));
+				RES_TRY(item.view(inst).RES_ADD_TRACE("binary_files_t::view"));
 			}
 		}
 

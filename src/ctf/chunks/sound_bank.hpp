@@ -17,12 +17,12 @@ namespace srcexp
 			uint32_t name_len;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct end_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct bank_t : public basic_chunk_t
@@ -31,7 +31,7 @@ namespace srcexp
 			lak::unique_ptr<end_t> end;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 	}
 }

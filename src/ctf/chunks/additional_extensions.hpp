@@ -7,7 +7,7 @@ namespace srcexp
 {
 	struct additional_extensions_t : public basic_chunk_t
 	{
-		error_t view(source_explorer_t &srcexp) const;
+		error_t view(instance_t &inst) const;
 	};
 }
 

@@ -34,33 +34,31 @@ namespace srcexp
 	[[nodiscard]] error_t SaveImage(const lak::image4_t &image,
 	                                const fs::path &filename);
 
-	[[nodiscard]] error_t SaveImage(source_explorer_t &srcexp,
+	[[nodiscard]] error_t SaveImage(instance_t &inst,
 	                                uint16_t handle,
 	                                const fs::path &filename,
 	                                const frame::item_t *frame);
 
-	[[nodiscard]] lak::await_result<error_t> OpenGame(source_explorer_t &srcexp);
+	[[nodiscard]] lak::await_result<error_t> OpenGame(instance_t &inst);
 
-	using dump_data_t = std::tuple<source_explorer_t &, std::atomic<float> &>;
+	using dump_data_t = std::tuple<instance_t &, std::atomic<float> &>;
 
-	using dump_function_t = void(source_explorer_t &, std::atomic<float> &);
+	using dump_function_t = void(instance_t &, std::atomic<float> &);
 
-	lak::file_open_error DumpStuff(source_explorer_t &srcexp,
+	lak::file_open_error DumpStuff(instance_t &inst,
 	                               const char *str_id,
 	                               dump_function_t *func);
 
-	void DumpImages(source_explorer_t &srcexp, std::atomic<float> &completed);
-	void DumpSortedImages(source_explorer_t &srcexp,
-	                      std::atomic<float> &completed);
-	void DumpAppIcon(source_explorer_t &srcexp, std::atomic<float> &completed);
-	void DumpSounds(source_explorer_t &srcexp, std::atomic<float> &completed);
-	void DumpMusic(source_explorer_t &srcexp, std::atomic<float> &completed);
-	void DumpShaders(source_explorer_t &srcexp, std::atomic<float> &completed);
-	void DumpBinaryFiles(source_explorer_t &srcexp,
-	                     std::atomic<float> &completed);
-	void SaveErrorLog(source_explorer_t &srcexp, std::atomic<float> &completed);
-	void SaveBinaryBlock(source_explorer_t &srcexp,
-	                     std::atomic<float> &completed);
+	void DumpDatabase(instance_t &inst, std::atomic<float> &completed);
+	void DumpImages(instance_t &inst, std::atomic<float> &completed);
+	void DumpSortedImages(instance_t &inst, std::atomic<float> &completed);
+	void DumpAppIcon(instance_t &inst, std::atomic<float> &completed);
+	void DumpSounds(instance_t &inst, std::atomic<float> &completed);
+	void DumpMusic(instance_t &inst, std::atomic<float> &completed);
+	void DumpShaders(instance_t &inst, std::atomic<float> &completed);
+	void DumpBinaryFiles(instance_t &inst, std::atomic<float> &completed);
+	void SaveErrorLog(instance_t &inst, std::atomic<float> &completed);
+	void SaveBinaryBlock(instance_t &inst, std::atomic<float> &completed);
 
 	template<lak::concepts::invocable_result_of<lak::file_open_error,
 	                                            file_state_t &> LOAD,
@@ -171,16 +169,17 @@ namespace srcexp
 		  finalise);
 	}
 
-	void AttemptExe(source_explorer_t &srcexp);
-	void AttemptImages(source_explorer_t &srcexp);
-	void AttemptSortedImages(source_explorer_t &srcexp);
-	void AttemptAppIcon(source_explorer_t &srcexp);
-	void AttemptSounds(source_explorer_t &srcexp);
-	void AttemptMusic(source_explorer_t &srcexp);
-	void AttemptShaders(source_explorer_t &srcexp);
-	void AttemptBinaryFiles(source_explorer_t &srcexp);
-	void AttemptErrorLog(source_explorer_t &srcexp);
-	void AttemptBinaryBlock(source_explorer_t &srcexp);
+	void AttemptExe(instance_t &inst);
+	void AttemptDatabase(instance_t &inst);
+	void AttemptImages(instance_t &inst);
+	void AttemptSortedImages(instance_t &inst);
+	void AttemptAppIcon(instance_t &inst);
+	void AttemptSounds(instance_t &inst);
+	void AttemptMusic(instance_t &inst);
+	void AttemptShaders(instance_t &inst);
+	void AttemptBinaryFiles(instance_t &inst);
+	void AttemptErrorLog(instance_t &inst);
+	void AttemptBinaryBlock(instance_t &inst);
 }
 
 #endif

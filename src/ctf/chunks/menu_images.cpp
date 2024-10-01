@@ -4,8 +4,8 @@
 
 namespace srcexp
 {
-	error_t menu_images_t::view(source_explorer_t &srcexp) const
+	error_t menu_images_t::view(instance_t &inst) const
 	{
-		return basic_view(srcexp, "Menu Images");
+		return basic_view(inst, "Menu Images");
 	}
 }

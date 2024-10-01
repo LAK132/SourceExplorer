@@ -26,8 +26,7 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t strings_chunk_t::basic_view(source_explorer_t &srcexp,
-	                                    const char *name) const
+	error_t strings_chunk_t::basic_view(instance_t &inst, const char *name) const
 	{
 		LAK_TREE_NODE("0x%zX %s (%zu Items)##%zX",
 		              (size_t)entry.ID,
@@ -35,7 +34,7 @@ namespace srcexp
 		              values.size(),
 		              entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 			for (const auto &s : values)
 				ImGui::Text("%s", (const char *)lak::to_u8string(s).c_str());
 		}
@@ -43,8 +42,8 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t strings_chunk_t::view(source_explorer_t &srcexp) const
+	error_t strings_chunk_t::view(instance_t &inst) const
 	{
-		return basic_view(srcexp, "Unknown Strings");
+		return basic_view(inst, "Unknown Strings");
 	}
 }

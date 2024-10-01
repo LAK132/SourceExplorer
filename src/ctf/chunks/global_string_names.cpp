@@ -4,8 +4,8 @@
 
 namespace srcexp
 {
-	error_t global_string_names_t::view(source_explorer_t &srcexp) const
+	error_t global_string_names_t::view(instance_t &inst) const
 	{
-		return basic_view(srcexp, "Global String Names");
+		return basic_view(inst, "Global String Names");
 	}
 }

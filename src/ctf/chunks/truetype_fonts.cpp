@@ -24,20 +24,20 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t truetype_fonts_t::view(source_explorer_t &srcexp) const
+	error_t truetype_fonts_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE("0x%zX TrueType Fonts (%zu Items)##%zX",
 		              (size_t)entry.ID,
 		              items.size(),
 		              entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 
 			for (const auto &item : items)
 			{
 				LAK_TREE_NODE("0x%zX Font##%zX", (size_t)item.ID, item.position())
 				{
-					item.view(srcexp);
+					item.view(inst);
 				}
 			}
 		}

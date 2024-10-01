@@ -4,8 +4,8 @@
 
 namespace srcexp
 {
-	error_t extensions_t::view(source_explorer_t &srcexp) const
+	error_t extensions_t::view(instance_t &inst) const
 	{
-		return basic_view(srcexp, "Extensions");
+		return basic_view(inst, "Extensions");
 	}
 }

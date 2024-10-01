@@ -4,8 +4,8 @@
 
 namespace srcexp
 {
-	error_t chunk_2255_t::view(source_explorer_t &srcexp) const
+	error_t chunk_2255_t::view(instance_t &inst) const
 	{
-		return basic_view(srcexp, "Chunk 2255");
+		return basic_view(inst, "Chunk 2255");
 	}
 }

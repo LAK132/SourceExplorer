@@ -10,8 +10,8 @@ namespace srcexp
 		mutable std::vector<std::u16string> values;
 
 		error_t read(game_t &game, data_reader_t &strm);
-		error_t basic_view(source_explorer_t &srcexp, const char *name) const;
-		error_t view(source_explorer_t &srcexp) const;
+		error_t basic_view(instance_t &inst, const char *name) const;
+		error_t view(instance_t &inst) const;
 	};
 }
 

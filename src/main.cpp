@@ -46,7 +46,7 @@
 #	define MAXDIRLEN 512
 #endif
 
-srcexp::source_explorer_t SrcExp;
+srcexp::instance_t SrcExp;
 int opengl_major, opengl_minor;
 se_main_mode_t se_main_mode = se_main_mode_t::normal;
 

@@ -29,12 +29,12 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t extended_header_t::view(source_explorer_t &srcexp) const
+	error_t extended_header_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE(
 		  "0x%zX Extended Header##%zX", (size_t)entry.ID, entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 
 			ImGui::Text("Flags: 0x%zX", (size_t)flags);
 			ImGui::Text("Build Type: 0x%zX", (size_t)build_type);

@@ -20,7 +20,7 @@ namespace srcexp
 	{
 		struct effect_t : public basic_chunk_t
 		{
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct shape_t
@@ -35,7 +35,7 @@ namespace srcexp
 			uint16_t handle;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct quick_backdrop_t : public basic_chunk_t
@@ -47,7 +47,7 @@ namespace srcexp
 			shape_t shape;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct backdrop_t : public basic_chunk_t
@@ -59,7 +59,7 @@ namespace srcexp
 			uint16_t handle;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct animation_direction_t
@@ -71,7 +71,7 @@ namespace srcexp
 			uint16_t back_to;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct animation_t
@@ -80,7 +80,7 @@ namespace srcexp
 			lak::array<animation_direction_t, 32> directions;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct animation_header_t
@@ -90,7 +90,7 @@ namespace srcexp
 			lak::array<animation_t> animations;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		struct common_t : public basic_chunk_t
@@ -119,7 +119,7 @@ namespace srcexp
 			game_mode_t mode;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 
 		// ObjectInfo + ObjectHeader
@@ -139,7 +139,7 @@ namespace srcexp
 			lak::unique_ptr<common_t> common;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 
 			std::unordered_map<uint32_t, lak::array<lak::u16string>> image_handles()
 			  const;
@@ -151,7 +151,7 @@ namespace srcexp
 			lak::array<item_t> items;
 
 			error_t read(game_t &game, data_reader_t &strm);
-			error_t view(source_explorer_t &srcexp) const;
+			error_t view(instance_t &inst) const;
 		};
 	}
 

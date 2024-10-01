@@ -34,7 +34,7 @@ namespace srcexp
 	struct chunk_entry_t : public basic_entry_t
 	{
 		error_t read(game_t &game, data_reader_t &strm);
-		void view(source_explorer_t &srcexp) const;
+		void view(instance_t &inst) const;
 	};
 
 	struct item_entry_t : public basic_entry_t
@@ -59,7 +59,7 @@ namespace srcexp
 		             bool compressed,
 		             size_t headersize = 0,
 		             bool has_handle   = true);
-		void view(source_explorer_t &srcexp) const;
+		void view(instance_t &inst) const;
 	};
 
 	struct basic_chunk_t
@@ -67,7 +67,7 @@ namespace srcexp
 		chunk_entry_t entry;
 
 		error_t read(game_t &game, data_reader_t &strm);
-		error_t basic_view(source_explorer_t &srcexp, const char *name) const;
+		error_t basic_view(instance_t &inst, const char *name) const;
 	};
 
 	struct basic_item_t
@@ -75,7 +75,7 @@ namespace srcexp
 		item_entry_t entry;
 
 		error_t read(game_t &game, data_reader_t &strm);
-		error_t basic_view(source_explorer_t &srcexp, const char *name) const;
+		error_t basic_view(instance_t &inst, const char *name) const;
 	};
 }
 

@@ -4,8 +4,8 @@
 
 namespace srcexp
 {
-	error_t global_events_t::view(source_explorer_t &srcexp) const
+	error_t global_events_t::view(instance_t &inst) const
 	{
-		return basic_view(srcexp, "Global Events");
+		return basic_view(inst, "Global Events");
 	}
 }

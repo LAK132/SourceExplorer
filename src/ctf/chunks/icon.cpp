@@ -65,11 +65,11 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t icon_t::view(source_explorer_t &srcexp) const
+	error_t icon_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE("0x%zX Icon##%zX", (size_t)entry.ID, entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 
 			ImGui::Text("Image Size: %zu * %zu",
 			            (size_t)bitmap.size().x,
@@ -77,7 +77,7 @@ namespace srcexp
 
 			if (ImGui::Button("View Image"))
 			{
-				srcexp.image = CreateTexture(bitmap, srcexp.graphics_mode);
+				inst.image = CreateTexture(bitmap, inst.graphics_mode);
 			}
 		}
 

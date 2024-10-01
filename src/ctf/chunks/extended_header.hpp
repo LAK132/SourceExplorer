@@ -14,7 +14,7 @@ namespace srcexp
 		uint16_t screen_angle;
 
 		error_t read(game_t &game, data_reader_t &strm);
-		error_t view(source_explorer_t &srcexp) const;
+		error_t view(instance_t &inst) const;
 	};
 }
 

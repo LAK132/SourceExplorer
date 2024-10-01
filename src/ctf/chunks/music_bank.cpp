@@ -6,14 +6,14 @@ namespace srcexp
 {
 	namespace music
 	{
-		error_t item_t::view(source_explorer_t &srcexp) const
+		error_t item_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Music");
+			return basic_view(inst, "Music");
 		}
 
-		error_t end_t::view(source_explorer_t &srcexp) const
+		error_t end_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Music Bank End");
+			return basic_view(inst, "Music Bank End");
 		}
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
@@ -100,23 +100,23 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t bank_t::view(source_explorer_t &srcexp) const
+		error_t bank_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX Music Bank (%zu Items)##%zX",
 			              (size_t)entry.ID,
 			              items.size(),
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).RES_ADD_TRACE("music::bank_t::view"));
+					RES_TRY(item.view(inst).RES_ADD_TRACE("music::bank_t::view"));
 				}
 
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).RES_ADD_TRACE("music::bank_t::view"));
+					RES_TRY(end->view(inst).RES_ADD_TRACE("music::bank_t::view"));
 				}
 			}
 

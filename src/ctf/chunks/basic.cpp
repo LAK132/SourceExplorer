@@ -78,7 +78,7 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	void chunk_entry_t::view(source_explorer_t &srcexp) const
+	void chunk_entry_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE("Entry Information##%zX", position())
 		{
@@ -104,7 +104,7 @@ namespace srcexp
 			ImGui::Text("Body End: 0x%zX", body.position() + body.data.size());
 		}
 
-		if (ImGui::Button("View Memory")) srcexp.view = this;
+		if (ImGui::Button("View Memory")) inst.view = this;
 	}
 
 	void item_entry_t::read_init(game_t &game)
@@ -230,7 +230,7 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	void item_entry_t::view(source_explorer_t &srcexp) const
+	void item_entry_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE("Entry Information##%zX", position())
 		{
@@ -255,7 +255,7 @@ namespace srcexp
 			ImGui::Text("Body End: 0x%zX", body.position() + body.data.size());
 		}
 
-		if (ImGui::Button("View Memory")) srcexp.view = this;
+		if (ImGui::Button("View Memory")) inst.view = this;
 	}
 
 	result_t<data_ref_span_t> basic_entry_t::decode_body(size_t max_size) const
@@ -452,12 +452,11 @@ namespace srcexp
 		return result;
 	}
 
-	error_t basic_chunk_t::basic_view(source_explorer_t &srcexp,
-	                                  const char *name) const
+	error_t basic_chunk_t::basic_view(instance_t &inst, const char *name) const
 	{
 		LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 		}
 
 		return lak::ok_t{};
@@ -470,12 +469,11 @@ namespace srcexp
 		return result;
 	}
 
-	error_t basic_item_t::basic_view(source_explorer_t &srcexp,
-	                                 const char *name) const
+	error_t basic_item_t::basic_view(instance_t &inst, const char *name) const
 	{
 		LAK_TREE_NODE("0x%zX %s##%zX", (size_t)entry.ID, name, entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 		}
 
 		return lak::ok_t{};

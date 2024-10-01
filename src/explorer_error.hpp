@@ -160,11 +160,14 @@ namespace se
 	};
 
 #define MAP_TRACE(ERR, ...)                                                   \
-	[&](const auto &err) -> se::error                                           \
-	{ return se::error(LINE_TRACE, ERR, err, " " __VA_OPT__(, ) __VA_ARGS__); }
+	[&](const auto &err) -> srcexp::error                                       \
+	{                                                                           \
+		return srcexp::error(                                                     \
+			LINE_TRACE, ERR, err, " " __VA_OPT__(, ) __VA_ARGS__);                  \
+	}
 
 #define APPEND_TRACE(...)                                                     \
-	[&](const se::error &err) -> se::error                                      \
+	[&](const srcexp::error &err) -> srcexp::error                              \
 	{ return err.append_trace(LINE_TRACE __VA_OPT__(, ) __VA_ARGS__); }
 
 #define CHECK_REMAINING(STRM, EXPECTED)                                       \
@@ -176,11 +179,11 @@ namespace se
 			      STRM.remaining(),                                                 \
 			      " Bytes Remaining, Expected ",                                    \
 			      (EXPECTED));                                                      \
-			return lak::err_t{se::error(LINE_TRACE,                                 \
-			                            se::error::out_of_data,                     \
-			                            STRM.remaining(),                           \
-			                            " Bytes Remaining, Expected ",              \
-			                            (EXPECTED))};                               \
+			return lak::err_t{srcexp::error(LINE_TRACE,                             \
+			                                srcexp::error::out_of_data,             \
+			                                STRM.remaining(),                       \
+			                                " Bytes Remaining, Expected ",          \
+			                                (EXPECTED))};                           \
 		}                                                                         \
 	} while (false)
 
@@ -193,17 +196,17 @@ namespace se
 			      STRM.remaining(),                                                 \
 			      " Bytes Availible, Expected ",                                    \
 			      (EXPECTED));                                                      \
-			return lak::err_t{se::error(LINE_TRACE,                                 \
-			                            se::error::out_of_data,                     \
-			                            STRM.remaining(),                           \
-			                            " Bytes Availible, Expected ",              \
-			                            (EXPECTED))};                               \
+			return lak::err_t{srcexp::error(LINE_TRACE,                             \
+			                                srcexp::error::out_of_data,             \
+			                                STRM.remaining(),                       \
+			                                " Bytes Availible, Expected ",          \
+			                                (EXPECTED))};                           \
 		}                                                                         \
 	} while (false)
 
 	template<typename T>
-	using result_t = lak::result<T, se::error>;
-	using error_t  = se::result_t<lak::monostate>;
+	using result_t = lak::result<T, srcexp::error>;
+	using error_t  = srcexp::result_t<lak::monostate>;
 }
 
 #endif

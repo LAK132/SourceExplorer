@@ -10,7 +10,7 @@ namespace srcexp
 		mutable std::u16string value;
 
 		error_t read(game_t &game, data_reader_t &strm);
-		error_t view(source_explorer_t &srcexp,
+		error_t view(instance_t &inst,
 		             const char *name,
 		             const bool preview = false) const;
 

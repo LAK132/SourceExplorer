@@ -17,7 +17,7 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t string_chunk_t::view(source_explorer_t &srcexp,
+	error_t string_chunk_t::view(instance_t &inst,
 	                             const char *name,
 	                             const bool preview) const
 	{
@@ -29,7 +29,7 @@ namespace srcexp
 		              preview ? str.c_str() : "",
 		              entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 			ImGui::Text("String: %s", str.c_str());
 			ImGui::Text("String Length: 0x%zX", value.size());
 		}

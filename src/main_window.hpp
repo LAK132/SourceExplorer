@@ -146,9 +146,9 @@ struct main_window : public base_window<main_window>
 		if (ImGui::BeginMenu("Compatability"))
 		{
 			ImGui::Checkbox("Color transparency", &SrcExp.dump_color_transparent);
-			ImGui::Checkbox("Force compat mode", &se::force_compat);
-			ImGui::Checkbox("Skip broken items", &se::skip_broken_items);
-			ImGui::Checkbox("Open broken games", &se::open_broken_games);
+			ImGui::Checkbox("Force compat mode", &srcexp::force_compat);
+			ImGui::Checkbox("Skip broken items", &srcexp::skip_broken_items);
+			ImGui::Checkbox("Open broken games", &srcexp::open_broken_games);
 			ImGui::Checkbox("Enable multithreading", &SrcExp.allow_multithreading);
 			ImGui::EndMenu();
 		}
@@ -300,30 +300,32 @@ struct main_window : public base_window<main_window>
 		}
 
 		if (SrcExp.exe.attempt)
-			se::AttemptExe(SrcExp);
+			srcexp::AttemptExe(SrcExp);
+		else if (SrcExp.database.attempt)
+			srcexp::AttemptDatabase(SrcExp);
 		else if (SrcExp.images.attempt)
-			se::AttemptImages(SrcExp);
+			srcexp::AttemptImages(SrcExp);
 		else if (SrcExp.sorted_images.attempt)
 		{
 			if (SrcExp.state.two_five_plus_game)
 				SrcExp.sorted_images.attempt = false;
 			else
-				se::AttemptSortedImages(SrcExp);
+				srcexp::AttemptSortedImages(SrcExp);
 		}
 		else if (SrcExp.appicon.attempt)
-			se::AttemptAppIcon(SrcExp);
+			srcexp::AttemptAppIcon(SrcExp);
 		else if (SrcExp.sounds.attempt)
-			se::AttemptSounds(SrcExp);
+			srcexp::AttemptSounds(SrcExp);
 		else if (SrcExp.music.attempt)
-			se::AttemptMusic(SrcExp);
+			srcexp::AttemptMusic(SrcExp);
 		else if (SrcExp.shaders.attempt)
-			se::AttemptShaders(SrcExp);
+			srcexp::AttemptShaders(SrcExp);
 		else if (SrcExp.binary_files.attempt)
-			se::AttemptBinaryFiles(SrcExp);
+			srcexp::AttemptBinaryFiles(SrcExp);
 		else if (SrcExp.error_log.attempt)
-			se::AttemptErrorLog(SrcExp);
+			srcexp::AttemptErrorLog(SrcExp);
 		else if (SrcExp.binary_block.attempt)
-			se::AttemptBinaryBlock(SrcExp);
+			srcexp::AttemptBinaryBlock(SrcExp);
 	}
 };
 

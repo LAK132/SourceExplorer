@@ -18,7 +18,7 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t chunk_2253_item_t::view(source_explorer_t &) const
+	error_t chunk_2253_item_t::view(instance_t &) const
 	{
 		ImGui::Text("ID: 0x%zX", size_t(ID));
 
@@ -50,21 +50,21 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t chunk_2253_t::view(source_explorer_t &srcexp) const
+	error_t chunk_2253_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE("0x%zX Chunk 2253 (%zu Items)##%zX",
 		              (size_t)entry.ID,
 		              items.size(),
 		              entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 
 			size_t i = 0;
 			for (const auto &item : items)
 			{
 				LAK_TREE_NODE("0x%zX Item##%zX", (size_t)item.ID, i++)
 				{
-					RES_TRY(item.view(srcexp).RES_ADD_TRACE("chunk_2253_t::view"));
+					RES_TRY(item.view(inst).RES_ADD_TRACE("chunk_2253_t::view"));
 				}
 			}
 		}

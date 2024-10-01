@@ -27,22 +27,18 @@ namespace srcexp
 		return lak::ok_t{};
 	}
 
-	error_t two_five_plus_object_properties_t::view(
-	  source_explorer_t &srcexp) const
+	error_t two_five_plus_object_properties_t::view(instance_t &inst) const
 	{
 		LAK_TREE_NODE("0x%zX Object Properties (2.5+) (%zu Items)##%zX",
 		              (size_t)entry.ID,
 		              items.size(),
 		              entry.position())
 		{
-			entry.view(srcexp);
+			entry.view(inst);
 
 			for (const auto &item : items)
 			{
-				LAK_TREE_NODE("Properties##%zX", item.position())
-				{
-					item.view(srcexp);
-				}
+				LAK_TREE_NODE("Properties##%zX", item.position()) { item.view(inst); }
 			}
 		}
 

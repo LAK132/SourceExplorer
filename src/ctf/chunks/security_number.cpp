@@ -4,8 +4,8 @@
 
 namespace srcexp
 {
-	error_t security_number_t::view(source_explorer_t &srcexp) const
+	error_t security_number_t::view(instance_t &inst) const
 	{
-		return basic_view(srcexp, "Security Number");
+		return basic_view(inst, "Security Number");
 	}
 }

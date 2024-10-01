@@ -135,7 +135,7 @@ namespace srcexp
 		}
 	};
 
-	struct source_explorer_t
+	struct instance_t
 	{
 		lak::graphics_mode graphics_mode;
 
@@ -170,7 +170,7 @@ namespace srcexp
 		data_ref_span_t buffer;
 	};
 
-	error_t LoadGame(source_explorer_t &srcexp);
+	error_t LoadGame(instance_t &inst);
 
 	void GetEncryptionKey(game_t &game_state);
 
@@ -329,7 +329,7 @@ namespace srcexp
 	texture_t CreateTexture(const lak::image<float> &bitmap,
 	                        const lak::graphics_mode mode);
 
-	void ViewImage(source_explorer_t &srcexp, const float scale = 1.0f);
+	void ViewImage(instance_t &inst, const float scale = 1.0f);
 
 	const char *GetTypeString(chunk_t ID);
 

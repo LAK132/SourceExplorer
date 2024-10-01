@@ -220,11 +220,11 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t item_t::view(source_explorer_t &srcexp) const
+		error_t item_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX Image##%zX", (size_t)entry.handle, entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
 				ImGui::Text("Reference: 0x%zX", (size_t)reference);
@@ -274,10 +274,9 @@ namespace srcexp
 
 				if (ImGui::Button("View Image"))
 				{
-					image(srcexp.dump_color_transparent)
-					  .if_ok(
-					    [&](lak::image4_t &&img)
-					    { srcexp.image = CreateTexture(img, srcexp.graphics_mode); })
+					image(inst.dump_color_transparent)
+					  .if_ok([&](lak::image4_t &&img)
+					         { inst.image = CreateTexture(img, inst.graphics_mode); })
 					  .IF_ERR("Failed To Read Image Data")
 					  .discard();
 				}
@@ -419,9 +418,9 @@ namespace srcexp
 			return lak::move_ok(img);
 		}
 
-		error_t end_t::view(source_explorer_t &srcexp) const
+		error_t end_t::view(instance_t &inst) const
 		{
-			return basic_view(srcexp, "Image Bank End");
+			return basic_view(inst, "Image Bank End");
 		}
 
 		error_t bank_t::read(game_t &game, data_reader_t &strm)
@@ -509,23 +508,23 @@ namespace srcexp
 			return lak::ok_t{};
 		}
 
-		error_t bank_t::view(source_explorer_t &srcexp) const
+		error_t bank_t::view(instance_t &inst) const
 		{
 			LAK_TREE_NODE("0x%zX Image Bank (%zu Items)##%zX",
 			              (size_t)entry.ID,
 			              items.size(),
 			              entry.position())
 			{
-				entry.view(srcexp);
+				entry.view(inst);
 
 				for (const item_t &item : items)
 				{
-					RES_TRY(item.view(srcexp).RES_ADD_TRACE("image::bank_t::view"));
+					RES_TRY(item.view(inst).RES_ADD_TRACE("image::bank_t::view"));
 				}
 
 				if (end)
 				{
-					RES_TRY(end->view(srcexp).RES_ADD_TRACE("image::bank_t::view"));
+					RES_TRY(end->view(inst).RES_ADD_TRACE("image::bank_t::view"));
 				}
 			}
 

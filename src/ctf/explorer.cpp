@@ -62,30 +62,29 @@ namespace srcexp
 		return lhs;
 	}
 
-	error_t LoadGame(source_explorer_t &srcexp)
+	error_t LoadGame(instance_t &inst)
 	{
 		FUNCTION_CHECKPOINT();
 
-		DEBUG("Attempting To Load ", srcexp.exe.path);
+		DEBUG("Attempting To Load ", inst.exe.path);
 
-		srcexp.state.completed      = 0.0f;
-		srcexp.state.bank_completed = 0.0f;
-		srcexp.state.item_completed = 0.0f;
+		inst.state.completed      = 0.0f;
+		inst.state.bank_completed = 0.0f;
+		inst.state.item_completed = 0.0f;
 
-		srcexp.state        = game_t{};
-		srcexp.state.compat = force_compat;
+		inst.state        = game_t{};
+		inst.state.compat = force_compat;
 
-		RES_TRY_ASSIGN(
-		  auto bytes =,
-		  lak::read_file(srcexp.exe.path).RES_MAP_TO_TRACE("LoadGame"));
+		RES_TRY_ASSIGN(auto bytes =,
+		               lak::read_file(inst.exe.path).RES_MAP_TO_TRACE("LoadGame"));
 
-		srcexp.state.file = make_data_ref_ptr(lak::move(bytes));
+		inst.state.file = make_data_ref_ptr(lak::move(bytes));
 
-		data_reader_t strm(srcexp.state.file);
+		data_reader_t strm(inst.state.file);
 
-		DEBUG("File Size: ", srcexp.state.file->size());
+		DEBUG("File Size: ", inst.state.file->size());
 
-		if (srcexp.state.file->size() == 0)
+		if (inst.state.file->size() == 0)
 		{
 			ERROR("Empty File");
 			return lak::err_t{error(error_type::out_of_data)};
@@ -122,7 +121,7 @@ namespace srcexp
 			WARNING("Unknown Magic Value (", magic, ")");
 		}
 
-		RES_TRY(ParseGameHeader(strm, srcexp.state, exe_game)
+		RES_TRY(ParseGameHeader(strm, inst.state, exe_game)
 		          .RES_ADD_TRACE("LoadGame: while parsing game header at: ",
 		                         strm.position()));
 
@@ -130,10 +129,10 @@ namespace srcexp
 
 		_magic_key.clear();
 
-		if (srcexp.state.product_build < 284 || srcexp.state.old_game ||
-		    srcexp.state.compat)
+		if (inst.state.product_build < 284 || inst.state.old_game ||
+		    inst.state.compat)
 			_mode = game_mode_t::_OLD;
-		else if (srcexp.state.product_build > 285)
+		else if (inst.state.product_build > 285)
 			_mode = game_mode_t::_288;
 		else
 			_mode = game_mode_t::_284;
@@ -143,45 +142,43 @@ namespace srcexp
 		else
 			_magic_char = 54; // 'c';
 
-		RES_TRY(srcexp.state.game.read(srcexp.state, strm)
+		RES_TRY(inst.state.game.read(inst.state, strm)
 		          .RES_ADD_TRACE("LoadGame: while parsing PE header at: ",
 		                         strm.position()));
 
 		DEBUG("Successfully Read Game Entry");
 
-		DEBUG("Unicode: ", (srcexp.state.unicode ? "true" : "false"));
+		DEBUG("Unicode: ", (inst.state.unicode ? "true" : "false"));
 
-		if (srcexp.state.game.project_path)
-			srcexp.state.project = srcexp.state.game.project_path->value;
+		if (inst.state.game.project_path)
+			inst.state.project = inst.state.game.project_path->value;
 
-		if (srcexp.state.game.title)
-			srcexp.state.title = srcexp.state.game.title->value;
+		if (inst.state.game.title) inst.state.title = inst.state.game.title->value;
 
-		if (srcexp.state.game.copyright)
-			srcexp.state.copyright = srcexp.state.game.copyright->value;
+		if (inst.state.game.copyright)
+			inst.state.copyright = inst.state.game.copyright->value;
 
-		DEBUG("Project Path: ", lak::strconv<char>(srcexp.state.project));
-		DEBUG("Title: ", lak::strconv<char>(srcexp.state.title));
-		DEBUG("Copyright: ", lak::strconv<char>(srcexp.state.copyright));
+		DEBUG("Project Path: ", lak::strconv<char>(inst.state.project));
+		DEBUG("Title: ", lak::strconv<char>(inst.state.title));
+		DEBUG("Copyright: ", lak::strconv<char>(inst.state.copyright));
 
-		if (srcexp.state.recompiled)
-			WARNING("This Game May Have Been Recompiled!");
+		if (inst.state.recompiled) WARNING("This Game May Have Been Recompiled!");
 
-		if (srcexp.state.game.image_bank)
+		if (inst.state.game.image_bank)
 		{
-			const auto &images = srcexp.state.game.image_bank->items;
+			const auto &images = inst.state.game.image_bank->items;
 			for (size_t i = 0; i < images.size(); ++i)
 			{
-				srcexp.state.image_handles[images[i].entry.handle] = i;
+				inst.state.image_handles[images[i].entry.handle] = i;
 			}
 		}
 
-		if (srcexp.state.game.object_bank)
+		if (inst.state.game.object_bank)
 		{
-			const auto &objects = srcexp.state.game.object_bank->items;
+			const auto &objects = inst.state.game.object_bank->items;
 			for (size_t i = 0; i < objects.size(); ++i)
 			{
-				srcexp.state.object_handles[objects[i].handle] = i;
+				inst.state.object_handles[objects[i].handle] = i;
 			}
 		}
 
@@ -1289,13 +1286,13 @@ namespace srcexp
 		}
 	}
 
-	void ViewImage(source_explorer_t &srcexp, const float scale)
+	void ViewImage(instance_t &inst, const float scale)
 	{
 		// :TODO: Select palette
-		if (const auto glimg = srcexp.image.template get<lak::opengl::texture>();
+		if (const auto glimg = inst.image.template get<lak::opengl::texture>();
 		    glimg)
 		{
-			if (!glimg->get() || srcexp.graphics_mode != lak::graphics_mode::OpenGL)
+			if (!glimg->get() || inst.graphics_mode != lak::graphics_mode::OpenGL)
 			{
 				ImGui::Text("No image selected.");
 			}
@@ -1306,11 +1303,10 @@ namespace srcexp
 				                    scale * (float)glimg->size().y));
 			}
 		}
-		else if (const auto srimg = srcexp.image.template get<texture_color32_t>();
+		else if (const auto srimg = inst.image.template get<texture_color32_t>();
 		         srimg)
 		{
-			if (!srimg->pixels ||
-			    srcexp.graphics_mode != lak::graphics_mode::Software)
+			if (!srimg->pixels || inst.graphics_mode != lak::graphics_mode::Software)
 			{
 				ImGui::Text("No image selected.");
 			}
@@ -1320,7 +1316,7 @@ namespace srcexp
 				             ImVec2(scale * (float)srimg->w, scale * (float)srimg->h));
 			}
 		}
-		else if (srcexp.image.template holds<lak::monostate>())
+		else if (inst.image.template holds<lak::monostate>())
 		{
 			ImGui::Text("No image selected.");
 		}

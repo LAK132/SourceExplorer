@@ -205,7 +205,7 @@ namespace srcexp
 	extern game_mode_t _mode;
 
 	struct game_t;
-	struct source_explorer_t;
+	struct instance_t;
 
 	using texture_t =
 	  lak::variant<lak::monostate, lak::opengl::texture, texture_color32_t>;
@@ -232,7 +232,7 @@ namespace srcexp
 	};
 
 	struct game_t;
-	struct source_explorer_t;
+	struct instance_t;
 }
 
 #endif
