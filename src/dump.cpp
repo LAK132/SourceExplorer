@@ -486,17 +486,18 @@ void srcexp::DumpAppIcon(instance_t &inst, std::atomic<float> &)
 		  *static_cast<lak::tuple<std::ofstream *, lak::image4_t *> *>(context);
 		lak::binary_array_writer strm;
 		strm.reserve(0x16);
-		strm.write_u16(0); // reserved
-		strm.write_u16(1); // .ICO
-		strm.write_u16(1); // 1 image
-		strm.write_u8(static_cast<uint8_t>(image->size().x));
-		strm.write_u8(static_cast<uint8_t>(image->size().y));
-		strm.write_u8(0);      // no palette
-		strm.write_u8(0);      // reserved
-		strm.write_u16(1);     // color plane
-		strm.write_u16(8 * 4); // bits per pixel
-		strm.write_u32(len);
-		strm.write_u32(static_cast<uint32_t>(strm.size() + sizeof(uint32_t)));
+		strm.write_u16(0).unwrap(); // reserved
+		strm.write_u16(1).unwrap(); // .ICO
+		strm.write_u16(1).unwrap(); // 1 image
+		strm.write_u8(static_cast<uint8_t>(image->size().x)).unwrap();
+		strm.write_u8(static_cast<uint8_t>(image->size().y)).unwrap();
+		strm.write_u8(0).unwrap();      // no palette
+		strm.write_u8(0).unwrap();      // reserved
+		strm.write_u16(1).unwrap();     // color plane
+		strm.write_u16(8 * 4).unwrap(); // bits per pixel
+		strm.write_u32(len).unwrap();
+		strm.write_u32(static_cast<uint32_t>(strm.size() + sizeof(uint32_t)))
+		  .unwrap();
 		auto result = strm.release();
 		out->write(reinterpret_cast<const char *>(result.data()), result.size());
 		out->write((const char *)png, len);
