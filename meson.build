@@ -49,7 +49,7 @@ executable(
 	srcexp + [git_header],
 	install: true,
 	install_dir: install_directory,
-	override_options: override_options_werror,
+	override_options: override_options_w3,
 	include_directories: include_directories([
 		'include',
 		'include/lisk/inc',
