@@ -103,7 +103,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		  mode_check(srcexp::instance_t::main_mode_t::byte_pairs, "Byte Pairs") |
 		  mode_check(srcexp::instance_t::main_mode_t::binary_analysis,
 		             "Binary Analysis") |
-		  mode_check(srcexp::instance_t::main_mode_t::testing, "Testing");
+		  mode_check(srcexp::instance_t::main_mode_t::testing, "Testing"));
 	}
 #ifdef LAK_COMPILER_MSVC
 #	pragma warning(pop)
