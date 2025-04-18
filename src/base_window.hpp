@@ -88,20 +88,22 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 #endif
 	static bool mode_select()
 	{
-		auto mode_check = [](se_main_mode_t mode, const char *mode_name) -> bool
+		auto mode_check = [](srcexp::instance_t::main_mode_t mode,
+		                     const char *mode_name) -> bool
 		{
 			bool result = false;
-			if (bool set = se_main_mode == mode;
+			if (bool set = SrcExp->main_mode == mode;
 			    (result |= ImGui::Checkbox(mode_name, &set)) && set)
-				se_main_mode = mode;
+				SrcExp->main_mode = mode;
 			return result;
 		};
 
 		return bool(
-		  int(mode_check(se_main_mode_t::normal, "Normal Mode")) |
-		  mode_check(se_main_mode_t::byte_pairs, "Byte Pairs") |
-		  mode_check(se_main_mode_t::binary_analysis, "Binary Analysis") |
-		  mode_check(se_main_mode_t::testing, "Testing"));
+		  int(mode_check(srcexp::instance_t::main_mode_t::normal, "Normal Mode")) |
+		  mode_check(srcexp::instance_t::main_mode_t::byte_pairs, "Byte Pairs") |
+		  mode_check(srcexp::instance_t::main_mode_t::binary_analysis,
+		             "Binary Analysis") |
+		  mode_check(srcexp::instance_t::main_mode_t::testing, "Testing");
 	}
 #ifdef LAK_COMPILER_MSVC
 #	pragma warning(pop)
@@ -148,7 +150,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		if (const auto glimg = texture.template get<lak::opengl::texture>(); glimg)
 		{
-			if (!glimg->get() || SrcExp.graphics_mode != lak::graphics_mode::OpenGL)
+			if (!glimg->get() ||
+			    srcexp::instance_t::graphics_mode != lak::graphics_mode::OpenGL)
 			{
 				ImGui::Text("No image selected.");
 			}
@@ -163,7 +166,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		         srimg)
 		{
 			if (!srimg->pixels ||
-			    SrcExp.graphics_mode != lak::graphics_mode::Software)
+			    srcexp::instance_t::graphics_mode != lak::graphics_mode::Software)
 			{
 				ImGui::Text("No image selected.");
 			}
@@ -575,7 +578,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					break;
 			}
 
-			texture = srcexp::CreateTexture(image, SrcExp.graphics_mode);
+			texture =
+			  srcexp::CreateTexture(image, srcexp::instance_t::graphics_mode);
 		}
 
 		if (!texture.template holds<lak::monostate>())
@@ -609,11 +613,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		// if (update)
 		// {
-		// 	if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
-		// 	    data == SrcExp.state.file->data())
+		// 	if (SrcExp->view != nullptr && SrcExp->state.file != nullptr &&
+		// 	    data == SrcExp->state.file->data())
 		// 	{
-		// 		auto ref_span = SrcExp.view->ref_span;
-		// 		while (ref_span._source && ref_span._source != SrcExp.state.file)
+		// 		auto ref_span = SrcExp->view->ref_span;
+		// 		while (ref_span._source && ref_span._source != SrcExp->state.file)
 		// 			ref_span = ref_span.parent_span();
 		// 		if (!ref_span.empty())
 		// 		{
@@ -670,7 +674,8 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			     prev         = uint8_t(*(it++)))
         image[{prev, uint8_t(*it)}] += step;
 
-			texture = srcexp::CreateTexture(image, SrcExp.graphics_mode);
+			texture =
+			  srcexp::CreateTexture(image, srcexp::instance_t::graphics_mode);
 		}
 
 		if (!texture.template holds<lak::monostate>())
@@ -698,11 +703,11 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		// if (update)
 		// {
-		// 	if (SrcExp.view != nullptr && SrcExp.state.file != nullptr &&
-		// 	    data == SrcExp.state.file->data())
+		// 	if (SrcExp->view != nullptr && SrcExp->state.file != nullptr &&
+		// 	    data == SrcExp->state.file->data())
 		// 	{
-		// 		auto ref_span = SrcExp.view->ref_span;
-		// 		while (ref_span._source && ref_span._source != SrcExp.state.file)
+		// 		auto ref_span = SrcExp->view->ref_span;
+		// 		while (ref_span._source && ref_span._source != SrcExp->state.file)
 		// 			ref_span = ref_span.parent_span();
 		// 		if (!ref_span.empty())
 		// 		{
@@ -737,12 +742,12 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		if (ImGui::InputInt("Magic Char (u8)", &magic_char))
 		{
 			srcexp::_magic_char = static_cast<uint8_t>(magic_char);
-			srcexp::GetEncryptionKey(SrcExp.state);
+			srcexp::GetEncryptionKey(SrcExp->state);
 			updated = true;
 		}
 		if (ImGui::Button("Generate Crypto Key"))
 		{
-			srcexp::GetEncryptionKey(SrcExp.state);
+			srcexp::GetEncryptionKey(SrcExp->state);
 			updated = true;
 		}
 		return updated;
@@ -793,14 +798,14 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 	static void memory_explorer(bool &update)
 	{
-		if (!SrcExp.state.file) return;
+		if (!SrcExp->state.file) return;
 
 		static const srcexp::basic_entry_t *last         = nullptr;
 		static int data_mode                             = 0;
 		static memory_explorer_content_mode content_mode = VIEW_DATA_BINARY;
 		static bool raw                                  = true;
-		update |= last != SrcExp.view;
-		DEFER(last = SrcExp.view);
+		update |= last != SrcExp->view;
+		DEFER(last = SrcExp->view);
 		DEFER(update = false);
 
 		update |= ImGui::RadioButton("EXE", &data_mode, 0);
@@ -822,18 +827,18 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 
 		if (data_mode == 0) // EXE
 		{
-			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
+			SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
 			ImGui::SameLine();
 			memory_explorer_impl(
-			  SrcExp.editor, content_mode, *SrcExp.state.file, update);
+			  SrcExp->editor, content_mode, *SrcExp->state.file, update);
 
 			if (content_mode == VIEW_DATA_BINARY)
 			{
-				if (update && SrcExp.view != nullptr)
+				if (update && SrcExp->view != nullptr)
 				{
 					SCOPED_CHECKPOINT(__func__, "::EXE");
-					auto ref_span = SrcExp.view->ref_span;
-					while (ref_span._source && ref_span._source != SrcExp.state.file)
+					auto ref_span = SrcExp->view->ref_span;
+					while (ref_span._source && ref_span._source != SrcExp->state.file)
 					{
 						CHECKPOINT();
 						ref_span = ref_span.parent_span();
@@ -841,7 +846,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 					if (ref_span._source && !ref_span.empty())
 					{
 						const auto from = ref_span.position().UNWRAP();
-						SrcExp.editor.GotoAddrAndHighlight(from, from + ref_span.size());
+						SrcExp->editor.GotoAddrAndHighlight(from, from + ref_span.size());
 						DEBUG("From: ", from);
 					}
 					else
@@ -853,51 +858,53 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		}
 		else if (data_mode == 1) // Head
 		{
-			if (update && SrcExp.view != nullptr)
-				SrcExp.buffer = raw
-				                  ? SrcExp.view->head.data
-				                  : SrcExp.view->decode_head()
-				                      .or_else(
-				                        [&](const auto &err)
-				                          -> srcexp::result_t<srcexp::data_ref_span_t>
-				                        {
-					                        ERROR(err);
-					                        return lak::ok_t{SrcExp.view->head.data};
-				                        })
-				                      .UNWRAP();
+			if (update && SrcExp->view != nullptr)
+				SrcExp->buffer = raw
+				                   ? SrcExp->view->head.data
+				                   : SrcExp->view->decode_head()
+				                       .or_else(
+				                         [&](const auto &err)
+				                           -> srcexp::result_t<srcexp::data_ref_span_t>
+				                         {
+					                         ERROR(err);
+					                         return lak::ok_t{SrcExp->view->head.data};
+				                         })
+				                       .UNWRAP();
 
-			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
+			SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
 			ImGui::SameLine();
-			memory_explorer_impl(SrcExp.editor, content_mode, SrcExp.buffer, update);
+			memory_explorer_impl(
+			  SrcExp->editor, content_mode, SrcExp->buffer, update);
 			if (content_mode == VIEW_DATA_BINARY && update)
-				SrcExp.editor.GotoAddrAndHighlight(0, 0);
+				SrcExp->editor.GotoAddrAndHighlight(0, 0);
 		}
 		else if (data_mode == 2) // Body
 		{
-			if (update && SrcExp.view != nullptr)
-				SrcExp.buffer = raw
-				                  ? SrcExp.view->body.data
-				                  : SrcExp.view->decode_body()
-				                      .or_else(
-				                        [&](const auto &err)
-				                          -> srcexp::result_t<srcexp::data_ref_span_t>
-				                        {
-					                        ERROR(err);
-					                        return lak::ok_t{SrcExp.view->body.data};
-				                        })
-				                      .UNWRAP();
+			if (update && SrcExp->view != nullptr)
+				SrcExp->buffer = raw
+				                   ? SrcExp->view->body.data
+				                   : SrcExp->view->decode_body()
+				                       .or_else(
+				                         [&](const auto &err)
+				                           -> srcexp::result_t<srcexp::data_ref_span_t>
+				                         {
+					                         ERROR(err);
+					                         return lak::ok_t{SrcExp->view->body.data};
+				                         })
+				                       .UNWRAP();
 
-			SrcExp.binary_block.attempt |= ImGui::Button("Save Binary");
+			SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
 			ImGui::SameLine();
-			memory_explorer_impl(SrcExp.editor, content_mode, SrcExp.buffer, update);
+			memory_explorer_impl(
+			  SrcExp->editor, content_mode, SrcExp->buffer, update);
 			if (content_mode == VIEW_DATA_BINARY && update)
-				SrcExp.editor.GotoAddrAndHighlight(0, 0);
+				SrcExp->editor.GotoAddrAndHighlight(0, 0);
 		}
 		else if (data_mode == 3) // _magic_key
 		{
-			SrcExp.editor.DrawContents(&(srcexp::_magic_key[0]),
-			                           srcexp::_magic_key.size());
-			if (update) SrcExp.editor.GotoAddrAndHighlight(0, 0);
+			SrcExp->editor.DrawContents(&(srcexp::_magic_key[0]),
+			                            srcexp::_magic_key.size());
+			if (update) SrcExp->editor.GotoAddrAndHighlight(0, 0);
 		}
 	}
 
@@ -906,7 +913,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		static float scale = 1.0f;
 		ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
 		ImGui::Separator();
-		srcexp::ViewImage(SrcExp, scale);
+		srcexp::ViewImage(*SrcExp, scale);
 		update = false;
 	}
 
@@ -938,16 +945,16 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		};
 
 		static const srcexp::basic_entry_t *last = nullptr;
-		update |= last != SrcExp.view;
+		update |= last != SrcExp->view;
 
 		static audio_data_t audio_data;
-		if (update && SrcExp.view != nullptr)
+		if (update && SrcExp->view != nullptr)
 		{
 			CHECKPOINT();
 
-			srcexp::data_reader_t audio(SrcExp.view->decode_body().UNWRAP());
+			srcexp::data_reader_t audio(SrcExp->view->decode_body().UNWRAP());
 			audio_data = audio_data_t{};
-			if (SrcExp.state.old_game)
+			if (SrcExp->state.old_game)
 			{
 				CHECKPOINT();
 				audio_data.checksum   = audio.read_u16().UNWRAP();
@@ -976,7 +983,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			else
 			{
 				CHECKPOINT();
-				srcexp::data_reader_t header(SrcExp.view->decode_head().UNWRAP());
+				srcexp::data_reader_t header(SrcExp->view->decode_head().UNWRAP());
 
 				audio_data.checksum   = header.read_u32().UNWRAP();
 				audio_data.references = header.read_u32().UNWRAP();
@@ -985,7 +992,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 				audio_data.reserved = header.read_u32().UNWRAP();
 				audio_data.name_len = header.read_u32().UNWRAP();
 
-				if (SrcExp.state.unicode)
+				if (SrcExp->state.unicode)
 				{
 					audio_data.name = lak::to_u8string(
 					  audio.read_exact_c_str<char16_t>(audio_data.name_len).UNWRAP());
@@ -1147,7 +1154,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		ImGui::Text("Bits Per Sample: %zu", (size_t)audio_data.bits_per_sample);
 		ImGui::Text("Chunk Size: 0x%zX", (size_t)audio_data.chunk_size);
 
-		last   = SrcExp.view;
+		last   = SrcExp->view;
 		update = false;
 #endif
 	}

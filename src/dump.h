@@ -79,7 +79,7 @@ namespace srcexp
 					file_state.valid = true;
 					break;
 
-				case lak::file_open_error::CANCELED:
+				case lak::file_open_error::CANCELLED:
 					[[fallthrough]];
 				case lak::file_open_error::INVALID:
 					file_state.valid   = false;
@@ -111,7 +111,7 @@ namespace srcexp
 					file_state.attempt = false;
 					break;
 
-				case lak::file_open_error::CANCELED:
+				case lak::file_open_error::CANCELLED:
 					[[fallthrough]];
 				case lak::file_open_error::INVALID:
 					file_state.valid   = false;

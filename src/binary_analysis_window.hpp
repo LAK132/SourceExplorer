@@ -21,7 +21,7 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 			if (ImGui::MenuItem("Open...", nullptr))
 			{
 				DEBUG("Open");
-				SrcExp.exe.make_attempt();
+				SrcExp->exe.make_attempt();
 			}
 
 			ImGui::Checkbox("Demo Window", &demo_window);
@@ -39,27 +39,27 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 
 	static void main_region(float frame_time)
 	{
-		if (SrcExp.exe.attempt)
+		if (SrcExp->exe.attempt)
 		{
 			srcexp::AttemptFile(
-			  SrcExp.exe,
+			  SrcExp->exe,
 			  [](const fs::path &exe_path) -> lak::file_open_error
 			  {
 				  lak::debugger.clear();
-				  SrcExp.state      = srcexp::game_t{};
-				  SrcExp.state.file = srcexp::make_data_ref_ptr(
+				  SrcExp->state      = srcexp::game_t{};
+				  SrcExp->state.file = srcexp::make_data_ref_ptr(
 				    srcexp::data_ref_ptr_t{},
 				    lak::read_file(exe_path).EXPECT("failed to load file"));
-				  ASSERT(!!SrcExp.state.file);
-				  DEBUG("File size: ", SrcExp.state.file->size());
-				  SrcExp.loaded       = true;
+				  ASSERT(!!SrcExp->state.file);
+				  DEBUG("File size: ", SrcExp->state.file->size());
+				  SrcExp->loaded      = true;
 				  force_update_memory = true;
 				  return lak::file_open_error::VALID;
 			  },
 			  false);
 		}
 
-		if (SrcExp.loaded)
+		if (SrcExp->loaded)
 		{
 			base_window::main_region(frame_time);
 
@@ -75,11 +75,11 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 	{
 		static base_window::memory_view view;
 		force_update_memory |=
-		  view.draw(SrcExp.state.file, SrcExp.buffer, force_update_memory);
+		  view.draw(SrcExp->state.file, SrcExp->buffer, force_update_memory);
 
 		static MemoryEditor editor;
-		editor.DrawContents(reinterpret_cast<uint8_t *>(SrcExp.buffer.data()),
-		                    SrcExp.buffer.size());
+		editor.DrawContents(reinterpret_cast<uint8_t *>(SrcExp->buffer.data()),
+		                    SrcExp->buffer.size());
 	}
 
 	static void right_region(float)
@@ -88,7 +88,7 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 		static base_window::memory_explorer_content_mode content_mode =
 		  base_window::memory_explorer_content_mode::VIEW_DATA_BINARY;
 		base_window::memory_explorer_impl(
-		  editor, content_mode, SrcExp.buffer, force_update_memory);
+		  editor, content_mode, SrcExp->buffer, force_update_memory);
 	}
 };
 

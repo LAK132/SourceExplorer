@@ -56,17 +56,9 @@ SOFTWARE.
 
 namespace fs = std::filesystem;
 
-extern srcexp::instance_t SrcExp;
+extern srcexp::instance_t *SrcExp;
 extern int opengl_major, opengl_minor;
 
-enum struct se_main_mode_t : unsigned int
-{
-	normal,
-	byte_pairs,
-	binary_analysis,
-	testing,
-};
-
-extern se_main_mode_t se_main_mode;
+void new_instance_window();
 
 #endif

@@ -10,35 +10,36 @@ struct byte_pairs_window : public base_window<byte_pairs_window>
 {
 	static void main_region(float)
 	{
-		if (SrcExp.exe.bad()) SrcExp.exe.make_attempt();
+		if (SrcExp->exe.bad()) SrcExp->exe.make_attempt();
 
-		if (SrcExp.exe.attempt)
+		if (SrcExp->exe.attempt)
 		{
 			srcexp::AttemptFile(
-			  SrcExp.exe,
+			  SrcExp->exe,
 			  [](const fs::path &exe_path) -> lak::file_open_error
 			  {
 				  lak::debugger.clear();
-				  SrcExp.state      = srcexp::game_t{};
-				  SrcExp.state.file = srcexp::make_data_ref_ptr(
+				  SrcExp->state      = srcexp::game_t{};
+				  SrcExp->state.file = srcexp::make_data_ref_ptr(
 				    srcexp::data_ref_ptr_t{},
 				    lak::read_file(exe_path).EXPECT("failed to load file"));
-				  ASSERT(!!SrcExp.state.file);
-				  DEBUG("File size: ", SrcExp.state.file->size());
-				  SrcExp.loaded = true;
+				  ASSERT(!!SrcExp->state.file);
+				  DEBUG("File size: ", SrcExp->state.file->size());
+				  SrcExp->loaded = true;
 				  return lak::file_open_error::VALID;
 			  },
 			  false);
 
-			if (SrcExp.exe.bad())
+			if (SrcExp->exe.bad())
 			{
-				se_main_mode = se_main_mode_t::normal; // User cancelled
+				SrcExp->main_mode =
+				  srcexp::instance_t::main_mode_t::normal; // User cancelled
 				return;
 			}
 		}
 
-		if (SrcExp.loaded)
-			base_window::byte_pairs_memory_explorer(*SrcExp.state.file, false);
+		if (SrcExp->loaded)
+			base_window::byte_pairs_memory_explorer(*SrcExp->state.file, false);
 	}
 };
 

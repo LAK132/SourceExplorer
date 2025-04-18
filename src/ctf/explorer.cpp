@@ -23,6 +23,7 @@
 #include "lak/compression/lz4.hpp"
 #include "lak/concepts.hpp"
 #include "lak/math.hpp"
+#include "lak/overloaded_visitor.hpp"
 #include "lak/string.hpp"
 #include "lak/string_utils.hpp"
 #include "lak/string_view.hpp"
@@ -36,6 +37,8 @@
 
 #define TRACE_EXPECTED(EXPECTED, GOT)                                         \
 	lak::streamify("expected '", EXPECTED, "', got '", GOT, "'")
+
+lak::graphics_mode srcexp::instance_t::graphics_mode;
 
 namespace srcexp
 {
@@ -1778,7 +1781,9 @@ namespace srcexp
 		lak::binary_reader reader(compressed);
 
 		return lak::decode_lz4_block(reader, out_size)
-		  .map_err(lak::lz4_error_name)
+		  .map_err(lak::overloaded_visitor{
+		    [](lak::out_of_data_error) { return "out of data"; },
+		    [](lak::lz4_decode_error err) { return lak::lz4_error_name(err); }})
 		  .map(
 		    [&](auto &&decompressed)
 		    {

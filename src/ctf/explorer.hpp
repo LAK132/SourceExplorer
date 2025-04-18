@@ -137,7 +137,7 @@ namespace srcexp
 
 	struct instance_t
 	{
-		lak::graphics_mode graphics_mode;
+		static lak::graphics_mode graphics_mode;
 
 		game_t state;
 
@@ -168,6 +168,16 @@ namespace srcexp
 		const basic_entry_t *view = nullptr;
 		texture_t image;
 		data_ref_span_t buffer;
+
+		enum struct main_mode_t : unsigned int
+		{
+			normal,
+			byte_pairs,
+			binary_analysis,
+			testing,
+		};
+
+		main_mode_t main_mode = main_mode_t::normal;
 	};
 
 	error_t LoadGame(instance_t &inst);

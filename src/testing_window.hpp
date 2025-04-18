@@ -11,7 +11,7 @@ struct test_window : public base_window<test_window>
 {
 	static void menu_bar(float)
 	{
-		SrcExp.testing.attempt |= ImGui::Button("Open Folder");
+		SrcExp->testing.attempt |= ImGui::Button("Open Folder");
 		mode_select_menu();
 		main_window::compat_menu();
 		debug_menu();
@@ -19,11 +19,11 @@ struct test_window : public base_window<test_window>
 
 	static lak::file_open_error refresh_testing_files()
 	{
-		SrcExp.testing_files.clear();
+		SrcExp->testing_files.clear();
 
 		std::error_code ec;
 		for (const auto &entry :
-		     fs::recursive_directory_iterator{SrcExp.testing.path, ec})
+		     fs::recursive_directory_iterator{SrcExp->testing.path, ec})
 		{
 			if (entry.is_regular_file(ec))
 				if (const auto path{entry.path()}, extension{path.extension()};
@@ -32,7 +32,7 @@ struct test_window : public base_window<test_window>
 				    extension == ".ccn" || extension == ".CCN" ||
 				    extension == ".gam" || extension == ".GAM" ||
 				    extension == ".ugh" || extension == ".UGH")
-					SrcExp.testing_files.push_back(path);
+					SrcExp->testing_files.push_back(path);
 
 			if (ec) break;
 		}
@@ -48,20 +48,20 @@ struct test_window : public base_window<test_window>
 
 	static void main_region(float frame_time)
 	{
-		if (SrcExp.testing.bad()) SrcExp.testing.make_attempt();
+		if (SrcExp->testing.bad()) SrcExp->testing.make_attempt();
 
-		if (SrcExp.testing.attempt)
+		if (SrcExp->testing.attempt)
 		{
-			srcexp::AttemptFolder(SrcExp.testing, &refresh_testing_files);
+			srcexp::AttemptFolder(SrcExp->testing, &refresh_testing_files);
 
-			if (SrcExp.testing.bad())
+			if (SrcExp->testing.bad())
 			{
-				se_main_mode = se_main_mode_t::normal;
+				SrcExp->main_mode = srcexp::instance_t::main_mode_t::normal;
 				return;
 			}
 		}
 
-		if (SrcExp.testing.good()) base_window::main_region(frame_time);
+		if (SrcExp->testing.good()) base_window::main_region(frame_time);
 	}
 
 	inline static lak::array<fs::path> all_testing_files;
@@ -72,7 +72,8 @@ struct test_window : public base_window<test_window>
 
 	static void left_region(float)
 	{
-		ImGui::Text("%s", lak::as_astring(SrcExp.testing.path.u8string().c_str()));
+		ImGui::Text("%s",
+		            lak::as_astring(SrcExp->testing.path.u8string().c_str()));
 
 		if (ImGui::Button("Refresh Folder")) refresh_testing_files();
 
@@ -80,7 +81,7 @@ struct test_window : public base_window<test_window>
 
 		if (ImGui::Button("Try Open All"))
 		{
-			all_testing_files   = SrcExp.testing_files;
+			all_testing_files   = SrcExp->testing_files;
 			testing_files_count = all_testing_files.size();
 			list_failed_files   = false;
 		}
@@ -89,23 +90,26 @@ struct test_window : public base_window<test_window>
 
 		if (ImGui::Button("Find Broken"))
 		{
-			all_testing_files   = SrcExp.testing_files;
+			all_testing_files   = SrcExp->testing_files;
 			testing_files_count = all_testing_files.size();
 			failed_files.clear();
 			list_failed_files = true;
 		}
 
-		for (const auto &path : SrcExp.testing_files)
+		for (const auto &path : SrcExp->testing_files)
 		{
 			LAK_TREE_NODE(lak::as_astring(
-			  path.lexically_relative(SrcExp.testing.path).u8string().c_str()))
+			  path.lexically_relative(SrcExp->testing.path).u8string().c_str()))
 			{
 				if (ImGui::Button("Try Open"))
 				{
-					SrcExp.baby_mode   = false;
-					SrcExp.exe.path    = path;
-					SrcExp.exe.attempt = true;
-					SrcExp.exe.valid   = true;
+					SrcExp->baby_mode   = false;
+					SrcExp->view        = nullptr;
+					SrcExp->image       = lak::monostate{};
+					SrcExp->buffer      = {};
+					SrcExp->exe.path    = path;
+					SrcExp->exe.attempt = true;
+					SrcExp->exe.valid   = true;
 				}
 			}
 		}
@@ -113,12 +117,12 @@ struct test_window : public base_window<test_window>
 
 	static void right_region(float frame_time)
 	{
-		if (!SrcExp.exe.attempt && !all_testing_files.empty())
+		if (!SrcExp->exe.attempt && !all_testing_files.empty())
 		{
-			SrcExp.baby_mode   = false;
-			SrcExp.exe.attempt = true;
-			SrcExp.exe.valid   = true;
-			SrcExp.exe.path    = lak::move(all_testing_files.back());
+			SrcExp->baby_mode   = false;
+			SrcExp->exe.attempt = true;
+			SrcExp->exe.valid   = true;
+			SrcExp->exe.path    = lak::move(all_testing_files.back());
 			all_testing_files.pop_back();
 		}
 
@@ -130,42 +134,42 @@ struct test_window : public base_window<test_window>
 				            lak::as_astring(failed.u8string().c_str()));
 			ImGui::PopStyleColor();
 
-			if (SrcExp.exe.attempt)
+			if (SrcExp->exe.attempt)
 				ImGui::Text("Attempting: \"%s\"",
-				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+				            lak::as_astring(SrcExp->exe.path.u8string().c_str()));
 
 			if (ImGui::Button("Clear")) failed_files.clear();
 
 			ImGui::Separator();
 		}
 
-		if (SrcExp.loaded)
+		if (SrcExp->loaded)
 		{
-			if (SrcExp.loaded_successfully)
+			if (SrcExp->loaded_successfully)
 			{
 				ImGui::Text("\"%s\" Successfully Loaded",
-				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+				            lak::as_astring(SrcExp->exe.path.u8string().c_str()));
 			}
 			else
 			{
 				ImGui::PushStyleColor(ImGuiCol_Text, 0xFF8080FF);
 				ImGui::Text("Loading \"%s\" Failed, Showing Partial Load",
-				            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+				            lak::as_astring(SrcExp->exe.path.u8string().c_str()));
 				ImGui::PopStyleColor();
 			}
 
 			if (ImGui::Button("Try Dump Images"))
 			{
-				SrcExp.images.path = SrcExp.testing.path / "test-image-dump";
-				lak::remove_path(SrcExp.images.path)
-				  .IF_ERR("Failed To Delete Folder ", SrcExp.images.path);
-				if (lak::create_directory(SrcExp.images.path)
-				      .IF_ERR("Failed To Create Folder ", SrcExp.images.path)
+				SrcExp->images.path = SrcExp->testing.path / "test-image-dump";
+				lak::remove_path(SrcExp->images.path)
+				  .IF_ERR("Failed To Delete Folder ", SrcExp->images.path);
+				if (lak::create_directory(SrcExp->images.path)
+				      .IF_ERR("Failed To Create Folder ", SrcExp->images.path)
 				      .is_ok())
 				{
-					DEBUG("Saving Images To ", SrcExp.images.path);
-					SrcExp.images.attempt = true;
-					SrcExp.images.valid   = true;
+					DEBUG("Saving Images To ", SrcExp->images.path);
+					SrcExp->images.attempt = true;
+					SrcExp->images.valid   = true;
 				}
 			}
 
@@ -173,16 +177,16 @@ struct test_window : public base_window<test_window>
 
 			if (ImGui::Button("Try Dump Sounds"))
 			{
-				SrcExp.sounds.path = SrcExp.testing.path / "test-sound-dump";
-				lak::remove_path(SrcExp.sounds.path)
-				  .IF_ERR("Failed To Delete Folder ", SrcExp.sounds.path);
-				if (lak::create_directory(SrcExp.sounds.path)
-				      .IF_ERR("Failed To Create Folder ", SrcExp.sounds.path)
+				SrcExp->sounds.path = SrcExp->testing.path / "test-sound-dump";
+				lak::remove_path(SrcExp->sounds.path)
+				  .IF_ERR("Failed To Delete Folder ", SrcExp->sounds.path);
+				if (lak::create_directory(SrcExp->sounds.path)
+				      .IF_ERR("Failed To Create Folder ", SrcExp->sounds.path)
 				      .is_ok())
 				{
-					DEBUG("Saving Images To ", SrcExp.sounds.path);
-					SrcExp.sounds.attempt = true;
-					SrcExp.sounds.valid   = true;
+					DEBUG("Saving Images To ", SrcExp->sounds.path);
+					SrcExp->sounds.attempt = true;
+					SrcExp->sounds.valid   = true;
 				}
 			}
 
@@ -190,16 +194,16 @@ struct test_window : public base_window<test_window>
 
 			if (ImGui::Button("Try Dump Music"))
 			{
-				SrcExp.music.path = SrcExp.testing.path / "test-music-dump";
-				lak::remove_path(SrcExp.music.path)
-				  .IF_ERR("Failed To Delete Folder ", SrcExp.music.path);
-				if (lak::create_directory(SrcExp.music.path)
-				      .IF_ERR("Failed To Create Folder ", SrcExp.music.path)
+				SrcExp->music.path = SrcExp->testing.path / "test-music-dump";
+				lak::remove_path(SrcExp->music.path)
+				  .IF_ERR("Failed To Delete Folder ", SrcExp->music.path);
+				if (lak::create_directory(SrcExp->music.path)
+				      .IF_ERR("Failed To Create Folder ", SrcExp->music.path)
 				      .is_ok())
 				{
-					DEBUG("Saving Images To ", SrcExp.music.path);
-					SrcExp.music.attempt = true;
-					SrcExp.music.valid   = true;
+					DEBUG("Saving Images To ", SrcExp->music.path);
+					SrcExp->music.attempt = true;
+					SrcExp->music.valid   = true;
 				}
 			}
 
@@ -208,24 +212,24 @@ struct test_window : public base_window<test_window>
 		else
 		{
 			ImGui::Text("Working Path \"%s\"",
-			            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+			            lak::as_astring(SrcExp->exe.path.u8string().c_str()));
 
 			if (!last_error.empty()) ImGui::Text("%s", last_error.c_str());
 
 			ImGui::Text("Not Loaded");
 		}
 
-		if (SrcExp.exe.attempt)
+		if (SrcExp->exe.attempt)
 		{
-			SrcExp.loaded              = false;
-			SrcExp.loaded_successfully = false;
+			SrcExp->loaded              = false;
+			SrcExp->loaded_successfully = false;
 
-			if (auto result{srcexp::OpenGame(SrcExp)}; result.is_err())
+			if (auto result{srcexp::OpenGame(*SrcExp)}; result.is_err())
 			{
 				if (result.unwrap_err() == lak::await_error::running)
 				{
 					ImGui::Text("Loading \"%s\"",
-					            lak::as_astring(SrcExp.exe.path.u8string().c_str()));
+					            lak::as_astring(SrcExp->exe.path.u8string().c_str()));
 
 					if (testing_files_count > 0U)
 					{
@@ -240,7 +244,7 @@ struct test_window : public base_window<test_window>
 				{
 					// this may happen if an exception was thrown
 					ERROR("OpenGame failed");
-					SrcExp.exe.attempt = false;
+					SrcExp->exe.attempt = false;
 				}
 			}
 			else if (result.unsafe_unwrap().is_err())
@@ -248,39 +252,39 @@ struct test_window : public base_window<test_window>
 				result.unsafe_unwrap().IF_ERR("OpenGame failed").discard();
 				last_error = lak::as_astring(
 				  lak::streamify("Opening \"",
-				                 SrcExp.exe.path.u8string(),
+				                 SrcExp->exe.path.u8string(),
 				                 "\" failed: ",
 				                 result.unsafe_unwrap().unsafe_unwrap_err()));
 
 				if (list_failed_files)
 				{
-					failed_files.push_back(SrcExp.exe.path);
+					failed_files.push_back(SrcExp->exe.path);
 				}
 				else
 				{
-					const bool is_known_bad_game = SrcExp.state.ccn;
+					const bool is_known_bad_game = SrcExp->state.ccn;
 					if (!is_known_bad_game) all_testing_files.clear();
 				}
 
-				SrcExp.loaded              = srcexp::open_broken_games;
-				SrcExp.loaded_successfully = false;
-				SrcExp.exe.attempt         = false;
-				SrcExp.exe.valid           = false;
+				SrcExp->loaded              = srcexp::open_broken_games;
+				SrcExp->loaded_successfully = false;
+				SrcExp->exe.attempt         = false;
+				SrcExp->exe.valid           = false;
 			}
 			else
 			{
 				last_error.clear();
 
-				SrcExp.loaded              = true;
-				SrcExp.loaded_successfully = true;
-				SrcExp.exe.attempt         = false;
-				SrcExp.exe.valid           = false;
+				SrcExp->loaded              = true;
+				SrcExp->loaded_successfully = true;
+				SrcExp->exe.attempt         = false;
+				SrcExp->exe.valid           = false;
 			}
 		}
 
-		if (SrcExp.images.attempt) srcexp::AttemptImages(SrcExp);
-		if (SrcExp.sounds.attempt) srcexp::AttemptSounds(SrcExp);
-		if (SrcExp.music.attempt) srcexp::AttemptMusic(SrcExp);
+		if (SrcExp->images.attempt) srcexp::AttemptImages(*SrcExp);
+		if (SrcExp->sounds.attempt) srcexp::AttemptSounds(*SrcExp);
+		if (SrcExp->music.attempt) srcexp::AttemptMusic(*SrcExp);
 	}
 };
 

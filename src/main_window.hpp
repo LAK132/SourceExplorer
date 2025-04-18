@@ -36,69 +36,79 @@ struct main_window : public base_window<main_window>
 	{
 		if (ImGui::BeginMenu("File"))
 		{
-			ImGui::Checkbox("Auto-dump Mode", &SrcExp.baby_mode);
+			ImGui::Checkbox("Auto-dump Mode", &SrcExp->baby_mode);
 
-			if (ImGui::MenuItem(SrcExp.baby_mode ? "Open And Dump..." : "Open...",
+			if (ImGui::MenuItem("New Window"))
+			{
+				new_instance_window();
+			}
+
+			if (ImGui::MenuItem(SrcExp->baby_mode ? "Open And Dump..." : "Open...",
 			                    nullptr))
 			{
-				DEBUG(SrcExp.baby_mode ? "Open And Dump" : "Open");
-				SrcExp.exe.make_attempt();
+				DEBUG(SrcExp->baby_mode ? "Open And Dump" : "Open");
+				SrcExp->view   = nullptr;
+				SrcExp->image  = lak::monostate{};
+				SrcExp->buffer = {};
+				SrcExp->exe.make_attempt();
 			}
 
 			if (ImGui::MenuItem("Dump Sorted Images...",
 			                    nullptr,
 			                    false,
-			                    !SrcExp.baby_mode &&
-			                      !SrcExp.state.two_five_plus_game))
+			                    !SrcExp->baby_mode &&
+			                      !SrcExp->state.two_five_plus_game))
 			{
 				DEBUG("Dump Sorted Images");
-				SrcExp.sorted_images.make_attempt();
+				SrcExp->sorted_images.make_attempt();
 			}
 
-			if (ImGui::MenuItem("Dump Images...", nullptr, false, !SrcExp.baby_mode))
+			if (ImGui::MenuItem(
+			      "Dump Images...", nullptr, false, !SrcExp->baby_mode))
 			{
 				DEBUG("Dump Images");
-				SrcExp.images.make_attempt();
+				SrcExp->images.make_attempt();
 			}
 
-			if (ImGui::MenuItem("Dump Sounds...", nullptr, false, !SrcExp.baby_mode))
+			if (ImGui::MenuItem(
+			      "Dump Sounds...", nullptr, false, !SrcExp->baby_mode))
 			{
 				DEBUG("Dump Sounds");
-				SrcExp.sounds.make_attempt();
+				SrcExp->sounds.make_attempt();
 			}
 
-			if (ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp.baby_mode))
+			if (ImGui::MenuItem("Dump Music...", nullptr, false, !SrcExp->baby_mode))
 			{
 				DEBUG("Dump Music");
-				SrcExp.music.make_attempt();
+				SrcExp->music.make_attempt();
 			}
 
 			if (ImGui::MenuItem(
-			      "Dump Shaders...", nullptr, false, !SrcExp.baby_mode))
+			      "Dump Shaders...", nullptr, false, !SrcExp->baby_mode))
 			{
 				DEBUG("Dump Shader");
-				SrcExp.shaders.make_attempt();
+				SrcExp->shaders.make_attempt();
 			}
 
 			if (ImGui::MenuItem(
-			      "Dump Binary Files...", nullptr, false, !SrcExp.baby_mode))
+			      "Dump Binary Files...", nullptr, false, !SrcExp->baby_mode))
 			{
 				DEBUG("Dump Binary Files");
-				SrcExp.binary_files.make_attempt();
+				SrcExp->binary_files.make_attempt();
 			}
 
 			if (ImGui::MenuItem(
-			      "Dump App Icon...", nullptr, false, !SrcExp.baby_mode))
+			      "Dump App Icon...", nullptr, false, !SrcExp->baby_mode))
 			{
 				DEBUG("Dump App Icon");
-				SrcExp.appicon.make_attempt();
+				SrcExp->appicon.make_attempt();
 			}
 
 			ImGui::Separator();
 			if (ImGui::MenuItem("Save Error Log..."))
 			{
 				DEBUG("Save Error Log");
-				SrcExp.error_log.make_attempt();
+				SrcExp->error_log.make_attempt();
 			}
 			ImGui::EndMenu();
 		}
@@ -109,7 +119,7 @@ struct main_window : public base_window<main_window>
 		if (ImGui::BeginMenu("About"))
 		{
 			ImGui::Text(APP_NAME " by LAK132");
-			switch (SrcExp.graphics_mode)
+			switch (srcexp::instance_t::graphics_mode)
 			{
 				case lak::graphics_mode::OpenGL:
 					ImGui::Text("Using OpenGL %d.%d", opengl_major, opengl_minor);
@@ -145,11 +155,11 @@ struct main_window : public base_window<main_window>
 	{
 		if (ImGui::BeginMenu("Compatability"))
 		{
-			ImGui::Checkbox("Color transparency", &SrcExp.dump_color_transparent);
+			ImGui::Checkbox("Color transparency", &SrcExp->dump_color_transparent);
 			ImGui::Checkbox("Force compat mode", &srcexp::force_compat);
 			ImGui::Checkbox("Skip broken items", &srcexp::skip_broken_items);
 			ImGui::Checkbox("Open broken games", &srcexp::open_broken_games);
-			ImGui::Checkbox("Enable multithreading", &SrcExp.allow_multithreading);
+			ImGui::Checkbox("Enable multithreading", &SrcExp->allow_multithreading);
 			ImGui::EndMenu();
 		}
 	}
@@ -169,32 +179,32 @@ struct main_window : public base_window<main_window>
 
 	static void left_region(float)
 	{
-		if (SrcExp.loaded)
+		if (SrcExp->loaded)
 		{
-			if (SrcExp.state.game.title)
+			if (SrcExp->state.game.title)
 				ImGui::Text(
 				  "Title: %s",
-				  lak::strconv<char>(SrcExp.state.game.title->value).c_str());
-			if (SrcExp.state.game.author)
+				  lak::strconv<char>(SrcExp->state.game.title->value).c_str());
+			if (SrcExp->state.game.author)
 				ImGui::Text(
 				  "Author: %s",
-				  lak::strconv<char>(SrcExp.state.game.author->value).c_str());
-			if (SrcExp.state.game.copyright)
+				  lak::strconv<char>(SrcExp->state.game.author->value).c_str());
+			if (SrcExp->state.game.copyright)
 				ImGui::Text(
 				  "Copyright: %s",
-				  lak::strconv<char>(SrcExp.state.game.copyright->value).c_str());
-			if (SrcExp.state.game.output_path)
+				  lak::strconv<char>(SrcExp->state.game.copyright->value).c_str());
+			if (SrcExp->state.game.output_path)
 				ImGui::Text(
 				  "Output: %s",
-				  lak::strconv<char>(SrcExp.state.game.output_path->value).c_str());
-			if (SrcExp.state.game.project_path)
+				  lak::strconv<char>(SrcExp->state.game.output_path->value).c_str());
+			if (SrcExp->state.game.project_path)
 				ImGui::Text(
 				  "Project: %s",
-				  lak::strconv<char>(SrcExp.state.game.project_path->value).c_str());
+				  lak::strconv<char>(SrcExp->state.game.project_path->value).c_str());
 
 			ImGui::Separator();
 
-			if (SrcExp.state.recompiled)
+			if (SrcExp->state.recompiled)
 			{
 				ImGui::PushStyleColor(ImGuiCol_Text, 0xFF8080FF);
 				ImGui::Text(
@@ -203,30 +213,30 @@ struct main_window : public base_window<main_window>
 				ImGui::PopStyleColor();
 			}
 
-			ImGui::Text("New Game: %s", SrcExp.state.old_game ? "No" : "Yes");
-			ImGui::Text("Unicode Game: %s", SrcExp.state.unicode ? "Yes" : "No");
-			ImGui::Text("Compat Game: %s", SrcExp.state.compat ? "Yes" : "No");
-			ImGui::Text("CCN Game: %s", SrcExp.state.ccn ? "Yes" : "No");
-			ImGui::Text("3.0 (CRUF) Game: %s", SrcExp.state.cruf ? "Yes" : "No");
+			ImGui::Text("New Game: %s", SrcExp->state.old_game ? "No" : "Yes");
+			ImGui::Text("Unicode Game: %s", SrcExp->state.unicode ? "Yes" : "No");
+			ImGui::Text("Compat Game: %s", SrcExp->state.compat ? "Yes" : "No");
+			ImGui::Text("CCN Game: %s", SrcExp->state.ccn ? "Yes" : "No");
+			ImGui::Text("3.0 (CRUF) Game: %s", SrcExp->state.cruf ? "Yes" : "No");
 			ImGui::Text("2.5+ Game: %s",
-			            SrcExp.state.two_five_plus_game ? "Yes" : "No");
+			            SrcExp->state.two_five_plus_game ? "Yes" : "No");
 			ImGui::Text("Product Version: %zu",
-			            (size_t)SrcExp.state.product_version);
-			ImGui::Text("Product Build: %zu", (size_t)SrcExp.state.product_build);
+			            (size_t)SrcExp->state.product_version);
+			ImGui::Text("Product Build: %zu", (size_t)SrcExp->state.product_build);
 			ImGui::Text("Runtime Version: %zu",
-			            (size_t)SrcExp.state.runtime_version);
+			            (size_t)SrcExp->state.runtime_version);
 			ImGui::Text("Runtime Sub-Version: %zu",
-			            (size_t)SrcExp.state.runtime_sub_version);
+			            (size_t)SrcExp->state.runtime_sub_version);
 
 			ImGui::Separator();
 
-			SrcExp.state.game.view(SrcExp).UNWRAP();
+			SrcExp->state.game.view(*SrcExp).UNWRAP();
 		}
 	}
 
 	static void right_region(float)
 	{
-		if (SrcExp.loaded)
+		if (SrcExp->loaded)
 		{
 			enum mode
 			{
@@ -287,7 +297,7 @@ struct main_window : public base_window<main_window>
 
 	static void main_region(float frame_time)
 	{
-		if (!SrcExp.baby_mode && SrcExp.loaded)
+		if (!SrcExp->baby_mode && SrcExp->loaded)
 		{
 			base_window::main_region(frame_time);
 		}
@@ -299,33 +309,33 @@ struct main_window : public base_window<main_window>
 			ImGui::EndChild();
 		}
 
-		if (SrcExp.exe.attempt)
-			srcexp::AttemptExe(SrcExp);
-		else if (SrcExp.database.attempt)
-			srcexp::AttemptDatabase(SrcExp);
-		else if (SrcExp.images.attempt)
-			srcexp::AttemptImages(SrcExp);
-		else if (SrcExp.sorted_images.attempt)
+		if (SrcExp->exe.attempt)
+			srcexp::AttemptExe(*SrcExp);
+		else if (SrcExp->database.attempt)
+			srcexp::AttemptDatabase(*SrcExp);
+		else if (SrcExp->images.attempt)
+			srcexp::AttemptImages(*SrcExp);
+		else if (SrcExp->sorted_images.attempt)
 		{
-			if (SrcExp.state.two_five_plus_game)
-				SrcExp.sorted_images.attempt = false;
+			if (SrcExp->state.two_five_plus_game)
+				SrcExp->sorted_images.attempt = false;
 			else
-				srcexp::AttemptSortedImages(SrcExp);
+				srcexp::AttemptSortedImages(*SrcExp);
 		}
-		else if (SrcExp.appicon.attempt)
-			srcexp::AttemptAppIcon(SrcExp);
-		else if (SrcExp.sounds.attempt)
-			srcexp::AttemptSounds(SrcExp);
-		else if (SrcExp.music.attempt)
-			srcexp::AttemptMusic(SrcExp);
-		else if (SrcExp.shaders.attempt)
-			srcexp::AttemptShaders(SrcExp);
-		else if (SrcExp.binary_files.attempt)
-			srcexp::AttemptBinaryFiles(SrcExp);
-		else if (SrcExp.error_log.attempt)
-			srcexp::AttemptErrorLog(SrcExp);
-		else if (SrcExp.binary_block.attempt)
-			srcexp::AttemptBinaryBlock(SrcExp);
+		else if (SrcExp->appicon.attempt)
+			srcexp::AttemptAppIcon(*SrcExp);
+		else if (SrcExp->sounds.attempt)
+			srcexp::AttemptSounds(*SrcExp);
+		else if (SrcExp->music.attempt)
+			srcexp::AttemptMusic(*SrcExp);
+		else if (SrcExp->shaders.attempt)
+			srcexp::AttemptShaders(*SrcExp);
+		else if (SrcExp->binary_files.attempt)
+			srcexp::AttemptBinaryFiles(*SrcExp);
+		else if (SrcExp->error_log.attempt)
+			srcexp::AttemptErrorLog(*SrcExp);
+		else if (SrcExp->binary_block.attempt)
+			srcexp::AttemptBinaryBlock(*SrcExp);
 	}
 };
 

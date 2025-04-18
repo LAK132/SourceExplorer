@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, ubuntu-20.04, macos-13]
+        os: [windows-2022, ubuntu-24.04, macos-13]
         arch: [x86, x64]
         exclude:
           - os: macos-13
@@ -44,7 +44,7 @@ jobs:
           platform: ${{ matrix.arch }}
       - if: startsWith(matrix.os, 'ubuntu')
         run: |
-          sudo python3 -m pip install --upgrade pip setuptools wheel
+          sudo python3 -m pip install --upgrade setuptools
           sudo python3 -m pip install meson ninja
 
       - if: startsWith(matrix.os, 'macos')

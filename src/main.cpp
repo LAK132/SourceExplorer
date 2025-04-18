@@ -46,28 +46,41 @@
 #	define MAXDIRLEN 512
 #endif
 
-srcexp::instance_t SrcExp;
+struct instance_window
+{
+	lak::unique_ptr<srcexp::instance_t> instance;
+	lak::window_handle *window;
+};
+
+lak::vector<instance_window> instances;
+srcexp::instance_t *SrcExp;
 int opengl_major, opengl_minor;
-se_main_mode_t se_main_mode = se_main_mode_t::normal;
+
+lak::result<instance_window &> find_window_instance(lak::window_handle *window)
+{
+	for (auto &inst : instances)
+		if (inst.window == window) return lak::ok_t<instance_window &>{inst};
+	return lak::err_t{};
+}
 
 #if 1
-void MainScreen(float frame_time)
+void MainScreen(instance_window &inst, float frame_time)
 {
-	switch (se_main_mode)
+	switch (inst.instance->main_mode)
 	{
-		case se_main_mode_t::byte_pairs:
+		case srcexp::instance_t::main_mode_t::byte_pairs:
 			byte_pairs_window::draw(frame_time);
 			break;
 
-		case se_main_mode_t::binary_analysis:
+		case srcexp::instance_t::main_mode_t::binary_analysis:
 			binary_analysis_window::draw(frame_time);
 			break;
 
-		case se_main_mode_t::testing:
+		case srcexp::instance_t::main_mode_t::testing:
 			test_window::draw(frame_time);
 			break;
 
-		case se_main_mode_t::normal:
+		case srcexp::instance_t::main_mode_t::normal:
 			[[fallthrough]];
 		default:
 			main_window::draw(frame_time);
@@ -101,13 +114,15 @@ void MainScreen(float frame_time)
 }
 #endif
 
+#define LAK_BASIC_PROGRAM_IMGUI_WINDOW_IMPL
 #include <lak/basic_program.inl>
 
-ImGui::ImplContext imgui_context = nullptr;
+bool init_force_only_error = false;
+srcexp::instance_t::main_mode_t init_main_mode =
+  srcexp::instance_t::main_mode_t::normal;
+bool init_allow_multithreading = false;
 
-bool force_only_error = false;
-
-lak::optional<int> basic_window_preinit(int argc, char **argv)
+lak::optional<int> basic_program_preinit(int argc, char **argv)
 {
 	if (argc == 2 && argv[1] == lak::astring("--version"))
 	{
@@ -138,7 +153,7 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		}
 		else if (argv[arg] == lak::astring("--onlyerr"))
 		{
-			force_only_error = true;
+			init_force_only_error = true;
 		}
 		else if (argv[arg] == lak::astring("--listtests"))
 		{
@@ -164,11 +179,11 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		}
 		else if (argv[arg] == lak::astring("--test"))
 		{
-			se_main_mode = se_main_mode_t::testing;
+			init_main_mode = srcexp::instance_t::main_mode_t::testing;
 		}
 		else if (argv[arg] == lak::astring("--analyse"))
 		{
-			se_main_mode = se_main_mode_t::binary_analysis;
+			init_main_mode = srcexp::instance_t::main_mode_t::binary_analysis;
 		}
 		else if (argv[arg] == lak::astring("--skip-broken"))
 		{
@@ -180,16 +195,16 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 		}
 		else if (argv[arg] == lak::astring("--threaded"))
 		{
-			SrcExp.allow_multithreading = true;
+			init_allow_multithreading = true;
 		}
 		else
 		{
-			SrcExp.baby_mode   = false;
-			SrcExp.exe.path    = argv[arg];
-			SrcExp.exe.valid   = true;
-			SrcExp.exe.attempt = true;
-			if (!lak::path_exists(SrcExp.exe.path).UNWRAP())
-				FATAL(SrcExp.exe.path, " does not exist");
+			// SrcExp->baby_mode   = false;
+			// SrcExp->exe.path    = argv[arg];
+			// SrcExp->exe.valid   = true;
+			// SrcExp->exe.attempt = true;
+			// if (!lak::path_exists(SrcExp->exe.path).UNWRAP())
+			// 	FATAL(SrcExp->exe.path, " does not exist");
 		}
 	}
 
@@ -201,43 +216,47 @@ lak::optional<int> basic_window_preinit(int argc, char **argv)
 	basic_window_opengl_settings.major = 3;
 	basic_window_opengl_settings.minor = 2;
 	basic_window_clear_colour          = {0.0f, 0.0f, 0.0f, 1.0f};
+	basic_imgui_main_window_flags =
+	  ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
+	  ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoSavedSettings |
+	  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove;
 
 	return lak::nullopt;
 }
 
-void basic_window_init(lak::window &window)
+void new_instance_window() { basic_create_window().UNWRAP(); }
+
+lak::optional<int> basic_program_init()
 {
-	lak::debugger.crash_path = SrcExp.error_log.path =
-	  fs::current_path() / "ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt";
+	new_instance_window();
 
-	SrcExp.images.path = SrcExp.sorted_images.path = SrcExp.sounds.path =
-	  SrcExp.music.path = SrcExp.shaders.path = SrcExp.binary_files.path =
-	    SrcExp.appicon.path = SrcExp.binary_block.path = fs::current_path();
+	SrcExp = instances.back().instance.get();
 
-	SrcExp.testing.path = fs::current_path() / "test";
+	lak::debugger.crash_path = SrcExp->error_log.path;
 
 	lak::debugger.live_output_enabled = true;
 
-	if (!SrcExp.exe.attempt)
+	if (!SrcExp->exe.attempt)
 	{
 		lak::debugger.live_errors_only = true;
-		SrcExp.exe.path                = fs::current_path();
+		SrcExp->exe.path = fs::current_path();
 	}
 	else
 	{
-		lak::debugger.live_errors_only = force_only_error;
+		lak::debugger.live_errors_only = init_force_only_error;
 	}
 
-	SrcExp.graphics_mode = window.graphics();
-	imgui_context        = ImGui::ImplCreateContext(SrcExp.graphics_mode);
-	ImGui::ImplInit();
-	ImGui::ImplInitContext(imgui_context, window);
+	SrcExp->main_mode            = init_main_mode;
+	SrcExp->allow_multithreading = init_allow_multithreading;
 
-	DEBUG("Graphics: ", SrcExp.graphics_mode);
+	srcexp::instance_t::graphics_mode =
+	  lak::window_graphics_mode(instances.back().window);
+
+	DEBUG("Graphics: ", srcexp::instance_t::graphics_mode);
 	if (!lak::debugger.live_output_enabled || lak::debugger.live_errors_only)
-		std::cout << "Graphics: " << SrcExp.graphics_mode << "\n";
+		std::cout << "Graphics: " << srcexp::instance_t::graphics_mode << "\n";
 
-	switch (SrcExp.graphics_mode)
+	switch (srcexp::instance_t::graphics_mode)
 	{
 		case lak::graphics_mode::OpenGL:
 		{
@@ -247,40 +266,68 @@ void basic_window_init(lak::window &window)
 		break;
 
 		case lak::graphics_mode::Software:
-		{
-			ImGuiStyle &style      = ImGui::GetStyle();
-			style.AntiAliasedLines = false;
-			style.AntiAliasedFill  = false;
-			style.WindowRounding   = 0.0f;
-		}
-		break;
+			break;
 
 		default:
 			break;
 	}
 
-	lak::init_file_modal(window.graphics());
-
-#ifdef LAK_USE_SDL
-	if (SDL_Init(SDL_INIT_AUDIO)) ERROR("Failed to initialise SDL audio");
-#endif
-
-	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	ImGui::StyleColorsDark();
-	ImGui::GetStyle().WindowRounding = 0;
+	return lak::nullopt;
 }
 
-void basic_window_handle_event(lak::window &, lak::event &event)
+bool source_explorer_running = true;
+bool basic_program_loop(uint64_t counter_delta)
 {
-	ImGui::ImplProcessEvent(imgui_context, event);
+	LAK_UNUSED(counter_delta);
+	return source_explorer_running && !basic_window_instances.empty();
+}
 
+int basic_program_quit() { return EXIT_SUCCESS; }
+
+void basic_window_init(lak::window &window)
+{
+	auto &inst = instances.push_back(instance_window{
+	  .instance = lak::unique_ptr<srcexp::instance_t>::make(),
+	  .window   = window.handle(),
+	});
+
+	inst.instance->error_log.path =
+	  fs::current_path() / "ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt";
+
+	inst.instance->images.path        = inst.instance->sorted_images.path =
+	  inst.instance->sounds.path      = inst.instance->music.path =
+	    inst.instance->shaders.path   = inst.instance->binary_files.path =
+	      inst.instance->appicon.path = inst.instance->binary_block.path =
+	        fs::current_path();
+
+	inst.instance->testing.path = fs::current_path() / "test";
+}
+
+void basic_window_handle_event(lak::window *window, lak::event &event)
+{
 	switch (event.type)
 	{
-		case lak::event_type::dropfile:
-			SrcExp.exe.path    = event.dropfile().path;
-			SrcExp.exe.valid   = true;
-			SrcExp.exe.attempt = true;
+		case lak::event_type::close_window:
+			ASSERT(!!window);
+			basic_destroy_window(*window);
 			break;
+
+		case lak::event_type::quit_program:
+			source_explorer_running = false;
+			break;
+
+		case lak::event_type::dropfile:
+		{
+			ASSERT(!!window);
+			auto *se =
+			  find_window_instance(window->handle()).UNWRAP().instance.get();
+			ASSERT(!!se);
+			se->exe.path    = event.dropfile().path;
+			se->exe.valid   = true;
+			se->exe.attempt = true;
+		}
+		break;
+
 		default:
 			break;
 	}
@@ -288,36 +335,20 @@ void basic_window_handle_event(lak::window &, lak::event &event)
 
 void basic_window_loop(lak::window &window, uint64_t counter_delta)
 {
-	const float frame_time = (float)counter_delta / lak::performance_frequency();
-	ImGui::ImplNewFrame(imgui_context, window, frame_time);
-
-	bool mainOpen = true;
-
-	ImGuiStyle &style = ImGui::GetStyle();
-	ImGuiIO &io       = ImGui::GetIO();
-
-	ImGui::SetNextWindowPos(ImVec2(0, 0));
-	ImGui::SetNextWindowSize(io.DisplaySize);
-	ImVec2 old_window_padding = style.WindowPadding;
-	style.WindowPadding       = ImVec2(0.0f, 0.0f);
-	if (ImGui::Begin(APP_NAME,
-	                 &mainOpen,
-	                 ImGuiWindowFlags_AlwaysAutoResize |
-	                   ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar |
-	                   ImGuiWindowFlags_NoSavedSettings |
-	                   ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove))
-	{
-		style.WindowPadding = old_window_padding;
-		MainScreen(frame_time);
-		ImGui::End();
-	}
-
-	ImGui::ImplRender(imgui_context);
-	lak::flush_file_modal();
+	auto &inst = find_window_instance(window.handle()).UNWRAP();
+	SrcExp     = inst.instance.get();
+	MainScreen(inst, (float)counter_delta / lak::performance_frequency());
+	SrcExp = nullptr;
 }
 
-int basic_window_quit(lak::window &)
+void basic_window_quit(lak::window &window)
 {
-	ImGui::ImplShutdownContext(imgui_context);
-	return 0;
+	for (auto &inst : instances)
+	{
+		if (inst.window == window.handle())
+		{
+			instances.erase(&inst);
+			break;
+		}
+	}
 }
