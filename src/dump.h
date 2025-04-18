@@ -49,7 +49,6 @@ namespace srcexp
 	                               const char *str_id,
 	                               dump_function_t *func);
 
-	void DumpDatabase(instance_t &inst, std::atomic<float> &completed);
 	void DumpImages(instance_t &inst, std::atomic<float> &completed);
 	void DumpSortedImages(instance_t &inst, std::atomic<float> &completed);
 	void DumpAppIcon(instance_t &inst, std::atomic<float> &completed);
@@ -170,7 +169,6 @@ namespace srcexp
 	}
 
 	void AttemptExe(instance_t &inst);
-	void AttemptDatabase(instance_t &inst);
 	void AttemptImages(instance_t &inst);
 	void AttemptSortedImages(instance_t &inst);
 	void AttemptAppIcon(instance_t &inst);

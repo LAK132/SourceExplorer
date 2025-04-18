@@ -311,8 +311,6 @@ struct main_window : public base_window<main_window>
 
 		if (SrcExp->exe.attempt)
 			srcexp::AttemptExe(*SrcExp);
-		else if (SrcExp->database.attempt)
-			srcexp::AttemptDatabase(*SrcExp);
 		else if (SrcExp->images.attempt)
 			srcexp::AttemptImages(*SrcExp);
 		else if (SrcExp->sorted_images.attempt)

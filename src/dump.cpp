@@ -571,19 +571,19 @@ void srcexp::DumpSounds(instance_t &inst, std::atomic<float> &completed)
 				  auto data = sound.read<byte_t>(chunk_size).UNWRAP();
 
 				  lak::binary_array_writer output;
-				  output.write("RIFF"_span);
-				  output.write_s32(static_cast<uint32_t>(data.size() - 44));
-				  output.write("WAVEfmt "_span);
-				  output.write_u32(0x10);
-				  output.write_u16(format);
-				  output.write_u16(channel_count);
-				  output.write_u32(sample_rate);
-				  output.write_u32(byte_rate);
-				  output.write_u16(block_align);
-				  output.write_u16(bits_per_sample);
-				  output.write("data"_span);
-				  output.write_u32(chunk_size);
-				  output.write(lak::span(data));
+				  output.write("RIFF"_span).unwrap();
+				  output.write_s32(static_cast<uint32_t>(data.size() - 44)).unwrap();
+				  output.write("WAVEfmt "_span).unwrap();
+				  output.write_u32(0x10).unwrap();
+				  output.write_u16(format).unwrap();
+				  output.write_u16(channel_count).unwrap();
+				  output.write_u32(sample_rate).unwrap();
+				  output.write_u32(byte_rate).unwrap();
+				  output.write_u16(block_align).unwrap();
+				  output.write_u16(bits_per_sample).unwrap();
+				  output.write("data"_span).unwrap();
+				  output.write_u32(chunk_size).unwrap();
+				  output.write(lak::span(data)).unwrap();
 				  result = output.release();
 			  }
 			  else
@@ -974,19 +974,19 @@ void srcexp::AttemptExe(instance_t &inst)
 	  ".*");
 }
 
-void srcexp::AttemptDatabase(instance_t &inst)
-{
-	AttemptFile(
-	  inst.database,
-	  [&inst] { return DumpStuff(inst, "Saving database", &DumpDatabase); },
-	  true);
-}
-
 void srcexp::AttemptImages(instance_t &inst)
 {
 	AttemptFolder(inst.images,
 	              [&inst]
 	              { return DumpStuff(inst, "Saving images", &DumpImages); });
+}
+
+void srcexp::AttemptSortedImages(instance_t &inst)
+{
+	AttemptFolder(
+	  inst.sorted_images,
+	  [&inst]
+	  { return DumpStuff(inst, "Saving sorted images", &DumpSortedImages); });
 }
 
 void srcexp::AttemptAppIcon(instance_t &inst)
