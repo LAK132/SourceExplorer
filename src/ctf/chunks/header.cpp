@@ -4,11 +4,214 @@
 
 namespace srcexp
 {
+	error_t header_t::controls_t::player_control_t::keys_t::read(
+	  data_reader_t &strm, size_t button_count)
+	{
+		if (button_count == 0) return lak::ok_t{};
+		TRY_ASSIGN(up =, strm.read_u16());
+		if (button_count == 1) return lak::ok_t{};
+		TRY_ASSIGN(down =, strm.read_u16());
+		if (button_count == 2) return lak::ok_t{};
+		TRY_ASSIGN(left =, strm.read_u16());
+		if (button_count == 3) return lak::ok_t{};
+		TRY_ASSIGN(right =, strm.read_u16());
+		if (button_count == 4) return lak::ok_t{};
+		TRY_ASSIGN(button1 =, strm.read_u16());
+		if (button_count == 5) return lak::ok_t{};
+		TRY_ASSIGN(button2 =, strm.read_u16());
+		if (button_count == 6) return lak::ok_t{};
+		TRY_ASSIGN(button3 =, strm.read_u16());
+		if (button_count == 7) return lak::ok_t{};
+		TRY_ASSIGN(button4 =, strm.read_u16());
+
+		return lak::ok_t{};
+	}
+
+	void header_t::controls_t::player_control_t::keys_t::view() const
+	{
+		LAK_TREE_NODE("Keys")
+		{
+			ImGui::Text("Up: 0x%zX", (size_t)up);
+			ImGui::Text("Down: 0x%zX", (size_t)down);
+			ImGui::Text("Left: 0x%zX", (size_t)left);
+			ImGui::Text("Right: 0x%zX", (size_t)right);
+			ImGui::Text("Button 1: 0x%zX", (size_t)button1);
+			ImGui::Text("Button 2: 0x%zX", (size_t)button2);
+			ImGui::Text("Button 3: 0x%zX", (size_t)button3);
+			ImGui::Text("Button 4: 0x%zX", (size_t)button4);
+		}
+	}
+
+	error_t header_t::controls_t::player_control_t::read(data_reader_t &strm,
+	                                                     size_t button_count)
+	{
+		TRY_ASSIGN(control_type = (control_type_t), strm.read_u16());
+		RES_TRY(keys.read(strm, button_count)
+		          .RES_ADD_TRACE("header_t::controls_t::player_control_t::read"));
+
+		return lak::ok_t{};
+	}
+
+	void header_t::controls_t::player_control_t::view() const
+	{
+		switch (control_type)
+		{
+			case control_type_t::joystick1:
+				ImGui::Text("Joystick 1");
+				break;
+			case control_type_t::joystick2:
+				ImGui::Text("Joystick 2");
+				break;
+			case control_type_t::joystick3:
+				ImGui::Text("Joystick 3");
+				break;
+			case control_type_t::joystick4:
+				ImGui::Text("Joystick 4");
+				break;
+			case control_type_t::keyboard:
+				ImGui::Text("Keyboard");
+				break;
+			default:
+				ImGui::Text("Unknown");
+				break;
+		}
+		keys.view();
+	}
+
+	error_t header_t::controls_t::read(data_reader_t &strm, size_t button_count)
+	{
+		for (auto &control : controls)
+			RES_TRY(control.read(strm, button_count)
+			          .RES_ADD_TRACE("header_t::controls_t::read"));
+
+		return lak::ok_t{};
+	}
+
+	void header_t::controls_t::view() const
+	{
+		LAK_TREE_NODE("Controls 1") controls[0].view();
+		LAK_TREE_NODE("Controls 2") controls[1].view();
+		LAK_TREE_NODE("Controls 3") controls[2].view();
+		LAK_TREE_NODE("Controls 4") controls[3].view();
+	}
+
 	error_t header_t::read(game_t &game, data_reader_t &strm)
 	{
 		MEMBER_FUNCTION_CHECKPOINT();
 
 		RES_TRY(entry.read(game, strm).RES_ADD_TRACE("header_t::read"));
+
+		[&]() -> error_t
+		{
+			RES_TRY_ASSIGN(auto span =,
+			               entry.decode_body().RES_ADD_TRACE("header_t::read"));
+
+			data_reader_t dstrm(span);
+
+			switch (dstrm.remaining().size())
+			{
+				case 0x54:
+				{
+					// 1.x game
+
+					game.old_game = true;
+
+					TRY_ASSIGN(size =, dstrm.read_u32());
+					// TRY_ASSIGN(flags1 = (header_flag1_t), dstrm.read_u16());
+					flags1 = header_flag1_t::none;
+					// TRY_ASSIGN(flags2 = (header_flag2_t), dstrm.read_u16());
+					flags2 = header_flag2_t::none;
+					TRY_ASSIGN(const auto mode =, dstrm.read_u16());
+					switch (mode)
+					{
+						case 3:
+							graphics_mode = graphics_mode_t::RGB8;
+							break;
+						case 4:
+							graphics_mode = graphics_mode_t::RGB24;
+							break;
+						case 6:
+							graphics_mode = graphics_mode_t::RGB15;
+							break;
+						case 7:
+							graphics_mode = graphics_mode_t::RGB16;
+							break;
+						default:
+							ERROR("Unknown Graphics Mode: ", mode);
+							break;
+					}
+					// TRY_ASSIGN(flags3 = (header_flag3_t), dstrm.read_u16());
+					TRY(dstrm.skip(2));
+					flags3 = header_flag3_t::none;
+					TRY_ASSIGN(window_width =, dstrm.read_u16());
+					TRY_ASSIGN(window_height =, dstrm.read_u16());
+					TRY_ASSIGN(initial_score =, dstrm.read_u32());
+					TRY_ASSIGN(initial_lives =, dstrm.read_u32());
+					RES_TRY(controls.read(dstrm, 6).RES_ADD_TRACE("header_t::read"));
+					TRY_ASSIGN(border_color.r =, dstrm.read_u8());
+					TRY_ASSIGN(border_color.g =, dstrm.read_u8());
+					TRY_ASSIGN(border_color.b =, dstrm.read_u8());
+					TRY_ASSIGN(border_color.a =, dstrm.read_u8());
+					TRY_ASSIGN(number_of_frames =, dstrm.read_u32());
+					// TRY_ASSIGN(framerate =, dstrm.read_u32());
+					framerate = uint32_t(-1);
+					// TRY_ASSIGN(windows_menu_index =, dstrm.read_u8());
+					windows_menu_index = uint8_t(-1);
+					TRY(dstrm.skip(3));
+				}
+				break;
+
+				case 0x70:
+				{
+					// >= 2.0 game
+
+					TRY_ASSIGN(size =, dstrm.read_u32());
+					TRY_ASSIGN(flags1 = (header_flag1_t), dstrm.read_u16());
+					TRY_ASSIGN(flags2 = (header_flag2_t), dstrm.read_u16());
+					TRY_ASSIGN(const auto mode =, dstrm.read_u16());
+					switch (mode)
+					{
+						case 3:
+							graphics_mode = graphics_mode_t::RGB8;
+							break;
+						case 4:
+							graphics_mode = graphics_mode_t::RGB24;
+							break;
+						case 6:
+							graphics_mode = graphics_mode_t::RGB15;
+							break;
+						case 7:
+							graphics_mode = graphics_mode_t::RGB16;
+							break;
+						default:
+							ERROR("Unknown Graphics Mode: ", mode);
+							break;
+					}
+					TRY_ASSIGN(flags3 = (header_flag3_t), dstrm.read_u16());
+					TRY_ASSIGN(window_width =, dstrm.read_u16());
+					TRY_ASSIGN(window_height =, dstrm.read_u16());
+					TRY_ASSIGN(initial_score = ~, dstrm.read_u32());
+					TRY_ASSIGN(initial_lives = ~, dstrm.read_u32());
+					RES_TRY(controls.read(dstrm, 8).RES_ADD_TRACE("header_t::read"));
+					TRY_ASSIGN(border_color.r =, dstrm.read_u8());
+					TRY_ASSIGN(border_color.g =, dstrm.read_u8());
+					TRY_ASSIGN(border_color.b =, dstrm.read_u8());
+					TRY_ASSIGN(border_color.a =, dstrm.read_u8());
+					TRY_ASSIGN(number_of_frames =, dstrm.read_u32());
+					TRY_ASSIGN(framerate =, dstrm.read_u32());
+					TRY_ASSIGN(windows_menu_index =, dstrm.read_u8());
+					TRY(dstrm.skip(3));
+				}
+				break;
+
+				default:
+					ERROR("Unknown Header Length ", dstrm.remaining().size());
+					break;
+			}
+
+			return lak::ok_t();
+		}()
+		           .discard();
 
 		auto init_chunk = [&](auto &chunk)
 		{
@@ -292,6 +495,56 @@ namespace srcexp
 		LAK_TREE_NODE("0x%zX Game Header##%zX", (size_t)entry.ID, entry.position())
 		{
 			entry.view(inst);
+
+			LAK_TREE_NODE("Data")
+			{
+				controls.view();
+				ImGui::Text("Size: 0x%zX", (size_t)size);
+				ImGui::Text("Flags 1: 0x%zX", (size_t)flags1);
+				ImGui::Text("Flags 2: 0x%zX", (size_t)flags2);
+				ImGui::Text("Flags 3: 0x%zX", (size_t)flags3);
+				switch (graphics_mode)
+				{
+					case graphics_mode_t::RGBA32:
+						ImGui::Text("Graphics Mode: RGBA32");
+						break;
+					case graphics_mode_t::BGRA32:
+						ImGui::Text("Graphics Mode: BGRA32");
+						break;
+					case graphics_mode_t::RGB24:
+						ImGui::Text("Graphics Mode: RGB24");
+						break;
+					case graphics_mode_t::BGR24:
+						ImGui::Text("Graphics Mode: BGR24");
+						break;
+					case graphics_mode_t::RGB16:
+						ImGui::Text("Graphics Mode: RGB16");
+						break;
+					case graphics_mode_t::RGB15:
+						ImGui::Text("Graphics Mode: RGB15");
+						break;
+					case graphics_mode_t::RGB8:
+						ImGui::Text("Graphics Mode: RGB8");
+						break;
+					case graphics_mode_t::JPEG:
+						ImGui::Text("Graphics Mode: JPEG");
+						break;
+				}
+				ImGui::Text(
+				  "Window: %zu * %zu", (size_t)window_width, (size_t)window_height);
+				ImGui::Text("Initial Score: 0x%zX", (size_t)initial_score);
+				ImGui::Text("Initial Lives: 0x%zX", (size_t)initial_lives);
+				{
+					lak::vec4f_t col = ((lak::vec4f_t)border_color) / 256.0f;
+					float f[]        = {col.r, col.g, col.b, col.a};
+					ImGui::ColorEdit4("Border Colour", f);
+				}
+				ImGui::Text("Number Of Frames: 0x%zX (%zu)",
+				            (size_t)number_of_frames,
+				            (size_t)number_of_frames);
+				ImGui::Text("Framerate: %zu", (size_t)framerate);
+				ImGui::Text("Windows Menu Index: 0x%zX", (size_t)windows_menu_index);
+			}
 
 			RES_TRY(title.view(inst, "Title", true).RES_ADD_TRACE("header_t::view"));
 			RES_TRY(

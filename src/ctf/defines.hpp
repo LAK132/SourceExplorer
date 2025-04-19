@@ -19,13 +19,14 @@
 #define DEFINES_H
 
 #include <lak/string.hpp>
+#include <lak/string_literals.hpp>
 
 // Executable Signature
-static const uint16_t WIN_EXE_SIG = 0x5A'4D;
+static const uint16_t WIN_EXE_SIG = u8"MZ"_magic_le;
 // Position of Pointer to PE Header
 static const uint8_t WIN_EXE_PNT = 0x3C;
 // PE Signature
-static const uint32_t WIN_PE_SIG = 0x00'00'45'50;
+static const uint32_t WIN_PE_SIG = u8"PE\0\0"_magic_le;
 
 namespace srcexp
 {
@@ -141,6 +142,20 @@ namespace srcexp
 		playstation     = 78,
 	};
 
+	enum class host_system_t : uint32_t
+	{
+		windows         = 0,
+		java            = 1,
+		flash           = 2,
+		xna             = 3,
+		html5           = 4,
+		android         = 5,
+		ios             = 6,
+		nintendo_switch = 7,
+		xbox_one        = 8,
+		playstation     = 9,
+	};
+
 	enum class build_flags_t : uint32_t
 	{
 		none                        = 0,
@@ -252,10 +267,10 @@ namespace srcexp
 		frame_bank      = 0x224D, // Means FRAMEHANDLES might be broken. Actually
 		                          // probably the Frame Bank
 		chunk224F    = 0x224F,
-		title2       = 0x2251,    // "StringChunk" ?
-		chunk2253    = 0x2253,    // 16 bytes
-		object_names = 0x2254,    // 2.5+ games only (?), array of null
-		                          // terminated strings. "Empty"
+		title2       = 0x2251, // "StringChunk" ?
+		chunk2253    = 0x2253, // 16 bytes
+		object_names = 0x2254, // 2.5+ games only (?), array of null
+		                       // terminated strings. "Empty"
 		chunk2255                       = 0x2255,
 		two_five_plus_object_properties = 0x2256, // 2.5+ games only (?)
 		chunk2257                       = 0x2257, // 4 bytes
@@ -356,6 +371,67 @@ namespace srcexp
 	// {
 	//     return (sound_mode_t)((uint32_t)A | (uint32_t)B);
 	// }
+
+	//
+	// Game Header Flags
+	//
+
+	enum class header_flag1_t : uint16_t
+	{
+		none                = 0,
+		border_max          = 1 << 0,
+		no_heading          = 1 << 1,
+		panic               = 1 << 2,
+		speed_independent   = 1 << 3,
+		stretch             = 1 << 4,
+		music_on            = 1 << 5,
+		sound_on            = 1 << 6,
+		menu_hidden         = 1 << 7,
+		menu_bar            = 1 << 8,
+		maximise            = 1 << 9,
+		multi_samples       = 1 << 10,
+		fullscreen_at_start = 1 << 11,
+		fullscreen_switch   = 1 << 12,
+		_protected          = 1 << 13,
+		copyright           = 1 << 14,
+		one_file            = 1 << 15,
+	};
+
+	enum class header_flag2_t : uint16_t
+	{
+		none                     = 0,
+		samples_over_frames      = 1 << 0,
+		reloc_files              = 1 << 1,
+		run_frame                = 1 << 2,
+		samples_when_not_focused = 1 << 3,
+		no_minimise_box          = 1 << 4,
+		no_maximise_box          = 1 << 5,
+		no_thick_frame           = 1 << 6,
+		do_not_center_frame      = 1 << 7,
+		screensaver_autostop     = 1 << 8,
+		disable_close            = 1 << 9,
+		hidden_at_start          = 1 << 10,
+		xp_visual_themes         = 1 << 11,
+		vsync                    = 1 << 12,
+		run_when_minimised       = 1 << 13,
+		MDI                      = 1 << 14,
+		run_while_resizing       = 1 << 15,
+	};
+
+	enum class header_flag3_t : uint16_t
+	{
+		none               = 0,
+		debugger_shortcuts = 1 << 0,
+		directx            = 1 << 1,
+		vram               = 1 << 2,
+		obsolete           = 1 << 3,
+		auto_image_filter  = 1 << 4,
+		auto_sound_filter  = 1 << 5,
+		all_in_one         = 1 << 6,
+		show_debugger      = 1 << 7,
+		reserved1          = 1 << 8,
+		reserved2          = 1 << 9,
+	};
 
 	//
 	// Frame Header Data Flags

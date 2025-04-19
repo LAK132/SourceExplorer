@@ -102,6 +102,8 @@ namespace srcexp
 		bool two_five_plus_game = false;
 		bool ccn                = false;
 		bool cruf               = false;
+		host_system_t host      = host_system_t::windows;
+
 		lak::array<uint8_t> protection;
 
 		header_t game;

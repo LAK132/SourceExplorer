@@ -5,7 +5,7 @@ glm*.wrap
 imgui*.wrap
 lak.wrap
 lmdb*.wrap
+lua*.wrap
 SDL2*.wrap
 stb*.wrap
-lua*.wrap
 *-wrap.wrap

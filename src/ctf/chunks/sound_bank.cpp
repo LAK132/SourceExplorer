@@ -9,24 +9,95 @@ namespace srcexp
 		error_t item_t::read(game_t &game, data_reader_t &strm)
 		{
 			MEMBER_FUNCTION_CHECKPOINT();
-			const size_t header_size = 0x18;
 
 			const auto start = strm.position();
 
 			if (game.old_game)
 			{
+				const size_t header_size = 0x18;
 				RES_TRY(entry.read(game, strm, false));
 				RES_TRY_ASSIGN(data_reader_t hstrm =, entry.decode_body(header_size));
 				CHECK_REMAINING(hstrm, header_size);
 				TRY_ASSIGN(checksum =, hstrm.read_u32());
 				TRY_ASSIGN(references =, hstrm.read_u32());
 				TRY_ASSIGN(decomp_len =, hstrm.read_u32());
-				TRY_ASSIGN(type =, hstrm.read_u32());
-				TRY_ASSIGN(reserved =, hstrm.read_u32());
+				TRY_ASSIGN(const uint32_t _flags =, hstrm.read_u32());
+				flags = static_cast<flags_t>(_flags);
+				TRY_ASSIGN(frequency =, hstrm.read_u32());
 				TRY_ASSIGN(name_len =, hstrm.read_u32());
+			}
+			else if (game.host == host_system_t::android ||
+			         game.host == host_system_t::ios ||
+			         game.host == host_system_t::html5 ||
+			         game.host == host_system_t::flash)
+			{
+				entry.read_init(game);
+				RES_TRY(entry.read_head(game, strm, 0, false)
+				          .RES_ADD_TRACE("sound::item_t::read"));
+
+				TRY_ASSIGN(entry.handle =, strm.read_u16());
+				DEBUG_EXPR(entry.handle);
+
+				size_t char_size = game.unicode ? sizeof(char16_t) : sizeof(char8_t);
+
+				if (game.host == host_system_t::android)
+				{
+					TRY_ASSIGN(entry.handle =, strm.read_u16());
+					TRY_ASSIGN(const uint32_t _flags =, strm.read_u16());
+					flags = static_cast<flags_t>(_flags);
+					TRY(strm.skip(4));
+					TRY_ASSIGN(frequency =, strm.read_u32());
+					if ((flags & flags_t::has_name) == flags_t::has_name)
+					{
+						TRY_ASSIGN(name_len =, strm.read_u16());
+						CHECK_REMAINING(strm, (name_len * char_size));
+						strm.skip((name_len * char_size)).unwrap();
+					}
+					decomp_len = 0U;
+				}
+				else if (game.host == host_system_t::ios)
+				{
+					TRY_ASSIGN(entry.handle =, strm.read_u16());
+					TRY_ASSIGN(name_len =, strm.read_u16());
+					CHECK_REMAINING(strm, (name_len * char_size) + 4);
+					strm.skip((name_len * char_size) + 4).unwrap();
+					TRY_ASSIGN(decomp_len =, strm.read_u32());
+				}
+				else if (game.host == host_system_t::html5)
+				{
+					TRY_ASSIGN(entry.handle =, strm.read_u16());
+					TRY(strm.skip(1));
+					TRY_ASSIGN(frequency =, strm.read_u32());
+					TRY_ASSIGN(name_len =, strm.read_u16());
+					CHECK_REMAINING(strm, (name_len * char_size));
+					strm.skip((name_len * char_size)).unwrap();
+					decomp_len = 0U;
+				}
+				else if (game.host == host_system_t::flash)
+				{
+					TRY_ASSIGN(entry.handle =, strm.read_u16());
+					TRY_ASSIGN(name_len =, strm.read_u16());
+					CHECK_REMAINING(strm, (name_len * char_size));
+					strm.skip((name_len * char_size)).unwrap();
+					decomp_len = 0U;
+				}
+				else
+					ASSERT_UNREACHABLE();
+
+				const auto pos = strm.position();
+				strm.seek(start).UNWRAP();
+				TRY_ASSIGN(entry.head.data =, strm.read_ref_span(pos - start));
+
+				RES_TRY(entry
+				          .read_body(game,
+				                     strm,
+				                     /* compressed */ false,
+				                     {decomp_len})
+				          .RES_ADD_TRACE("sound::item_t::read"));
 			}
 			else
 			{
+				const size_t header_size = 0x18;
 				entry.read_init(game);
 
 				RES_TRY(entry.read_head(game, strm, header_size, /* has_handle */ true)
@@ -37,10 +108,11 @@ namespace srcexp
 				TRY_ASSIGN(checksum =, hstrm.read_u32());
 				TRY_ASSIGN(references =, hstrm.read_u32());
 				TRY_ASSIGN(decomp_len =, hstrm.read_u32());
-				TRY_ASSIGN(type =, hstrm.read_u32());
-				TRY_ASSIGN(reserved =, hstrm.read_u32());
+				TRY_ASSIGN(const uint32_t _flags =, hstrm.read_u32());
+				flags = static_cast<flags_t>(_flags);
+				TRY_ASSIGN(frequency =, hstrm.read_u32());
 				TRY_ASSIGN(name_len =, hstrm.read_u32());
-				if (type == 0x21)
+				if ((flags & flags_t::decompressed) == flags_t::decompressed)
 				{
 					RES_TRY(entry
 					          .read_body(game,
@@ -76,8 +148,8 @@ namespace srcexp
 				ImGui::Text("Checksum: 0x%zX", (size_t)checksum);
 				ImGui::Text("References: 0x%zX", (size_t)references);
 				ImGui::Text("Decompressed Length: 0x%zX", (size_t)decomp_len);
-				ImGui::Text("Type: 0x%zX", (size_t)type);
-				ImGui::Text("Reserved: 0x%zX", (size_t)reserved);
+				ImGui::Text("Flags: 0x%zX", (size_t)flags);
+				ImGui::Text("Frequency: 0x%zX", (size_t)frequency);
 				ImGui::Text("Name Length: 0x%zX", (size_t)name_len);
 			}
 
@@ -97,15 +169,28 @@ namespace srcexp
 
 			RES_TRY(entry.read(game, strm).RES_ADD_TRACE("sound::bank_t::read"));
 
-			if (game.ccn)
-			{
-				WARNING(":TODO: HACK FIX FOR CCN SOUND BANK");
-				return lak::ok_t{};
-			}
-
 			data_reader_t reader(entry.raw_body());
 
-			TRY_ASSIGN(const auto item_count =, reader.read_u32());
+			uint32_t item_count;
+			if (game.host == host_system_t::android ||
+			    game.host == host_system_t::ios ||
+			    game.host == host_system_t::html5 ||
+			    game.host == host_system_t::flash)
+			{
+				TRY_ASSIGN([[maybe_unused]] const uint16_t some_count =,
+				           reader.read_u16());
+				TRY_ASSIGN(item_count =, reader.read_u16());
+			}
+			else
+			{
+				TRY_ASSIGN(item_count =, reader.read_u32());
+			}
+
+			if (item_count > 0xFF'FF)
+			{
+				ERROR("Not Sure About That Fam");
+				return lak::err_t{error(error_type::out_of_data)};
+			}
 
 			items.resize(item_count);
 

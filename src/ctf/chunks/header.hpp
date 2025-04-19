@@ -54,6 +54,63 @@ namespace srcexp
 {
 	struct header_t : public basic_chunk_t
 	{
+		struct controls_t
+		{
+			struct player_control_t
+			{
+				struct keys_t
+				{
+					uint16_t up      = UINT16_MAX;
+					uint16_t down    = UINT16_MAX;
+					uint16_t left    = UINT16_MAX;
+					uint16_t right   = UINT16_MAX;
+					uint16_t button1 = UINT16_MAX;
+					uint16_t button2 = UINT16_MAX;
+					uint16_t button3 = UINT16_MAX;
+					uint16_t button4 = UINT16_MAX;
+
+					error_t read(data_reader_t &strm, size_t button_count);
+					void view() const;
+				};
+
+				enum class control_type_t : uint16_t
+				{
+					joystick1 = 1,
+					joystick2 = 2,
+					joystick3 = 3,
+					joystick4 = 4,
+					keyboard  = 5,
+				};
+
+				control_type_t control_type;
+				keys_t keys;
+
+				error_t read(data_reader_t &strm, size_t button_count);
+				void view() const;
+			};
+
+			lak::array<player_control_t, 4> controls;
+
+			error_t read(data_reader_t &strm, size_t button_count);
+			void view() const;
+		};
+
+		uint32_t size;                 // 0x00 | 0x00
+		header_flag1_t flags1;         // 0x-- | 0x04
+		header_flag2_t flags2;         // 0x-- | 0x06
+		graphics_mode_t graphics_mode; // 0x-- | 0x08
+		header_flag3_t flags3;         // 0x-- | 0x0A
+		uint16_t window_width;         // 0x-- | 0x0C
+		uint16_t window_height;        // 0x-- | 0x0E
+		uint32_t initial_score;        // 0x-- | 0x10
+		uint32_t initial_lives;        // 0x-- | 0x14
+		controls_t controls;           // 0x14 | 0x18
+		lak::color4_t border_color;    // 0x-- | 0x60
+		uint32_t number_of_frames;     // 0x50 | 0x64
+		uint32_t framerate;            // 0x-- | 0x68
+		uint8_t windows_menu_index;    // 0x-- | 0x6C
+		// skip 3
+
 		chunk_ptr<string_chunk_t> title;
 		chunk_ptr<string_chunk_t> author;
 		chunk_ptr<string_chunk_t> copyright;

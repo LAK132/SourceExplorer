@@ -309,10 +309,19 @@ namespace srcexp
 			DEBUG("Name: ", image_section.name);
 			DEBUG("Size: ", image_section.size);
 			DEBUG("Addr: ", image_section.addr);
-			if (image_section.addr == 0 && image_section.size != 0)
-				game_start += image_section.size;
-			else if (image_section.addr + image_section.size > game_start)
-				game_start = image_section.addr + image_section.size;
+			if (image_section.name == ".extra")
+			{
+				ERROR("Found .extra Game");
+				return lak::err_t{error(error_type::invalid_image_section,
+				                        lak::streamify("Found .extra at ", start))};
+			}
+			else
+			{
+				if (image_section.addr == 0 && image_section.size != 0)
+					game_start += image_section.size;
+				else if (image_section.addr + image_section.size > game_start)
+					game_start = image_section.addr + image_section.size;
+			}
 		}
 
 		DEBUG("Jumping To: ", game_start);

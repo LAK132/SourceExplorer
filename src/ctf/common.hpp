@@ -30,6 +30,7 @@ namespace srcexp
 		invalid_pe_signature,
 		invalid_game_signature,
 		invalid_pack_count,
+		invalid_image_section,
 
 		invalid_state,
 		invalid_mode,
@@ -61,6 +62,8 @@ namespace srcexp
 				return strm << "Invalid PE Signature";
 			case error_type::invalid_game_signature:
 				return strm << "Invalid Game Header";
+			case error_type::invalid_image_section:
+				return strm << "Invalid Image Section";
 			case error_type::invalid_state:
 				return strm << "Invalid State";
 			case error_type::invalid_mode:

@@ -24,7 +24,75 @@ namespace srcexp
 		TRY_ASSIGN(screen_ratio_tolerance =, estrm.read_u16());
 		TRY_ASSIGN(screen_angle =, estrm.read_u16());
 
-		game.compat |= (size_t)build_type >= 0x10000000;
+		game.compat |= (size_t)build_type >= 0x1000'0000;
+		switch (build_type)
+		{
+			case build_type_t::windows_exe:
+			case build_type_t::windows_screen_saver:
+			case build_type_t::sub_application:
+			case build_type_t::uwp_project:
+				DEBUG("Windows Host");
+			default:
+				game.host = host_system_t::windows;
+				break;
+
+			case build_type_t::java_sub_application:
+			case build_type_t::java_application:
+			case build_type_t::java_internet_applet:
+			case build_type_t::java_web_start:
+			case build_type_t::java_for_mobile_devices:
+			case build_type_t::java_mac_application:
+			case build_type_t::java_for_blackberry:
+				DEBUG("Java Host");
+				game.host = host_system_t::java;
+				break;
+
+			case build_type_t::adobe_flash:
+				DEBUG("Flash Host");
+				game.host = host_system_t::flash;
+				break;
+
+			case build_type_t::xna_windows_project:
+			case build_type_t::xna_xbox_project:
+			case build_type_t::xna_phone_project:
+				DEBUG("XNA Host");
+				game.host = host_system_t::xna;
+				break;
+
+			case build_type_t::html5_devel:
+			case build_type_t::html5_final:
+				DEBUG("HTML5 Host");
+				game.host = host_system_t::html5;
+				break;
+
+			case build_type_t::android_ouya_application:
+			case build_type_t::android_app_bundle:
+				DEBUG("Android Host");
+				game.host = host_system_t::android;
+				break;
+
+			case build_type_t::ios_application:
+			case build_type_t::ios_xcode_devel:
+			case build_type_t::ios_xcode_final:
+				DEBUG("iOS Host");
+				game.host = host_system_t::ios;
+				break;
+
+			case build_type_t::nintendo_switch:
+				DEBUG("Switch Host");
+				game.host = host_system_t::nintendo_switch;
+				break;
+
+			case build_type_t::xbox_one:
+				DEBUG("Xbone Host");
+				game.host = host_system_t::xbox_one;
+				break;
+
+			case build_type_t::playstation:
+				DEBUG("PS Host");
+				game.host = host_system_t::playstation;
+				break;
+		}
 
 		return lak::ok_t{};
 	}

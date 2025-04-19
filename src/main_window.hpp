@@ -218,6 +218,41 @@ struct main_window : public base_window<main_window>
 			ImGui::Text("Compat Game: %s", SrcExp->state.compat ? "Yes" : "No");
 			ImGui::Text("CCN Game: %s", SrcExp->state.ccn ? "Yes" : "No");
 			ImGui::Text("3.0 (CRUF) Game: %s", SrcExp->state.cruf ? "Yes" : "No");
+			const char *host_name = "Unknown";
+			switch (SrcExp->state.host)
+			{
+				case srcexp::host_system_t::windows:
+					host_name = "Windows";
+					break;
+				case srcexp::host_system_t::java:
+					host_name = "Java";
+					break;
+				case srcexp::host_system_t::flash:
+					host_name = "Flash";
+					break;
+				case srcexp::host_system_t::xna:
+					host_name = "XNA";
+					break;
+				case srcexp::host_system_t::html5:
+					host_name = "HTML5";
+					break;
+				case srcexp::host_system_t::android:
+					host_name = "Android";
+					break;
+				case srcexp::host_system_t::ios:
+					host_name = "iOS";
+					break;
+				case srcexp::host_system_t::nintendo_switch:
+					host_name = "Switch";
+					break;
+				case srcexp::host_system_t::xbox_one:
+					host_name = "Xbox";
+					break;
+				case srcexp::host_system_t::playstation:
+					host_name = "PlayStation";
+					break;
+			}
+			ImGui::Text("Host: %s", host_name);
 			ImGui::Text("2.5+ Game: %s",
 			            SrcExp->state.two_five_plus_game ? "Yes" : "No");
 			ImGui::Text("Product Version: %zu",
@@ -227,6 +262,11 @@ struct main_window : public base_window<main_window>
 			            (size_t)SrcExp->state.runtime_version);
 			ImGui::Text("Runtime Sub-Version: %zu",
 			            (size_t)SrcExp->state.runtime_sub_version);
+			if (SrcExp->state.game.extended_header)
+			{
+				ImGui::Text("Build Type: %zu",
+				            (size_t)SrcExp->state.game.extended_header->build_type);
+			}
 
 			ImGui::Separator();
 
