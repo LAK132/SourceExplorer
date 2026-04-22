@@ -19,7 +19,7 @@
 #define DEFINES_H
 
 #include <lak/string.hpp>
-#include <lak/string_literals.hpp>
+#include <lak/string_literals/magic.hpp>
 
 // Executable Signature
 static const uint16_t WIN_EXE_SIG = u8"MZ"_magic_le;
@@ -525,23 +525,6 @@ namespace srcexp
 	//
 	// Image Properties
 	//
-	enum class pixel_layout_t : uint8_t
-	{
-		mono,
-		r,
-		rg,
-		rgb,
-		bgr,
-		rgbx,
-		bgrx,
-		xrgb,
-		xbgr,
-		bayer_rggb,
-		bayer_bggr,
-		bayer_grbg,
-		bayer_gbrg,
-	};
-
 	enum class graphics_mode_t : uint8_t
 	{
 		RGBA32,

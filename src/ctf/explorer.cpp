@@ -25,10 +25,12 @@
 #include "lak/math.hpp"
 #include "lak/overloaded_visitor.hpp"
 #include "lak/string.hpp"
+#include "lak/string_literals/string.hpp"
 #include "lak/string_utils.hpp"
 #include "lak/string_view.hpp"
 
-#include "../tostring.hpp"
+#include "binex/widgets.hpp"
+
 #include "explorer.hpp"
 
 #ifdef GetObject
@@ -37,8 +39,6 @@
 
 #define TRACE_EXPECTED(EXPECTED, GOT)                                         \
 	lak::streamify("expected '", EXPECTED, "', got '", GOT, "'")
-
-lak::graphics_mode srcexp::instance_t::graphics_mode;
 
 namespace srcexp
 {
@@ -1206,136 +1206,10 @@ namespace srcexp
 		}
 	}
 
-	texture_t CreateTexture(const lak::image4_t &bitmap,
-	                        const lak::graphics_mode mode)
-	{
-		// FUNCTION_CHECKPOINT();
-
-		if (mode == lak::graphics_mode::OpenGL)
-		{
-			// auto old_texture =
-			//   lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D).UNWRAP();
-
-			lak::opengl::texture result(GL_TEXTURE_2D);
-			result.bind()
-			  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-			  .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-			  .build(0,
-			         GL_RGBA,
-			         (lak::vec2<GLsizei>)bitmap.size(),
-			         0,
-			         GL_RGBA,
-			         GL_UNSIGNED_BYTE,
-			         bitmap.data());
-
-			// glBindTexture(GL_TEXTURE_2D, old_texture);
-
-			return result;
-		}
-		else if (mode == lak::graphics_mode::Software)
-		{
-			texture_color32_t result;
-			result.copy(
-			  bitmap.size().x, bitmap.size().y, (color32_t *)bitmap.data());
-			return result;
-		}
-		else
-		{
-			FATAL("Unknown graphics mode: ", (uintmax_t)mode);
-			// return lak::monostate{};
-		}
-	}
-
-	texture_t CreateTexture(const lak::image<float> &bitmap,
-	                        const lak::graphics_mode mode)
-	{
-		// FUNCTION_CHECKPOINT();
-
-		if (mode == lak::graphics_mode::OpenGL)
-		{
-			// auto old_texture =
-			//   lak::opengl::get_uint<1>(GL_TEXTURE_BINDING_2D).UNWRAP();
-
-			lak::opengl::texture result(GL_TEXTURE_2D);
-			result.bind()
-			  .apply(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-			  .apply(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-			  .apply(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-			  .build(0,
-			         GL_RED,
-			         (lak::vec2<GLsizei>)bitmap.size(),
-			         0,
-			         GL_RED,
-			         GL_FLOAT,
-			         bitmap.data());
-
-			// glBindTexture(GL_TEXTURE_2D, old_texture);
-
-			return result;
-		}
-		else if (mode == lak::graphics_mode::Software)
-		{
-			texture_color32_t result;
-			result.init(bitmap.size().x, bitmap.size().y);
-			for (size_t y = 0; y < bitmap.size().y; ++y)
-				for (size_t x = 0; x < bitmap.size().x; ++x)
-				{
-					result.at(x, y).r = uint8_t(std::min<uint64_t>(
-					  uint64_t(bitmap[lak::vec2s_t{x, y}] * 256), 255));
-					result.at(x, y).g = 0;
-					result.at(x, y).b = 0;
-					result.at(x, y).a = 255;
-				}
-			return result;
-		}
-		else
-		{
-			FATAL("Unknown graphics mode: ", (uintmax_t)mode);
-			// return lak::monostate{};
-		}
-	}
-
 	void ViewImage(instance_t &inst, const float scale)
 	{
 		// :TODO: Select palette
-		if (const auto glimg = inst.image.template get<lak::opengl::texture>();
-		    glimg)
-		{
-			if (!glimg->get() || inst.graphics_mode != lak::graphics_mode::OpenGL)
-			{
-				ImGui::Text("No image selected.");
-			}
-			else
-			{
-				ImGui::Image((ImTextureID)(uintptr_t)glimg->get(),
-				             ImVec2(scale * (float)glimg->size().x,
-				                    scale * (float)glimg->size().y));
-			}
-		}
-		else if (const auto srimg = inst.image.template get<texture_color32_t>();
-		         srimg)
-		{
-			if (!srimg->pixels || inst.graphics_mode != lak::graphics_mode::Software)
-			{
-				ImGui::Text("No image selected.");
-			}
-			else
-			{
-				ImGui::Image((ImTextureID)(uintptr_t)srimg,
-				             ImVec2(scale * (float)srimg->w, scale * (float)srimg->h));
-			}
-		}
-		else if (inst.image.template holds<lak::monostate>())
-		{
-			ImGui::Text("No image selected.");
-		}
-		else
-		{
-			ERROR("Invalid texture type");
-		}
+		bex::view_image(inst.image, scale);
 	}
 
 	const char *GetTypeString(chunk_t ID)
@@ -1791,8 +1665,8 @@ namespace srcexp
 
 		return lak::decode_lz4_block(reader, out_size)
 		  .map_err(lak::overloaded_visitor{
-		    [](lak::out_of_data_error) { return "out of data"; },
-		    [](lak::lz4_decode_error err) { return lak::lz4_error_name(err); }})
+		    [](const auto &err) { return lak::fmt<"{}">(err); },
+		  })
 		  .map(
 		    [&](auto &&decompressed)
 		    {

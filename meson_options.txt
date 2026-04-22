@@ -6,6 +6,23 @@ option('lak_enable_tests',
 	yield: true,
 )
 
+option('lak_enable_examples',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
+option('lak_bounds_checks',
+	type: 'combo',
+	choices: [
+		'always',
+		'never',
+		'debug',
+	],
+	value: 'always',
+	yield: true,
+)
+
 # windowing options
 
 option('lak_enable_windowing',
@@ -39,7 +56,6 @@ option('lak_backend',
     'xlib',
     'xcb',
     'sdl',
-    'qt',
   ],
   value: 'sdl',
   yield: false,
@@ -57,13 +73,7 @@ option('lak_enable_opengl',
 	yield: true,
 )
 
-option('lak_enable_vulkan',
-	type: 'boolean',
-	value: false,
-	yield: true,
-)
-
-option('lak_enable_metal',
+option('lak_enable_cobalt',
 	type: 'boolean',
 	value: false,
 	yield: true,
@@ -85,6 +95,14 @@ option('lak_enable_lmdb',
 	yield: true,
 )
 
+# lua options
+
+option('lak_enable_lua',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
 # glm options
 
 option('lak_enable_glm',
@@ -98,5 +116,57 @@ option('lak_enable_glm',
 option('lak_enable_imgui',
 	type: 'boolean',
 	value: true,
+	yield: true,
+)
+
+# libfive options
+
+option('lak_enable_libfive',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
+# libgphoto2 options
+
+option('lak_enable_libgphoto2',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
+# openvr options
+
+option('lak_enable_openvr',
+	type: 'boolean',
+	value: false,
+	yield: true,
+)
+
+# stb options
+
+option('lak_enable_stb',
+	type: 'boolean',
+	value: true,
+	yield: true,
+)
+
+option('lak_enable_stb_image',
+	type: 'boolean',
+	value: true,
+	yield: true,
+)
+
+option('lak_enable_stb_image_write',
+	type: 'boolean',
+	value: true,
+	yield: true,
+)
+
+# godot-cpp options
+
+option('lak_enable_godot_cpp',
+	type: 'boolean',
+	value: false,
 	yield: true,
 )

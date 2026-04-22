@@ -4,9 +4,8 @@
 #include <lak/bit_reader.hpp>
 #include <lak/imgui/backend.hpp>
 #include <lak/imgui/widgets.hpp>
-#include <lak/opengl/texture.hpp>
 #include <lak/span_manip.hpp>
-#include <lak/string_literals.hpp>
+#include <lak/string_literals/view.hpp>
 
 #include <binex/basic_window.hpp>
 #include <binex/widgets.hpp>
@@ -139,603 +138,7 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		debug_menu();
 	}
 
-	static void view_image(const srcexp::texture_t &texture, const float scale)
-	{
-		ImGui::BeginChild("Image View",
-		                  ImVec2(0, 0),
-		                  false,
-		                  ImGuiWindowFlags_NoSavedSettings |
-		                    ImGuiWindowFlags_AlwaysVerticalScrollbar |
-		                    ImGuiWindowFlags_AlwaysHorizontalScrollbar);
-
-		if (const auto glimg = texture.template get<lak::opengl::texture>(); glimg)
-		{
-			if (!glimg->get() ||
-			    srcexp::instance_t::graphics_mode != lak::graphics_mode::OpenGL)
-			{
-				ImGui::Text("No image selected.");
-			}
-			else
-			{
-				ImGui::Image((ImTextureID)(uintptr_t)glimg->get(),
-				             ImVec2(scale * (float)glimg->size().x,
-				                    scale * (float)glimg->size().y));
-			}
-		}
-		else if (const auto srimg = texture.template get<texture_color32_t>();
-		         srimg)
-		{
-			if (!srimg->pixels ||
-			    srcexp::instance_t::graphics_mode != lak::graphics_mode::Software)
-			{
-				ImGui::Text("No image selected.");
-			}
-			else
-			{
-				ImGui::Image((ImTextureID)(uintptr_t)&srimg,
-				             ImVec2(scale * (float)srimg->w, scale * (float)srimg->h));
-			}
-		}
-		else if (texture.template holds<lak::monostate>())
-		{
-			ImGui::Text("No image selected.");
-		}
-		else
-		{
-			ERROR("Invalid texture type");
-		}
-
-		ImGui::EndChild();
-	}
-
-	static void image_memory_explorer_impl(lak::span<byte_t> data,
-	                                       lak::vec2u64_t &image_size,
-	                                       lak::vec3u64_t &block_skip,
-	                                       lak::span<int, 4> rgbx_bit_count,
-	                                       srcexp::pixel_layout_t &pixel_layout,
-	                                       srcexp::texture_t &texture,
-	                                       float &scale,
-	                                       bool &update)
-	{
-		{
-			if (ImGui::Button("Reset View"))
-			{
-				image_size = {256, 256};
-				block_skip = {0, 1, 0};
-				update     = true;
-			}
-
-			const static uint64_t sizeMin = 0;
-			const static uint64_t sizeMax = 10000;
-			update |= ImGui::DragScalarN("Image Size (Width/Height)",
-			                             ImGuiDataType_U64,
-			                             &image_size,
-			                             2,
-			                             1.0f,
-			                             &sizeMin,
-			                             &sizeMax);
-
-			ImGui::Separator();
-
-			if (ImGui::Button("MONO8"))
-			{
-				rgbx_bit_count[0U] = 8U;
-				rgbx_bit_count[1U] = 0U;
-				rgbx_bit_count[2U] = 0U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::mono;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGB15"))
-			{
-				rgbx_bit_count[0U] = 5U;
-				rgbx_bit_count[1U] = 5U;
-				rgbx_bit_count[2U] = 5U;
-				rgbx_bit_count[3U] = 1U;
-				pixel_layout       = srcexp::pixel_layout_t::rgbx;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGB16"))
-			{
-				rgbx_bit_count[0U] = 5U;
-				rgbx_bit_count[1U] = 6U;
-				rgbx_bit_count[2U] = 5U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::rgb;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGB24"))
-			{
-				rgbx_bit_count[0U] = 8U;
-				rgbx_bit_count[1U] = 8U;
-				rgbx_bit_count[2U] = 8U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::rgb;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("BGR24"))
-			{
-				rgbx_bit_count[0U] = 8U;
-				rgbx_bit_count[1U] = 8U;
-				rgbx_bit_count[2U] = 8U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::bgr;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGBX32"))
-			{
-				rgbx_bit_count[0U] = 8U;
-				rgbx_bit_count[1U] = 8U;
-				rgbx_bit_count[2U] = 8U;
-				rgbx_bit_count[3U] = 8U;
-				pixel_layout       = srcexp::pixel_layout_t::rgbx;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGGB10"))
-			{
-				rgbx_bit_count[0U] = 10U;
-				rgbx_bit_count[1U] = 10U;
-				rgbx_bit_count[2U] = 10U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGGB12"))
-			{
-				rgbx_bit_count[0U] = 12U;
-				rgbx_bit_count[1U] = 12U;
-				rgbx_bit_count[2U] = 12U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGGB14"))
-			{
-				rgbx_bit_count[0U] = 14U;
-				rgbx_bit_count[1U] = 14U;
-				rgbx_bit_count[2U] = 14U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
-				update             = true;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("RGGB16"))
-			{
-				rgbx_bit_count[0U] = 16U;
-				rgbx_bit_count[1U] = 16U;
-				rgbx_bit_count[2U] = 16U;
-				rgbx_bit_count[3U] = 0U;
-				pixel_layout       = srcexp::pixel_layout_t::bayer_rggb;
-				update             = true;
-			}
-
-			update |=
-			  ImGui::DragInt4("RGBX Bit Count", rgbx_bit_count.data(), 0.05f, 0, 16);
-
-			int layout = static_cast<int>(pixel_layout);
-			// update |= ImGui::SliderInt("Layout",
-			//                            &layout,
-			//                            (int)srcexp::pixel_layout_t::mono,
-			//                            (int)srcexp::pixel_layout_t::bayer_rggb);
-			update |= ImGui::Combo("Channel Layout",
-			                       &layout,
-			                       "Monochrome\0"
-			                       "R\0"
-			                       "RG\0"
-			                       "RGB\0"
-			                       "BGR\0"
-			                       "RGBX\0"
-			                       "BGRX\0"
-			                       "XRGB\0"
-			                       "XBGR\0"
-			                       "Bayer RGGB\0"
-			                       "Bayer BGGR\0"
-			                       "Bayer GRBG\0"
-			                       "Bayer GBRG\0"
-			                       "\0");
-			pixel_layout = static_cast<srcexp::pixel_layout_t>(layout);
-
-			ImGui::Separator();
-
-			const static uint64_t skipMax = 1000000;
-			update |=
-			  ImGui::DragScalarN("For Every X * Y Pixels Skip Z Bytes (X/Y/Z)",
-			                     ImGuiDataType_U64,
-			                     &block_skip,
-			                     3,
-			                     0.05f,
-			                     &sizeMin,
-			                     &skipMax);
-		}
-
-		update |= texture.template holds<lak::monostate>();
-
-		if (update)
-		{
-			static lak::image4_t image{}; // static so we can reuse the memory
-			image.resize({static_cast<size_t>(image_size.x),
-			              static_cast<size_t>(image_size.y)});
-
-			image.fill({0, 0, 0, 255});
-
-			lak::bit_reader reader{data};
-
-			auto read = [&](uint8_t bit_count) -> uint8_t
-			{
-				return uint8_t(reader.read_bits(bit_count).unwrap_or(0U) >>
-				               (bit_count - std::min<uint8_t>(bit_count, 8U)));
-			};
-			auto read_r = [&]() -> uint8_t
-			{ return read(uint8_t(rgbx_bit_count[0U])); };
-			auto read_g = [&]() -> uint8_t
-			{ return read(uint8_t(rgbx_bit_count[1U])); };
-			auto read_b = [&]() -> uint8_t
-			{ return read(uint8_t(rgbx_bit_count[2U])); };
-			auto read_x = [&]() -> uint8_t
-			{ return read(uint8_t(rgbx_bit_count[3U])); };
-
-			const size_t to_read = size_t(block_skip.x * block_skip.y);
-			const size_t to_skip = size_t(block_skip.z);
-			const bool do_skips  = to_read != 0 && to_skip != 0;
-
-			switch (pixel_layout)
-			{
-				case srcexp::pixel_layout_t::mono:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						auto mono{read_r()};
-						image[i].r = mono;
-						image[i].g = mono;
-						image[i].b = mono;
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::r:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						image[i].r = read_r();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::rg:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						image[i].r = read_r();
-						image[i].g = read_g();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::rgb:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						image[i].r = read_r();
-						image[i].g = read_g();
-						image[i].b = read_b();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::bgr:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						image[i].b = read_b();
-						image[i].g = read_g();
-						image[i].r = read_r();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::rgbx:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						image[i].r = read_r();
-						image[i].g = read_g();
-						image[i].b = read_b();
-						read_x();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::bgrx:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						image[i].b = read_b();
-						image[i].g = read_g();
-						image[i].r = read_r();
-						read_x();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::xrgb:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						read_x();
-						image[i].r = read_r();
-						image[i].g = read_g();
-						image[i].b = read_b();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::xbgr:
-					for (size_t i = 0; i < image.contig_size(); ++i)
-					{
-						read_x();
-						image[i].b = read_b();
-						image[i].g = read_g();
-						image[i].r = read_r();
-						if (do_skips && (i + 1) % to_read == 0)
-							reader.skip_bytes(to_skip).discard();
-					}
-					break;
-
-				case srcexp::pixel_layout_t::bayer_rggb:
-					for (size_t y = 0, i = 0; y < image.size().y; ++y)
-					{
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).r = read_r();
-							image.at(lak::vec2s_t{x, y}).g = read_g();
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).g =
-							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
-							image.at(lak::vec2s_t{x, y}).b = read_b();
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-					}
-					break;
-
-				case srcexp::pixel_layout_t::bayer_bggr:
-					for (size_t y = 0, i = 0; y < image.size().y; ++y)
-					{
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).b = read_b();
-							image.at(lak::vec2s_t{x, y}).g = read_g();
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).g =
-							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
-							image.at(lak::vec2s_t{x, y}).r = read_r();
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-					}
-					break;
-
-				case srcexp::pixel_layout_t::bayer_grbg:
-					for (size_t y = 0, i = 0; y < image.size().y; ++y)
-					{
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).g = read_g();
-							image.at(lak::vec2s_t{x, y}).r = read_r();
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).b = read_b();
-							image.at(lak::vec2s_t{x, y}).g =
-							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-					}
-					break;
-
-				case srcexp::pixel_layout_t::bayer_gbrg:
-					for (size_t y = 0, i = 0; y < image.size().y; ++y)
-					{
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).g = read_g();
-							image.at(lak::vec2s_t{x, y}).b = read_b();
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-						for (size_t x = 0; x < image.size().x; ++x, ++i)
-						{
-							image.at(lak::vec2s_t{x, y}).r = read_r();
-							image.at(lak::vec2s_t{x, y}).g =
-							  (image.at(lak::vec2s_t{x, y}).g + read_g()) / 2U;
-							if (do_skips && (i + 1) % to_read == 0)
-								reader.skip_bytes(to_skip).discard();
-						}
-					}
-					break;
-
-				default:
-					ASSERT_NYI();
-					break;
-			}
-
-			texture =
-			  srcexp::CreateTexture(image, srcexp::instance_t::graphics_mode);
-		}
-
-		if (!texture.template holds<lak::monostate>())
-		{
-			ImGui::Separator();
-			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
-			ImGui::Separator();
-			DERIVED::view_image(texture, scale);
-		}
-	}
-
-	static void image_memory_explorer(lak::span<byte_t> data, bool update)
-	{
-		static lak::vec2u64_t image_size = {256, 256};
-		static lak::vec3u64_t block_skip = {0, 1, 0};
-		static srcexp::texture_t texture;
-		static float scale                         = 1.0f;
-		static lak::array<int, 4> rgbx_bit_count   = {8, 8, 8, 0};
-		static srcexp::pixel_layout_t pixel_layout = srcexp::pixel_layout_t::rgb;
-		static lak::span<byte_t> old_data          = data;
-		static lak::span<byte_t> image_data        = data;
-
-		if (data.empty() && old_data.empty()) return;
-
-		if (!data.empty() && !lak::same_span<byte_t>(data, old_data))
-		{
-			old_data   = data;
-			image_data = data;
-			update     = true;
-		}
-
-		// if (update)
-		// {
-		// 	if (SrcExp->view != nullptr && SrcExp->state.file != nullptr &&
-		// 	    data == SrcExp->state.file->data())
-		// 	{
-		// 		auto ref_span = SrcExp->view->ref_span;
-		// 		while (ref_span._source && ref_span._source != SrcExp->state.file)
-		// 			ref_span = ref_span.parent_span();
-		// 		if (!ref_span.empty())
-		// 		{
-		// 			from = ref_span.position().UNWRAP();
-		// 			to   = from + ref_span.size();
-		// 		}
-		// 		else
-		// 		{
-		// 			from = 0;
-		// 			to   = SIZE_MAX;
-		// 		}
-		// 	}
-		// 	else
-		// 	{
-		// 		from = 0;
-		// 		to   = SIZE_MAX;
-		// 	}
-		// }
-
-		static memory_view view;
-		update |= view.draw(data, image_data, update);
-
-		ImGui::Separator();
-
-		image_memory_explorer_impl(image_data,
-		                           image_size,
-		                           block_skip,
-		                           rgbx_bit_count,
-		                           pixel_layout,
-		                           texture,
-		                           scale,
-		                           update);
-	}
-
-	static void byte_pairs_memory_explorer_impl(lak::span<byte_t> data,
-	                                            srcexp::texture_t &texture,
-	                                            float &scale,
-	                                            bool &update)
-	{
-		update |= texture.template holds<lak::monostate>();
-
-		if (update)
-		{
-			static lak::image<GLfloat> image{lak::vec2s_t{256, 256}};
-
-			image.fill(0.0f);
-
-			const auto begin = data.begin();
-			const auto end   = data.end();
-			auto it          = begin;
-
-			const GLfloat step = 1.0f / (data.size() / float(image.contig_size()));
-			for (uint8_t prev = (it != end ? uint8_t(*it) : 0); it != end;
-			     prev         = uint8_t(*(it++)))
-        image[{prev, uint8_t(*it)}] += step;
-
-			texture =
-			  srcexp::CreateTexture(image, srcexp::instance_t::graphics_mode);
-		}
-
-		if (!texture.template holds<lak::monostate>())
-		{
-			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
-			ImGui::Separator();
-			DERIVED::view_image(texture, scale);
-		}
-	}
-
-	static void byte_pairs_memory_explorer(lak::span<byte_t> data, bool update)
-	{
-		static srcexp::texture_t texture;
-		static float scale                  = 1.0f;
-		static lak::span<byte_t> old_data   = data;
-		static lak::span<byte_t> image_data = data;
-
-		if (data.empty() && old_data.empty()) return;
-
-		if (!data.empty() && !lak::same_span<byte_t>(data, old_data))
-		{
-			old_data = data;
-			update   = true;
-		}
-
-		// if (update)
-		// {
-		// 	if (SrcExp->view != nullptr && SrcExp->state.file != nullptr &&
-		// 	    data == SrcExp->state.file->data())
-		// 	{
-		// 		auto ref_span = SrcExp->view->ref_span;
-		// 		while (ref_span._source && ref_span._source != SrcExp->state.file)
-		// 			ref_span = ref_span.parent_span();
-		// 		if (!ref_span.empty())
-		// 		{
-		// 			from = ref_span.position().UNWRAP();
-		// 			to   = from + ref_span.size();
-		// 		}
-		// 		else
-		// 		{
-		// 			from = 0;
-		// 			to   = SIZE_MAX;
-		// 		}
-		// 	}
-		// 	else
-		// 	{
-		// 		from = 0;
-		// 		to   = SIZE_MAX;
-		// 	}
-		// }
-
-		static memory_view view;
-		update |= view.draw(data, image_data, update);
-
-		ImGui::Separator();
-
-		byte_pairs_memory_explorer_impl(image_data, texture, scale, update);
-	}
-
-	static bool crypto()
+	bool crypto()
 	{
 		bool updated   = false;
 		int magic_char = srcexp::_magic_char;
@@ -753,176 +156,136 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 		return updated;
 	}
 
-	enum memory_explorer_content_mode : int
+	struct memory_explorer_t
 	{
-		VIEW_DATA_BINARY,
-		VIEW_DATA_BYTE_PAIRS,
-		VIEW_DATA_IMAGE,
-	};
+		const srcexp::basic_entry_t *last = nullptr;
+		int data_mode                     = 0;
+		bool raw                          = true;
 
-	static void memory_explorer_impl(MemoryEditor &editor,
-	                                 memory_explorer_content_mode &content_mode,
-	                                 lak::span<byte_t> data,
-	                                 bool &update)
-	{
-		update |=
-		  ImGui::RadioButton("Binary", (int *)&content_mode, VIEW_DATA_BINARY);
-		ImGui::SameLine();
-		update |= ImGui::RadioButton(
-		  "Byte Pairs", (int *)&content_mode, VIEW_DATA_BYTE_PAIRS);
-		ImGui::SameLine();
-		update |=
-		  ImGui::RadioButton("Data Image", (int *)&content_mode, VIEW_DATA_IMAGE);
-		ImGui::Separator();
-
-		switch (content_mode)
+		void draw(bool &update)
 		{
-			case VIEW_DATA_BINARY:
-				editor.DrawContents(reinterpret_cast<uint8_t *>(data.data()),
-				                    data.size());
-				break;
+			if (!SrcExp->state.file) return;
 
-			case VIEW_DATA_BYTE_PAIRS:
-				byte_pairs_memory_explorer(data, update);
-				break;
+			update |= last != SrcExp->view;
+			DEFER(last = SrcExp->view);
+			DEFER(update = false);
 
-			case VIEW_DATA_IMAGE:
-				image_memory_explorer(data, update);
-				break;
-
-			default:
-				content_mode = VIEW_DATA_BINARY;
-				break;
-		}
-	}
-
-	static void memory_explorer(bool &update)
-	{
-		if (!SrcExp->state.file) return;
-
-		static const srcexp::basic_entry_t *last         = nullptr;
-		static int data_mode                             = 0;
-		static memory_explorer_content_mode content_mode = VIEW_DATA_BINARY;
-		static bool raw                                  = true;
-		update |= last != SrcExp->view;
-		DEFER(last = SrcExp->view);
-		DEFER(update = false);
-
-		update |= ImGui::RadioButton("EXE", &data_mode, 0);
-		ImGui::SameLine();
-		update |= ImGui::RadioButton("Header", &data_mode, 1);
-		ImGui::SameLine();
-		update |= ImGui::RadioButton("Data", &data_mode, 2);
-		ImGui::SameLine();
-		update |= ImGui::RadioButton("Magic Key", &data_mode, 3);
-		ImGui::Separator();
-
-		if (data_mode > 3) data_mode = 0;
-
-		if (data_mode == 1 || data_mode == 2)
-		{
-			update |= ImGui::Checkbox("Raw", &raw);
+			update |= ImGui::RadioButton("EXE", &data_mode, 0);
 			ImGui::SameLine();
-		}
-
-		if (data_mode == 0) // EXE
-		{
-			SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
+			update |= ImGui::RadioButton("Header", &data_mode, 1);
 			ImGui::SameLine();
-			memory_explorer_impl(
-			  SrcExp->editor, content_mode, *SrcExp->state.file, update);
+			update |= ImGui::RadioButton("Data", &data_mode, 2);
+			ImGui::SameLine();
+			update |= ImGui::RadioButton("Magic Key", &data_mode, 3);
+			ImGui::Separator();
 
-			if (content_mode == VIEW_DATA_BINARY)
+			if (data_mode > 3) data_mode = 0;
+
+			if (data_mode == 1 || data_mode == 2)
 			{
-				if (update && SrcExp->view != nullptr)
+				update |= ImGui::Checkbox("Raw", &raw);
+				ImGui::SameLine();
+			}
+
+			if (data_mode == 0) // EXE
+			{
+				SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
+				ImGui::SameLine();
+				SrcExp->viewer.draw(*SrcExp->state.file, update);
+
+				if (SrcExp->viewer.content_mode ==
+				    bex::memory_viewer::VIEW_DATA_BINARY)
 				{
-					SCOPED_CHECKPOINT(__func__, "::EXE");
-					auto ref_span = SrcExp->view->ref_span;
-					while (ref_span._source && ref_span._source != SrcExp->state.file)
+					if (update && SrcExp->view != nullptr)
 					{
-						CHECKPOINT();
-						ref_span = ref_span.parent_span();
-					}
-					if (ref_span._source && !ref_span.empty())
-					{
-						const auto from = ref_span.position().UNWRAP();
-						SrcExp->editor.GotoAddrAndHighlight(from, from + ref_span.size());
-						DEBUG("From: ", from);
-					}
-					else
-					{
-						ERROR("Memory does not appear in EXE");
+						SCOPED_CHECKPOINT(__func__, "::EXE");
+						auto ref_span = SrcExp->view->ref_span;
+						while (ref_span._source &&
+						       lak::not_equal_to{}(ref_span._source.get(),
+						                           SrcExp->state.file.get()))
+						{
+							CHECKPOINT();
+							ref_span = ref_span.parent_span();
+						}
+						if (ref_span._source && !ref_span.empty())
+						{
+							const auto from = ref_span.position().UNWRAP();
+							SrcExp->viewer.editor.GotoAddrAndHighlight(
+							  from, from + ref_span.size());
+							DEBUG("From: ", from);
+						}
+						else
+						{
+							ERROR("Memory does not appear in EXE");
+						}
 					}
 				}
 			}
-		}
-		else if (data_mode == 1) // Head
-		{
-			if (update && SrcExp->view != nullptr)
-				SrcExp->buffer = raw
-				                   ? SrcExp->view->head.data
-				                   : SrcExp->view->decode_head()
-				                       .or_else(
-				                         [&](const auto &err)
-				                           -> srcexp::result_t<srcexp::data_ref_span_t>
-				                         {
-					                         ERROR(err);
-					                         return lak::ok_t{SrcExp->view->head.data};
-				                         })
-				                       .UNWRAP();
+			else if (data_mode == 1) // Head
+			{
+				if (update && SrcExp->view != nullptr)
+					SrcExp->buffer =
+					  raw ? SrcExp->view->head.data
+					      : SrcExp->view->decode_head()
+					          .or_else(
+					            [&](const auto &err)
+					              -> srcexp::result_t<srcexp::data_ref_span_t>
+					            {
+						            ERROR(err);
+						            return lak::ok_t{SrcExp->view->head.data};
+					            })
+					          .UNWRAP();
 
-			SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
-			ImGui::SameLine();
-			memory_explorer_impl(
-			  SrcExp->editor, content_mode, SrcExp->buffer, update);
-			if (content_mode == VIEW_DATA_BINARY && update)
-				SrcExp->editor.GotoAddrAndHighlight(0, 0);
-		}
-		else if (data_mode == 2) // Body
-		{
-			if (update && SrcExp->view != nullptr)
-				SrcExp->buffer = raw
-				                   ? SrcExp->view->body.data
-				                   : SrcExp->view->decode_body()
-				                       .or_else(
-				                         [&](const auto &err)
-				                           -> srcexp::result_t<srcexp::data_ref_span_t>
-				                         {
-					                         ERROR(err);
-					                         return lak::ok_t{SrcExp->view->body.data};
-				                         })
-				                       .UNWRAP();
+				SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
+				ImGui::SameLine();
+				SrcExp->viewer.draw(SrcExp->buffer, update);
+			}
+			else if (data_mode == 2) // Body
+			{
+				if (update && SrcExp->view != nullptr)
+					SrcExp->buffer =
+					  raw ? SrcExp->view->body.data
+					      : SrcExp->view->decode_body()
+					          .or_else(
+					            [&](const auto &err)
+					              -> srcexp::result_t<srcexp::data_ref_span_t>
+					            {
+						            ERROR(err);
+						            return lak::ok_t{SrcExp->view->body.data};
+					            })
+					          .UNWRAP();
 
-			SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
-			ImGui::SameLine();
-			memory_explorer_impl(
-			  SrcExp->editor, content_mode, SrcExp->buffer, update);
-			if (content_mode == VIEW_DATA_BINARY && update)
-				SrcExp->editor.GotoAddrAndHighlight(0, 0);
+				SrcExp->binary_block.attempt |= ImGui::Button("Save Binary");
+				ImGui::SameLine();
+				SrcExp->viewer.draw(SrcExp->buffer, update);
+			}
+			else if (data_mode == 3) // _magic_key
+			{
+				SrcExp->viewer.editor.DrawContents(&(srcexp::_magic_key[0]),
+				                                   srcexp::_magic_key.size());
+				if (update) SrcExp->viewer.editor.GotoAddrAndHighlight(0, 0);
+			}
 		}
-		else if (data_mode == 3) // _magic_key
-		{
-			SrcExp->editor.DrawContents(&(srcexp::_magic_key[0]),
-			                            srcexp::_magic_key.size());
-			if (update) SrcExp->editor.GotoAddrAndHighlight(0, 0);
-		}
-	}
+	} _memory_explorer;
 
-	static void image_explorer(bool &update)
+	void memory_explorer(bool &update) { _memory_explorer.draw(update); }
+
+	struct image_explorer_t
 	{
-		static float scale = 1.0f;
-		ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
-		ImGui::Separator();
-		srcexp::ViewImage(*SrcExp, scale);
-		update = false;
-	}
+		float scale = 1.0f;
+		void draw(bool &update)
+		{
+			ImGui::DragFloat("Scale", &scale, 0.1f, 0.1f, 10.0f);
+			ImGui::Separator();
+			srcexp::ViewImage(*SrcExp, scale);
+			update = false;
+		}
+	} _image_explorer;
 
-	static void audio_explorer(bool &update)
+	void image_explorer(bool &update) { _image_explorer.draw(update); }
+
+	struct audio_explorer_t
 	{
-#ifdef LAK_OS_APPLE
-		LAK_UNUSED(update);
-// getting an issue with operator"" _view not compiling correctly
-#else
 		struct audio_data_t
 		{
 			lak::u8string name;
@@ -944,248 +307,254 @@ along with Anaconda.  If not, see <http://www.gnu.org/licenses/>.)");
 			lak::array<byte_t> data;
 		};
 
-		static const srcexp::basic_entry_t *last = nullptr;
-		update |= last != SrcExp->view;
+		const srcexp::basic_entry_t *last = nullptr;
+		audio_data_t audio_data;
 
-		static audio_data_t audio_data;
-		if (update && SrcExp->view != nullptr)
+#if defined(LAK_USE_SDL)
+		size_t audio_size = 0;
+		bool playing      = false;
+		SDL_AudioSpec audio_spec;
+		SDL_AudioDeviceID audio_device = 0;
+		SDL_AudioSpec audio_specGot;
+#endif
+
+		void draw(bool &update)
 		{
-			CHECKPOINT();
+#ifdef LAK_OS_APPLE
+			LAK_UNUSED(update);
+// getting an issue with operator"" _view not compiling correctly
+#else
+			update |= last != SrcExp->view;
 
-			srcexp::data_reader_t audio(SrcExp->view->decode_body().UNWRAP());
-			audio_data = audio_data_t{};
-			if (SrcExp->state.old_game)
+			if (update && SrcExp->view != nullptr)
 			{
 				CHECKPOINT();
-				audio_data.checksum   = audio.read_u16().UNWRAP();
-				audio_data.references = audio.read_u32().UNWRAP();
-				audio_data.decomp_len = audio.read_u32().UNWRAP();
-				audio_data.type     = (srcexp::sound_mode_t)audio.read_u32().UNWRAP();
-				audio_data.reserved = audio.read_u32().UNWRAP();
-				audio_data.name_len = audio.read_u32().UNWRAP();
 
-				audio_data.name =
-				  audio.read_exact_c_str<char8_t>(audio_data.name_len).UNWRAP();
-
-				if (audio_data.type == srcexp::sound_mode_t::wave)
+				srcexp::data_reader_t audio(SrcExp->view->decode_body().UNWRAP());
+				audio_data = audio_data_t{};
+				if (SrcExp->state.old_game)
 				{
-					audio_data.format          = audio.read_u16().UNWRAP();
-					audio_data.channel_count   = audio.read_u16().UNWRAP();
-					audio_data.sample_rate     = audio.read_u32().UNWRAP();
-					audio_data.byte_rate       = audio.read_u32().UNWRAP();
-					audio_data.block_align     = audio.read_u16().UNWRAP();
-					audio_data.bits_per_sample = audio.read_u16().UNWRAP();
-					audio_data.unknown         = audio.read_u16().UNWRAP();
-					audio_data.chunk_size      = audio.read_u32().UNWRAP();
-					audio_data.data = audio.read<byte_t>(audio_data.chunk_size).UNWRAP();
-				}
-			}
-			else
-			{
-				CHECKPOINT();
-				srcexp::data_reader_t header(SrcExp->view->decode_head().UNWRAP());
+					CHECKPOINT();
+					audio_data.checksum   = audio.read_u16().UNWRAP();
+					audio_data.references = audio.read_u32().UNWRAP();
+					audio_data.decomp_len = audio.read_u32().UNWRAP();
+					audio_data.type = (srcexp::sound_mode_t)audio.read_u32().UNWRAP();
+					audio_data.reserved = audio.read_u32().UNWRAP();
+					audio_data.name_len = audio.read_u32().UNWRAP();
 
-				audio_data.checksum   = header.read_u32().UNWRAP();
-				audio_data.references = header.read_u32().UNWRAP();
-				audio_data.decomp_len = header.read_u32().UNWRAP();
-				audio_data.type     = (srcexp::sound_mode_t)header.read_u32().UNWRAP();
-				audio_data.reserved = header.read_u32().UNWRAP();
-				audio_data.name_len = header.read_u32().UNWRAP();
+					audio_data.name =
+					  audio.read_exact_c_str<char8_t>(audio_data.name_len).UNWRAP();
 
-				if (SrcExp->state.unicode)
-				{
-					audio_data.name = lak::to_u8string(
-					  audio.read_exact_c_str<char16_t>(audio_data.name_len).UNWRAP());
+					if (audio_data.type == srcexp::sound_mode_t::wave)
+					{
+						audio_data.format          = audio.read_u16().UNWRAP();
+						audio_data.channel_count   = audio.read_u16().UNWRAP();
+						audio_data.sample_rate     = audio.read_u32().UNWRAP();
+						audio_data.byte_rate       = audio.read_u32().UNWRAP();
+						audio_data.block_align     = audio.read_u16().UNWRAP();
+						audio_data.bits_per_sample = audio.read_u16().UNWRAP();
+						audio_data.unknown         = audio.read_u16().UNWRAP();
+						audio_data.chunk_size      = audio.read_u32().UNWRAP();
+						audio_data.data =
+						  audio.read<byte_t>(audio_data.chunk_size).UNWRAP();
+					}
 				}
 				else
 				{
-					audio_data.name = lak::to_u8string(
-					  audio.read_exact_c_str<char8_t>(audio_data.name_len).UNWRAP());
-				}
+					CHECKPOINT();
+					srcexp::data_reader_t header(SrcExp->view->decode_head().UNWRAP());
 
-				DEBUG("Name: ", audio_data.name);
+					audio_data.checksum   = header.read_u32().UNWRAP();
+					audio_data.references = header.read_u32().UNWRAP();
+					audio_data.decomp_len = header.read_u32().UNWRAP();
+					audio_data.type = (srcexp::sound_mode_t)header.read_u32().UNWRAP();
+					audio_data.reserved = header.read_u32().UNWRAP();
+					audio_data.name_len = header.read_u32().UNWRAP();
 
-				if (const auto peek = audio.peek<char>(4).UNWRAP();
-				    lak::string_view(lak::span(peek)) == "OggS"_view)
-					audio_data.type = srcexp::sound_mode_t::oggs;
-				else if (lak::string_view(lak::span(peek)) != "RIFF"_view)
-					audio_data.type = srcexp::sound_mode_t(-1);
-
-				if (audio_data.type == srcexp::sound_mode_t::wave)
-				{
-					audio.skip(4).UNWRAP(); // "RIFF"
-					uint32_t size = audio.read_s32().UNWRAP() + 4;
-					audio.skip(8).UNWRAP(); // "WAVEfmt "
-					// audio.position += 4; // 0x00000010
-					// 16, 18 or 40
-					uint32_t chunk_size = audio.read_u32().UNWRAP();
-					DEBUG("Chunk Size ", chunk_size);
-					const size_t pos           = audio.position() + chunk_size;
-					audio_data.format          = audio.read_u16().UNWRAP(); // 2
-					audio_data.channel_count   = audio.read_u16().UNWRAP(); // 4
-					audio_data.sample_rate     = audio.read_u32().UNWRAP(); // 8
-					audio_data.byte_rate       = audio.read_u32().UNWRAP(); // 12
-					audio_data.block_align     = audio.read_u16().UNWRAP(); // 14
-					audio_data.bits_per_sample = audio.read_u16().UNWRAP(); // 16
-					if (chunk_size >= 18)
+					if (SrcExp->state.unicode)
 					{
-						[[maybe_unused]] uint16_t extensionSize =
-						  audio.read_u16().UNWRAP(); // 18
-						DEBUG("Extension Size ", extensionSize);
+						audio_data.name = lak::to_u8string(
+						  audio.read_exact_c_str<char16_t>(audio_data.name_len).UNWRAP());
 					}
-					if (chunk_size >= 40)
+					else
 					{
-						[[maybe_unused]] uint16_t validPerSample =
-						  audio.read_u16().UNWRAP(); // 20
-						DEBUG("Valid Bits Per Sample ", validPerSample);
-						[[maybe_unused]] uint32_t channelMask =
-						  audio.read_u32().UNWRAP(); // 24
-						DEBUG("Channel Mask ", channelMask);
-						// SubFormat // 40
+						audio_data.name = lak::to_u8string(
+						  audio.read_exact_c_str<char8_t>(audio_data.name_len).UNWRAP());
 					}
-					audio.seek(pos + 4).UNWRAP(); // "data"
-					audio_data.chunk_size = audio.read_u32().UNWRAP();
-					DEBUG("Pos: ", audio.position());
-					DEBUG("Remaining: ", audio.remaining().size());
-					DEBUG("Size: ", size);
-					DEBUG("Chunk Size: ", audio_data.chunk_size);
-					audio_data.data = audio.read<byte_t>(audio_data.chunk_size).UNWRAP();
+
+					DEBUG("Name: ", audio_data.name);
+
+					if (const auto peek = audio.peek<char>(4).UNWRAP();
+					    lak::string_view(lak::span(peek)) == "OggS"_view)
+						audio_data.type = srcexp::sound_mode_t::oggs;
+					else if (lak::string_view(lak::span(peek)) != "RIFF"_view)
+						audio_data.type = srcexp::sound_mode_t(-1);
+
+					if (audio_data.type == srcexp::sound_mode_t::wave)
+					{
+						audio.skip(4).UNWRAP(); // "RIFF"
+						uint32_t size = audio.read_s32().UNWRAP() + 4;
+						audio.skip(8).UNWRAP(); // "WAVEfmt "
+						// audio.position += 4; // 0x00000010
+						// 16, 18 or 40
+						uint32_t chunk_size = audio.read_u32().UNWRAP();
+						DEBUG("Chunk Size ", chunk_size);
+						const size_t pos           = audio.position() + chunk_size;
+						audio_data.format          = audio.read_u16().UNWRAP(); // 2
+						audio_data.channel_count   = audio.read_u16().UNWRAP(); // 4
+						audio_data.sample_rate     = audio.read_u32().UNWRAP(); // 8
+						audio_data.byte_rate       = audio.read_u32().UNWRAP(); // 12
+						audio_data.block_align     = audio.read_u16().UNWRAP(); // 14
+						audio_data.bits_per_sample = audio.read_u16().UNWRAP(); // 16
+						if (chunk_size >= 18)
+						{
+							[[maybe_unused]] uint16_t extensionSize =
+							  audio.read_u16().UNWRAP(); // 18
+							DEBUG("Extension Size ", extensionSize);
+						}
+						if (chunk_size >= 40)
+						{
+							[[maybe_unused]] uint16_t validPerSample =
+							  audio.read_u16().UNWRAP(); // 20
+							DEBUG("Valid Bits Per Sample ", validPerSample);
+							[[maybe_unused]] uint32_t channelMask =
+							  audio.read_u32().UNWRAP(); // 24
+							DEBUG("Channel Mask ", channelMask);
+							// SubFormat // 40
+						}
+						audio.seek(pos + 4).UNWRAP(); // "data"
+						audio_data.chunk_size = audio.read_u32().UNWRAP();
+						DEBUG("Pos: ", audio.position());
+						DEBUG("Remaining: ", audio.remaining().size());
+						DEBUG("Size: ", size);
+						DEBUG("Chunk Size: ", audio_data.chunk_size);
+						audio_data.data =
+						  audio.read<byte_t>(audio_data.chunk_size).UNWRAP();
+					}
 				}
 			}
-		}
 
 #	if defined(LAK_USE_SDL)
-		static size_t audio_size = 0;
-		static bool playing      = false;
-		static SDL_AudioSpec audio_spec;
-		static SDL_AudioDeviceID audio_device = 0;
-		static SDL_AudioSpec audio_specGot;
-
-		if (!playing && ImGui::Button("Play"))
-		{
-			SDL_AudioSpec spec;
-			spec.freq = audio_data.sample_rate;
-			// spec.freq = audio_data.byte_rate;
-			switch (audio_data.format)
+			if (!playing && ImGui::Button("Play"))
 			{
-				case 0x0001:
-					spec.format = AUDIO_S16;
-					break;
-				case 0x0003:
-					spec.format = AUDIO_F32;
-					break;
-				case 0x0006:
-					spec.format = AUDIO_S8; /*8bit A-law*/
-					break;
-				case 0x0007:
-					spec.format = AUDIO_S8; /*abit mu-law*/
-					break;
-				case 0xFFFE:              /*subformat*/
-					break;
-				default:
-					break;
-			}
-			spec.channels = static_cast<Uint8>(audio_data.channel_count);
-			spec.samples  = 2048;
-			spec.callback = nullptr;
-
-			if (lak::as_bytes(&audio_spec) != lak::as_bytes(&spec))
-			{
-				lak::memcpy(&audio_spec, &spec);
-				if (audio_device != 0)
+				SDL_AudioSpec spec;
+				spec.freq = audio_data.sample_rate;
+				// spec.freq = audio_data.byte_rate;
+				switch (audio_data.format)
 				{
-					SDL_CloseAudioDevice(audio_device);
-					audio_device = 0;
+					case 0x0001: spec.format = AUDIO_S16; break;
+					case 0x0003: spec.format = AUDIO_F32; break;
+					case 0x0006:
+						spec.format = AUDIO_S8; /*8bit A-law*/
+						break;
+					case 0x0007:
+						spec.format = AUDIO_S8; /*abit mu-law*/
+						break;
+					case 0xFFFE: /*subformat*/ break;
+					default:     break;
 				}
+				spec.channels = static_cast<Uint8>(audio_data.channel_count);
+				spec.samples  = 2048;
+				spec.callback = nullptr;
+
+				if (lak::as_bytes(&audio_spec) != lak::as_bytes(&spec))
+				{
+					lak::memcpy(&audio_spec, &spec);
+					if (audio_device != 0)
+					{
+						SDL_CloseAudioDevice(audio_device);
+						audio_device = 0;
+					}
+				}
+
+				if (audio_device == 0)
+					audio_device = SDL_OpenAudioDevice(
+					  nullptr, false, &audio_spec, &audio_specGot, 0);
+
+				audio_size = audio_data.data.size();
+				SDL_QueueAudio(audio_device,
+				               audio_data.data.data(),
+				               static_cast<Uint32>(audio_size));
+				SDL_PauseAudioDevice(audio_device, 0);
+				playing = true;
 			}
 
-			if (audio_device == 0)
-				audio_device =
-				  SDL_OpenAudioDevice(nullptr, false, &audio_spec, &audio_specGot, 0);
+			if (playing && (ImGui::Button("Stop") ||
+			                (SDL_GetQueuedAudioSize(audio_device) == 0)))
+			{
+				SDL_PauseAudioDevice(audio_device, 1);
+				SDL_ClearQueuedAudio(audio_device);
+				audio_size = 0;
+				playing    = false;
+			}
 
-			audio_size = audio_data.data.size();
-			SDL_QueueAudio(
-			  audio_device, audio_data.data.data(), static_cast<Uint32>(audio_size));
-			SDL_PauseAudioDevice(audio_device, 0);
-			playing = true;
-		}
-
-		if (playing &&
-		    (ImGui::Button("Stop") || (SDL_GetQueuedAudioSize(audio_device) == 0)))
-		{
-			SDL_PauseAudioDevice(audio_device, 1);
-			SDL_ClearQueuedAudio(audio_device);
-			audio_size = 0;
-			playing    = false;
-		}
-
-		if (audio_size > 0)
-			ImGui::ProgressBar(1.0f - float(SDL_GetQueuedAudioSize(audio_device) /
-			                                (double)audio_size));
-		else
-			ImGui::ProgressBar(0);
+			if (audio_size > 0)
+				ImGui::ProgressBar(1.0f - float(SDL_GetQueuedAudioSize(audio_device) /
+				                                (double)audio_size));
+			else
+				ImGui::ProgressBar(0);
 #	endif
 
-		ImGui::Text("Name: %s",
-		            reinterpret_cast<const char *>(audio_data.name.c_str()));
-		ImGui::Text("Type: ");
-		ImGui::SameLine();
-		switch (audio_data.type)
-		{
-			case srcexp::sound_mode_t::wave:
-				ImGui::Text("WAV");
-				break;
-			case srcexp::sound_mode_t::midi:
-				ImGui::Text("MIDI");
-				break;
-			case srcexp::sound_mode_t::oggs:
-				ImGui::Text("OGG");
-				break;
-			default:
-				ImGui::Text("Unknown");
-				break;
-		}
-		ImGui::Text("Data Size: 0x%zX", (size_t)audio_data.data.size());
-		ImGui::Text("Format: 0x%zX", (size_t)audio_data.format);
-		ImGui::Text("Channel Count: %zu", (size_t)audio_data.channel_count);
-		ImGui::Text("Sample Rate: %zu", (size_t)audio_data.sample_rate);
-		ImGui::Text("Byte Rate: %zu", (size_t)audio_data.byte_rate);
-		ImGui::Text("Block Align: 0x%zX", (size_t)audio_data.block_align);
-		ImGui::Text("Bits Per Sample: %zu", (size_t)audio_data.bits_per_sample);
-		ImGui::Text("Chunk Size: 0x%zX", (size_t)audio_data.chunk_size);
-
-		last   = SrcExp->view;
-		update = false;
-#endif
-	}
-
-	static void log_explorer()
-	{
-		static lak::u8string log_str;
-		static const char *log_cstr = nullptr;
-
-		if (ImGui::Button("Refresh"))
-		{
-			log_str  = lak::to_u8string(lak::debugger.str());
-			log_cstr = (const char *)log_str.c_str();
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Clear"))
-		{
-			lak::debugger.clear();
-			log_str.clear();
-			log_cstr = nullptr;
-		}
-
-		if (log_cstr != nullptr && log_str.size() > 0)
-		{
-			if (ImGui::BeginChild("view debug log"))
+			ImGui::Text("Name: %s",
+			            reinterpret_cast<const char *>(audio_data.name.c_str()));
+			ImGui::Text("Type: ");
+			ImGui::SameLine();
+			switch (audio_data.type)
 			{
-				ImGui::TextUnformatted(log_cstr, log_cstr + log_str.size());
+				case srcexp::sound_mode_t::wave: ImGui::Text("WAV"); break;
+				case srcexp::sound_mode_t::midi: ImGui::Text("MIDI"); break;
+				case srcexp::sound_mode_t::oggs: ImGui::Text("OGG"); break;
+				default:                         ImGui::Text("Unknown"); break;
 			}
-			ImGui::EndChild();
+			ImGui::Text("Data Size: 0x%zX", (size_t)audio_data.data.size());
+			ImGui::Text("Format: 0x%zX", (size_t)audio_data.format);
+			ImGui::Text("Channel Count: %zu", (size_t)audio_data.channel_count);
+			ImGui::Text("Sample Rate: %zu", (size_t)audio_data.sample_rate);
+			ImGui::Text("Byte Rate: %zu", (size_t)audio_data.byte_rate);
+			ImGui::Text("Block Align: 0x%zX", (size_t)audio_data.block_align);
+			ImGui::Text("Bits Per Sample: %zu", (size_t)audio_data.bits_per_sample);
+			ImGui::Text("Chunk Size: 0x%zX", (size_t)audio_data.chunk_size);
+
+			last   = SrcExp->view;
+			update = false;
+#endif
 		}
-	}
+	} _audio_explorer;
+
+	void audio_explorer(bool &update) { _audio_explorer.draw(update); }
+
+	struct log_explorer_t
+	{
+		lak::u8string log_str;
+		const char *log_cstr = nullptr;
+
+		void draw()
+		{
+			if (ImGui::Button("Refresh"))
+			{
+				log_str  = lak::to_u8string(lak::debugger.str());
+				log_cstr = (const char *)log_str.c_str();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Clear"))
+			{
+				lak::debugger.clear();
+				log_str.clear();
+				log_cstr = nullptr;
+			}
+
+			if (log_cstr != nullptr && log_str.size() > 0)
+			{
+				if (ImGui::BeginChild("view debug log"))
+				{
+					ImGui::TextUnformatted(log_cstr, log_cstr + log_str.size());
+				}
+				ImGui::EndChild();
+			}
+		}
+	} _log_explorer;
+
+	void log_explorer() { _log_explorer.draw(); }
 };
 
 #endif

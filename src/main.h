@@ -26,7 +26,6 @@ SOFTWARE.
 #include <misc/cpp/imgui_stdlib.h>
 
 #include "ctf/explorer.hpp"
-#include "tostring.hpp"
 
 #include <lak/imgui/backend.hpp>
 #include <lak/imgui/widgets.hpp>
@@ -57,7 +56,6 @@ SOFTWARE.
 namespace fs = std::filesystem;
 
 extern srcexp::instance_t *SrcExp;
-extern int opengl_major, opengl_minor;
 
 void new_instance_window();
 

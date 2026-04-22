@@ -7,14 +7,12 @@
 #include "../data_reader.hpp"
 #include "../data_ref.hpp"
 
+#include <lak/imgui/texture.hpp>
 #include <lak/memory.hpp>
-#include <lak/opengl/texture.hpp>
 #include <lak/string.hpp>
 #include <lak/trace.hpp>
 #include <lak/variant.hpp>
 #include <lak/vec.hpp>
-
-#include <misc/softraster/texture.h>
 
 #ifdef GetObject
 #	undef GetObject
@@ -210,8 +208,7 @@ namespace srcexp
 	struct game_t;
 	struct instance_t;
 
-	using texture_t =
-	  lak::variant<lak::monostate, lak::opengl::texture, texture_color32_t>;
+	using texture_t = lak::ImUniqueTexture;
 
 	struct pack_file_t
 	{

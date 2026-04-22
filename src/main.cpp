@@ -25,94 +25,22 @@
 #include "dump.h"
 #include "main.h"
 
-#include "binary_analysis_window.hpp"
-#include "byte_pairs_window.hpp"
 #include "main_window.hpp"
-#include "testing_window.hpp"
-
-#include <lak/opengl/shader.hpp>
-#include <lak/opengl/state.hpp>
-#include <lak/opengl/texture.hpp>
 
 #include <lak/bank_ptr.hpp>
 #include <lak/defer.hpp>
-#include <lak/file.hpp>
-#include <lak/string_literals.hpp>
+#include <lak/string_literals/string.hpp>
 #include <lak/string_utils.hpp>
+#include <lak/system/file.hpp>
+#include <lak/system/windowing/window.hpp>
 #include <lak/test.hpp>
-#include <lak/window.hpp>
 
 #ifndef MAXDIRLEN
 #	define MAXDIRLEN 512
 #endif
 
-struct instance_window
-{
-	lak::unique_ptr<srcexp::instance_t> instance;
-	lak::window_handle *window;
-};
-
-lak::vector<instance_window> instances;
 srcexp::instance_t *SrcExp;
-int opengl_major, opengl_minor;
-
-lak::result<instance_window &> find_window_instance(lak::window_handle *window)
-{
-	for (auto &inst : instances)
-		if (inst.window == window) return lak::ok_t<instance_window &>{inst};
-	return lak::err_t{};
-}
-
-#if 1
-void MainScreen(instance_window &inst, float frame_time)
-{
-	switch (inst.instance->main_mode)
-	{
-		case srcexp::instance_t::main_mode_t::byte_pairs:
-			byte_pairs_window::draw(frame_time);
-			break;
-
-		case srcexp::instance_t::main_mode_t::binary_analysis:
-			binary_analysis_window::draw(frame_time);
-			break;
-
-		case srcexp::instance_t::main_mode_t::testing:
-			test_window::draw(frame_time);
-			break;
-
-		case srcexp::instance_t::main_mode_t::normal:
-			[[fallthrough]];
-		default:
-			main_window::draw(frame_time);
-			break;
-	}
-}
-
-#else
-void FloatThing(lak::memory &block)
-{
-	if (auto *ptr = block.read_type<float>(); ptr)
-		ImGui::DragFloat("FloatThing", ptr);
-}
-
-std::vector<void (*)(lak::memory &block)> funcs = {&FloatThing};
-
-void MainScreen(float frame_time)
-{
-	if (ImGui::BeginMenuBar())
-	{
-		ImGui::EndMenuBar();
-	}
-
-	float f = 0.0;
-
-	lak::memory block;
-	block.write_type(&f);
-	block.position = 0;
-
-	for (auto *func : funcs) func(block);
-}
-#endif
+lak::optional<srcexp::file_state_t> initial_file_state;
 
 #define LAK_BASIC_PROGRAM_IMGUI_WINDOW_IMPL
 #include <lak/basic_program.inl>
@@ -122,119 +50,242 @@ srcexp::instance_t::main_mode_t init_main_mode =
   srcexp::instance_t::main_mode_t::normal;
 bool init_allow_multithreading = false;
 
-lak::optional<int> basic_program_preinit(int argc, char **argv)
+struct my_window : virtual public basic_window_api
 {
-	if (argc == 2 && argv[1] == lak::astring("--version"))
+	my_window() : basic_window_api() {}
+
+	main_window srcexp_window;
+
+	virtual void init() override final
+	{
+		window().set_title(L"" APP_NAME);
+
+		srcexp_window.srcexp_instance.error_log.path =
+		  fs::current_path() /
+		  "ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt";
+
+		srcexp_window.srcexp_instance.images.path =
+		  srcexp_window.srcexp_instance.sorted_images.path =
+		    srcexp_window.srcexp_instance.sounds.path =
+		      srcexp_window.srcexp_instance.music.path =
+		        srcexp_window.srcexp_instance.shaders.path =
+		          srcexp_window.srcexp_instance.binary_files.path =
+		            srcexp_window.srcexp_instance.appicon.path =
+		              srcexp_window.srcexp_instance.binary_block.path =
+		                fs::current_path();
+
+		srcexp_window.srcexp_instance.testing.path = fs::current_path() / "test";
+	}
+
+	virtual ~my_window() {}
+
+	virtual void handle_event(lak::event &event) override final
+	{
+		switch (event.type)
+		{
+			case lak::event_type::close_window: destroy(); break;
+
+			case lak::event_type::dropfile:
+			{
+				srcexp_window.srcexp_instance.exe.path    = event.dropfile().path;
+				srcexp_window.srcexp_instance.exe.valid   = true;
+				srcexp_window.srcexp_instance.exe.attempt = true;
+			}
+			break;
+
+			default: break;
+		}
+	}
+
+	virtual void loop(uint64_t counter_delta) override final
+	{
+		const float frame_time =
+		  (float)counter_delta / lak::performance_frequency();
+
+		SrcExp = &srcexp_window.srcexp_instance;
+		srcexp_window.draw(frame_time);
+	}
+};
+
+lak::graphics_mode forced_graphics_mode = lak::graphics_mode::None;
+
+lak::error_code<int> basic_program_preinit(lak::span<char *> args)
+{
+	if (args.size() == 2 && args[1] == "--version"_str)
 	{
 		std::cout << "Source Explorer " APP_VERSION << "\n";
-		return lak::optional<int>(0);
+		return lak::err_t{EXIT_SUCCESS};
 	}
-	else if (argc == 2 && argv[1] == lak::astring("--full-version"))
+	else if (args.size() == 2 && args[1] == "--full-version"_str)
 	{
 		std::cout << APP_NAME << "\n";
-		return lak::optional<int>(0);
+		return lak::err_t{EXIT_SUCCESS};
 	}
 
 	lak::debugger.std_out(u8"", u8"" APP_NAME "\n");
 
-	for (int arg = 1; arg < argc; ++arg)
+	for (size_t arg = 1U; arg < args.size(); ++arg)
 	{
-		if (argv[arg] == lak::astring("-h") || argv[arg] == lak::astring("--help"))
+		if (args[arg] == "-h"_str || args[arg] == "--help"_str)
 		{
-			std::cout << "srcexp.exe [--help] [--nogl] [--onlyerr] "
+			std::cout << "srcexp.exe "
+			             "[--help] "
+			             "[--software | --opengl] "
+			             "[--noisy] "
+			             "[--onlyerr] "
 			             "[--listtests | --laktestall | --laktests \"test1;test2\"] "
 			             "[--test] [--skip-broken] [--open-broken] [--threaded] "
-			             "[--analyse] [<filepath>]\n";
-			return lak::optional<int>(0);
+			             "[--analyse] "
+			             "[--lua] "
+			             "[<filepath>]\n";
+			return lak::err_t{EXIT_SUCCESS};
 		}
-		else if (argv[arg] == lak::astring("--nogl"))
+		else if (args[arg] == "--software"_str)
 		{
-			basic_window_force_software = true;
+			forced_graphics_mode = lak::graphics_mode::Software;
 		}
-		else if (argv[arg] == lak::astring("--onlyerr"))
+		else if (args[arg] == "--opengl"_str)
+		{
+			forced_graphics_mode = lak::graphics_mode::OpenGL;
+		}
+		else if (args[arg] == "--onlyerr"_str)
 		{
 			init_force_only_error = true;
 		}
-		else if (argv[arg] == lak::astring("--listtests"))
+		else if (args[arg] == "--listtests"_str)
 		{
-			lak::debugger.std_out(lak::u8string(),
-			                      lak::u8string(u8"Available tests:\n"));
+			lak::debugger.std_out(lak::u8string(), u8"Available tests:\n"_str);
 			for (const auto &[name, func] : lak::registered_tests())
 			{
 				lak::debugger.std_out(lak::u8string(),
 				                      lak::to_u8string(name) + u8"\n");
 			}
 		}
-		else if (argv[arg] == lak::astring("--laktestall"))
+		else if (args[arg] == "--laktestall"_str)
 		{
-			return lak::optional<int>(lak::run_tests());
+			return lak::err_t{lak::run_tests()};
 		}
-		else if (argv[arg] == lak::astring("--laktests") ||
-		         argv[arg] == lak::astring("--laktest"))
+		else if (args[arg] == "--laktests"_str || args[arg] == "--laktest"_str)
 		{
 			++arg;
-			if (arg >= argc) FATAL("Missing tests");
-			return lak::optional<int>(lak::run_tests(
-			  lak::as_u8string(lak::astring_view::from_c_str(argv[arg]))));
+			if (arg >= args.size()) FATAL("Missing tests");
+			return lak::err_t{lak::run_tests(
+			  lak::as_u8string(lak::astring_view::from_c_str(args[arg])))};
 		}
-		else if (argv[arg] == lak::astring("--test"))
+		else if (args[arg] == "--test"_str)
 		{
 			init_main_mode = srcexp::instance_t::main_mode_t::testing;
 		}
-		else if (argv[arg] == lak::astring("--analyse"))
+		else if (args[arg] == "--analyse"_str)
 		{
 			init_main_mode = srcexp::instance_t::main_mode_t::binary_analysis;
 		}
-		else if (argv[arg] == lak::astring("--skip-broken"))
+		else if (args[arg] == "--skip-broken"_str)
 		{
 			srcexp::skip_broken_items = true;
 		}
-		else if (argv[arg] == lak::astring("--open-broken"))
+		else if (args[arg] == "--open-broken"_str)
 		{
 			srcexp::open_broken_games = true;
 		}
-		else if (argv[arg] == lak::astring("--threaded"))
+		else if (args[arg] == "--threaded"_str)
 		{
 			init_allow_multithreading = true;
 		}
-		else
+		else if_let_ok (auto exists,
+		                lak::path_exists(lak::fs::path(args[arg]))
+		                  .IF_ERR("error checking if path exists"))
 		{
-			// SrcExp->baby_mode   = false;
-			// SrcExp->exe.path    = argv[arg];
-			// SrcExp->exe.valid   = true;
-			// SrcExp->exe.attempt = true;
-			// if (!lak::path_exists(SrcExp->exe.path).UNWRAP())
-			// 	FATAL(SrcExp->exe.path, " does not exist");
+			auto p = lak::fs::path(args[arg]);
+			if (exists)
+			{
+				initial_file_state.emplace();
+				initial_file_state->path    = p;
+				initial_file_state->valid   = true;
+				initial_file_state->attempt = true;
+			}
+			else
+			{
+				FATAL(p, " does not exist");
+			}
 		}
 	}
 
-#ifdef LAK_OS_APPLE
-	basic_window_force_software = true;
-#endif
+	basic_window_target_framerate = 30;
 
-	basic_window_target_framerate      = 30;
-	basic_window_opengl_settings.major = 3;
-	basic_window_opengl_settings.minor = 2;
-	basic_window_clear_colour          = {0.0f, 0.0f, 0.0f, 1.0f};
-	basic_imgui_main_window_flags =
-	  ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
-	  ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoSavedSettings |
-	  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove;
-
-	return lak::nullopt;
+	return lak::ok_t{};
 }
 
-void new_instance_window() { basic_create_window().UNWRAP(); }
+lak::array<lak::weak_ptr<LAK_BASIC_PROGRAM(window_instance<my_window>)>>
+  my_window_ptrs;
 
-lak::optional<int> basic_program_init()
+void new_instance_window()
+{
+	lak::strong_ptr<LAK_BASIC_PROGRAM(window_instance<my_window>)> my_window_ptr;
+
+	auto ref_to_ptr =
+	  []<typename T>(lak::strong_ref<T> ref) -> lak::strong_ptr<T>
+	{ return ref; };
+
+	switch (forced_graphics_mode)
+	{
+		case lak::graphics_mode::None:
+		{
+			my_window_ptr = LAK_BASIC_PROGRAM(create_window<my_window>)()
+			                  .IF_ERR()
+			                  .map(ref_to_ptr)
+			                  .unwrap_or_default();
+		}
+		break;
+#ifdef LAK_ENABLE_SOFTRENDER
+		case lak::graphics_mode::Software:
+		{
+			my_window_ptr = LAK_BASIC_PROGRAM(create_window<my_window>)(
+			                  LAK_BASIC_PROGRAM(window_software_settings))
+			                  .IF_ERR()
+			                  .map(ref_to_ptr)
+			                  .unwrap_or_default();
+		}
+		break;
+#endif
+#ifdef LAK_ENABLE_OPENGL
+		case lak::graphics_mode::OpenGL:
+		{
+			my_window_ptr = LAK_BASIC_PROGRAM(create_window<my_window>)(
+			                  LAK_BASIC_PROGRAM(window_opengl_settings))
+			                  .IF_ERR()
+			                  .map(ref_to_ptr)
+			                  .unwrap_or_default();
+		}
+		break;
+#endif
+		default:
+			ERROR(
+			  lak::fmt<u8"Graphics mode {} not available">(forced_graphics_mode));
+	}
+
+	if (my_window_ptr) my_window_ptrs.emplace_back(my_window_ptr);
+}
+
+lak::error_code<int> basic_program_init()
 {
 	new_instance_window();
 
-	SrcExp = instances.back().instance.get();
+	auto my_window_ptr = my_window_ptrs.back().get();
 
-	lak::debugger.crash_path = SrcExp->error_log.path;
+	DEBUG_EXPR(my_window_ptr->window().graphics());
 
+	SrcExp = &my_window_ptr->srcexp_window.srcexp_instance;
+
+	lak::debugger.crash_path          = SrcExp->error_log.path;
 	lak::debugger.live_output_enabled = true;
+
+	if_let_some (auto file_state, initial_file_state)
+	{
+		SrcExp->baby_mode = false;
+		SrcExp->exe       = lak::move(file_state);
+		initial_file_state.reset();
+	}
 
 	if (!SrcExp->exe.attempt)
 	{
@@ -249,106 +300,28 @@ lak::optional<int> basic_program_init()
 	SrcExp->main_mode            = init_main_mode;
 	SrcExp->allow_multithreading = init_allow_multithreading;
 
-	srcexp::instance_t::graphics_mode =
-	  lak::window_graphics_mode(instances.back().window);
-
-	DEBUG("Graphics: ", srcexp::instance_t::graphics_mode);
-	if (!lak::debugger.live_output_enabled || lak::debugger.live_errors_only)
-		std::cout << "Graphics: " << srcexp::instance_t::graphics_mode << "\n";
-
-	switch (srcexp::instance_t::graphics_mode)
-	{
-		case lak::graphics_mode::OpenGL:
-		{
-			opengl_major = lak::opengl::get_uint(GL_MAJOR_VERSION).UNWRAP();
-			opengl_minor = lak::opengl::get_uint(GL_MINOR_VERSION).UNWRAP();
-		}
-		break;
-
-		case lak::graphics_mode::Software:
-			break;
-
-		default:
-			break;
-	}
-
-	return lak::nullopt;
+	return lak::ok_t{};
 }
 
-bool source_explorer_running = true;
-bool basic_program_loop(uint64_t counter_delta)
-{
-	LAK_UNUSED(counter_delta);
-	return source_explorer_running && !basic_window_instances.empty();
-}
-
-int basic_program_quit() { return EXIT_SUCCESS; }
-
-void basic_window_init(lak::window &window)
-{
-	auto &inst = instances.push_back(instance_window{
-	  .instance = lak::unique_ptr<srcexp::instance_t>::make(),
-	  .window   = window.handle(),
-	});
-
-	inst.instance->error_log.path =
-	  fs::current_path() / "ATTACH-TO-ISSUE-ON-SOURCE-EXPLORER-GITHUB-REPO.txt";
-
-	inst.instance->images.path        = inst.instance->sorted_images.path =
-	  inst.instance->sounds.path      = inst.instance->music.path =
-	    inst.instance->shaders.path   = inst.instance->binary_files.path =
-	      inst.instance->appicon.path = inst.instance->binary_block.path =
-	        fs::current_path();
-
-	inst.instance->testing.path = fs::current_path() / "test";
-}
-
-void basic_window_handle_event(lak::window *window, lak::event &event)
+void basic_program_handle_event(lak::event &event)
 {
 	switch (event.type)
 	{
-		case lak::event_type::close_window:
-			ASSERT(!!window);
-			basic_destroy_window(*window);
-			break;
-
 		case lak::event_type::quit_program:
-			source_explorer_running = false;
+			for (auto &inst : basic_window_instances()) inst->destroy();
 			break;
-
-		case lak::event_type::dropfile:
-		{
-			ASSERT(!!window);
-			auto *se =
-			  find_window_instance(window->handle()).UNWRAP().instance.get();
-			ASSERT(!!se);
-			se->exe.path    = event.dropfile().path;
-			se->exe.valid   = true;
-			se->exe.attempt = true;
-		}
-		break;
-
-		default:
-			break;
+		default: break;
 	}
 }
 
-void basic_window_loop(lak::window &window, uint64_t counter_delta)
+bool basic_program_loop(uint64_t counter_delta)
 {
-	auto &inst = find_window_instance(window.handle()).UNWRAP();
-	SrcExp     = inst.instance.get();
-	MainScreen(inst, (float)counter_delta / lak::performance_frequency());
-	SrcExp = nullptr;
+	LAK_UNUSED(counter_delta);
+	return !basic_window_instances().empty();
 }
 
-void basic_window_quit(lak::window &window)
+int basic_program_quit()
 {
-	for (auto &inst : instances)
-	{
-		if (inst.window == window.handle())
-		{
-			instances.erase(&inst);
-			break;
-		}
-	}
+	my_window_ptrs.clear();
+	return EXIT_SUCCESS;
 }

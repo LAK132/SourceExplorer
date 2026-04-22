@@ -77,7 +77,7 @@ namespace srcexp
 
 			if (ImGui::Button("View Image"))
 			{
-				inst.image = CreateTexture(bitmap, inst.graphics_mode);
+				inst.image = srcexp::texture_t::make(bitmap);
 			}
 		}
 

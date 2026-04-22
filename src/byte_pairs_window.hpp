@@ -6,9 +6,12 @@
 #include "dump.h"
 #include "main.h"
 
-struct byte_pairs_window : public base_window<byte_pairs_window>
+template<typename DERIVED>
+struct byte_pairs_window
 {
-	static void main_region(float)
+	bex::memory_byte_pairs_viewer viewer;
+
+	void main_region(float)
 	{
 		if (SrcExp->exe.bad()) SrcExp->exe.make_attempt();
 
@@ -38,8 +41,7 @@ struct byte_pairs_window : public base_window<byte_pairs_window>
 			}
 		}
 
-		if (SrcExp->loaded)
-			base_window::byte_pairs_memory_explorer(*SrcExp->state.file, false);
+		if (SrcExp->loaded) viewer.draw(*SrcExp->state.file, false);
 	}
 };
 

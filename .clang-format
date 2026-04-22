@@ -12,7 +12,12 @@ AllowAllArgumentsOnNextLine: true
 AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 # AllowShortBlocksOnASingleLine: Empty
-AllowShortCaseLabelsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  AlignCaseColons: false
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLambdasOnASingleLine: All
@@ -27,9 +32,9 @@ BinPackParameters: false
 
 BreakBeforeBraces: Custom
 BraceWrapping:
-  AfterCaseLabel: false
+  AfterCaseLabel: true
   AfterClass: true
-  # AfterControlStatement: Always
+  AfterControlStatement: Always
   AfterEnum: true
   AfterFunction: true
   AfterNamespace: true
@@ -38,13 +43,13 @@ BraceWrapping:
   AfterExternBlock: true
   BeforeCatch: true
   BeforeElse: true
-  # BeforeLambdaBody: true
+  BeforeLambdaBody: true
   IndentBraces: false
   SplitEmptyFunction: true
-  SplitEmptyRecord: false
+  SplitEmptyRecord: true
   SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: None
-BreakBeforeBraces: Allman
+# BreakBeforeBraces: Allman
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeColon
 BreakInheritanceList: BeforeColon
@@ -71,7 +76,7 @@ ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: false
 
 ForEachMacros: []
-IfMacros: ['do_with', 'do_for', 'for_or', 'range_for_or', 'while_or', 'if_ref', 'if_in', 'if_not_in', 'if_let_ok', 'if_let_err']
+IfMacros: ['do_with', 'do_for', 'for_or', 'range_for_or', 'while_or', 'if_ref', 'if_in', 'if_not_in', 'if_let_ok', 'if_let_some', 'if_let_err']
 
 IncludeBlocks: Preserve
 

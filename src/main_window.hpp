@@ -2,16 +2,23 @@
 #define MAIN_WINDOW_HPP
 
 #include "base_window.hpp"
-#include "lisk_editor.hpp"
+#include "binary_analysis_window.hpp"
+#include "byte_pairs_window.hpp"
+#include "testing_window.hpp"
 
 #include "main.h"
 
-#include <lak/profile.hpp>
+#include <lak/system/profile.hpp>
 
 #include <cinttypes>
 
-struct main_window : public base_window<main_window>
+struct main_window : public base_window<main_window>,
+                     public binary_analysis_window<main_window>,
+                     public byte_pairs_window<main_window>,
+                     public testing_window<main_window>
 {
+	srcexp::instance_t srcexp_instance;
+
 	static void help_text()
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10.0, 10.0));
@@ -47,8 +54,8 @@ struct main_window : public base_window<main_window>
 			                    nullptr))
 			{
 				DEBUG(SrcExp->baby_mode ? "Open And Dump" : "Open");
-				SrcExp->view   = nullptr;
-				SrcExp->image  = lak::monostate{};
+				SrcExp->view = nullptr;
+				SrcExp->image.reset();
 				SrcExp->buffer = {};
 				SrcExp->exe.make_attempt();
 			}
@@ -119,19 +126,6 @@ struct main_window : public base_window<main_window>
 		if (ImGui::BeginMenu("About"))
 		{
 			ImGui::Text(APP_NAME " by LAK132");
-			switch (srcexp::instance_t::graphics_mode)
-			{
-				case lak::graphics_mode::OpenGL:
-					ImGui::Text("Using OpenGL %d.%d", opengl_major, opengl_minor);
-					break;
-
-				case lak::graphics_mode::Software:
-					ImGui::Text("Using Softraster");
-					break;
-
-				default:
-					break;
-			}
 			ImGui::Text("Frame rate %f", std::round(1.0f / frame_time));
 			ImGui::Text("Perf Freq  0x%016" PRIX64, lak::performance_frequency());
 			ImGui::Text("Perf Count 0x%016" PRIX64, lak::performance_counter());
@@ -164,7 +158,7 @@ struct main_window : public base_window<main_window>
 		}
 	}
 
-	static void menu_bar(float frame_time)
+	void menu_bar(float frame_time)
 	{
 		file_menu();
 
@@ -177,7 +171,7 @@ struct main_window : public base_window<main_window>
 		base_window::debug_menu();
 	}
 
-	static void left_region(float)
+	void left_region(float)
 	{
 		if (SrcExp->loaded)
 		{
@@ -274,7 +268,12 @@ struct main_window : public base_window<main_window>
 		}
 	}
 
-	static void right_region(float)
+	int selected      = 0;
+	bool crypto       = false;
+	bool mem_update   = false;
+	bool image_update = false;
+	bool audio_update = false;
+	void right_region(float)
 	{
 		if (SrcExp->loaded)
 		{
@@ -286,24 +285,19 @@ struct main_window : public base_window<main_window>
 				LISK,
 				DEBUG_LOG,
 			};
-			static int selected = 0;
 			ImGui::RadioButton("Memory", &selected, MEMORY);
 			ImGui::SameLine();
 			ImGui::RadioButton("Image", &selected, IMAGE);
 			ImGui::SameLine();
 			ImGui::RadioButton("Audio", &selected, AUDIO);
-			ImGui::SameLine();
-			ImGui::RadioButton("Lisk", &selected, LISK);
+			// ImGui::SameLine();
+			// ImGui::RadioButton("Lisk", &selected, LISK);
 			ImGui::SameLine();
 			ImGui::RadioButton("Log", &selected, DEBUG_LOG);
 
-			static bool crypto = false;
 			ImGui::Checkbox("Crypto", &crypto);
 			ImGui::Separator();
 
-			static bool mem_update   = false;
-			static bool image_update = false;
-			static bool audio_update = false;
 			if (crypto)
 			{
 				if (base_window::crypto())
@@ -322,9 +316,9 @@ struct main_window : public base_window<main_window>
 				case AUDIO:
 					base_window::audio_explorer(audio_update);
 					break;
-				case LISK:
-					lisk_editor::draw();
-					break;
+				// case LISK:
+				// 	lisk_editor::draw();
+				// 	break;
 				case DEBUG_LOG:
 					base_window::log_explorer();
 					break;
@@ -335,11 +329,34 @@ struct main_window : public base_window<main_window>
 		}
 	}
 
-	static void main_region(float frame_time)
+	void main_region(float frame_time)
+	{
+		switch (srcexp_instance.main_mode)
+		{
+			case srcexp::instance_t::main_mode_t::binary_analysis:
+				binary_analysis_window<main_window>::main_region(frame_time);
+				break;
+
+			case srcexp::instance_t::main_mode_t::byte_pairs:
+				byte_pairs_window<main_window>::main_region(frame_time);
+				break;
+
+			case srcexp::instance_t::main_mode_t::testing:
+				testing_window<main_window>::main_region(frame_time);
+				break;
+
+			default: [[fallthrough]];
+			case srcexp::instance_t::main_mode_t::normal:
+				main_main_region(frame_time);
+				break;
+		}
+	}
+
+	void main_main_region(float frame_time)
 	{
 		if (!SrcExp->baby_mode && SrcExp->loaded)
 		{
-			base_window::main_region(frame_time);
+			base_window<main_window>::main_region(frame_time);
 		}
 		else
 		{

@@ -3,18 +3,17 @@
 
 #include "base_window.hpp"
 
-#include "main_window.hpp"
-
 #include <lak/strcast.hpp>
 
-struct test_window : public base_window<test_window>
+template<typename DERIVED>
+struct testing_window
 {
-	static void menu_bar(float)
+	void menu_bar(float)
 	{
 		SrcExp->testing.attempt |= ImGui::Button("Open Folder");
-		mode_select_menu();
-		main_window::compat_menu();
-		debug_menu();
+		DERIVED::mode_select_menu();
+		static_cast<DERIVED *>(this)->compat_menu();
+		DERIVED::debug_menu();
 	}
 
 	static lak::file_open_error refresh_testing_files()
@@ -46,7 +45,7 @@ struct test_window : public base_window<test_window>
 		return lak::file_open_error::VALID;
 	}
 
-	static void main_region(float frame_time)
+	void main_region(float frame_time)
 	{
 		if (SrcExp->testing.bad()) SrcExp->testing.make_attempt();
 
@@ -61,16 +60,17 @@ struct test_window : public base_window<test_window>
 			}
 		}
 
-		if (SrcExp->testing.good()) base_window::main_region(frame_time);
+		if (SrcExp->testing.good())
+			static_cast<DERIVED *>(this)->main_region(frame_time);
 	}
 
-	inline static lak::array<fs::path> all_testing_files;
-	inline static size_t testing_files_count = 0U;
-	inline static lak::astring last_error;
-	inline static lak::array<fs::path> failed_files;
-	inline static bool list_failed_files = false;
+	lak::array<fs::path> all_testing_files;
+	size_t testing_files_count = 0U;
+	lak::astring last_error;
+	lak::array<fs::path> failed_files;
+	bool list_failed_files = false;
 
-	static void left_region(float)
+	void left_region(float)
 	{
 		ImGui::Text("%s",
 		            lak::as_astring(SrcExp->testing.path.u8string().c_str()));
@@ -103,9 +103,9 @@ struct test_window : public base_window<test_window>
 			{
 				if (ImGui::Button("Try Open"))
 				{
-					SrcExp->baby_mode   = false;
-					SrcExp->view        = nullptr;
-					SrcExp->image       = lak::monostate{};
+					SrcExp->baby_mode = false;
+					SrcExp->view      = nullptr;
+					SrcExp->image.reset();
 					SrcExp->buffer      = {};
 					SrcExp->exe.path    = path;
 					SrcExp->exe.attempt = true;
@@ -115,7 +115,7 @@ struct test_window : public base_window<test_window>
 		}
 	}
 
-	static void right_region(float frame_time)
+	void right_region(float frame_time)
 	{
 		if (!SrcExp->exe.attempt && !all_testing_files.empty())
 		{
@@ -207,7 +207,7 @@ struct test_window : public base_window<test_window>
 				}
 			}
 
-			base_window<main_window>::main_region(frame_time);
+			static_cast<DERIVED *>(this)->main_region(frame_time);
 		}
 		else
 		{

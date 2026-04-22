@@ -28,27 +28,27 @@
 #include "../imgui_utils.hpp"
 #include <imgui_memory_editor.h>
 #include <misc/cpp/imgui_stdlib.h>
-#include <misc/softraster/texture.h>
 
 #include "stb_image.h"
 
 #include <lak/binary_reader.hpp>
 #include <lak/binary_writer.hpp>
 #include <lak/debug.hpp>
-#include <lak/file.hpp>
 #include <lak/imgui/backend.hpp>
 #include <lak/imgui/widgets.hpp>
 #include <lak/lmdb/lmdb.hpp>
-#include <lak/opengl/state.hpp>
-#include <lak/opengl/texture.hpp>
 #include <lak/result.hpp>
 #include <lak/stdint.hpp>
 #include <lak/strconv.hpp>
 #include <lak/string.hpp>
-#include <lak/string_literals.hpp>
+#include <lak/system/file.hpp>
+#include <lak/system/opengl/state.hpp>
+#include <lak/system/opengl/texture.hpp>
 #include <lak/tinflate.hpp>
 #include <lak/trace.hpp>
 #include <lak/unicode.hpp>
+
+#include <binex/widgets.hpp>
 
 #include <assert.h>
 #include <atomic>
@@ -119,8 +119,8 @@ namespace srcexp
 	struct file_state_t
 	{
 		fs::path path;
-		bool valid;
-		bool attempt;
+		bool valid   = false;
+		bool attempt = false;
 
 		// bad() = file is neither valid nor being attempted
 		// !bad() = file is either valid or is being attempted
@@ -139,8 +139,6 @@ namespace srcexp
 
 	struct instance_t
 	{
-		static lak::graphics_mode graphics_mode;
-
 		game_t state;
 
 		bool loaded                 = false;
@@ -162,7 +160,7 @@ namespace srcexp
 		file_state_t write;
 		file_state_t database;
 
-		MemoryEditor editor;
+		bex::memory_viewer viewer;
 
 		lak::array<fs::path> testing_files;
 		lak::optional<lak::lmdb::environment> db_env;
@@ -334,12 +332,6 @@ namespace srcexp
 
 	void ReadTransparent(const lak::color4_t &transparent,
 	                     lak::image4_t &bitmap);
-
-	texture_t CreateTexture(const lak::image4_t &bitmap,
-	                        const lak::graphics_mode mode);
-
-	texture_t CreateTexture(const lak::image<float> &bitmap,
-	                        const lak::graphics_mode mode);
 
 	void ViewImage(instance_t &inst, const float scale = 1.0f);
 

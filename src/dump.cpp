@@ -29,13 +29,15 @@ SOFTWARE.
 
 #include "ctf/explorer.hpp"
 #include "dump.h"
-#include "tostring.hpp"
 
 #include <lak/array.hpp>
 #include <lak/char_utils.hpp>
+#include <lak/format.hpp>
 #include <lak/result.hpp>
 #include <lak/string.hpp>
-#include <lak/string_literals.hpp>
+#include <lak/string_literals/span.hpp>
+#include <lak/string_literals/string.hpp>
+#include <lak/string_literals/view.hpp>
 #include <lak/string_utils.hpp>
 #include <lak/tasks.hpp>
 #include <lak/visit.hpp>
@@ -324,8 +326,8 @@ void srcexp::DumpSortedImages(srcexp::instance_t &inst,
 				result += c;
 		while (!result.empty() && lak::is_whitespace(result.back()))
 			result.pop_back();
-		return u"["_str + srcexp::to_u16string(handle) +
-		       (result.empty() ? u"]" : u"] ") + lak::to_u16string(result);
+		return result.empty() ? lak::fmt<u"[{}]">(handle)
+		                      : lak::fmt<u"[{}] {}">(handle, result);
 	};
 
 	fs::path root_path     = inst.sorted_images.path;
@@ -339,9 +341,8 @@ void srcexp::DumpSortedImages(srcexp::instance_t &inst,
 	{
 		SCOPED_CHECKPOINT(
 		  "Image ", image_index, "/", image_count, " (", image.entry.handle, ")");
-		lak::u16string image_name =
-		  srcexp::to_u16string(image.entry.handle) + u".png";
-		fs::path image_path = unsorted_path / image_name;
+		lak::u16string image_name = lak::fmt<u"{}.png">(image.entry.handle);
+		fs::path image_path       = unsorted_path / image_name;
 		(void)SaveImage(image.image(inst.dump_color_transparent).UNWRAP(),
 		                image_path);
 		completed = (float)((double)++image_index / image_count);
@@ -379,12 +380,10 @@ void srcexp::DumpSortedImages(srcexp::instance_t &inst,
 				      lak::as_ptr(srcexp::GetObject(inst.state, object.handle).ok());
 				    obj)
 				{
-					lak::u16string object_name = HandleName(
-					  obj->name,
-					  obj->handle,
-					  u"[" +
-					    lak::to_u16string(lak::astring(GetObjectTypeString(obj->type))) +
-					    u"]");
+					lak::u16string object_name =
+					  HandleName(obj->name,
+					             obj->handle,
+					             lak::fmt<u"[{}]">(GetObjectTypeString(obj->type)));
 					fs::path object_path = frame_path / object_name;
 					fs::create_directories(object_path, err);
 					if (err)
@@ -404,8 +403,7 @@ void srcexp::DumpSortedImages(srcexp::instance_t &inst,
 							{
 								SCOPED_CHECKPOINT("Image (", imghandle, ")");
 								used_images.insert(imghandle);
-								lak::u16string image_name =
-								  srcexp::to_u16string(imghandle) + u".png";
+								lak::u16string image_name = lak::fmt<u"{}.png">(imghandle);
 								fs::path image_path = frame_path / "[unsorted]" / image_name;
 
 								// check if 8bit image
@@ -420,7 +418,8 @@ void srcexp::DumpSortedImages(srcexp::instance_t &inst,
 								         res.is_err())
 									lak::visit(
 									  lak::overloaded{
-									    [](const std::error_code &err) {
+									    [](const std::error_code &err)
+									    {
 										    ERROR("Linking Failed: (",
 										          err.value(),
 										          ")",
@@ -433,7 +432,7 @@ void srcexp::DumpSortedImages(srcexp::instance_t &inst,
 							for (const auto &imgname : imgnames)
 							{
 								lak::u16string unsorted_image_name =
-								  srcexp::to_u16string(imghandle) + u".png";
+								  lak::fmt<u"{}.png">(imghandle);
 								fs::path unsorted_image_path =
 								  frame_path / "[unsorted]" / unsorted_image_name;
 								lak::u16string image_name = imgname + u".png";
@@ -445,7 +444,8 @@ void srcexp::DumpSortedImages(srcexp::instance_t &inst,
 									    res.is_err())
 										lak::visit(
 										  lak::overloaded{
-										    [](const std::error_code &err) {
+										    [](const std::error_code &err)
+										    {
 											    ERROR("Linking Failed: (",
 											          err.value(),
 											          ")",
@@ -542,8 +542,7 @@ void srcexp::DumpSounds(instance_t &inst, std::atomic<float> &completed)
 			    "Item ", item.entry.handle, " Body Failed To Decode"));
 			  lak::array<byte_t> result;
 
-			  lak::u8string name =
-			    u8"[" + srcexp::to_u8string(item.entry.handle) + u8"] ";
+			  lak::u8string name = lak::fmt<u8"[{}] ">(item.entry.handle);
 			  sound_mode_t type;
 
 			  if (inst.state.old_game)
@@ -689,8 +688,7 @@ void srcexp::DumpMusic(instance_t &inst, std::atomic<float> &completed)
 			  data_reader_t sound(item.entry.decode_body().EXPECT(
 			    "Item ", item.entry.handle, " Body Failed To Decode"));
 
-			  lak::u8string name =
-			    u8"[" + srcexp::to_u8string(item.entry.handle) + u8"] ";
+			  lak::u8string name = lak::fmt<u8"[{}] ">(item.entry.handle);
 			  sound_mode_t type;
 
 			  if (inst.state.old_game)

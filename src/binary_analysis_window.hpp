@@ -8,13 +8,19 @@
 
 void ImGui::ShowDemoWindow(bool *p_open);
 
-struct binary_analysis_window : public base_window<binary_analysis_window>
+template<typename DERIVED>
+struct binary_analysis_window
 {
-	inline static bool force_update_memory;
-	inline static srcexp::data_ref_span_t view_data;
-	inline static bool demo_window = false;
+	using memory_view = typename base_window<DERIVED>::memory_view;
 
-	static void file_menu()
+	bool force_update_memory;
+	srcexp::data_ref_span_t view_data;
+	bool demo_window = false;
+	memory_view view;
+	MemoryEditor editor;
+	bex::memory_viewer viewer;
+
+	void file_menu()
 	{
 		if (ImGui::BeginMenu("File"))
 		{
@@ -30,20 +36,20 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 		}
 	}
 
-	static void menu_bar(float)
+	void menu_bar(float)
 	{
 		file_menu();
-		base_window::mode_select_menu();
-		base_window::debug_menu();
+		static_cast<DERIVED *>(this)->mode_select_menu();
+		static_cast<DERIVED *>(this)->debug_menu();
 	}
 
-	static void main_region(float frame_time)
+	void main_region(float frame_time)
 	{
 		if (SrcExp->exe.attempt)
 		{
 			srcexp::AttemptFile(
 			  SrcExp->exe,
-			  [](const fs::path &exe_path) -> lak::file_open_error
+			  [&](const fs::path &exe_path) -> lak::file_open_error
 			  {
 				  lak::debugger.clear();
 				  SrcExp->state      = srcexp::game_t{};
@@ -61,7 +67,7 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 
 		if (SrcExp->loaded)
 		{
-			base_window::main_region(frame_time);
+			static_cast<DERIVED *>(this)->main_region(frame_time);
 
 			if (force_update_memory) force_update_memory = false;
 		}
@@ -71,24 +77,18 @@ struct binary_analysis_window : public base_window<binary_analysis_window>
 		}
 	}
 
-	static void left_region(float)
+	void left_region(float)
 	{
-		static base_window::memory_view view;
 		force_update_memory |=
 		  view.draw(SrcExp->state.file, SrcExp->buffer, force_update_memory);
 
-		static MemoryEditor editor;
 		editor.DrawContents(reinterpret_cast<uint8_t *>(SrcExp->buffer.data()),
 		                    SrcExp->buffer.size());
 	}
 
-	static void right_region(float)
+	void right_region(float)
 	{
-		static MemoryEditor editor;
-		static base_window::memory_explorer_content_mode content_mode =
-		  base_window::memory_explorer_content_mode::VIEW_DATA_BINARY;
-		base_window::memory_explorer_impl(
-		  editor, content_mode, SrcExp->buffer, force_update_memory);
+		viewer.draw(SrcExp->buffer, force_update_memory);
 	}
 };
 

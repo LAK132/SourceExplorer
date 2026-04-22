@@ -1,6 +1,5 @@
 #include "object_bank.hpp"
 
-#include "../../tostring.hpp"
 #include "../explorer.hpp"
 
 #include <lak/utility.hpp>
@@ -727,9 +726,8 @@ namespace srcexp
 							{
 								auto h = animation.directions[i].handles[frame];
 								result[h].emplace_back(
-								  u"Animation-"_str + srcexp::to_u16string(animIndex) +
-								  u" Direction-"_str + srcexp::to_u16string(i) +
-								  u" Frame-"_str + srcexp::to_u16string(frame));
+								  lak::fmt<u"Animation-{} Direction-{} Frame-{}">(
+								    animIndex, i, frame));
 							}
 						}
 					}

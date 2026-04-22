@@ -275,8 +275,8 @@ namespace srcexp
 				if (ImGui::Button("View Image"))
 				{
 					image(inst.dump_color_transparent)
-					  .if_ok([&](lak::image4_t &&img)
-					         { inst.image = CreateTexture(img, inst.graphics_mode); })
+					  .if_ok([&](const lak::image4_t &img)
+					         { inst.image = srcexp::texture_t::make(img); })
 					  .IF_ERR("Failed To Read Image Data")
 					  .discard();
 				}

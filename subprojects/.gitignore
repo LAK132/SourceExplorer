@@ -1,8 +1,11 @@
 packagecache/
 lua/
 lua-5.4.4/
+.wraplock
 glm*.wrap
+ImFileDialog*.wrap
 imgui*.wrap
+implot*.wrap
 lak.wrap
 lmdb*.wrap
 lua*.wrap
