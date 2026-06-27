@@ -1,4 +1,5 @@
-subdir('lisk/src')
+lisk_subprj = subproject('lisk')
+lisk_dep = lisk_subprj.get_variable('lisk_dep')
 
 lak_subprj = subproject('lak')
 stb_image_dep = lak_subprj.get_variable('stb_image_dep')

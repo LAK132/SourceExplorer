@@ -1,9 +1,6 @@
 #include "lisk_impl.hpp"
 
-lisk::expression LiskAbort(lisk::environment &, bool)
-{
-	std::abort();
-}
+lisk::expression LiskAbort(lisk::environment &, bool) { std::abort(); }
 
 lisk::expression LiskButton(lisk::environment &env,
                             bool allow_tail_eval,
@@ -32,7 +29,7 @@ lisk::expression LiskTreeNode(lisk::environment &env,
 lisk::expression LiskTextEdit(lisk::environment &,
                               bool,
                               lisk::string id,
-                              std::shared_ptr<lisk::string> str)
+                              lak::shared_ptr<lisk::string> str)
 {
 	return lisk::atom(lak::input_text(
 	  id.c_str(), str.get(), ImGuiInputTextFlags_EnterReturnsTrue));
@@ -41,7 +38,7 @@ lisk::expression LiskTextEdit(lisk::environment &,
 lisk::expression LiskMultiTextEdit(lisk::environment &,
                                    bool,
                                    lisk::string id,
-                                   std::shared_ptr<lisk::string> str)
+                                   lak::shared_ptr<lisk::string> str)
 {
 	return lisk::atom(lak::input_text(
 	  id.c_str(),
@@ -53,11 +50,11 @@ lisk::expression LiskMultiTextEdit(lisk::environment &,
 lisk::expression LiskNew(lisk::environment &, bool, lisk::symbol sym)
 {
 	if (sym == "uint")
-		return lisk::atom(lisk::pointer(std::make_shared<lisk::uint_t>()));
+		return lisk::atom(lisk::pointer(lak::shared_ptr<lisk::uint_t>::make()));
 	else if (sym == "sint")
-		return lisk::atom(lisk::pointer(std::make_shared<lisk::sint_t>()));
+		return lisk::atom(lisk::pointer(lak::shared_ptr<lisk::sint_t>::make()));
 	else if (sym == "string")
-		return lisk::atom(lisk::pointer(std::make_shared<lisk::string>()));
+		return lisk::atom(lisk::pointer(lak::shared_ptr<lisk::string>::make()));
 	else
 		return lisk::exception{"Symbol '" + sym +
 		                       "' is not a known type that can be new-ed"};
@@ -126,14 +123,15 @@ lisk::environment DefaultEnvironment()
 {
 	auto result = lisk::builtin::default_env();
 
-	result.define_functor("exit", &LiskAbort);
-	result.define_functor("button", &LiskButton);
-	result.define_functor("tree-node", &LiskTreeNode);
-	result.define_functor("text-edit", &LiskTextEdit);
-	result.define_functor("multiline-text-edit", &LiskMultiTextEdit);
-	result.define_functor("new", &LiskNew);
-	result.define_functor("value", &LiskValue);
-	result.define_functor("set", &LiskSet);
+	result.define_functor("exit", LISK_FUNCTOR_WRAPPER(&LiskAbort));
+	result.define_functor("button", LISK_FUNCTOR_WRAPPER(&LiskButton));
+	result.define_functor("tree-node", LISK_FUNCTOR_WRAPPER(&LiskTreeNode));
+	result.define_functor("text-edit", LISK_FUNCTOR_WRAPPER(&LiskTextEdit));
+	result.define_functor("multiline-text-edit",
+	                      LISK_FUNCTOR_WRAPPER(&LiskMultiTextEdit));
+	result.define_functor("new", LISK_FUNCTOR_WRAPPER(&LiskNew));
+	result.define_functor("value", LISK_FUNCTOR_WRAPPER(&LiskValue));
+	result.define_functor("set", LISK_FUNCTOR_WRAPPER(&LiskSet));
 
 	return result;
 }

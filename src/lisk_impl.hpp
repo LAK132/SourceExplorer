@@ -20,12 +20,12 @@ lisk::expression LiskTreeNode(lisk::environment &env,
 lisk::expression LiskTextEdit(lisk::environment &env,
                               bool allow_tail_eval,
                               lisk::string id,
-                              std::shared_ptr<lisk::string> str);
+                              lak::shared_ptr<lisk::string> str);
 
 lisk::expression LiskMultiTextEdit(lisk::environment &env,
                                    bool allow_tail_eval,
                                    lisk::string id,
-                                   std::shared_ptr<lisk::string> str);
+                                   lak::shared_ptr<lisk::string> str);
 
 lisk::expression LiskNew(lisk::environment &env,
                          bool allow_tail_eval,

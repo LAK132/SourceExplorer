@@ -2,7 +2,7 @@
 
 option('lak_enable_tests',
 	type: 'boolean',
-	value: true,
+	value: false,
 	yield: true,
 )
 
@@ -50,41 +50,38 @@ option('sdl2_from_source',
 )
 
 option('lak_backend',
-  type: 'combo',
-  choices: [
-    'win32',
-    'xlib',
-    'xcb',
-    'sdl',
-  ],
-  value: 'sdl',
-  yield: false,
-)
-
-option('lak_enable_softrender',
-	type: 'boolean',
-	value: true,
+	type: 'combo',
+	choices: [
+		'win32',
+		'xlib',
+		'xcb',
+		# 'wayland',
+		'sdl',
+	],
+	value: 'sdl',
 	yield: true,
 )
 
-option('lak_enable_opengl',
-	type: 'boolean',
-	value: true,
-	yield: true,
-)
-
-option('lak_enable_cobalt',
-	type: 'boolean',
-	value: false,
+option('lak_renderer',
+	type: 'array',
+	choices: [
+		'softrender',
+		'opengl',
+		'cobalt',
+	],
+	value: [
+		'softrender',
+		'opengl',
+	],
 	yield: true,
 )
 
 # llvm options
 
 option('lak_enable_llvm',
-  type: 'boolean',
-  value: false,
-  yield: false,
+	type: 'boolean',
+	value: false,
+	yield: true,
 )
 
 # lmdb options

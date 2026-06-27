@@ -24,7 +24,7 @@ struct lisk_editor
 				      lisk_init_script, lisk_script_environment);
 				    result.is_exception())
 				{
-					lisk_exception_message = result.as_exception().message;
+					lisk_exception_message = result.get_exception().unwrap().message;
 				}
 
 				if (const auto tokens = lisk::root_tokenise(lisk_loop_script);
@@ -33,7 +33,7 @@ struct lisk_editor
 					auto loop = lisk::parse(tokens);
 					if (loop.is_exception())
 					{
-						lisk_exception_message = loop.as_exception().message;
+						lisk_exception_message = loop.get_exception().unwrap().message;
 					}
 					else if (loop.is_list())
 					{
@@ -70,7 +70,7 @@ struct lisk_editor
 			if (result.is_exception())
 			{
 				run_lisk_script        = false;
-				lisk_exception_message = result.as_exception().message;
+				lisk_exception_message = result.get_exception().unwrap().message;
 			}
 		}
 	}

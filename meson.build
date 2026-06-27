@@ -108,15 +108,12 @@ executable(
 	install_dir: install_directory,
 	include_directories: include_directories([
 		'include',
-		'include/lisk/inc',
 	]),
-	link_with: [
-		lisk,
-	],
 	dependencies: [
 		binex_core_dep,
 		stb_image_dep,
 		stb_image_write_dep,
 		imgui_color_text_edit_dep,
+		lisk_dep,
 	],
 )

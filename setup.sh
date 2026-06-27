@@ -16,6 +16,11 @@ case $1 in
     meson setup build --vsenv $@ || exit 1
   ;;
 
+  auto)
+    shift
+    meson setup build $@ || exit 1
+  ;;
+
   *)
     echo "./setup.sh [compiler] <setup args>"
     echo "examples:"
