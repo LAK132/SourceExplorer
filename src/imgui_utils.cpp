@@ -30,6 +30,8 @@ SOFTWARE.
 
 #include <misc/cpp/imgui_stdlib.cpp>
 
+#include <lak/debug.hpp>
+
 bool lak::input_text(const char *str_id,
                      char *buf,
                      size_t buf_size,
@@ -45,6 +47,34 @@ bool lak::input_text(const char *str_id,
 	return result;
 }
 
+template<typename CHAR>
+struct input_text_callback_data
+{
+	lak::string<CHAR> *str;
+	ImGuiInputTextCallback chain;
+	void *chain_user_data;
+};
+
+template<typename CHAR>
+static int input_text_callback(ImGuiInputTextCallbackData *data)
+{
+	auto *user_data =
+	  reinterpret_cast<input_text_callback_data<CHAR> *>(data->UserData);
+	if (data->EventFlag == ImGuiInputTextFlags_CallbackResize)
+	{
+		lak::string<CHAR> *str = user_data->str;
+		ASSERT_EQUAL(data->Buf, (char *)str->c_str());
+		str->resize(data->BufTextLen);
+		data->Buf = (char *)str->c_str();
+	}
+	else if (user_data->chain)
+	{
+		data->UserData = user_data->chain_user_data;
+		return user_data->chain(data);
+	}
+	return 0;
+}
+
 bool lak::input_text(const char *str_id,
                      lak::astring *str,
                      ImGuiInputTextFlags flags,
@@ -54,15 +84,37 @@ bool lak::input_text(const char *str_id,
 	IM_ASSERT(!(flags & ImGuiInputTextFlags_CallbackResize));
 	flags |= ImGuiInputTextFlags_CallbackResize;
 
-	InputTextCallback_UserData cb_user_data;
-	cb_user_data.Str                   = str;
-	cb_user_data.ChainCallback         = callback;
-	cb_user_data.ChainCallbackUserData = user_data;
+	input_text_callback_data<char> cb_user_data;
+	cb_user_data.str             = str;
+	cb_user_data.chain           = callback;
+	cb_user_data.chain_user_data = user_data;
 
 	return lak::input_text(str_id,
 	                       (char *)str->c_str(),
 	                       str->capacity() + 1,
 	                       flags,
-	                       InputTextCallback,
+	                       input_text_callback<char>,
+	                       &cb_user_data);
+}
+
+bool lak::input_text(const char *str_id,
+                     lak::u8string *str,
+                     ImGuiInputTextFlags flags,
+                     ImGuiInputTextCallback callback,
+                     void *user_data)
+{
+	IM_ASSERT(!(flags & ImGuiInputTextFlags_CallbackResize));
+	flags |= ImGuiInputTextFlags_CallbackResize;
+
+	input_text_callback_data<char8_t> cb_user_data;
+	cb_user_data.str             = str;
+	cb_user_data.chain           = callback;
+	cb_user_data.chain_user_data = user_data;
+
+	return lak::input_text(str_id,
+	                       (char *)str->c_str(),
+	                       str->capacity() + 1,
+	                       flags,
+	                       input_text_callback<char8_t>,
 	                       &cb_user_data);
 }

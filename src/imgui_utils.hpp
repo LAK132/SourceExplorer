@@ -47,6 +47,12 @@ namespace lak
 	                ImGuiInputTextFlags flags       = 0,
 	                ImGuiInputTextCallback callback = nullptr,
 	                void *user_data                 = nullptr);
+
+	bool input_text(const char *str_id,
+	                lak::u8string *str,
+	                ImGuiInputTextFlags flags       = 0,
+	                ImGuiInputTextCallback callback = nullptr,
+	                void *user_data                 = nullptr);
 }
 
 #endif

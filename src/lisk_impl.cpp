@@ -1,137 +1,150 @@
 #include "lisk_impl.hpp"
 
-lisk::expression LiskAbort(lisk::environment &, bool) { std::abort(); }
-
-lisk::expression LiskButton(lisk::environment &env,
-                            bool allow_tail_eval,
-                            lisk::string label,
-                            lisk::uneval_expr expr)
+lak::lisk::expression LiskAbort(lak::lisk::environment &, bool)
 {
-	if (ImGui::Button(label.c_str()))
-		return lisk::eval(expr.expr, env, allow_tail_eval);
-	return lisk::atom::nil{};
+	std::abort();
 }
 
-lisk::expression LiskTreeNode(lisk::environment &env,
-                              bool allow_tail_eval,
-                              lisk::string label,
-                              lisk::uneval_expr expr)
+lak::lisk::expression LiskButton(lak::lisk::environment &env,
+                                 bool allow_tail_eval,
+                                 lak::lisk::string label,
+                                 lak::lisk::uneval_expr expr)
 {
-	if (ImGui::TreeNode(label.c_str()))
+	if (ImGui::Button(reinterpret_cast<const char *>(label.c_str())))
+		return lak::lisk::eval(expr.expr, env, allow_tail_eval);
+	return lak::lisk::atom::nil{};
+}
+
+lak::lisk::expression LiskTreeNode(lak::lisk::environment &env,
+                                   bool allow_tail_eval,
+                                   lak::lisk::string label,
+                                   lak::lisk::uneval_expr expr)
+{
+	if (ImGui::TreeNode(reinterpret_cast<const char *>(label.c_str())))
 	{
-		auto result = lisk::eval(expr.expr, env, allow_tail_eval);
+		auto result = lak::lisk::eval(expr.expr, env, allow_tail_eval);
 		ImGui::TreePop();
 		return result;
 	}
-	return lisk::atom::nil{};
+	return lak::lisk::atom::nil{};
 }
 
-lisk::expression LiskTextEdit(lisk::environment &,
-                              bool,
-                              lisk::string id,
-                              lak::shared_ptr<lisk::string> str)
-{
-	return lisk::atom(lak::input_text(
-	  id.c_str(), str.get(), ImGuiInputTextFlags_EnterReturnsTrue));
-}
-
-lisk::expression LiskMultiTextEdit(lisk::environment &,
+lak::lisk::expression LiskTextEdit(lak::lisk::environment &,
                                    bool,
-                                   lisk::string id,
-                                   lak::shared_ptr<lisk::string> str)
+                                   lak::lisk::string id,
+                                   lak::shared_ptr<lak::lisk::string> str)
 {
-	return lisk::atom(lak::input_text(
-	  id.c_str(),
-	  str.get(),
+	return lak::lisk::atom(
+	  lak::input_text((char *)id.c_str(),
+	                  static_cast<lak::u8string *>(str.get()),
+	                  ImGuiInputTextFlags_EnterReturnsTrue));
+}
+
+lak::lisk::expression LiskMultiTextEdit(lak::lisk::environment &,
+                                        bool,
+                                        lak::lisk::string id,
+                                        lak::shared_ptr<lak::lisk::string> str)
+{
+	return lak::lisk::atom(lak::input_text(
+	  (char *)id.c_str(),
+	  static_cast<lak::u8string *>(str.get()),
 	  static_cast<ImGuiInputTextFlags>(ImGuiInputTextFlags_Multiline) |
 	    ImGuiInputTextFlags_EnterReturnsTrue));
 }
 
-lisk::expression LiskNew(lisk::environment &, bool, lisk::symbol sym)
+lak::lisk::expression LiskNew(lak::lisk::environment &,
+                              bool,
+                              lak::lisk::symbol sym)
 {
-	if (sym == "uint")
-		return lisk::atom(lisk::pointer(lak::shared_ptr<lisk::uint_t>::make()));
-	else if (sym == "sint")
-		return lisk::atom(lisk::pointer(lak::shared_ptr<lisk::sint_t>::make()));
-	else if (sym == "string")
-		return lisk::atom(lisk::pointer(lak::shared_ptr<lisk::string>::make()));
+	if (sym == u8"uint"_str)
+		return lak::lisk::atom(
+		  lak::lisk::pointer(lak::shared_ptr<lak::lisk::uint_t>::make()));
+	else if (sym == u8"sint"_str)
+		return lak::lisk::atom(
+		  lak::lisk::pointer(lak::shared_ptr<lak::lisk::sint_t>::make()));
+	else if (sym == u8"string"_str)
+		return lak::lisk::atom(
+		  lak::lisk::pointer(lak::shared_ptr<lak::lisk::string>::make()));
 	else
-		return lisk::exception{"Symbol '" + sym +
-		                       "' is not a known type that can be new-ed"};
+		return lak::lisk::exception{
+		  u8"Symbol '"_str + sym +
+		  u8"' is not a known type that can be new-ed"_str};
 }
 
 template<typename T>
-lisk::expression LiskValueAtomImpl(lisk::pointer ptr)
+lak::lisk::expression LiskValueAtomImpl(lak::lisk::pointer ptr)
 {
 	if (ptr.is_shared_ptr<T>())
-		return lisk::atom(*ptr.as_shared_ptr<T>());
+		return lak::lisk::atom(*ptr.as_shared_ptr<T>());
 	else if (ptr.is_raw_ptr<T>())
-		return lisk::atom(*ptr.as_raw_ptr<T>());
+		return lak::lisk::atom(*ptr.as_raw_ptr<T>());
 	else if (ptr.is_raw_const_ptr<T>())
-		return lisk::atom(*ptr.as_raw_const_ptr<T>());
+		return lak::lisk::atom(*ptr.as_raw_const_ptr<T>());
 	else
-		return lisk::exception{"Not a valid pointer type"};
+		return lak::lisk::exception{u8"Not a valid pointer type"};
 }
 
-lisk::expression LiskValue(lisk::environment &, bool, lisk::pointer ptr)
+lak::lisk::expression LiskValue(lak::lisk::environment &,
+                                bool,
+                                lak::lisk::pointer ptr)
 {
-	if (ptr._type == std::type_index(typeid(lisk::uint_t)))
-		return LiskValueAtomImpl<lisk::uint_t>(ptr);
-	else if (ptr._type == std::type_index(typeid(lisk::sint_t)))
-		return LiskValueAtomImpl<lisk::sint_t>(ptr);
-	else if (ptr._type == std::type_index(typeid(lisk::string)))
-		return LiskValueAtomImpl<lisk::string>(ptr);
+	if (ptr._type == std::type_index(typeid(lak::lisk::uint_t)))
+		return LiskValueAtomImpl<lak::lisk::uint_t>(ptr);
+	else if (ptr._type == std::type_index(typeid(lak::lisk::sint_t)))
+		return LiskValueAtomImpl<lak::lisk::sint_t>(ptr);
+	else if (ptr._type == std::type_index(typeid(lak::lisk::string)))
+		return LiskValueAtomImpl<lak::lisk::string>(ptr);
 	else
-		return lisk::exception{"Cannot get unknown pointer type"};
+		return lak::lisk::exception{u8"Cannot get unknown pointer type"};
 }
 
 template<typename T>
-lisk::expression LiskSetImpl(lisk::pointer ptr, const T &arg)
+lak::lisk::expression LiskSetImpl(lak::lisk::pointer ptr, const T &arg)
 {
 	if (ptr.is_shared_ptr<T>())
 	{
 		*ptr.as_shared_ptr<T>() = arg;
-		return lisk::atom(ptr);
+		return lak::lisk::atom(ptr);
 	}
 	else if (ptr.is_raw_ptr<T>())
 	{
 		*ptr.as_shared_ptr<T>() = arg;
-		return lisk::atom(ptr);
+		return lak::lisk::atom(ptr);
 	}
 	else if (ptr.is_raw_const_ptr<T>())
-		return lisk::exception{"Cannot modify const value"};
+		return lak::lisk::exception{u8"Cannot modify const value"};
 	else
-		return lisk::exception{"Not a valid pointer type"};
+		return lak::lisk::exception{u8"Not a valid pointer type"};
 }
 
-lisk::expression LiskSet(lisk::environment &,
-                         bool,
-                         lisk::pointer ptr,
-                         lisk::expression value)
+lak::lisk::expression LiskSet(lak::lisk::environment &,
+                              bool,
+                              lak::lisk::pointer ptr,
+                              lak::lisk::expression value)
 {
-	if (lisk::uint_t ui; value >> ui)
-		return LiskSetImpl<lisk::uint_t>(ptr, ui);
-	else if (lisk::sint_t si; value >> si)
-		return LiskSetImpl<lisk::sint_t>(ptr, si);
-	else if (lisk::string str; value >> str)
-		return LiskSetImpl<lisk::string>(ptr, str);
+	if_let_ok (auto ui, lak::lisk::from_expr<lak::lisk::uint_t>(value))
+		return LiskSetImpl<lak::lisk::uint_t>(ptr, ui);
+	else if_let_ok (auto si, lak::lisk::from_expr<lak::lisk::sint_t>(value))
+		return LiskSetImpl<lak::lisk::sint_t>(ptr, si);
+	else if_let_ok (auto str, lak::lisk::from_expr<lak::lisk::string>(value))
+		return LiskSetImpl<lak::lisk::string>(ptr, str);
 	else
-		return lisk::exception{"Unknown type of second argument"};
+		return lak::lisk::exception{u8"Unknown type of second argument"};
 }
 
-lisk::environment DefaultEnvironment()
+lak::lisk::environment DefaultEnvironment()
 {
-	auto result = lisk::builtin::default_env();
+	auto result = lak::lisk::builtin::default_env();
 
-	result.define_functor("exit", LISK_FUNCTOR_WRAPPER(&LiskAbort));
-	result.define_functor("button", LISK_FUNCTOR_WRAPPER(&LiskButton));
-	result.define_functor("tree-node", LISK_FUNCTOR_WRAPPER(&LiskTreeNode));
-	result.define_functor("text-edit", LISK_FUNCTOR_WRAPPER(&LiskTextEdit));
-	result.define_functor("multiline-text-edit",
-	                      LISK_FUNCTOR_WRAPPER(&LiskMultiTextEdit));
-	result.define_functor("new", LISK_FUNCTOR_WRAPPER(&LiskNew));
-	result.define_functor("value", LISK_FUNCTOR_WRAPPER(&LiskValue));
-	result.define_functor("set", LISK_FUNCTOR_WRAPPER(&LiskSet));
+	result.define_function("exit", LISK_FUNCTION_WRAPPER(LiskAbort));
+	result.define_function("button", LISK_FUNCTION_WRAPPER(LiskButton));
+	result.define_function("tree-node", LISK_FUNCTION_WRAPPER(LiskTreeNode));
+	result.define_function("text-edit", LISK_FUNCTION_WRAPPER(LiskTextEdit));
+	result.define_function("multiline-text-edit",
+	                       LISK_FUNCTION_WRAPPER(LiskMultiTextEdit));
+	result.define_function("new", LISK_FUNCTION_WRAPPER(LiskNew));
+	result.define_function("value", LISK_FUNCTION_WRAPPER(LiskValue));
+	result.define_function("set", LISK_FUNCTION_WRAPPER(LiskSet));
 
 	return result;
 }

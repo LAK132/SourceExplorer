@@ -119,7 +119,6 @@ executable(
 		stb_image_dep,
 		stb_image_write_dep,
 		imgui_color_text_edit_dep,
-		lisk_dep,
 	],
 	build_by_default: true,
 	install: get_option('lak_install_targets').contains('srcexp'),
