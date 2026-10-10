@@ -12,40 +12,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, ubuntu-24.04, macos-15]
-        arch: [x86, x64, arm64]
-        target:
-          - srcexp
+        os: [windows-2025, ubuntu-26.04, macos-26, macos-26-intel]
+        arch: [x64, arm64]
         exclude:
-          - os: windows-2022
+          - os: windows-2025
             arch: arm64
-          - os: ubuntu-24.04
+          - os: ubuntu-26.04
             arch: arm64
-          - os: macos-15
-            arch: x86
-          - os: macos-15
+          - os: macos-26
             arch: x64
+          - os: macos-26-intel
+            arch: arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.12.x'
+          python-version: '3.11'
 
       - if: startsWith(matrix.os, 'windows')
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: ${{ matrix.arch }}
-          vsversion: 2022
       - if: startsWith(matrix.os, 'windows')
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install meson ninja
 
       - if: startsWith(matrix.os, 'ubuntu')
-        uses: egor-tensin/setup-gcc@v1
+        uses: egor-tensin/setup-gcc@v2
         with:
           version: 13
           platform: ${{ matrix.arch }}
@@ -53,20 +50,36 @@ jobs:
         run: |
           sudo python3 -m pip install --upgrade setuptools
           sudo python3 -m pip install meson ninja
+          sudo apt install libx11-dev libx11-xcb-dev libxrandr-dev libwayland-dev libcairo2-dev libegl1-mesa-dev libgbm-dev
 
       - if: startsWith(matrix.os, 'macos')
         run: |
           brew install meson ninja
-          echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          echo "CC=$(brew --prefix llvm@20)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm@20)/bin/clang++" >> $GITHUB_ENV
 
-        # _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR is a hack fix for https://github.com/actions/runner-images/issues/10004
-      - run: meson setup build -Dcpp_args="-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR" --buildtype debugoptimized
-      - run: meson compile -C build ${{ matrix.target }}
-      # - run: run tests
+      - if: startsWith(matrix.os, 'windows')
+        run: meson setup build --buildtype debugoptimized -Dprefix="$pwd\install" -Dbindir=bin -Dlibdir=bin -Dcpp_args="-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR" "-Dlak_backend=win32" "-Dcobalt_renderer=OpenGL4,Direct3D11,Direct3D12"
+      - if: startsWith(matrix.os, 'ubuntu')
+        run: meson setup build --buildtype debugoptimized -Dprefix="$(pwd)/install" "-Dsdl2_from_source=true" "-Dlak_backend=sdl2" "-Dcobalt_renderer=OpenGL4"
+      - if: startsWith(matrix.os, 'macos')
+        run: meson setup build --buildtype debugoptimized -Dprefix="$(pwd)/install" "-Dsdl2_from_source=true" "-Dlak_backend=sdl2" "-Dcobalt_renderer=Vulkan"
+      - run: meson install -C build
+      # :TODO: run tests
+
+      - if: startsWith(matrix.os, 'windows')
+        run: |
+          Compress-Archive -Path install\* -DestinationPath Source-Explorer-${{ matrix.os }}-${{ matrix.arch }}.zip
+
+      - if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        run: |
+          cd install
+          tar cfz Source-Explorer-${{ matrix.os }}-${{ matrix.arch }}.tar.gz *
+          ls
+
   push-staging:
     needs: run-tests
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
         with:

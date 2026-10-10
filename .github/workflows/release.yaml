@@ -11,15 +11,14 @@ jobs:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       tag: ${{ steps.get_tag.outputs.TAG }}
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
       - run: echo "TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
         shell: bash
         id: get_tag
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v3
         id: create_release
         with:
-          token: ${{ github.token }}
           draft: false
           prerelease: true
           name: Source Explorer ${{ github.ref_name }}
@@ -30,55 +29,69 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022]
-        arch: [x86, x64]
+        os: [windows-2025]
+        arch: [x64]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.12.x'
+          python-version: '3.11'
 
       - if: startsWith(matrix.os, 'windows')
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: ${{ matrix.arch }}
-          vsversion: 2022
       - if: startsWith(matrix.os, 'windows')
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install meson ninja
 
       - if: startsWith(matrix.os, 'ubuntu')
-        uses: egor-tensin/setup-gcc@v1
+        uses: egor-tensin/setup-gcc@v2
         with:
           version: 13
           platform: ${{ matrix.arch }}
       - if: startsWith(matrix.os, 'ubuntu')
         run: |
-          sudo python3 -m pip install --upgrade pip setuptools wheel
+          sudo python3 -m pip install --upgrade setuptools
           sudo python3 -m pip install meson ninja
+          sudo apt install libx11-dev libx11-xcb-dev libxrandr-dev libwayland-dev libcairo2-dev libegl1-mesa-dev libgbm-dev
 
       - if: startsWith(matrix.os, 'macos')
         run: |
           brew install meson ninja
-          echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          echo "CC=$(brew --prefix llvm@20)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm@20)/bin/clang++" >> $GITHUB_ENV
 
-      - run: meson setup build --buildtype debugoptimized
-      - run: meson compile -C build srcexp
+      - if: startsWith(matrix.os, 'windows')
+        run: meson setup build --buildtype debugoptimized -Dprefix="$pwd\install" -Dbindir=bin -Dlibdir=bin -Dlicensedir="share\licenses" -Dcpp_args="-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR" "-Dlak_backend=win32" "-Dcobalt_renderer=OpenGL4,Direct3D11,Direct3D12"
+      - if: startsWith(matrix.os, 'ubuntu')
+        run: meson setup build --buildtype debugoptimized -Dprefix="$(pwd)/install" -Dlicensedir="share/licenses" "-Dsdl2_from_source=true" "-Dlak_backend=sdl2" "-Dcobalt_renderer=OpenGL4"
+      - if: startsWith(matrix.os, 'macos')
+        run: meson setup build --buildtype debugoptimized -Dprefix="$(pwd)/install" -Dlicensedir="share/licenses" "-Dsdl2_from_source=true" "-Dlak_backend=sdl2" "-Dcobalt_renderer=Vulkan"
+      - run: meson install -C build
 
       - if: startsWith(matrix.os, 'windows')
         run: |
-          Compress-Archive -Path build\srcexp.exe, build\srcexp.pdb -DestinationPath Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ runner.os }}-${{ matrix.arch }}.zip
-      # - if: startsWith(matrix.os, 'ubuntu')
-      #   run: make .deb and .zip
-      # - if: startsWith(matrix.os, 'macos')
-      #   run: make .dmg and .zip
-      - uses: softprops/action-gh-release@v1
+          Compress-Archive -Path install\* -DestinationPath Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}.zip
+
+      - if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        run: |
+          cd install
+          tar cfz Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz *
+          ls
+
+      - if: startsWith(matrix.os, 'windows')
+        uses: softprops/action-gh-release@v3
         with:
-          token: ${{ github.token }}
           fail_on_unmatched_files: true
-          files: Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ runner.os }}-${{ matrix.arch }}.zip
+          files: Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}.zip
+
+      - if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        uses: softprops/action-gh-release@v3
+        with:
+          fail_on_unmatched_files: true
+          files: install/bin/Source-Explorer-${{ needs.create-release.outputs.tag }}-${{ runner.os }}-${{ matrix.arch }}.tar.gz

@@ -17,7 +17,6 @@
 
 // This is here to stop the #define ERROR clash caused by wingdi
 #include <GL/gl3w.h>
-#include <SDL.h>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_utils.hpp"
@@ -290,7 +289,7 @@ lak::error_code<int> basic_program_init()
 	if (!SrcExp->exe.attempt)
 	{
 		lak::debugger.live_errors_only = true;
-		SrcExp->exe.path = fs::current_path();
+		SrcExp->exe.path               = fs::current_path();
 	}
 	else
 	{

@@ -1,3 +1,14 @@
+# installing
+
+option('lak_install_targets',
+	type: 'array',
+	choices: [
+		'cobalt',
+		'srcexp',
+	],
+	yield: true,
+)
+
 # testing options
 
 option('lak_enable_tests',
@@ -56,9 +67,10 @@ option('lak_backend',
 		'xlib',
 		'xcb',
 		# 'wayland',
-		'sdl',
+		'sdl2',
+		'sdl3',
 	],
-	value: 'sdl',
+	value: 'sdl2',
 	yield: true,
 )
 
@@ -70,8 +82,20 @@ option('lak_renderer',
 		'cobalt',
 	],
 	value: [
-		'softrender',
-		'opengl',
+		'cobalt',
+	],
+	yield: true,
+)
+
+option('cobalt_renderer',
+	type: 'array',
+	choices: [
+		'OpenGL3',
+		'OpenGL4',
+		'Direct3D11',
+		'Direct3D12',
+		'Vulkan',
+		# 'Metal',
 	],
 	yield: true,
 )

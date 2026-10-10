@@ -4,6 +4,7 @@
 #include "base_window.hpp"
 #include "binary_analysis_window.hpp"
 #include "byte_pairs_window.hpp"
+// #include "lisk_editor.hpp"
 #include "testing_window.hpp"
 
 #include "main.h"
@@ -215,33 +216,17 @@ struct main_window : public base_window<main_window>,
 			const char *host_name = "Unknown";
 			switch (SrcExp->state.host)
 			{
-				case srcexp::host_system_t::windows:
-					host_name = "Windows";
-					break;
-				case srcexp::host_system_t::java:
-					host_name = "Java";
-					break;
-				case srcexp::host_system_t::flash:
-					host_name = "Flash";
-					break;
-				case srcexp::host_system_t::xna:
-					host_name = "XNA";
-					break;
-				case srcexp::host_system_t::html5:
-					host_name = "HTML5";
-					break;
-				case srcexp::host_system_t::android:
-					host_name = "Android";
-					break;
-				case srcexp::host_system_t::ios:
-					host_name = "iOS";
-					break;
+				case srcexp::host_system_t::windows: host_name = "Windows"; break;
+				case srcexp::host_system_t::java:    host_name = "Java"; break;
+				case srcexp::host_system_t::flash:   host_name = "Flash"; break;
+				case srcexp::host_system_t::xna:     host_name = "XNA"; break;
+				case srcexp::host_system_t::html5:   host_name = "HTML5"; break;
+				case srcexp::host_system_t::android: host_name = "Android"; break;
+				case srcexp::host_system_t::ios:     host_name = "iOS"; break;
 				case srcexp::host_system_t::nintendo_switch:
 					host_name = "Switch";
 					break;
-				case srcexp::host_system_t::xbox_one:
-					host_name = "Xbox";
-					break;
+				case srcexp::host_system_t::xbox_one: host_name = "Xbox"; break;
 				case srcexp::host_system_t::playstation:
 					host_name = "PlayStation";
 					break;
@@ -307,24 +292,12 @@ struct main_window : public base_window<main_window>,
 
 			switch (selected)
 			{
-				case MEMORY:
-					base_window::memory_explorer(mem_update);
-					break;
-				case IMAGE:
-					base_window::image_explorer(image_update);
-					break;
-				case AUDIO:
-					base_window::audio_explorer(audio_update);
-					break;
-				// case LISK:
-				// 	lisk_editor::draw();
-				// 	break;
-				case DEBUG_LOG:
-					base_window::log_explorer();
-					break;
-				default:
-					selected = 0;
-					break;
+				case MEMORY:    base_window::memory_explorer(mem_update); break;
+				case IMAGE:     base_window::image_explorer(image_update); break;
+				case AUDIO:     base_window::audio_explorer(audio_update); break;
+				// case LISK:      lisk_editor::draw(); break;
+				case DEBUG_LOG: base_window::log_explorer(); break;
+				default:        selected = 0; break;
 			}
 		}
 	}

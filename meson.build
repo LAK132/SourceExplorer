@@ -9,6 +9,12 @@ project(
 		'b_vscrt': 'static_from_buildtype',
 		'warning_level': '3',
 		'werror': false,
+		'backend_startup_project': 'srcexp',
+		'backend_max_links': 1,
+		'prefix': meson.global_build_root()/'install',
+		'bindir': 'bin',
+		'libdir': 'lib',
+		'licensedir': 'share'/'licenses',
 	},
 )
 
@@ -96,16 +102,15 @@ else
 	)
 endif
 
-install_directory = host_machine.cpu_family()
-
 subdir('include')
 subdir('src')
 
 executable(
 	'srcexp',
-	srcexp + [git_header],
-	install: true,
-	install_dir: install_directory,
+	[
+		srcexp,
+		git_header,
+	],
 	include_directories: include_directories([
 		'include',
 	]),
@@ -116,4 +121,7 @@ executable(
 		imgui_color_text_edit_dep,
 		lisk_dep,
 	],
+	build_by_default: true,
+	install: get_option('lak_install_targets').contains('srcexp'),
+	install_rpath: get_option('prefix')/get_option('libdir'),
 )
